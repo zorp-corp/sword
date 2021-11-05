@@ -11,7 +11,7 @@ milliseconds to process one event. Memory management overhead after nock evaluat
 memory management overhead during evaluation is harder to measure but likely to be significant.
 
 Functional programming language implementations mostly do not mutate, they allocate. This means that many allocations are
-are discarded quickly. Nock is extreme about this: there is no possible way to mutate in Nock (with the only exception being
+discarded quickly. Nock is extreme about this: there is no possible way to mutate in Nock (with the only exception being
 a case of optimization where there is no sharing). Therefore allocation should be fast, and garbage should not incur
 management overhead.
 
