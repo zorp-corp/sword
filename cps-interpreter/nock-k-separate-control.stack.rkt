@@ -8,9 +8,9 @@
 ;; Procedures no longer take language-native arguments, but have an explicit convention
 ;; for the globally-defined registers in which they expect their arguments.
 
-(define stack '())
+(define data-stack '())
 (define (push-k-data k)
- (set! stack (cons k stack))) 
+ (set! data-stack (cons k data-stack))) 
 
 (define control-stack '())
 (define (push-k-control k)
@@ -33,13 +33,13 @@
 ; interface with non-CPS, non-registerized calling convention
 (define (nock-noun subject formula gates err-k trace)
  (begin
-  (push-k-control 'empty-k)
-  (push-k-data empty-k)
+  (push-k-data empty-data)
+  (push-k-control empty-k)
   (set-register 'ra subject)
-  (set-register 'rb formula)
   (set-register 'rc gates)
   (set-register 'rd err-k)
   (set-register 're trace)
+  (set-register 'rb formula)
   (nock-noun-cps)))
 
 ; ra - subject
@@ -51,8 +51,8 @@
  (match rb
   ([cons (cons (var b) (var c)) (var d)]
    (begin
-    (push-k-control 'nock-cons-k-1)
-    (push-k-data (nock-cons-k-1 ra d rc rd re))
+    (push-k-data (nock-cons-data-1 ra rc rd re))
+    (push-k-control (nock-cons-k-1 d))
     ; ra already set
     (set-register 'rb (cons b c))
     ; rc already set
@@ -72,8 +72,8 @@
     (apply-k)))
   ([cons 2 (cons (var b) (var c))]
    (begin
-    (push-k-control 'nock-2-k-1)
-    (push-k-data (nock-2-k-1 ra c rc rd re))
+    (push-k-data (nock-2-data-1 ra rc rd re))
+    (push-k-control (nock-2-k-1 c))
     ; ra already set
     (set-register 'rb b)
     ; rc already set
@@ -82,8 +82,8 @@
     (nock-noun-cps)))
   ([cons 3 (var b)]
    (begin
-    (push-k-control 'nock-3-k)
-    (push-k-data nock-3-k)
+    (push-k-data nock-3-data)
+    (push-k-control nock-3-k)
     ; ra already set
     (set-register 'rb b)
     ; rc already set
@@ -92,8 +92,8 @@
     (nock-noun-cps)))
   ([cons 4 (var b)]
    (begin
-    (push-k-control 'nock-4-k)
-    (push-k-data nock-4-k)
+    (push-k-data nock-4-data)
+    (push-k-control nock-4-k)
     ; ra already set
     (set-register 'rb b)
     ; rc already set
@@ -102,8 +102,8 @@
     (nock-noun-cps)))
   ([cons 5 (cons (var b) (var c))]
    (begin
-    (push-k-control 'nock-5-k-1)
-    (push-k-data (nock-5-k-1 ra c rc rd re))
+    (push-k-data (nock-5-data-1 ra rc rd re))
+    (push-k-control (nock-5-k-1 c))
     ; ra already set
     (set-register 'rb b)
     ; rc already set
@@ -112,8 +112,8 @@
     (nock-noun-cps)))
   ([cons 6 (cons (var b) (cons (var c) (var d)))]
    (begin
-    (push-k-control 'nock-6-k)
-    (push-k-data (nock-6-k ra c d rc rd re))
+    (push-k-data (nock-6-data ra rc rd re))
+    (push-k-control (nock-6-k c d))
     ; ra already set
     (set-register 'rb b)
     ; rc already set
@@ -122,8 +122,8 @@
     (nock-noun-cps)))
   ([cons 7 (cons (var b) (var c))]
    (begin
-    (push-k-control 'nock-7-k)
-    (push-k-data (nock-7-k c rc rd re))
+    (push-k-data (nock-7-data rc rd re))
+    (push-k-control (nock-7-k c))
     ; ra already set
     (set-register 'rb b)
     ; rc already set
@@ -132,8 +132,8 @@
     (nock-noun-cps)))
   ([cons 8 (cons (var b) (var c))]
    (begin
-    (push-k-control 'nock-8-k)
-    (push-k-data (nock-8-k ra c rc rd re))
+    (push-k-data (nock-8-data ra rc rd re))
+    (push-k-control (nock-8-k c))
     ; ra already set
     (set-register 'rb b)
     ; rc already set
@@ -142,8 +142,8 @@
     (nock-noun-cps)))
   ([cons 9 (cons (var b) (var c))]
    (begin
-    (push-k-control 'nock-9-k-1)
-    (push-k-data (nock-9-k-1 b rc rd re))
+    (push-k-data (nock-9-data-1 rc rd re))
+    (push-k-control (nock-9-k-1 c))
     ; ra already set
     (set-register 'rb c)
     ; rc already set
@@ -152,8 +152,8 @@
     (nock-noun-cps)))
   ([cons 10 (cons (cons (var b) (var c)) (var d))]
    (begin
-    (push-k-control 'nock-10-k-1)
-    (push-k-data (nock-10-k-1 ra d b rc rd re))
+    (push-k-data (nock-10-data-1 ra rc rd re))
+    (push-k-control (nock-10-k-1 d b))
     ; ra already set
     (set-register 'rb c)
     ; rc already set
@@ -162,8 +162,8 @@
     (nock-noun-cps)))
   ([cons 11 (cons (cons (var b) (var c)) (var d))]
    (begin
-    (push-k-control 'nock-11-k)
-    (push-k-data (nock-11-k ra b d rc rd re))
+    (push-k-data (nock-11-data ra rc rd re))
+    (push-k-control (nock-11-k b d))
     ; ra already set
     (set-register 'rb c)
     ; rc already set
@@ -180,8 +180,8 @@
     (nock-noun-cps)))
   ([cons 12 (cons (var ref) (var path))]
    (begin
-    (push-k-control 'nock-12-k-1)
-    (push-k-data (nock-12-k-1 ra path rc rd re))
+    (push-k (nock-12-data-1 ra rc rd re))
+    (push-k-control (nock-12-k-1 path))
     ; ra already set
     (set-register 'rb ref)
     ; rc already set
@@ -235,8 +235,8 @@
    (set-register 'rb (cons 2 rd))
    (apply-err-k))
   (begin
-   (push-k-control 'nock-tree-find-k)
-   (push-k-data (nock-tree-find-k ra))
+   (push-k-control (nock-tree-find-k ra))
+   (push-k-data nock-tree-find)
    (set-register 'ra rb)
    (reverse-address))))
 
@@ -249,15 +249,15 @@
   (apply-k)
   (if (even? rb)
    (begin
-    (push-k-control 'nock-tree-edit-car-k)
-    (push-k-data (nock-tree-edit-car-k rc))
+    (push-k-control nock-tree-edit-car-k)
+    (push-k-data (nock-tree-edit-car-data rc))
     ; ra already set
     (set-register 'rb (arithmetic-shift rb -1))
     (set-register 'rc (car rc))
     (nock-tree-edit-reversed))
    (begin
-    (push-k-control 'nock-tree-edit-cdr-k)
-    (push-k-data (nock-tree-edit-cdr-k rc))
+    (push-k-control nock-tree-edit-cdr-k)
+    (push-k-data (nock-tree-edit-cdr-data rc))
     ; ra already set
     (set-register 'rb (arithmetic-shift rb -1))
     (set-register 'rc (cdr rc))
@@ -276,65 +276,69 @@
    (set-register 'rb (cons 2 re))
    (apply-err-k))
   (begin
-   (push-k-control 'nock-tree-edit-k)
-   (push-k-data (nock-tree-edit-k ra rc))
+   (push-k-data (nock-tree-edit-data ra rc))
+   (push-k-control nock-tree-edit-k)
    (set-register 'ra rb)
    (reverse-address))))
 
-(define empty-k '())
-(define (nock-cons-k-1 subject d gates err-k trace) (list subject d gates err-k trace))
-(define (nock-cons-k-2 u) (list u))
-(define (nock-2-k-1 subject c gates err-k trace) (list subject c gates err-k trace)) 
-(define (nock-2-k-2 u gates err-k trace) (list u gates err-k trace))
-(define nock-3-k '())
-(define nock-4-k '())
-(define (nock-5-k-1 subject c gates err-k trace) (list subject c gates err-k trace))
-(define (nock-5-k-2 u) (list u))
-(define (nock-6-k subject c d gates err-k trace) (list subject c d gates err-k trace))
-(define (nock-7-k c gates err-k trace) (list c gates err-k trace))
-(define (nock-8-k subject c gates err-k trace) (list subject c gates err-k trace))
-(define (nock-9-k-1 b gates err-k trace) (list b gates err-k trace))
-(define (nock-9-k-2 u gates err-k trace) (list u gates err-k trace))
-(define (nock-10-k-1 subject d b gates err-k trace) (list subject d b gates err-k trace))
-(define (nock-10-k-2 u b err-k trace) (list u b err-k trace))
-(define (nock-11-k subject b d gates err-k trace) (list subject b d gates err-k trace))
-(define (nock-12-k-1 subject path gates err-k trace) (list subject path gates err-k trace))
-(define (nock-12-k-2 gates err-k trace u) (list gates err-k trace u))
-(define (nock-12-k-3 u v outer-err-k outer-trace) (list u v outer-err-k outer-trace))
-(define (nock-tree-find-k tree) (list tree))
-(define (nock-tree-edit-car-k tree) (list tree))
-(define (nock-tree-edit-cdr-k tree) (list tree))
-(define (nock-tree-edit-k subtree tree) (list subtree tree))
+(define empty-k (list 'empty-k))
+(define empty-data '())
+(define (nock-cons-data-1 subject gates err-k trace) (list subject gates err-k trace))
+(define (nock-cons-k-1 d) (list 'nock-cons-k-1 d))
+(define (nock-cons-data-2 u) (list u))
+(define nock-cons-k-2 (list 'nock-cons-k-2))
+(define (nock-2-k-1 subject c gates err-k trace) (list 'nock-2-k-1 subject c gates err-k trace)) 
+(define (nock-2-k-2 u gates err-k trace) (list 'nock-2-k-2 u gates err-k trace))
+(define nock-3-k (list 'nock-3-k))
+(define nock-4-k (list 'nock-4-k))
+(define (nock-5-k-1 subject c gates err-k trace) (list 'nock-5-k-1 subject c gates err-k trace))
+(define (nock-5-k-2 u) (list 'nock-5-k-2 u))
+(define (nock-6-k subject c d gates err-k trace) (list 'nock-6-k subject c d gates err-k trace))
+(define (nock-7-k c gates err-k trace) (list 'nock-7-k c gates err-k trace))
+(define (nock-8-k subject c gates err-k trace) (list 'nock-8-k subject c gates err-k trace))
+(define (nock-9-k-1 b gates err-k trace) (list 'nock-9-k-1 b gates err-k trace))
+(define (nock-9-k-2 u gates err-k trace) (list 'nock-9-k-2 u gates err-k trace))
+(define (nock-10-k-1 subject d b gates err-k trace) (list 'nock-10-k-1 subject d b gates err-k trace))
+(define (nock-10-k-2 u b err-k trace) (list 'nock-10-k-2 u b err-k trace))
+(define (nock-11-k subject b d gates err-k trace) (list 'nock-11-k subject b d gates err-k trace))
+(define (nock-12-k-1 subject path gates err-k trace) (list 'nock-12-k-1 subject path gates err-k trace))
+(define (nock-12-k-2 gates err-k trace u) (list 'nock-12-k-2 gates err-k trace u))
+(define (nock-12-k-3 u v outer-err-k outer-trace) (list 'nock-12-k u v outer-err-k outer-trace))
+(define (nock-tree-find-k tree) (list 'nock-tree-find-k tree))
+(define (nock-tree-edit-car-k tree) (list 'nock-tree-edit-car-k tree))
+(define (nock-tree-edit-cdr-k tree) (list 'nock-tree-edit-cdr-k tree))
+(define (nock-tree-edit-k subtree tree) (list 'nock-tree-edit-k subtree tree))
 
 ; apply the continuation from the top of the stack
 ; ra - result
 (define (apply-k)
  (let
-  [(data (car stack))
-   (k (car control-stack))]
+  [(data (car data-stack))
+   (control (car control-stack))
+   (k (append control data))]
   (begin
-   (set! stack (cdr stack))
+   (set! data-stack (cdr data-stack))
    (set! control-stack (cdr control-stack))
-   (match (cons k data)       
+   (match k       
     ([list 'empty-k] ra)
-    ([list 'nock-cons-k-1 (var subject) (var d) (var gates) (var err-k) (var trace)]
+    ([list 'nock-cons-k-1 (var d) (var subject) (var gates) (var err-k) (var trace)]
      (begin
-      (push-k-control 'nock-cons-k-2)
-      (push-k-data (nock-cons-k-2 ra))
-      (set-register 'ra subject)
+      (push-k-control nock-cons-k-2
       (set-register 'rb d)
+      (push-k-data nock-cons-data-2 ra))
+      (set-register 'ra subject)
       (set-register 'rc gates)
       (set-register 'rd err-k)
       (set-register 're trace)
-      (nock-noun-cps)))
-    ([list 'nock-cons-k-2 (var u) (var k^)]
+      (nock-noun-cps subject d gates err-k trace)))
+    ([list 'nock-cons-k-2 (var u)]
      (begin
       (set-register 'ra (cons u ra))
       (apply-k)))
-    ([list 'nock-2-k-1 (var subject) (var c) (var gates) (var err-k) (var trace)]
+    ([list 'nock-2-k-1 (var c) (var subject) (var gates) (var err-k) (var trace)]
      (begin
-      (push-k-control 'nock-2-k-2)
-      (push-k-data (nock-2-k-2 ra gates err-k trace))
+      (push-k-control nock-2-k-2)
+      (push-k-data (nock-2-data-2 ra gates err-k trace))
       (set-register 'ra subject)
       (set-register 'rb c)
       (set-register 'rc gates)
@@ -363,8 +367,8 @@
       (apply-k)))
     ([list 'nock-5-k-1 (var subject) (var c) (var gates) (var err-k) (var trace)]
      (begin
-      (push-k-control 'nock-5-k-2)
-      (push-k-data (nock-5-k-2 ra))
+      (push-k-data (nock-5-data-2 ra))
+      (push-k-control nock-5-k-2)
       (set-register 'ra subject)
       (set-register 'rb c)
       (set-register 'rc gates)
@@ -418,8 +422,8 @@
       (nock-noun-cps)))
     ([list 'nock-9-k-1 (var b) (var gates) (var err-k) (var trace)]
      (begin
-      (push-k-control 'nock-9-k-2)
-      (push-k-data (nock-9-k-2 ra gates err-k trace))
+      (push-k-data (nock-9-data-2 ra gates err-k trace))
+      (push-k-control nock-9-k-2)
       ; ra already set
       (set-register 'rb b)
       (set-register 'rc err-k)
@@ -433,17 +437,17 @@
       (set-register 'rd err-k)
       (set-register 're trace)
       (nock-noun-cps)))
-    ([list 'nock-10-k-1 (var subject) (var d) (var b) (var gates) (var err-k) (var trace)]
+    ([list 'nock-10-k-1 (var d) (var b) (var subject) (var gates) (var err-k) (var trace)]
      (begin
-      (push-k-control 'nock-10-k-2)
-      (push-k-data (nock-10-k-2 ra b err-k trace))
+      (push-k-data (nock-10-data-2 ra err-k trace))
+      (push-k-control (nock-10-k-2 b))
       (set-register 'ra subject)
       (set-register 'rb d)
       (set-register 'rc gates)
       (set-register 'rd err-k)
       (set-register 're trace)
       (nock-noun-cps)))
-    ([list 'nock-10-k-2 (var u) (var b) (var err-k) (var trace)]
+    ([list 'nock-10-k-2 (var b) (var u) (var err-k) (var trace)]
      (begin
       (set-register 'rc ra)
       (set-register 'ra u)
@@ -469,8 +473,8 @@
        (nock-noun-cps))))
     ([list 'nock-12-k-1 (var subject) (var path) (var gates) (var err-k) (var trace)]
      (begin
-      (push-k-control 'nock-12-k-2)
-      (push-k-data (nock-12-k-2 gates err-k trace ra))
+      (push-k-data (nock-12-k-2 err-k trace ra))
+      (push-k-control (nock-12-data-2 gates))
       (set-register 'ra subject)
       (set-register 'rb path)
       (set-register 'rc gates)
@@ -487,8 +491,8 @@
         (gates (cdr gates))
         (core (cons (car gate) (cons (cons u ra) (cdr (cdr gate)))))]
        (begin
-        (push-k-control 'nock-12-k-3)
-        (push-k-data (nock-12-k-3 u ra outer-err-k outer-trace))
+        (push-k-data (nock-12-data-3 u ra outer-err-k outer-trace))
+        (push-k-control nock-12-k-3)
         (set-register 'ra core)
         (set-register 'rb (car core))
         (set-register 'rc gates)
@@ -528,8 +532,7 @@
      (begin
       (set-register 'rb ra)
       (set-register 'ra tree)
-      (nock-tree-find-reversed)))
-    ((var k^) #:when (procedure? k^) (k^ ra))))))
+      (nock-tree-find-reversed)))))))
 
 ; ra - err continuation
 ; rb - err trace
