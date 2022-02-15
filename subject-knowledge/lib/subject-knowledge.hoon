@@ -1,7 +1,7 @@
 =<
 ::  a memoization for formula analysis, updated/inspected at eval
 ::  boundaries (2/9)
-=|  memo=(map [sock *] (unit sock))
+=|  memo=(map [sock *] [(unit sock) (unit @tas)])
 |%
 ::  Partial knowledge of a noun
 +$  sock  ^sock
@@ -206,14 +206,14 @@
     =/  m  (~(get by memo) s k.f)
     ?~  m
       :: memo miss
-      =.  memo  (~(put by memo) [s k.f] ~)
+      =.  memo  (~(put by memo) [s k.f] [~ ~])
       =^  r  memo  ^$(s s, f +.f)
-      [r (~(put by memo) [s k.f] `r)] 
-    ?~  u.m
+      [r (~(put by memo) [s k.f] [`r ~])] 
+    ?~  -.u.m
       ::  memo blackhole
       [[%gues ~] memo]
     ::  memo hit]
-    [u.u.m memo]
+    [u.-.u.m memo]
   ?+  f  ~|  %wash-bonk  !!
       ::
       [[* *] *]
@@ -330,8 +330,8 @@
   $%
     [%dyn =sock]     :: we don't know the formula
     [%mis =foot]     :: we know the formula, it's not memoized
-    [%rec =sock f=*] :: a recursive call, the memo _memoe has a blackhole for this sock/formula pair
-    [%hit res=sock]  :: a memoized call, the memo _memoe has an entry for this sock/formula pair
+    [%rec =sock f=*] :: a recursive call, the memo table has a blackhole for this sock/formula pair
+    [%hit res=sock]  :: a memoized call, the memo table has an entry for this sock/formula pair
     [%jet jet=@tas]  :: call would be jetted 
   ==
 ::  Annotated Nock tree with subject knowledge
@@ -380,6 +380,7 @@
 ++  pull
   |=  [=jute s=sock f=*]
   ^-  [foot _memo]
+  =/  labl  [s f]
   |-
   ^-  [foot _memo]
   =/  sockf
@@ -396,17 +397,19 @@
     =/  mem  (~(get by memo) [s k.f])
     ?~  mem
       :: memo miss
-      =.  memo  (~(put by memo) [s k.f] `(unit sock)`~) :: blackhole for recursive eval
+      =.  memo  (~(put by memo) [s k.f] [~ ~]) :: blackhole for recursive eval
+      =.  labl  [s k.f]
       =^  res  memo  ^$(s s, f k.f)
       ~&  "Miss: sock {<s>} formula {<k.f>}"
-      [[%mis res] (~(put by memo) [s k.f] `(unit sock)``r.res)] :: fill in result
-    ?~  u.mem
+      =.  memo  (~(jab by memo) [s k.f] |=([(unit sock) nam=(unit @tas)] [`r.res nam]))
+      [[%mis res] memo] :: fill in result
+    ?~  -.u.mem
       :: memo blackhole
       ~&  "Recur: sock {<[s]>} formula {<k.f>}"
       [[%rec s k.f] memo]
     :: memo hit
     ~&  "Hit: sock {<[s]>} formula {<k.f>} result {<u.u.mem>}"
-    [[%hit u.u.mem] memo] 
+    [[%hit u.-.u.mem] memo] 
   ?+  f  ~|  "Unrecognized nock {<f>}"  ~|  %pull-bonk  !!
       ::
       [[* *] *]
@@ -515,6 +518,13 @@
         $(c +.c)
       =^  dfoot  memo  ^$(f d.f)
       [[[%11 [b.f cfoot] dfoot] s r.dfoot] memo]
+    ?:  &(=(b.f %fast) ?=([%1 @ *] c.f))
+      ~&  "%fast hint {<+<.c.f>}"
+      ~|  "labl {<labl>} does not go to black hole"
+      ?>  =((~(get by memo) labl) [~ [~ ~]])
+      =.  memo  (~(put by memo) labl [~ `+<.c.f])
+      =^  dfoot  memo  $(f d.f)
+      [[[%11 [b.f cfoot] dfoot] s r.dfoot] memo]
     =^  dfoot  memo  $(f d.f)
     [[[%11 [b.f cfoot] dfoot] s r.dfoot] memo]
       ::
@@ -534,6 +544,7 @@
     |%
     ++  dec
       |=  x=@
+      ~/  %dec
       ~>  %data.[x ~]
       ^-  @
       =|  d=@
@@ -552,6 +563,7 @@
     |%
     ++  dec
       |=  x=@
+      ~/  %dec
       ~>  %data.[x ~]
       ^-  @
       =|  d=@
@@ -562,6 +574,7 @@
       $(d .+(d))
     ++  add
       |=  [x=@ y=@]
+      ~/  %add
       ~>  %data.[x y ~]
       ^-  @
       |-
