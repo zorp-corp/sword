@@ -407,7 +407,7 @@
     :: memo hit
     ~&  "Hit: sock {<[s]>} formula {<k.f>} result {<u.u.mem>}"
     [[%hit u.u.mem] memo] 
-  ?+  f  ~|  %pull-bonk  !!
+  ?+  f  ~|  "Unrecognized nock {<f>}"  ~|  %pull-bonk  !!
       ::
       [[* *] *]
     =^  pfoot  memo  $(f -.f)
@@ -523,6 +523,55 @@
     =^  pathfoot  memo  $(f path.f)
     [[[%12 reffoot pathfoot] s [%gues ~]] memo]
   ==
+::  example nocks for testing
+++  nocs
+  |%
+  ++  dec
+    !=
+    !.
+    =>
+    =>  %ed
+    |%
+    ++  dec
+      |=  x=@
+      ~>  %data.[x ~]
+      ^-  @
+      =|  d=@
+      |-
+      ^-  d=@
+      ?:  =(.+(d) x)
+        d
+      $(d .+(d))
+    --
+    (dec 8)
+  ++  ad
+    !=
+    !.
+    =>
+    =>  %ed
+    |%
+    ++  dec
+      |=  x=@
+      ~>  %data.[x ~]
+      ^-  @
+      =|  d=@
+      |-
+      ^-  d=@
+      ?:  =(.+(d) x)
+        d
+      $(d .+(d))
+    ++  add
+      |=  [x=@ y=@]
+      ~>  %data.[x y ~]
+      ^-  @
+      |-
+      ^-  @
+      ?:  =(x 0)
+        y
+      $(x (dec x), y .+(y))
+    --
+    (add 5 8)
+  --
 --
 |%
 +$  sock
