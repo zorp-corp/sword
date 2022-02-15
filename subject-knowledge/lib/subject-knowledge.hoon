@@ -398,14 +398,14 @@
       :: memo miss
       =.  memo  (~(put by memo) [s k.f] `(unit sock)`~) :: blackhole for recursive eval
       =^  res  memo  ^$(s s, f k.f)
-      ~&  "Miss: {<[s k.f]>}"
+      ~&  "Miss: sock {<s>} formula {<k.f>}"
       [[%mis res] (~(put by memo) [s k.f] `(unit sock)``r.res)] :: fill in result
     ?~  u.mem
       :: memo blackhole
-      ~&  "Recur: {<[s k.f]>}"
+      ~&  "Recur: sock {<[s]>} formula {<k.f>}"
       [[%rec s k.f] memo]
     :: memo hit
-    ~&  "Hit: {<[s k.f]>}"
+    ~&  "Hit: sock {<[s]>} formula {<k.f>} result {<u.u.mem>}"
     [[%hit u.u.mem] memo] 
   ?+  f  ~|  %pull-bonk  !!
       ::
