@@ -386,21 +386,26 @@
     |=  [s=sock f=sock]
     ^-  [coot _memo]
     ?.  ?=  [%know *]  f
+      ~&  "Dyn: {<s>}"
       [[%dyn s] memo]
     =/  jet  (juke jute s k.f)
     ?.  ?=  ~  jet
       ::  found a jet
+      ~&  "Jet: {<+.u.jet>}"
       [[%jet +.u.jet] memo]
     =/  mem  (~(get by memo) [s k.f])
     ?~  mem
       :: memo miss
       =.  memo  (~(put by memo) [s k.f] `(unit sock)`~) :: blackhole for recursive eval
       =^  res  memo  ^$(s s, f k.f)
+      ~&  "Miss: {<[s k.f]>}"
       [[%mis res] (~(put by memo) [s k.f] `(unit sock)``r.res)] :: fill in result
     ?~  u.mem
       :: memo blackhole
+      ~&  "Recur: {<[s k.f]>}"
       [[%rec s k.f] memo]
     :: memo hit
+    ~&  "Hit: {<[s k.f]>}"
     [[%hit u.u.mem] memo] 
   ?+  f  ~|  %pull-bonk  !!
       ::
