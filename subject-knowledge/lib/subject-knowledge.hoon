@@ -13,13 +13,17 @@
 ::  test whether a sock nests in another sock
 ::  a=sock nests in b=sock if b has the same information as a, or
 ::  strictly more information
+::
+::  mous ignores hints for matching
 ++  mous
   |=  [a=sock b=sock]
   ^-  ?
-  |-
-  ^-  ?
   ?:  ?=  [%gues ~]  a
     %.y
+  ?:  ?=  [%hint *]  a
+    $(a r.a)
+  ?:  ?=  [%hint *]  b
+    $(b r.b)
   ?-  a
       ::
       [%know *]
@@ -50,6 +54,14 @@
       ==
     ==
   ==
+::  compute what we know of the result of a formula
+::
+::  We may reimplement this more efficiently later, but this way we
+::  don't have to keep updating our experiments in 2 implementations
+++  wash
+  |=  [s=sock f=*]
+  ^-  [sock _memo]
+  [r.- +]:(pull s f)
 ::  Check for a jet
 ++  juke
   |=  [s=sock f=*]
@@ -66,9 +78,16 @@
     `->.jets
   $(jets +.jets)
 ::  learn a noun at an address
+::
+::  darn discards hints if it must descend through them
+::
+:: TODO: we use +knit everywhere, this is just +knit with [%know *], can
+:: we get rid of it?
 ++  darn
   |=  [s=sock b=@ n=*]
   ^-  sock
+  ?:  ?=  [%hint *]  s
+    $(s r.s)
   ?:  =(b 1)
     [%know n]
   ?:  ?=  [%know *]  s
@@ -97,6 +116,9 @@
     ==
   ==
 ::  axis into a sock
+::
+::  yarn will return a hint record if it is at an axis
+::  but will discard them as it descends through them
 ++  yarn
   |=  [s=sock b=@]
   ^-  sock
@@ -104,6 +126,8 @@
   |-
   ?:  =(b 1)
     s
+  ?:  ?=  [%hint *]  s
+    $(s r.s)  ::  descend through hint records
   ?-  s
       ::
       [%know *]
@@ -121,7 +145,51 @@
          ::
          %3
        $(b (mas b), s q.s)
+       ::
      ==
+  ==
+::  axis into a sock, retrieving a name from a fast hint
+++  narn
+  |=  [s=sock b=@]
+  ^-  [sock (unit @tas)]
+  ?<  =(b 0)
+  =|  nam=(unit @tas)
+  |-
+  ^-  [sock (unit @tas)]
+  ?:  =(b 1)
+    ?.  ?=  [%hint *]  s  [s ~]
+    ?.  =(s.s %fast)  [s ~]
+    ?~  d.s  [s ~]
+    =/  namsock  (yarn u.d.s 2)
+    ?.  ?=  [%know @]  namsock  [s ~]
+    [s `k.namsock]
+  ?:  ?=  [%hint *]  s
+     ?.  =(s.s %fast)  $(s r.s)
+     ?~  d.s  $(s r.s)
+     =/  namsock  (yarn u.d.s 2)
+     ?.  ?=  [%know @]  namsock  $(s r.s)
+     =.  nam  `k.namsock
+     $(s r.s)
+  ?-  s
+      ::
+      [%know *]
+    :-
+      :-  %know
+      .*  k.s  [%0 b]
+    nam
+      ::
+      [%gues ~]
+    [[%gues ~] nam]
+      ::
+      [%bets * *]
+    ?-  (cap b)
+        ::
+        %2
+      $(b (mas b), s p.s)
+        ::
+        %3
+      $(b (mas b), s q.s)
+    ==
   ==
 ::  make a new sock from 2 socks (and an axis)
 ++  knit
@@ -129,6 +197,8 @@
   ^-  sock
   ?:  =(b 1)
     t
+  ?:  ?=  [%hint *]  s
+    [%hint s.s d.s $(s r.s)]
   ?-  s
       ::
       [%know @]
@@ -191,125 +261,6 @@
       [%know =(a b)]
     [%gues ~]
   [%gues ~]
-::  Compute what we know of a Nock formula's result
-++  wash
-  |=  [s=sock f=*]
-  ^-  [sock _memo]
-  |-
-  ^-  [sock _memo]
-  =/  sockf
-    |=  [s=sock f=sock] 
-    ^-  [sock _memo]
-    ?.  ?=  [%know *]  f
-      [[%gues ~] memo]
-    =/  m  (~(get by memo) s k.f)
-    ?~  m
-      :: memo miss
-      =.  memo  (~(put by memo) [s k.f] [~ ~])
-      =^  r  memo  ^$(s s, f +.f)
-      [r (~(put by memo) [s k.f] [`r ~])] 
-    ?~  -.u.m
-      ::  memo blackhole
-      [[%gues ~] memo]
-    ::  memo hit]
-    [u.-.u.m memo]
-  ?+  f  ~|  %wash-bonk  !!
-      ::
-      [[* *] *]
-    =^  pres  memo  $(f -.f)
-    =^  qres  memo  $(f +.f)
-    [(knit [%bets pres [%gues ~]] 3 qres) memo]
-      ::
-      [%0 b=@]
-    [(yarn s b.f) memo]
-      ::
-      [%1 b=*]
-    [[%know b.f] memo]
-      ::
-      [%2 b=* c=*]
-    =^  bres  memo  $(f b.f)
-    =^  cres  memo  $(f c.f)
-    (sockf s=bres f=cres)
-      ::
-      [%3 b=*]
-    =^  bres  memo  $(f b.f)
-    :_  memo
-    ?-  bres
-        ::
-        [%know @]
-      [%know 1]
-        ::
-        [%know * *]
-      [%know 0]
-        ::
-        [%bets * *]
-      [%know 0]
-        :: maybe we want to distinguish unknown noun and unknown atom?
-        :: (bet is unknown cell...)
-        [%gues ~]
-      [%gues ~]
-    ==
-      ::
-      [%4 b=*]
-    =^  bres  memo  $(f b.f)
-    [[%gues ~] memo]
-      ::
-      [%5 b=* c=*]
-    =^  bres  memo  $(f b.f)
-    =^  cres  memo  $(f c.f)
-    [(pear bres cres) memo]
-      ::
-      [%6 b=* c=* d=*]
-    =^  bres  memo  $(f b.f)
-    ?+  bres  ~|  %wash-nest  !!
-        ::
-        [%know %0]
-      $(f c.f)
-        ::
-        [%know %1]
-      $(f d.f)
-        :: can we merge them somehow in this case? things the branches
-        :: agree on?
-        [%gues ~]
-      [[%gues ~] memo]
-    ==
-      ::
-      [%7 b=* c=*]
-    =^  bres  memo  $(f b.f)
-    $(s bres, f c.f)
-      ::
-      [%8 b=* c=*]
-    =^  bres  memo  $(f b.f)
-    $(s (knit [%bets [%gues ~] s] 2 bres), f c.f)
-      ::
-      [%9 b=@ c=*]
-    =^  cres  memo  $(f c.f)
-    (sockf cres (yarn cres b.f))
-      ::
-      [%10 [b=@ c=*] d=*]
-    =^  cres  memo  $(f c.f)
-    =^  dres  memo  $(f d.f)
-    [(knit dres b.f cres) memo]
-      ::
-      [%11 b=@ c=*]
-    $(f c.f)
-      ::
-      [%11 [b=@ c=*] d=*]
-    =^  cres  memo  $(f c.f)
-    ?:  =(b.f %data)
-      =/  c  c.f
-      |-
-      ?:  ?=  [[%0 @] *]  c
-        =.  s  (knit s ->.c [%gues ~])
-        $(c +.c)
-      ^$(f d.f)
-    $(f d.f)
-      ::
-      [%12 ref=* path=*]
-    =^  rres  memo  $(f ref.f)
-    =^  pres  memo  $(f path.f)
-    [[%gues ~] memo]
-  ==
 ::  Description of knowledge at a call site
 ::
 ::  Codegen behavior
@@ -355,7 +306,6 @@
     ==
     $=  s  sock
     $=  r  sock
-    $=  h  (unit [@ (unit sock)])
   ==
 ++  cort
   |=  =coot
@@ -378,15 +328,9 @@
     [%gues ~]
   ==
 ++  pull-eval
-  |=  [s=sock f=sock h=(unit [@ (unit sock)])]
+  |=  [s=sock f=sock nam=(unit @tas)]
   ^-  [coot _memo]
-  =/  nam
-    ?~  h  ~
-    ?.  =(-.u.h %fast)  ~
-    ?~  +.u.h  ~
-    =/  namsock  (yarn u.+.u.h 2)
-    ?.  ?=  [%know @]  namsock  ~
-    `k.namsock
+  ?:  ?=  [%hint *]  f  $(f r.f)
   ?.  ?=  [%know *]  f
     ~&  "Dyn: {<s>}"
     [[%dyn s] memo]
@@ -413,29 +357,36 @@
 ++  pull
   |=  [s=sock f=*]
   ^-  [foot _memo]
+  ~|  "Formula {(scow %q (mug f))}"
   ?+  f  ~|  "Unrecognized nock {<f>}"  ~|  %pull-bonk  !!
       ::
       [[* *] *]
     =^  pfoot  memo  $(f -.f)
     =^  qfoot  memo  $(f +.f)
-    [[[%cell pfoot qfoot] s=s r=(knit [%bets r.pfoot [%gues ~]] 3 r.qfoot) h=~] memo]
+    [[[%cell pfoot qfoot] s=s r=(knit [%bets r.pfoot [%gues ~]] 3 r.qfoot)] memo]
       ::
       [%0 b=@]
-    [[[%0 b.f] s=s r=(yarn s b.f) h=~] memo]
+    [[[%0 b.f] s=s r=(yarn s b.f)] memo]
       ::
       [%1 b=*]
-    [[[%1 b.f] s=s r=[%know b.f] h=~] memo]
+    [[[%1 b.f] s=s r=[%know b.f]] memo]
       ::
       [%2 b=* c=*]
     =^  bfoot  memo  $(f b.f)
     =^  cfoot  memo  $(f c.f)
-    =^  coot  memo  (pull-eval r.bfoot r.cfoot h.cfoot)
-    [[[%2 bfoot cfoot coot] s (cort coot) h=~] memo]
+    =/  [r=sock nam=(unit @tas)]  (narn r.cfoot 1)
+    =^  coot  memo  (pull-eval r.bfoot r nam)
+    [[[%2 bfoot cfoot coot] s (cort coot)] memo]
       ::
       [%3 b=*]
     =^  bfoot  memo  $(f b.f)
+    =/  br  r.bfoot
     =/  r
-      ?-  r.bfoot
+      |-
+      ?-  br
+          ::
+          [%hint *]
+        $(br r.br)
           ::
           [%know @]
         [%know 1]
@@ -449,64 +400,77 @@
           [%gues ~]
         [%gues ~]
       ==
-    [[[%3 bfoot] s r h=~] memo]
+    [[[%3 bfoot] s r] memo]
       ::
       [%4 b=*]
     =^  bfoot  memo  $(f b.f)
-    [[[%4 bfoot] s [%gues ~] h=~] memo]
+    [[[%4 bfoot] s [%gues ~]] memo]
       ::
       [%5 b=* c=*]
     =^  bfoot  memo  $(f b.f)
     =^  cfoot  memo  $(f c.f)
+    =/  br  r.bfoot
+    =/  cr  r.cfoot
     =/  r
+      |-
+      ?:  ?=  [%hint *]  br
+        $(br r.br)
+      ?:  ?=  [%hint *]  cr
+        $(cr r.cr)
       ?:  ?=  [%know *]  r.bfoot
         ?:  ?=  [%know *]  r.cfoot
           [%know =(k.r.bfoot k.r.cfoot)]
         [%gues ~]
       [%gues ~]
-    [[[%5 bfoot cfoot] s r h=~] memo]
+    [[[%5 bfoot cfoot] s r] memo]
       ::
       [%6 b=* c=* d=*]
     =^  bfoot  memo  $(f b.f)
-    ?+  r.bfoot  ~|  %pull-nest  !!
+    =/  br  r.bfoot
+    |-
+    ?+  br  ~|  %pull-nest  !!
+        ::
+        [%hint *]
+      $(br r.br)
         ::
         [%know %0]
-      =^  cfoot  memo  $(f c.f)
-      [[[%6 bfoot `cfoot ~] s r.cfoot h=~] memo]
+      =^  cfoot  memo  ^$(f c.f)
+      [[[%6 bfoot `cfoot ~] s r.cfoot] memo]
         ::
         [%know %1]
-      =^  dfoot  memo  $(f d/f)
-      [[[%6 bfoot ~ `dfoot] s r.dfoot h=~] memo]
+      =^  dfoot  memo  ^$(f d/f)
+      [[[%6 bfoot ~ `dfoot] s r.dfoot] memo]
         ::
         [%gues ~]
-      =^  cfoot  memo  $(f c.f)
-      =^  dfoot  memo  $(f d.f)
-      [[[%6 bfoot `cfoot `dfoot] s [%gues ~] h=~] memo]
+      =^  cfoot  memo  ^$(f c.f)
+      =^  dfoot  memo  ^$(f d.f)
+      [[[%6 bfoot `cfoot `dfoot] s [%gues ~]] memo]
     ==
       ::
       [%7 b=* c=*]
     =^  bfoot  memo  $(f b.f)
     =^  cfoot  memo  $(s r.bfoot, f c.f)
-    [[[%7 bfoot cfoot] s r.cfoot h=~] memo]
+    [[[%7 bfoot cfoot] s r.cfoot] memo]
       ::
       [%8 b=* c=*]
     =^  bfoot  memo  $(f b.f)
     =^  cfoot  memo  $(s (knit [%bets [%gues ~] s] 2 r.bfoot), f c.f)
-    [[[%8 bfoot cfoot] s=s r=r.cfoot h=~] memo]
+    [[[%8 bfoot cfoot] s=s r=r.cfoot] memo]
       ::
       [%9 b=@ c=*]
     =^  cfoot  memo  $(f c.f)
-    =^  coot  memo  (pull-eval r.cfoot (yarn r.cfoot b.f) h.cfoot)
-    [[[%9 b.f cfoot coot] s (cort coot) h=h.cfoot] memo]
+    =/  [r=sock nam=(unit @tas)]  (narn r.cfoot b.f)
+    =^  coot  memo  (pull-eval r.cfoot r nam)
+    [[[%9 b.f cfoot coot] s (cort coot)] memo]
       ::
       [%10 [b=@ c=*] d=*]
     =^  cfoot  memo  $(f c.f)
     =^  dfoot  memo  $(f d.f)
-    [[[%10 [b.f cfoot] dfoot] s (knit r.dfoot b.f r.cfoot) h=h.dfoot] memo]
+    [[[%10 [b.f cfoot] dfoot] s (knit r.dfoot b.f r.cfoot)] memo]
       ::
       [%11 b=@ c=*]
     =^  cfoot  memo  $(f c.f)
-    [[[%11 b.f cfoot] s r=r.cfoot h=`[b.f ~]] memo]
+    [[[%11 b.f cfoot] s r=[%hint b.f ~ r.cfoot]] memo]
       ::
       [%11 [b=@ c=*] d=*]
     =^  cfoot  memo  $(f c.f)
@@ -520,14 +484,14 @@
         =.  s  (knit s ->.c [%gues ~])
         $(c +.c)
       =^  dfoot  memo  ^$(f d.f)
-      [[[%11 [b.f cfoot] dfoot] s r.dfoot h=`[b.f `r.cfoot]] memo]
+      [[[%11 [b.f cfoot] dfoot] s [%hint b.f `r.cfoot r.dfoot]] memo]
     =^  dfoot  memo  $(f d.f)
-    [[[%11 [b.f cfoot] dfoot] s r.dfoot h=`[b.f `r.cfoot]] memo]
+    [[[%11 [b.f cfoot] dfoot] s [%hint b.f `r.cfoot r.dfoot]] memo]
       ::
       [%12 ref=* path=*]
     =^  reffoot  memo  $(f ref.f)
     =^  pathfoot  memo  $(f path.f)
-    [[[%12 reffoot pathfoot] s [%gues ~] h=~] memo]
+    [[[%12 reffoot pathfoot] s [%gues ~]] memo]
   ==
 ::  example nocks for testing
 ++  nocs
@@ -586,7 +550,7 @@
 +$  sock
   $%
     [%know k=*]
-    [%hint s=@ h=sock r=sock]
+    [%hint s=@ d=(unit sock) r=sock]
     [%bets p=sock q=sock]
     [%gues ~]
   ==
