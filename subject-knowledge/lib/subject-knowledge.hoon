@@ -9,6 +9,14 @@
 |%
 ::  Partial knowledge of a noun
 +$  sock  ^sock
+++  sk  .
+++  lash
+  |=  [[s=sock f=*] j=$-(* *) n=@tas]
+  =.  jute
+    ?.  (~(has by jute) f)
+      (~(put by jute) f (limo ~[[s [j n]]]))
+    (~(jab by jute) f |=(js=(list [sock [$-(* *) @tas]]) (weld ~[[s [j n]]] js)))
+  sk
 ++  entr
   |=  [s=sock f=* nam=(unit @tas)]
   ^-  (each _memo [r=(unit sock) n=(unit @tas)])
@@ -19,8 +27,8 @@
   ?~  entry
     :-  %&
     ?:  (~(has by memo) f)
-      (~(jab by memo) f |=(e=(list [sock (unit sock) (unit @tas)]) [[s ~ nam] e]))
-    (~(put by memo) f ~[[s ~ nam]])
+      (~(jab by memo) f |=(e=(list [sock (unit sock) (unit @tas)]) (weld (limo ~[[s ~ nam]]) e)))
+    (~(put by memo) f (limo ~[[s ~ nam]]))
   ?:  (mous -<.entry s)
     [%| ->.entry]
   $(entry +.entry)
@@ -537,6 +545,23 @@
     =^  pathfoot  memo  $(f path.f)
     [[[%12 reffoot pathfoot] s [%gues ~]] memo]
   ==
+++  hord
+  |=  [nam=@tas]
+  ^-  (list [s=sock f=*])
+  =|  r=(list [s=sock f=*])
+  =/  entries  ~(tap by memo)
+  |-
+  ^-  (list [s=sock f=*])
+  ?~  entries
+    r
+  =/  f  p.i.entries
+  =/  entry  q.i.entries
+  |-
+  ^-  (list [s=sock f=*])
+  ?~  entry
+    ^$(entries t.entries)
+  =?  r  =(+>.i.entry `nam)  (weld (limo ~[[-.i.entry f]]) r)
+  $(entry t.entry)
 ::  example nocks for testing
 ++  nocs
   |%
