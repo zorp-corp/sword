@@ -186,7 +186,7 @@ unsafe fn cell_tail_unchecked(atom: u64) -> u64 {
 }
 
 /// Size in 64-bit words of an indirect atom
-unsafe fn indirect_size_unchecked(atom: u64) -> u64 {
+pub unsafe fn indirect_size_unchecked(atom: u64) -> u64 {
     *((atom << 3) as *const u64) << 3
 }
 
