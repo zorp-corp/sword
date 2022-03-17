@@ -163,14 +163,38 @@ impl Noun {
         unsafe { self.raw & DIRECT_MASK == DIRECT }
     }
 
+    fn as_direct_atom(&self) -> Result<DirectAtom, ()> {
+        if self.is_direct_atom() {
+            unsafe { Ok(self.direct_atom) }
+        } else {
+            Err(())
+        }
+    }
+
     // Peter: this fn replaces indirect_1().
     fn is_indirect_atom(&self) -> bool {
         unsafe { self.raw & INDIRECT_MASK == INDIRECT }
     }
 
+    fn as_indirect_atom(&self) -> Result<IndirectAtom, ()> {
+        if self.is_indirect_atom() {
+            unsafe { Ok(self.indirect_atom) }
+        } else {
+            Err(())
+        }
+    }
+
     // Peter: this fn replaces is_cell().
     fn is_cell(&self) -> bool {
         unsafe { self.raw & CELL_MASK == CELL }
+    }
+
+    fn as_cell(&self) -> Result<Cell, ()> {
+        if self.is_cell() {
+            unsafe { Ok(self.cell) }
+        } else {
+            Err(())
+        }
     }
 }
 
@@ -315,30 +339,30 @@ impl NockStack {
             let lower_bound_inclusive: *const u64 = self.sp;
             let upper_bound_exclusive: *const u64 = self.fp;
             let mut copy_stack_top: *mut u64 = self.sp;
-            let res = if root.is_direct_atom() {
+            let res = if let Ok(_) = root.as_direct_atom() {
                 root
             } else if root.as_ptr() < lower_bound_inclusive {
                 root
             } else if root.as_ptr() >= upper_bound_exclusive {
                 root
-            } else if root.is_indirect_atom() {
-                let sz: usize = (root.indirect_atom.size() + 1) as usize;
+            } else if let Ok(atom) = root.as_indirect_atom() {
+                let sz: usize = (atom.size() + 1) as usize;
                 let base: *mut u64 = west_sp;
                 west_sp = west_sp.add(sz);
-                copy_nonoverlapping(root.as_mut_ptr(), base, sz);
-                *(root.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
+                copy_nonoverlapping(atom.as_mut_ptr(), base, sz);
+                *(atom.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
                 Noun {
                     raw: (base as u64) >> 3 | INDIRECT,
                 }
-            } else if root.is_cell() {
+            } else if let Ok(cell) = root.as_cell() {
                 let base: *mut u64 = west_sp;
                 west_sp = west_sp.add(2);
                 copy_stack_top = copy_stack_top.sub(4);
-                *copy_stack_top = root.cell.head().raw;
+                *copy_stack_top = cell.head().raw;
                 *(copy_stack_top.add(1)) = base as u64;
-                *(copy_stack_top.add(2)) = root.cell.tail().raw;
+                *(copy_stack_top.add(2)) = cell.tail().raw;
                 *(copy_stack_top.add(3)) = (base.add(1)) as u64;
-                *(root.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
+                *(cell.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
                 Noun {
                     raw: (base as u64) >> 3 | CELL,
                 }
@@ -354,36 +378,36 @@ impl NockStack {
                 };
                 let dest: *mut u64 = *(copy_stack_top.add(1)) as *mut u64;
                 copy_stack_top = copy_stack_top.add(2);
-                if noun.is_direct_atom() {
-                    *dest = noun.raw
+                if let Ok(atom) = noun.as_direct_atom() {
+                    *dest = atom.0
                 } else if noun.as_ptr() < lower_bound_inclusive {
                     *dest = noun.raw
                 } else if noun.as_ptr() >= upper_bound_exclusive {
                     *dest = noun.raw
-                } else if noun.is_indirect_atom() {
-                    match noun.indirect_atom.forward_ptr() {
+                } else if let Ok(atom) = noun.as_indirect_atom() {
+                    match atom.forward_ptr() {
                         Some(fwd) => *dest = fwd,
                         None => {
-                            let sz: usize = (noun.indirect_atom.size() + 1) as usize;
+                            let sz: usize = (atom.size() + 1) as usize;
                             let base: *mut u64 = west_sp;
                             west_sp = west_sp.add(sz);
-                            copy_nonoverlapping(noun.as_mut_ptr(), base, sz);
-                            *(noun.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
+                            copy_nonoverlapping(atom.as_mut_ptr(), base, sz);
+                            *(atom.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
                             *dest = (base as u64) >> 3 | INDIRECT;
                         }
                     }
-                } else if noun.is_cell() {
-                    match noun.cell.forward_ptr() {
+                } else if let Ok(cell) = noun.as_cell() {
+                    match cell.forward_ptr() {
                         Some(fwd) => *dest = fwd,
                         None => {
                             let base: *mut u64 = west_sp;
                             west_sp = west_sp.add(2);
                             copy_stack_top = copy_stack_top.sub(4);
-                            *copy_stack_top = noun.cell.head().raw;
+                            *copy_stack_top = cell.head().raw;
                             *(copy_stack_top.add(1)) = base as u64;
-                            *(copy_stack_top.add(2)) = noun.cell.tail().raw;
+                            *(copy_stack_top.add(2)) = cell.tail().raw;
                             *(copy_stack_top.add(3)) = (base.add(1)) as u64;
-                            *(noun.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
+                            *(cell.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
                             *dest = (base as u64) >> 3 | CELL;
                         }
                     }
@@ -403,30 +427,30 @@ impl NockStack {
             let lower_bound_inclusive: *const u64 = self.fp;
             let upper_bound_exclusive: *const u64 = self.sp;
             let mut copy_stack_top: *mut u64 = self.sp;
-            let res = if root.is_direct_atom() {
+            let res = if let Ok(_) = root.as_direct_atom() {
                 root
             } else if root.as_ptr() < lower_bound_inclusive {
                 root
             } else if root.as_ptr() >= upper_bound_exclusive {
                 root
-            } else if root.is_indirect_atom() {
-                let sz: usize = (root.indirect_atom.size() + 1) as usize;
+            } else if let Ok(atom) = root.as_indirect_atom() {
+                let sz: usize = (atom.size() + 1) as usize;
                 east_sp = east_sp.sub(sz);
                 let base: *mut u64 = east_sp;
-                copy_nonoverlapping(root.as_mut_ptr(), base, sz);
-                *(root.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
+                copy_nonoverlapping(atom.as_mut_ptr(), base, sz);
+                *(atom.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
                 Noun {
                     raw: (base as u64) >> 3 | INDIRECT,
                 }
-            } else if root.is_cell() {
+            } else if let Ok(cell) = root.as_cell() {
                 east_sp = east_sp.sub(2);
                 let base: *mut u64 = east_sp;
                 copy_stack_top = copy_stack_top.add(4);
                 *copy_stack_top = root.cell.head().raw;
                 *(copy_stack_top.add(1)) = base as u64;
-                *(copy_stack_top.add(2)) = root.cell.tail().raw;
+                *(copy_stack_top.add(2)) = cell.tail().raw;
                 *(copy_stack_top.add(3)) = (base.add(1)) as u64;
-                *(root.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
+                *(cell.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
                 Noun {
                     raw: (base as u64) >> 3 | CELL,
                 }
@@ -442,36 +466,36 @@ impl NockStack {
                 };
                 let dest: *mut u64 = *(copy_stack_top.add(1)) as *mut u64;
                 copy_stack_top = copy_stack_top.sub(2);
-                if noun.is_direct_atom() {
-                    *dest = noun.raw
+                if let Ok(atom) = noun.as_direct_atom() {
+                    *dest = atom.0
                 } else if noun.as_ptr() < lower_bound_inclusive {
                     *dest = noun.raw
                 } else if noun.as_ptr() >= upper_bound_exclusive {
                     *dest = noun.raw
-                } else if noun.is_indirect_atom() {
-                    match noun.indirect_atom.forward_ptr() {
+                } else if let Ok(atom) = noun.as_indirect_atom() {
+                    match atom.forward_ptr() {
                         Some(fwd) => *dest = fwd,
                         None => {
-                            let sz: usize = (noun.indirect_atom.size() + 1) as usize;
+                            let sz: usize = (atom.size() + 1) as usize;
                             east_sp = east_sp.sub(sz);
                             let base: *mut u64 = east_sp;
-                            copy_nonoverlapping(noun.as_mut_ptr(), base, sz);
-                            *(noun.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
+                            copy_nonoverlapping(atom.as_mut_ptr(), base, sz);
+                            *(atom.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
                             *dest = (base as u64) >> 3 | INDIRECT;
                         }
                     }
-                } else if noun.is_cell() {
-                    match noun.cell.forward_ptr() {
+                } else if let Ok(cell) = noun.as_cell() {
+                    match cell.forward_ptr() {
                         Some(fwd) => *dest = fwd,
                         None => {
                             east_sp = east_sp.sub(2);
                             let base: *mut u64 = east_sp;
                             copy_stack_top = copy_stack_top.add(4);
-                            *copy_stack_top = noun.cell.head().raw;
+                            *copy_stack_top = cell.head().raw;
                             *(copy_stack_top.add(1)) = base as u64;
-                            *(copy_stack_top.add(2)) = noun.cell.tail().raw;
+                            *(copy_stack_top.add(2)) = cell.tail().raw;
                             *(copy_stack_top.add(3)) = (base.add(1)) as u64;
-                            *(noun.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
+                            *(cell.as_mut_ptr()) = (base as u64) >> 3 | FORWARD;
                             *dest = (base as u64) >> 3 | CELL;
                         }
                     }
