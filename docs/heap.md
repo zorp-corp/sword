@@ -5,7 +5,7 @@ Copying a large noun of the stack and maintaining a reference instead prevents r
 Fixing a location for a noun enables pointer equality to short-circuit equality checks.
 Snapshotting and paging requires a fixed location in memory for a noun, unperturbed by computation.
 Finally, the ability to attach metadata (hints, compiled code, reference counts, etc) to nouns is extremely helpful for runtime implementation, but costly if provided for every noun.
-Allowing metadata to be attached to heap entries 
+Instead, we can store nouns in a coarsely-allocated heap which attaches metadata to the allocation entry for each noun, rather than for each cell.
 
 ## Memory arenas
 ### Large objects
