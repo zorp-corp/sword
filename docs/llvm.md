@@ -64,7 +64,7 @@ The translation of Nock to NockIR takes the Nock formula plus two extra input bi
 | `ir[s 1 [1 x]]`         | `con[x]; don`                                                                
 | `ir[0 0 [2 b c]]`       | `puh[1]; ir[1 1 c]; put[0]; ir[0 1 b]; cel[0]; pop; noc; lnt`                
 | `ir[0 1 [2 b c]]`       | `puh[2]; ir[1 1 c]; put[1]; ir[0 1 b]; cel[1]; noc; lnk; pop`                
-| `ir[1 1 [2 b c]]        | `puh[2]; ir[1 1 c]; put[1]; ir[1 1 b]; cel[1]; sav[1]; noc; lnk; reo[1]; pop`
+| `ir[1 1 [2 b c]]`       | `puh[2]; ir[1 1 c]; put[1]; ir[1 1 b]; cel[1]; sav[1]; noc; lnk; reo[1]; pop`
 | `ir[0 0 [3 b]]`         | `ir[0 1 b]; clq; don`                                                        
 | `ir[s 1 [3 b]]`         | `ir[s 1 b]; clq`                                                             
 | `ir[0 0 [4 b]]`         | `ir[0 1 b]; inc; don`                                                        
@@ -81,11 +81,11 @@ The translation of Nock to NockIR takes the Nock formula plus two extra input bi
 | `ir[1 1 [9 b c]]`       | `puh[2]; sav[1]; ir[0 1 c]; sub; axe[b]; lnk; reo[1]; pop`                   
 | `ir[0 0 [10 [b c] d]]`  | `puh[1]; ir[1 1 d]; put[0]; ir[0 1 c]; reo[0]; edt[b]; pop; don`             
 | `ir[0 1 [10 [b c] d]]`  | `puh[1]; ir[1 1 d]; put[0]; ir[0 1 c]; reo[0]; edt[b]; pop;`                 
-| `ir[1 1 [10 [b c] d]]`  | `puh[2]; sav[1]; ir[0 1 d]; put[0]; reo[1]; ir[0 1 c]; reo[0]; edt[b]; pop   
+| `ir[1 1 [10 [b c] d]]`  | `puh[2]; sav[1]; ir[0 1 d]; put[0]; reo[1]; ir[0 1 c]; reo[0]; edt[b]; pop`
 | `ir[s t [11 [b c] d]]`  | `ir[1 1 b]; hnd[b]; ir[s t d]`                                               
-| `ir[s t [11 b c]]       | `hns[b]; ir[s t c]`                                                          
-| `ir[0 0 [12 b c]]       | `puh[1]; ir[1 1 b]; put[0]; ir[0 1 c]; cel[0]; spy; pop; don                 
-| `ir[s 1 [12 b c]]       | `puh[1]; ir[1 1 b]; put[0]; ir[s 1 c]; cel[0]; spy; pop                      
+| `ir[s t [11 b c]]`      | `hns[b]; ir[s t c]`                                                          
+| `ir[0 0 [12 b c]]`      | `puh[1]; ir[1 1 b]; put[0]; ir[0 1 c]; cel[0]; spy; pop; don`  
+| `ir[s 1 [12 b c]]       | `puh[1]; ir[1 1 b]; put[0]; ir[s 1 c]; cel[0]; spy; pop`              
 
 ## From NockIR to LLVM IR
 
