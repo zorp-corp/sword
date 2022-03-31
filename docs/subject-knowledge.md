@@ -47,6 +47,11 @@ This may seem counterintuitive, but the algorithm describes how this knowledge i
 The Nock primitives `/[a b]` and `#[[a b] c]` extend to socks in the obvious way, giving a crash when it can be *known* that the computation would crash, e.g. when attempting to access a non-1 axis of an atom, or
 when an axis is not an atom.
 
+Note that while Subject Knowledge Analysis can often determine that a computation *will* crash, it cannot presently determine that a computation *will* not crash.
+Thus, the knowledge of the result of a computation is knowledge of the result assuming the computation does not crash.
+Thus, for instance, knowledge of the result of `4` where the subformula result is `[%gues ~]` is `[%dice ~]`, despite the fact that the subformula could produce a cell and cause the computation to crash.
+Put another way, so long as a `4` does not crash, it will always produce an atom, and thus the knowledge produced is `[%dice ~]`.
+
 ### Cell
 SKA of a cell formula applies the analysis to both formulae with the same subject knowledge input, then combines their inputs into a `%bets` cell and normalizes the result.
 
