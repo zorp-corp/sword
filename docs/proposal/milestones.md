@@ -28,7 +28,7 @@ The goal of this set of milestones is to validate the 2stackz memory model and i
 
 The goal of this stage is to generate highly-linearized IR from Nock
 
-Mote that a substantial part of this milestone is already accomplished, if unvalidated.
+Note that a substantial part of this milestone is already accomplished, if unvalidated.
 The New Mars project began with linearization of Nock across Nock 2 and Nock 9 being a problem without theoretical or design solution.
 Subject-knowledge analysis (SKA) is the (currently theoretical) artifact which permits such linearization.
 
@@ -39,7 +39,7 @@ Subject-knowledge analysis (SKA) is the (currently theoretical) artifact which p
 
 ## Later: heaps and paging
 
-The goal of this stage is to permit New MArs to function fully as a Mars, saving snapshots and event logs, and paging infrequently used and/or large data out to disk.
+The goal of this stage is to permit New Mars to function fully as a Mars, saving snapshots and event logs, and paging infrequently used and/or large data out to disk.
 
 - Threshhold based eviction to a heap
 - Heap collection strategies
