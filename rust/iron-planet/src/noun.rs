@@ -413,7 +413,7 @@ impl Atom {
 
     pub fn data_pointer(&self) -> *const u64 {
         match self.as_either() {
-            Either::Left(direct) => &(direct.0),
+            Either::Left(direct) => (self as *const Atom) as *const u64,
             Either::Right(indirect) => indirect.data_pointer(),
         }
     }
