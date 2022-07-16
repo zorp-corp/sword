@@ -26,10 +26,6 @@ fn main() -> io::Result<()> {
         let (mut atom, dest) = IndirectAtom::new_raw_mut(&mut stack, word_len as usize);
         write_bytes(dest.add(word_len as usize - 1), 0, 8);
         copy_nonoverlapping(in_map.as_ptr(), dest as *mut u8, in_len as usize);
-        println!("dest[0]: {:?}", *(dest as *const u8));
-        println!("dest[3]: {:?}", *((dest as *const u8).add(3)));
-        println!("dest[7]: {:?}", *((dest as *const u8).add(7)));
-        println!("dest[10]: {:?}", *((dest as *const u8).add(10)));
         mem::drop(in_map);
         atom.normalize_as_atom()
     };
