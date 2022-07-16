@@ -1,10 +1,10 @@
-use crate::noun::{CellMemory, IndirectAtom, Noun, NounAllocator };
+use crate::noun::{CellMemory, IndirectAtom, Noun, NounAllocator};
 use either::Either::{self, Left, Right};
 use libc::{c_void, memcmp};
+use memmap::MmapMut;
 use std::mem;
 use std::ptr;
 use std::ptr::copy_nonoverlapping;
-use memmap::MmapMut;
 
 /** Utility function to get size in words */
 pub const fn word_size_of<T>() -> usize {
@@ -132,13 +132,13 @@ impl NockStack {
     }
 
     unsafe fn prev_stack_pointer_equals_local_east(&mut self, local: usize) -> bool {
-        *(self.slot_pointer_east(local + 2) as *const *mut u64) ==
-            *(self.previous_stack_pointer_pointer_east())
+        *(self.slot_pointer_east(local + 2) as *const *mut u64)
+            == *(self.previous_stack_pointer_pointer_east())
     }
 
     unsafe fn prev_stack_pointer_equals_local_west(&mut self, local: usize) -> bool {
-        *(self.slot_pointer_west(local + 2) as *const *mut u64) ==
-            *(self.previous_stack_pointer_pointer_west())
+        *(self.slot_pointer_west(local + 2) as *const *mut u64)
+            == *(self.previous_stack_pointer_pointer_west())
     }
 
     /** Test the stack pointer for the previous frame against a slot */
@@ -596,7 +596,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         if stack.prev_stack_pointer_equals_local(0) {
             break;
         } else {
-            let (x, y) : (*mut Noun, *mut Noun) = *(stack.top_in_previous_frame());
+            let (x, y): (*mut Noun, *mut Noun) = *(stack.top_in_previous_frame());
             match (
                 (*x).as_either_direct_allocated(),
                 (*y).as_either_direct_allocated(),
@@ -665,8 +665,10 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                                     stack.pop_no_copy();
                                     continue;
                                 } else {
-                                    *(stack.alloc_in_previous_frame()) = (x_cell.tail_as_mut(), y_cell.tail_as_mut());
-                                    *(stack.alloc_in_previous_frame()) = (x_cell.head_as_mut(), y_cell.tail_as_mut());
+                                    *(stack.alloc_in_previous_frame()) =
+                                        (x_cell.tail_as_mut(), y_cell.tail_as_mut());
+                                    *(stack.alloc_in_previous_frame()) =
+                                        (x_cell.head_as_mut(), y_cell.tail_as_mut());
                                     continue;
                                 }
                             }
@@ -756,4 +758,3 @@ impl NounAllocator for NockStack {
         self.struct_alloc::<CellMemory>(1)
     }
 }
-

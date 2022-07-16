@@ -119,7 +119,7 @@ impl IndirectAtom {
     /** Strip the tag from an indirect atom and return it as a pointer to its memory buffer. */
     pub unsafe fn to_raw_pointer(&self) -> *const u64 {
         (self.0 << 3) as *const u64
-    } 
+    }
 
     pub unsafe fn set_forwarding_pointer(&mut self, new_me: *const u64) {
         // This is OK because the size is stored as 64 bit words, not bytes.
@@ -168,7 +168,10 @@ impl IndirectAtom {
      * Return the atom (which should not be used until it is written and normalized) and a mutable
      * pointer which is the data buffer for the indirect atom, to be written into.
      */
-    pub unsafe fn new_raw_mut_zeroed(allocator: &mut dyn NounAllocator, size: usize) -> (Self, *mut u64) {
+    pub unsafe fn new_raw_mut_zeroed(
+        allocator: &mut dyn NounAllocator,
+        size: usize,
+    ) -> (Self, *mut u64) {
         let allocation = Self::new_raw_mut(allocator, size);
         ptr::write_bytes(allocation.1, 0, size << 3);
         allocation
@@ -601,4 +604,3 @@ pub trait NounAllocator {
     /** Allocate memory for a cell */
     unsafe fn alloc_cell(&mut self) -> *mut CellMemory;
 }
-

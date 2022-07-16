@@ -179,22 +179,26 @@ pub fn mug_u32_one(noun: Noun) -> Option<u32> {
 pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
     stack.push(1);
     unsafe {
-    stack.save_prev_stack_pointer_to_local(0);
-    *(stack.alloc_in_previous_frame()) = noun;
+        stack.save_prev_stack_pointer_to_local(0);
+        *(stack.alloc_in_previous_frame()) = noun;
     }
     loop {
         if unsafe { stack.prev_stack_pointer_equals_local(0) } {
             break;
         } else {
-            let noun : Noun = unsafe { *(stack.top_in_previous_frame()) };
+            let noun: Noun = unsafe { *(stack.top_in_previous_frame()) };
             match noun.as_either_direct_allocated() {
                 Left(_direct) => {
-                    unsafe { stack.reclaim_in_previous_frame::<Noun>(); }
+                    unsafe {
+                        stack.reclaim_in_previous_frame::<Noun>();
+                    }
                     continue;
                 } // no point in calculating a direct mug here as we wont cache it
                 Right(allocated) => match allocated.get_cached_mug() {
                     Some(_mug) => {
-                        unsafe { stack.reclaim_in_previous_frame::<Noun>(); }
+                        unsafe {
+                            stack.reclaim_in_previous_frame::<Noun>();
+                        }
                         continue;
                     }
                     None => match allocated.as_either() {
@@ -209,12 +213,12 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
                                     set_mug(allocated, calc_cell_mug_u32(head_mug, tail_mug));
                                     stack.reclaim_in_previous_frame::<Noun>();
                                     continue;
-                                },
+                                }
                                 _ => {
                                     *(stack.alloc_in_previous_frame()) = cell.tail();
                                     *(stack.alloc_in_previous_frame()) = cell.head();
                                     continue;
-                                },
+                                }
                             }
                         },
                     },
@@ -229,7 +233,5 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
 }
 
 pub fn mug(stack: &mut NockStack, noun: Noun) -> DirectAtom {
-    unsafe {
-        DirectAtom::new_unchecked(mug_u32(stack, noun) as u64)
-    }
+    unsafe { DirectAtom::new_unchecked(mug_u32(stack, noun) as u64) }
 }

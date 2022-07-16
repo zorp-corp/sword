@@ -1,5 +1,5 @@
-use crate::mem::NockStack;
 use crate::mem::unifying_equality;
+use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
 use bitvec::prelude::{BitSlice, Lsb0};
@@ -33,10 +33,10 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     };
     loop {
         if unsafe { stack.prev_stack_pointer_equals_local(0) } {
-            let mut result = unsafe {
-                *(stack.local_noun_pointer(1))
+            let mut result = unsafe { *(stack.local_noun_pointer(1)) };
+            unsafe {
+                stack.pop(&mut result);
             };
-            unsafe { stack.pop(&mut result); };
             break result;
         } else {
             let dest_ptr: *mut Noun = unsafe { *(stack.top_in_previous_frame()) };
@@ -61,8 +61,10 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                         *dest_ptr = cell.as_noun();
                         backref_map.insert(backref as u64, *dest_ptr);
                         stack.reclaim_in_previous_frame::<*mut Noun>();
-                        *(stack.alloc_in_previous_frame::<*mut Noun>()) = &mut ((*cell_mem_ptr).tail);
-                        *(stack.alloc_in_previous_frame::<*mut Noun>()) = &mut ((*cell_mem_ptr).head);
+                        *(stack.alloc_in_previous_frame::<*mut Noun>()) =
+                            &mut ((*cell_mem_ptr).tail);
+                        *(stack.alloc_in_previous_frame::<*mut Noun>()) =
+                            &mut ((*cell_mem_ptr).head);
                     }
                     continue;
                 }
@@ -71,8 +73,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                 let backref = cursor;
                 cursor += 1;
                 unsafe {
-                    *dest_ptr =
-                        rub_atom(stack, &mut cursor, buffer_bitslice).as_noun();
+                    *dest_ptr = rub_atom(stack, &mut cursor, buffer_bitslice).as_noun();
                     backref_map.insert(backref as u64, *dest_ptr);
                     stack.reclaim_in_previous_frame::<*mut Noun>();
                 };
@@ -105,11 +106,7 @@ fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> usize {
     }
 }
 
-fn rub_atom(
-    stack: &mut NockStack,
-    cursor: &mut usize,
-    buffer: &BitSlice<u64, Lsb0>,
-) -> Atom {
+fn rub_atom(stack: &mut NockStack, cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Atom {
     let size = get_size(cursor, buffer);
     if size == 0 {
         unsafe { DirectAtom::new_unchecked(0).as_atom() }
@@ -205,10 +202,10 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
                     match backref_map.get_mut(mug as u64) {
                         None => {
                             backref_map.insert(mug as u64, vec![(noun, backref as u64)]);
-                        },
+                        }
                         Some(vec) => {
                             vec.push((noun, backref as u64));
-                        },
+                        }
                     };
                     jam_atom(stack, &mut state, atom);
                     unsafe {
@@ -221,10 +218,10 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
                     match backref_map.get_mut(mug as u64) {
                         None => {
                             backref_map.insert(mug as u64, vec![(noun, backref as u64)]);
-                        },
+                        }
                         Some(vec) => {
                             vec.push((noun, backref as u64));
-                        },
+                        }
                     };
                     jam_cell(stack, &mut state);
                     unsafe {
@@ -239,14 +236,12 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
     }
     let mut result = unsafe { state.atom.normalize_as_atom().as_noun() };
     stack.pop(&mut result);
-    result.as_atom().expect("IMPOSSIBLE: result was coerced from an atom so should not fail coercion to an atom")
+    result.as_atom().expect(
+        "IMPOSSIBLE: result was coerced from an atom so should not fail coercion to an atom",
+    )
 }
 
-fn jam_atom(
-    traversal: &mut NockStack,
-    state: &mut JamState,
-    atom: Atom,
-) {
+fn jam_atom(traversal: &mut NockStack, state: &mut JamState, atom: Atom) {
     loop {
         if state.cursor + 1 > state.slice.len() {
             double_atom_size(traversal, state);
@@ -278,11 +273,7 @@ fn jam_cell(traversal: &mut NockStack, state: &mut JamState) {
     state.cursor += 2;
 }
 
-fn jam_backref(
-    traversal: &mut NockStack,
-    state: &mut JamState,
-    backref: u64,
-) {
+fn jam_backref(traversal: &mut NockStack, state: &mut JamState, backref: u64) {
     loop {
         if state.cursor + 2 > state.slice.len() {
             double_atom_size(traversal, state);
@@ -313,11 +304,7 @@ fn double_atom_size(traversal: &mut NockStack, state: &mut JamState) {
 }
 
 // INVARIANT: mat must not modify state.cursor unless it will also return `Ok(())`
-fn mat(
-    traversal: &mut NockStack,
-    state: &mut JamState,
-    atom: Atom,
-) -> Result<(), ()> {
+fn mat(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> Result<(), ()> {
     let b_atom_size = met0_usize(atom);
     let b_atom_size_atom = Atom::new(traversal, b_atom_size as u64);
     if b_atom_size == 0 {
