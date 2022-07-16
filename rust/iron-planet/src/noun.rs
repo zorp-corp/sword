@@ -97,9 +97,12 @@ impl DirectAtom {
 
 /** An indirect atom.
  *
- * Indirect atoms represent atoms above DIRECT_MAX as a tagged pointer to a memory buffer whose first word
- * is the number of machine words necessary to store the atom, and whose remaining memory is the
- * atom in little-endian byte order
+ * Indirect atoms represent atoms above DIRECT_MAX as a tagged pointer to a memory buffer
+ * structured as:
+ * - first word: metadata
+ * - second word: size in 64-bit words
+ * - remaining words: data
+ * Indirect atoms are always stored in little-endian byte order
  */
 #[derive(Copy, Clone)]
 #[repr(packed(8))]
