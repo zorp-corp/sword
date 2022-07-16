@@ -334,7 +334,7 @@ fn mat(
         if state.cursor + c_b_size + c_b_size + b_atom_size > state.slice.len() {
             Err(())
         } else {
-            state.slice[state.cursor..state.cursor + c_b_size].fill(false); // a 1 bit for each bit in the atom size
+            state.slice[state.cursor..state.cursor + c_b_size].fill(false); // a 0 bit for each bit in the atom size
             state.slice.set(state.cursor + c_b_size, true); // a terminating 1 bit
             state.slice[state.cursor + c_b_size + 1..state.cursor + c_b_size + c_b_size]
                 .copy_from_bitslice(&b_atom_size_atom.as_bitslice()[0..c_b_size - 1]); // the atom size excepting the most significant 1 (since we know where that is from the size-of-the-size)
