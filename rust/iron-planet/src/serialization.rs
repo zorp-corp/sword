@@ -33,10 +33,10 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     };
     loop {
         if unsafe { stack.prev_stack_pointer_equals_local(0) } {
-            let result = unsafe {
+            let mut result = unsafe {
                 *(stack.local_noun_pointer(1))
             };
-            unsafe { stack.pop_no_copy(); };
+            unsafe { stack.pop(&mut result); };
             break result;
         } else {
             let dest_ptr: *mut Noun = unsafe { *(stack.top_in_previous_frame()) };
