@@ -37,7 +37,7 @@ fn main() -> io::Result<()> {
     f_out.set_len((jammed_result.size() << 3) as u64)?;
     unsafe {
         let mut out_map = MmapMut::map_mut(&f_out)?;
-        copy_nonoverlapping(jammed_result.data_pointer(), out_map.as_mut_ptr() as *mut u64, jammed_result.size());
+        copy_nonoverlapping(jammed_result.data_pointer() as *mut u8, out_map.as_mut_ptr(), jammed_result.size() << 3);
         out_map.flush()?;
     };
     Ok(())
