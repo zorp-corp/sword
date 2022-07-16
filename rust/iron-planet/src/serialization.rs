@@ -87,10 +87,10 @@ fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> usize {
     let mut bitsize: usize = 0;
     loop {
         if buffer[*cursor + bitsize] {
+            break;
+        } else {
             bitsize += 1;
             continue;
-        } else {
-            break;
         }
     }
     if bitsize == 0 {
@@ -171,7 +171,7 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
         if unsafe { stack.prev_stack_pointer_equals_local(0) } {
             break;
         } else {
-            let mut noun = unsafe { *(stack.top_in_previous_frame()) };
+            let mut noun = unsafe { *(stack.top_in_previous_frame::<Noun>()) };
             let mug = mug_u32(stack, noun);
             match backref_map.get_mut(mug as u64) {
                 None => {}
@@ -334,13 +334,13 @@ fn mat(
         if state.cursor + c_b_size + c_b_size + b_atom_size > state.slice.len() {
             Err(())
         } else {
-            state.slice[state.cursor..state.cursor + c_b_size + 1].fill(true); // a 1 bit for each bit in the atom size
-            state.slice.set(state.cursor + c_b_size + 1, false); // a terminating 0 bit
-            state.slice[state.cursor + c_b_size + 2..state.cursor + c_b_size + c_b_size]
+            state.slice[state.cursor..state.cursor + c_b_size].fill(false); // a 1 bit for each bit in the atom size
+            state.slice.set(state.cursor + c_b_size, true); // a terminating 1 bit
+            state.slice[state.cursor + c_b_size + 1..state.cursor + c_b_size + c_b_size]
                 .copy_from_bitslice(&b_atom_size_atom.as_bitslice()[0..c_b_size - 1]); // the atom size excepting the most significant 1 (since we know where that is from the size-of-the-size)
             state.slice[state.cursor + c_b_size + c_b_size
                 ..state.cursor + c_b_size + c_b_size + b_atom_size]
-                .copy_from_bitslice(atom.as_bitslice()); // the atom itself
+                .copy_from_bitslice(&atom.as_bitslice()[0..b_atom_size]); // the atom itself
             state.cursor += c_b_size + c_b_size + b_atom_size;
             Ok(())
         }

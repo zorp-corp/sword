@@ -37,7 +37,7 @@ fn main() -> io::Result<()> {
     let input_cell = input.as_cell().expect("Input must be jam of subject/formula pair");
     let result = interpret(&mut stack, input_cell.head(), input_cell.tail());
     let jammed_result = jam(&mut stack, result);
-    let f_out = OpenOptions::new().write(true).open(output_filename)?;
+    let f_out = OpenOptions::new().read(true).write(true).create(true).open(output_filename)?;
     f_out.set_len((jammed_result.size() << 3) as u64)?;
     unsafe {
         let mut out_map = MmapMut::map_mut(&f_out)?;

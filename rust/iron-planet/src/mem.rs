@@ -198,7 +198,7 @@ impl NockStack {
     }
 
     unsafe fn top_in_previous_frame_west<T>(&mut self) -> *mut T {
-        let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_east();
+        let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_west();
         *prev_stack_pointer_pointer as *mut T
     }
 
@@ -298,7 +298,7 @@ impl NockStack {
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         let noun_ptr = noun as *mut Noun;
         let work_start = self.stack_pointer;
-        let mut other_stack_pointer = *self.previous_stack_pointer_pointer_east();
+        let mut other_stack_pointer = *(self.previous_stack_pointer_pointer_east());
         self.stack_pointer = self.stack_pointer.sub(2);
         *(self.stack_pointer as *mut Noun) = *noun;
         *(self.stack_pointer.add(1) as *mut *mut Noun) = noun_ptr;
@@ -406,7 +406,7 @@ impl NockStack {
     unsafe fn copy_west(&mut self, noun: &mut Noun) {
         let noun_ptr = noun as *mut Noun;
         let work_start = self.stack_pointer;
-        let mut other_stack_pointer = *self.previous_stack_pointer_pointer_west();
+        let mut other_stack_pointer = *(self.previous_stack_pointer_pointer_west());
         self.stack_pointer = self.stack_pointer.add(2);
         *(self.stack_pointer.sub(2) as *mut Noun) = *noun;
         *(self.stack_pointer.sub(1) as *mut *mut Noun) = noun_ptr;

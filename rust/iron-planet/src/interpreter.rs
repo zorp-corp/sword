@@ -72,6 +72,7 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
     loop {
         match unsafe { noun_to_work(*(stack.local_noun_pointer(0))) } {
             Done => {
+                stack.pop(&mut res);
                 break;
             }
             NockCellComputeHead => {

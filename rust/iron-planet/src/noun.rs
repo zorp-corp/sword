@@ -130,8 +130,8 @@ impl IndirectAtom {
 
     pub unsafe fn forwarding_pointer(&self) -> Option<IndirectAtom> {
         let size_raw = *self.to_raw_pointer().add(1);
-        if size_raw | FORWARDING_MASK == FORWARDING_TAG {
-            // we can replace this by masking out thge forwarding pointer and putting in the
+        if size_raw & FORWARDING_MASK == FORWARDING_TAG {
+            // we can replace this by masking out the forwarding pointer and putting in the
             // indirect tag
             Some(Self::from_raw_pointer((size_raw << 3) as *const u64))
         } else {
@@ -280,7 +280,7 @@ impl Cell {
 
     pub unsafe fn forwarding_pointer(&self) -> Option<Cell> {
         let head_raw = (*self.to_raw_pointer()).head.raw;
-        if head_raw | FORWARDING_MASK == FORWARDING_TAG {
+        if head_raw & FORWARDING_MASK == FORWARDING_TAG {
             // we can replace this by masking out the forwarding pointer and putting in the cell
             // tag
             Some(Self::from_raw_pointer((head_raw << 3) as *const CellMemory))
@@ -305,11 +305,11 @@ impl Cell {
     }
 
     pub fn head(&self) -> Noun {
-        unsafe { (*self.to_raw_pointer()).head }
+        unsafe { (*(self.to_raw_pointer())).head }
     }
 
     pub fn tail(&self) -> Noun {
-        unsafe { (*self.to_raw_pointer()).tail }
+        unsafe { (*(self.to_raw_pointer())).tail }
     }
 
     pub fn as_allocated(&self) -> Allocated {
