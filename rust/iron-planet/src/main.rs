@@ -46,10 +46,6 @@ fn main() -> io::Result<()> {
             out_map.as_mut_ptr(),
             jammed_result.size() << 3,
         );
-        debug_assert_eq!(
-            *(jammed_result.data_pointer()),
-            *(out_map.as_ptr() as *const u64)
-        );
         out_map.flush()?;
     };
     Ok(())
