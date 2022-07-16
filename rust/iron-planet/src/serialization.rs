@@ -125,7 +125,6 @@ fn rub_atom(
         let wordsize = (size + 63) >> 6;
         let (atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, wordsize) }; // fast round to wordsize
         slice[0..size].copy_from_bitslice(&buffer[*cursor..*cursor + size]);
-        slice[size..wordsize << 6].fill(false);
         atom.as_atom()
     }
 }

@@ -119,7 +119,7 @@ impl IndirectAtom {
     /** Strip the tag from an indirect atom and return it as a pointer to its memory buffer. */
     pub unsafe fn to_raw_pointer(&self) -> *const u64 {
         (self.0 << 3) as *const u64
-    }
+    } 
 
     pub unsafe fn set_forwarding_pointer(&mut self, new_me: *const u64) {
         // This is OK because the size is stored as 64 bit words, not bytes.
@@ -154,8 +154,8 @@ impl IndirectAtom {
     }
 
     /** Make an indirect atom that can be written into. Return the atom (which should not be used
-     * until it is written and normalized) and a mutable pointer which can be used as a
-     * destination.
+     * until it is written and normalized) and a mutable pointer which is the data buffer for the
+     * indirect atom, to be written into.
      */
     pub unsafe fn new_raw_mut(allocator: &mut dyn NounAllocator, size: usize) -> (Self, *mut u64) {
         let buffer = allocator.alloc_indirect(size);
@@ -164,14 +164,24 @@ impl IndirectAtom {
         (Self::from_raw_pointer(buffer), buffer.add(2))
     }
 
+    /** Make an indirect atom that can be written into, and zero the whole data buffer.
+     * Return the atom (which should not be used until it is written and normalized) and a mutable
+     * pointer which is the data buffer for the indirect atom, to be written into.
+     */
+    pub unsafe fn new_raw_mut_zeroed(allocator: &mut dyn NounAllocator, size: usize) -> (Self, *mut u64) {
+        let allocation = Self::new_raw_mut(allocator, size);
+        ptr::write_bytes(allocation.1, 0, size << 3);
+        allocation
+    }
+
     /** Make an indirect atom that can be written into as a bitslice. The constraints of
-     * [new_raw_mut] also apply here
+     * [new_raw_mut_zeroed] also apply here
      */
     pub unsafe fn new_raw_mut_bitslice<'a>(
         allocator: &mut dyn NounAllocator,
         size: usize,
     ) -> (Self, &'a mut BitSlice<u64, Lsb0>) {
-        let (noun, ptr) = Self::new_raw_mut(allocator, size);
+        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, size);
         (
             noun,
             BitSlice::from_slice_mut(from_raw_parts_mut(ptr, size)),
@@ -204,14 +214,14 @@ impl IndirectAtom {
     /** Ensure that the size does not contain any trailing 0 words */
     pub unsafe fn normalize(&mut self) -> &Self {
         let mut index = self.size() - 1;
-        let data = self.data_pointer().add(1);
+        let data = self.data_pointer();
         loop {
             if index == 0 || *(data.add(index)) != 0 {
                 break;
             }
             index = index - 1;
         }
-        *(self.to_raw_pointer_mut()) = (index + 1) as u64;
+        *(self.to_raw_pointer_mut().add(1)) = (index + 1) as u64;
         self
     }
 
