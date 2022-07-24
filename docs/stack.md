@@ -7,12 +7,13 @@ This document describes the current (2022/01/13) state of the memory layout and 
 Nouns are represented as machine words with the MSBs as tag bits.
 By treating a 0 MSB as the tag for a direct atom, we can compute directly with direct atoms without masking the tag.
 
-|------|-----------------------|
+
 | MSBs | Noun                  |
+|------|-----------------------|
 | 0    | Direct Atom           |
 | 10   | Cell Pointer          |
 | 110  | Indirect Atom Pointer |
-|------|-----------------------|
+
 
 A direct atom is an atom which fits in a machine word, less one bit for the tag. It is stored directly.
 
