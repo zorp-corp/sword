@@ -24,7 +24,7 @@ By default, pages in the persistent memory arena are protected read-only (`PROT_
 
 To handle this signal and resolve the fault, our handler will:
 
-- record the page as being in the middle of a copy-on-write, so other threads faulting will not also attempt to copy the page.
+- move the page to the copy-on-write set, so other threads faulting will not also attempt to copy the page.
 - `mmap()` a new page to an unused region of the backing block storage, being sure to set `MAP_SHARED`
 - Copy the contents of the faulting page to this new page.  _NOTE_: this does not yet write anything to the file.
 - `mmap()` the new region to the address of the original page, being sure to set `MAP_SHARED`, `PROT_READ`, and `PROT_WRITE`
@@ -38,8 +38,6 @@ The net effect of this is that the file region to which the read-protected page 
 To facilitate restoring the persistent memory arena from durable block storage, we reserve two pages at the beginning of the file for metadata storage. This does not limit us to a page for metadata, we may commit metadata objects alongside our stored data, and reference it from a page. A metadata page contains a counter and a checksum of the page's contents. The page with a valid checksum and the more recent counter is used to load the data.
 
 To atomically commit writes since the last commit to durable storage, we simply `msync()` (note: and `fsync()` or is that implied by `msync()`?) each dirty page. If all syncs succeed, we know that data in these pages is durably persisted to disk. We may now safely write a new metadata page to whichever metadata page is not in use. Once this too successfully `msync`s, our writes are durably committed.
-
-TODO: fine-grained commits e.g. for events but not a snapshot
 
 ### When to commit
 
@@ -64,13 +62,20 @@ It's not clear whether it would be necessary to shrink the backing file, but if 
 
 ## Snapshots
 
-After each event is processed, the working state is copied to the snapshot persistent arena to be used as input for the next event. Creating a durable snapshot consists of committing, and recording a pair of event number and noun pointer in a durable metadata record. (TODO: be less handwavy here)
+After each event is processed, the working state is copied to the snapshot persistent arena to be used as input for the next event. Creating a durable snapshot consists of committing, and recording a pair of event number and noun pointer in a durable metadata record. Metadata is referenced from the root page of a commit, and includes the event number of the snapshot and a pointer to the snapshotted noun.
 
 ## Event log
+
+The event log should live in a separate arena from Arvo snapshot nouns. These arenas should be of incomparable seniority: that is, references are not permitted between either of them. This precludes synchronization issues between snapshot and event log commits, and ensures that old epochs of the event log can be freed without corrupting a snapshot.
+
+In practice, this is achieved by copying the event from the stack to the event log once it is successfully computed, so that the computed arvo core and effects reference the event on the stack, rather than the event in the event log.
+This ensures that if the event or some subnoun of it is included in the Arvo snapshot, it is copied to the snapshot arena.
 
 Epochs in the event log can be stored as linked lists in the event log persistent arena. In order to safely release effects computed from incoming events, the events must be durably written to disk.
 
 Allocations in this arena may be made by bumping a pointer within pages. Dirtying a page does not necessitate copying as long as the pointer to the most recent event can be stored consistently, and is updated *after* an event is made durable on disk. This eliminates repeated copies of a page to re-dirty it after a commit. The only time when a free block of storage must be allocated to a page is when a new page is mapped. If each epoch has its own page set, then when an epoch is discarded, pages may simply be unmapped together and their blocks re-added to the free list.
+
+The separate arena need not be maintained in an entirely separate memory region. Rather, on disk, two indexes each with two root pages (which are alternated for commits) can be maintained, and the allocator can track which pages belong to which arena, and inform the persistence subsystem of this when requesting free pages, so that the persistence subsystem knows which index should track a newly dirtied page.
 
 ## Concurrency
 
