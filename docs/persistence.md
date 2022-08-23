@@ -25,10 +25,8 @@ By default, pages in the persistent memory arena are protected read-only (`PROT_
 To handle this signal and resolve the fault, our handler will:
 
 - move the page to the copy-on-write set, so other threads faulting will not also attempt to copy the page.
-- `mmap()` a new page to an unused region of the backing block storage, being sure to set `MAP_SHARED`
-- Copy the contents of the faulting page to this new page.  _NOTE_: this does not yet write anything to the file.
+- `write()` the contents of the page to an unused region of the backing block storage. Note that this will not block on writing through to the disk, though it may write through if the OS decides.
 - `mmap()` the new region to the address of the original page, being sure to set `MAP_SHARED`, `PROT_READ`, and `PROT_WRITE`
-- `munmap()` the page mapped as a copy target
 - Move the page from the copy-on-write set to the dirty set.
 
 The net effect of this is that the file region to which the read-protected page was mapped will remain unmodified, but our process continues with identical contents in a virtual memory page mapped to a new region of the file. The process continues from the faulting instruction and writes to memory. Index metadata which maps regions of the file to regions of memory remains untouched at this juncture.
