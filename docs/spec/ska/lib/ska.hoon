@@ -7,7 +7,7 @@
   ?:  .=  axe  0
     [%boom ~]
   |-
-  ?:  (= axe 1)
+  ?:  =(axe 1)
     [%safe sock]
   ?-  sock
       ::
@@ -45,7 +45,7 @@
 :: Test if sock is atom or cell, or unknown
 ++  fits
   |=  =sock
-  ^-  sock
+  ^-  ^sock
   ?-  sock
       ::
       [%know @]
@@ -70,8 +70,8 @@
 ++  pear
   |=  [a=sock b=sock]
   ^-  sock
-  ?:  ?&  ?=  [%know *]  a  ?=  [%know *]  b
-    ?:  .=  know.a  know.b
+  ?:  ?&(?=([%know *] a) ?=([%know *] b))
+    ?:  =(know.a know.b)
       [%know 0]
     [%know 1]
   [%flip ~]
@@ -118,30 +118,30 @@
 ++  cobb
   |=  [hed=boot tal=boot]
   ^-  boot
-  ?:  ?=  [%boom ~]  a
+  ?:  ?=  [%boom ~]  hed
     [%boom ~]
-  ?:  ?=  [%boom ~]  b
+  ?:  ?=  [%boom ~]  tal
     [%boom ~]
-  ?-  a
+  ?-  hed
       ::
       [%safe *]
-    ?-  b
+    ?-  tal
         ::
         [%safe *]
-      [%safe (knit sure.a sure.b)]
+      [%safe (knit sure.hed sure.tal)]
         ::
         [%risk *]
-      [%risk (knit sure.a hope.b)]
+      [%risk (knit sure.hed hope.tal)]
     ==
       ::
       [%risk *]
-    ?-  b
+    ?-  tal
         ::
         [%safe *]
-      [%risk (knit hope.a sure.b)]
+      [%risk (knit hope.hed sure.tal)]
         ::
         [%risk *]
-      [%risk (knit hope.a hope.b)]
+      [%risk (knit hope.hed hope.tal)]
     ==
   ==
 :: patch a sock
@@ -191,6 +191,7 @@
 :: Stitch a boot into another boot
 ++  welt
   |=  [axe=@ pach=boot wole=boot]
+  ^-  boot
   ?:  ?=  [%boom ~]  pach
     [%boom ~]
   ?:  ?=  [%boom ~]  wole
@@ -241,21 +242,21 @@
 :: Produce the intersection of two socks
 ++  mous
   |=  [a=sock b=sock]
-  ?:  ?&  ?=  [%know *]  a  ?=  [%know *]  b
-    ?:  .=  know.a  know.b
+  ?:  ?&(?=([%know *] a) ?=([%know *] b))
+    ?:  =(know.a know.b)
       a
     $(a (fray a), b (fray b))
-  ?:  ?=  [%know *]  a
+  ?:  ?=([%know *] a)
     $(a (fray a))
-  ?:  ?=  [%know *]  b
+  ?:  ?=([%know *] b)
     $(b (fray b))
-  ?:  ?&  ?=  [%bets *]  a  ?=  [%bets *]  b
+  ?:  ?&(?=([%bets *] a) ?=([%bets *] b))
     [%bets $(a hed.a, b hed.b) $(a tal.a, b tal.b)]
-  ?:  ?&  ?=  [%dice ~]  a  ?|  ?=  [%dice ~]  b  ?=  [%flip ~]  b
+  ?:  ?&(?=([%dice ~] a) ?|(?=([%dice ~] b) ?=([%flip ~] b)))
     [%dice ~]
-  ?:  ?&  ?=  [%dice ~]  b  ?=  [%flip ~]  a
+  ?:  ?&(?=([%dice ~] b) ?=([%flip ~] a))
     [%dice ~]
-  ?:  ?&  ?=  [%flip ~]  a  ?=  [%flip ~]  b
+  ?:  ?&(?=([%flip ~] a) ?=([%flip ~] b))
     [%flip ~]
   [%gues ~]
 ::  Produce the intersection of two boots
@@ -282,15 +283,17 @@
     ?:  ?=  [%risk *]  b
       [%risk (mous hope.a hope.b)]
     [%risk hope.a]
-  ?:  ?=  [%safe *] b
+  ?:  ?=  [%safe *]  b
     [%risk sure.b]
-  ?:  ?=  [%risk *] b
+  ?:  ?=  [%risk *]  b
     [%risk hope.b]
   [%boom ~]
 ::  Produce a boot of whether a given boot is a cell or atom
 ++  ques
   |=  non=boot
   ^-  boot
+  ?:  ?=([%boom ~] non)
+    [%boom ~]
   ?-  non
       ::
       [%safe %know @]
@@ -376,7 +379,11 @@
       ::
       [%2 * *]
     =/  subn  $(form +<.form)
+    ?:  ?=([%boom ~] subn)
+      [%boom ~]
     =/  forn  $(form +>.form)
+    ?:  ?=([%boom ~] forn)
+      [%boom ~]
     ?:  ?=  [%safe %dice ~]  forn
       [%boom ~]
     ?:  ?=  [%safe %flip ~]  forn
@@ -394,17 +401,17 @@
         $(subj sure.subn, form know.sure.forn)
           ::
           [%risk *]
-        (risk $(subj risk.subn, form know.sure.forn))
+        (dare $(subj hope.subn, form know.sure.forn))
       ==
         ::
         [%risk %know *]
       ?-  subn
           ::
           [%safe *]
-        (risk $(subj sure.subn, form know.hope.forn))
+        (dare $(subj sure.subn, form know.hope.forn))
           ::
           [%risk *]
-        (risk $(subj hope.subn, form know.hope.forn))
+        (dare $(subj hope.subn, form know.hope.forn))
       ==
     ==
       ::
@@ -424,10 +431,10 @@
         [%safe *]
       ?+  sure.cond  [%boom ~]
           ::
-          [%know 0]
+          [%know %0]
         $(form +>-.form)
           ::
-          [%know 1]
+          [%know %1]
         $(form +>+.form)
           ::
           [%flip ~]
@@ -443,10 +450,10 @@
         [%risk *]
       ?+  hope.cond  [%boom ~]
           ::
-          [%know 0]
+          [%know %0]
         (dare $(form +>-.form))
           ::
-          [%know 1]
+          [%know %1]
         (dare $(form +>+.form))
           ::
           [%flip ~]
@@ -476,10 +483,10 @@
     ?+  news  [%boom ~]
         ::
         [%safe *]
-      $(subj [sure.news subj], form +>.form)
+      $(subj (knit sure.news subj), form +>.form)
         ::
         [%risk *]
-      $(dare $(subj [hope.news subj], form +>.form))
+      (dare $(subj (knit hope.news subj), form +>.form))
     ==
       ::
       [%9 @ *]
@@ -487,13 +494,13 @@
     ?+  news  [%boom ~]
         ::
         [%safe *]
-      =/  newf  (axe +<.form news)
+      =/  newf  (pull +<.form sure.news)
       ?+  newf  [%boom ~]
           ::
           [%safe %know *]
         $(subj sure.news, form know.sure.newf)
           ::
-          [%risk %know *)
+          [%risk %know *]
         (dare $(subj sure.news, form know.hope.newf))
           ::
           [%safe *]
@@ -504,14 +511,14 @@
       ==
         ::
         [%risk *]
-      =/  newf  (axe +<.form news)
+      =/  newf  (pull +<.form hope.news)
       ?+  newf  [%boom ~]
           ::
           [%safe %know *]
         (dare $(subj hope.news, form know.sure.newf))
           ::
           [%risk %know *]
-        (dare %(subj hope.news, form know.hope.newf))
+        (dare $(subj hope.news, form know.hope.newf))
           ::
           [%safe *]
         [%risk %gues ~]
@@ -522,7 +529,7 @@
     ==
       ::
       [%10 [@ *] *]
-    (welt $(form +>.form) $(form ->.form))
+    (welt +<-.form $(form +<+.form) $(form +>.form))
       ::
       [%11 @ *]
     $(form +>.form)

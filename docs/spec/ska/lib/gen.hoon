@@ -1,3 +1,6 @@
+:: TODO:
+:: ?= in wide form
+:: fix ?- and ?+
 /-  *sock
 /-  *gene
 /+  ska
@@ -75,12 +78,8 @@
           boom
         =/  nows
           ?-  news
-              ::
-              [%safe *]
-            sure.news
-              ::
-              [%risk *]
-            risk.news
+            [%safe *]  sure.news
+            [%risk *]  risk.news
           ==
         =/  shis  this
         =.  this  (inst [%put 2])
@@ -93,7 +92,7 @@
           =.  this  shis
           =.  this  (inst [%sub ~])
           =/  nabl  [nows know.sure.newf]
-          =^  res  this  (fics nabl)
+          =^  res   this  (fics nabl)
           =.  this  (inst [%cal nabl])
           =.  this  (inst [%reo 1])
           =.  this  (inst [%pop ~])
@@ -184,7 +183,7 @@
             hope.news
           ==
         =.  this  (inst [%sub ~])
-        =^  res  $(for.bloc +>.for.bloc, sub.bloc nows, mod %step)
+        =^  res  this  $(for.bloc +>.for.bloc, sub.bloc nows, mod %step)
         =.  this  (inst [%reo 0])
         =.  this  (inst [%pop ~])
         ?:  ?=  [%safe *]  news
@@ -654,7 +653,7 @@
             hope.news
           ==
         =.  this  (inst [%sub ~])
-        =^  res  $(for.bloc +>.for.bloc, sub.bloc nows)
+        =^  res  this  $(for.bloc +>.for.bloc, sub.bloc nows)
         ?:  ?=  [%safe *]  news
           [res this]
         [(dare res) this]
@@ -680,19 +679,15 @@
           ::
           [%9 @ *]
         =^  newc  this  $(for.bloc +>.for.bloc, mod %step)
-        ?:  ?=  [%boom ~]  newc
+        ?:  ?=([%boom ~] newc)
           bomb
         =/  nowc
           ?-  newc
-              ::
-              [%safe *]
-            sure.newc
-              ::
-              [%risk *]
-            hope.newc
+            [%safe *]  sure.newc
+            [%risk *]  hope.newc
           ==
         =.  this  (inst [%sub ~])
-        =.  newf  (pull +<.for.bloc nowc)
+        =/  newf  (pull +<.for.bloc nowc)
         ?:  ?=  [%boom ~]  newf
           bomb
         =/  shis  this
@@ -745,7 +740,194 @@
       ==
         ::
         %tail
-      ~|  'TODO: implement tail mode'  !!
+      ?+  for.bloc  bomb
+          ::
+          [[* *] *]
+        =.  this  (inst [%puh 1])
+        =^  hed  this  $(for.bloc -.for.bloc, mod %save)
+        =.  this  (inst [%put 0])
+        =^  tal  this  $(for.bloc +.for.bloc, mod %step)
+        =.  this  (inst [%cel 0])
+        =.  this  (inst [%pop ~])
+        (done (cobb hed tal))
+          ::
+          [%0 @]
+        =.  (inst [%axe +.for.bloc])
+        (done (pull +.for.bloc sub.bloc))
+          ::
+          [%1 *]
+        =.  (inst [%con +.for.bloc])
+        (done (%safe %know +.for.bloc))
+          ::
+          [%2 *]
+        =^  news  this  $(for.bloc +<.for.bloc, mod %save)
+        ?:  ?=  [%boom ~]  news
+          bomb
+        =/  nows
+          ?-  news
+              ::
+              [%safe *]
+            sure.news
+              ::
+              [%risk *]
+            hope.news
+          ==
+        =/  shis  this
+        =.  this  (inst [%puh 1])
+        =.  this  (inst [%put 0])
+        =^  newf  this  $(for.bloc +>.for.bloc, mod %step)
+        =.  this  (inst [%cel 0])
+        =.  this  (inst [%pop ~])
+        =.  this  (inst [%noc ~])
+        ?:  ?=  [%boom ~]  newf
+          bomb
+        ?:  ?=  [%safe %know *]  newf
+          =.  this  shis
+          =.  this  (inst [%sub ~])
+          =/  nabl  [nows know.sure.newf]
+          =^  res  this  (fics nabl)
+          =.  this  (inst [%jmp nabl])
+          ?:  ?=  [%safe *]  news
+            (done res)
+          (done (dare res))
+        ?:  ?=  [%risk %know *]  newf
+          =/  nabl  [nows know.hope.newf]
+          =^  res  this  (fics nabl)
+          =.  this  (inst [%jmp nabl])
+          (done (dare res))
+        =.  this  (inst [%lnt ~])
+        (done [%risk %gues ~])
+          ::
+          [%3 *]
+        =^  non  this  $(for.bloc +.for.bloc, mod %step)
+        =.  this  (inst [%clq ~])
+        (done (ques:ska non))
+          ::
+          [%4 *]
+        =^  num  this  $(for.bloc +.for.bloc, mod %step)
+        =.  this  (inst [%inc ~])
+        (done (pile:ska non))
+          ::
+          [%5 * *]
+        =.  this  (inst [%puh 1])
+        =^  nox  this  $(for.bloc +<.for.bloc, mod %save)
+        =.  this  (inst [%put 0])
+        =^  noy  this  $(for.bloc +<.for.bloc, mod %step)
+        =.  this  (inst [%eqq 0])
+        =.  this  (inst [%pop ~])
+        (done (bopp:ska nox noy))
+          ::
+          [%6 * * *]
+        =/  shis  this
+        =^  tes  this  $(for.bloc +<.for.bloc, mod %save)
+        ?:  ?=  [%boom ~]  tes
+          bomb
+        ?:  ?=  [%safe %know 0]
+          =.  this  shis
+          =^  res  this  $(for.bloc +>-.for.bloc)
+          (done res)
+        ?:  ?=  [%safe %know 1]
+          =.  this  shis
+          =^  res  this  $(for.bloc +>+.for.bloc)
+          (done res)
+        ?:  ?=  [%risk %know 0]
+          =^  res  this  $(for.bloc +>-.for.bloc)
+          (done (dare res))
+        ?:  ?=  [%risk %know 1]
+          =^  res  this  $(for.bloc +>+.for.bloc)
+          (done (dare res))
+        ?:  ?|  ?=  [%safe %know *]  tes
+                ?=  [%safe %bets *]  tes
+                ?=  [%risk %know *]  tes
+                ?=  [%risk %bets *]  tes
+            ==
+          bomb
+        =^  gib  this  gibl
+        =.  this  (inst [%br1 gib])
+        =^  roo  this  $(for.bloc +>-.for.bloc)
+        =.  this  (inst [%brh gib])
+        =^  ral  this  $(for.bloc +>+.for.bloc)
+        ?:  ?=  [%safe %flip ~]  tes
+          (done (gnaw:ska roo ral))
+        (done (dare:ska (gnaw:ska roo ral))
+          ::
+          [%7 * *]
+        =^  news  this  $(for.bloc +<.for.bloc, mod %step)
+        ?:  ?=  [%boom ~]  news
+          bomb
+        =/  nows
+          ?-  news
+              ::
+              [%safe *]
+            sure.news
+              ::
+              [%risk *]
+            hope.news
+          ==
+        =.  this  (inst [%sub ~])
+        =^  res  this  $(for.bloc +>.for.bloc, sub.bloc nows)
+        ?:  ?=  [%safe *]  news
+          (done res)
+        (done (dare:ska res))
+          ::
+          [%8 * *]
+        =^  newh  this  $(for.bloc +<.for.bloc, mod %save)
+        ?:  ?=  [%boom ~]  newh
+          bomb
+        =/  nowh
+          ?-  newh
+              ::
+              [%safe *]
+            sure.newh
+              ::
+              [%risk *]
+            hope.newh
+          ==
+        =.  this  (inst [%ext ~])
+        =^  res  $(for.bloc +>.for.bloc, sub.bloc (knit nows sub.bloc))
+        ?:  ?=  [%safe *]  newh
+          (done res)
+        (done (dare:ska res))
+          ::
+          [%9 @ *]
+        =^  newc  this  $(for.bloc +>.for.bloc, mod %step)
+        ?:  ?=  [%boom ~]  newc
+          bomb
+        =/  nowc
+          ?-  newc
+              ::
+              [%safe *]
+            sure.newc
+              ::
+              [%risk *]
+            hope.newc
+          ==
+        =.  this  (inst [%sub ~])
+        =/  newf  (pull +<.for.bloc nowc)
+        ?:  ?=  [%boom ~]  newf
+          bomb
+        =/  shis  this
+        =.  this  (inst [%axe +<.for.bloc])
+        ?:  ?=  [%safe %know *]  newf
+          =.  this  shis
+          =/  nabl  [nowc know.sure.newf]
+          =^  res   this  (fics nabl)
+          =.  this  (inst [%jmp nabl])
+          ?:  ?=  [%safe *]  newc
+            (done res)
+          (done (dare res))
+        ?:  ?=  [%risk %know *]  newf
+          =/  nabl  [nowc know.sure.newf]
+          =^  res   this  (fics nabl)
+          =.  this  (inst [%jmp nabl])
+          (done (dare res))
+        =.  this  (inst [%lnt ~])
+        (done [%risk %gues ~])
+          ::
+          [%10 [@ *] *]
+        =.  this  (inst [%puh 1])
+        =^  wole  this  $(for.bloc +>.for.bloc, mod %save)
+
     ==
   ++  done
     |=  says=boot
@@ -764,7 +946,7 @@
       =.  this  crop
       [res this]
     u.vet
-  ++  boom
+  ++  bomb
     ?:  ?=  mod  %tail
       (done [%boom ~])
     :-  [%boom ~]

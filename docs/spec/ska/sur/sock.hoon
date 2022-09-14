@@ -6,10 +6,8 @@
       [%flip ~]
       [%gues ~]
   ==
-+$  stok
-  $:  sock  *
 +$  boot
-  $?  [%safe sure=sock]
+  $%  [%safe sure=sock]
       [%risk hope=sock]
       [%boom ~]
   ==
