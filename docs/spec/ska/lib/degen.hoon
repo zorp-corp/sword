@@ -30,8 +30,8 @@
   =^  moot  this
     |-
     ^-  [boot _this]
-    ~|  'vale must not be 5 or a subaxis of 5'
-    ?>  (hast vale)
+    ?.  (hast vale)
+      ~|  'vale must not be 5 or a subaxis of 5'  !!
     ?+  fate  bomb
         [[* *] *]
       ?:  ?=  [%bab *]  heir
@@ -94,8 +94,8 @@
           ==
         =^  toot  this  (gene sabl)
         ?:  ?=([%ret ~] heir)
-          ~|  'Value destination for tail call should always be 4'
-          ?>  =(vale 4)
+          ?.  =(vale 4)
+            ~|  'Value destination for tail call should always be 4'  !!
           =.  this  (inst [%jmp sabl])
           :_  this
           ?:  ?&  ?=([%safe *] news)  ?=([%safe *] norm)  ==
@@ -110,8 +110,8 @@
           toot
         (dare:ska toot)
       ?:  ?=([%ret ~] heir)
-        ~|  'Value destination for tail call should always be 4'
-        ?>  =(vale 4)
+        ?.  =(vale 4)
+          ~|  'Value destination for tail call should always be 4'  !!
         =.  this  (inst [%lnt ~])
         :_  this
         [%risk %gues ~]
@@ -359,8 +359,8 @@
     this
   ++  tale
     ?:  ?=  [%ret ~]  heir
-      ~|  'Must have data destination 4 when control destination is %ret'
-      ?>  =(4 vale)
+      ?.  =(4 vale)
+        ~|  'Value destination for tail call should always be 4'  !!
       (inst [%don ~])
     this
   ++  bale
@@ -382,14 +382,14 @@
       [%bab *]  (inst [%hop fals.heir])
       [%ret ~]  (inst [%don ~])
     ==
-  ::  assert correctness of a dast: must not be 5 or a subaxis of 5
-  ++  hast
-    |=  wast=dast
-    ^-  ?
-    ?.  (lth wast 5)
-      ?.  =(wast 5)
-        $(wast (mas wast))
-      %.n
-    %.y
   --
+::  assert correctness of a dast: must not be 5 or a subaxis of 5
+++  hast
+  |=  wast=dast
+  ^-  ?
+  ?.  (lth wast 5)
+    ?.  =(wast 5)
+      $(wast (rsh [0 1] wast))
+    %.n
+  %.y
 --
