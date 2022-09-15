@@ -47,6 +47,8 @@
       (cobb:ska shed stal)
         ::
         [%0 @]
+      ?:  =(0 +.fate)
+        bomb
       =.  this  (inst [%mov (peg 3 +.fate) vale])
       =.  this  bale
       :_  this
@@ -142,8 +144,11 @@
       ::  TODO: statically jump to a branch if we know equal or
       ::  disequal
       =/  tier  (bear 7)
-      =^  left  this  $(faxe (peg 6 faxe), fate +<.fate, heir [%dab tier], vale 8)
+      =^  left  this  $(faxe (peg 6 faxe), fate +<.fate, heir [%dab tier], vale 4)
+      =.  this  (inst [%sft ~])
       =^  rite  this  $(faxe (peg 7 faxe), fate +>.fate, heir [%dab here], vale 9)
+      =.  this  (inst [%mov 10 8])
+      =.  this  (inst [%mov 11 5]) :: pop without overwriting 4 XX this is probably what we want ust to do anyway
       =.  this  (inst [%eqq will wont])
       =.  this  does
       =.  this  dont
