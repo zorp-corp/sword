@@ -94,7 +94,7 @@
             [%safe *]  [sewn know.sure.norm]
             [%risk *]  [sewn know.hope.norm]
           ==
-        =^  toot  this  (gene sabl)
+        =^  toot  this  ^$(bloc sabl)
         ?:  ?=([%ret ~] heir)
           ?.  =(vale 4)
             ~|  'Value destination for tail call should always be 4'  !!
@@ -268,7 +268,7 @@
           [%safe %know *]  [sore know.sure.norm]
           [%risk %know *]  [sore know.hope.norm]
         ==
-      =^  noot  this  (gene sabl)
+      =^  noot  this  ^$(bloc sabl)
       ?:  ?=  [%ret ~]  heir
         =.  this  (inst [%jmp sabl])
         :_  this
