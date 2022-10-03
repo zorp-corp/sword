@@ -12,6 +12,12 @@
   |=  =dinn
   ^-  _this
   this(buff [dinn buff])
+++  sift
+  ^-  _this
+  (inst [%mov 2 5])
+++  suft
+  ^-  _this
+  (inst [%mov 11 5])
 ++  gene
   |=  bloc=labl
   ^-  [boot _this]
@@ -38,10 +44,10 @@
         bomb
       =/  tier  [%dab (bear 3)]
       =^  shed  this  $(faxe (peg faxe 2), fate -.fate, heir tier, vale 4) :: we can't clobber subject
-      =.  this  (inst [%sft ~])
+      =.  this  sift
       =^  stal  this  $(faxe (peg faxe 3), fate +.fate, heir [%dab here], vale (peg vale 3))
       =.  this  (inst [%mov 10 (peg vale 2)])
-      =.  this  (inst [%mov 11 5]) :: pop without overwriting 4
+      =.  this  suft
       =.  this  tale
       :_  this
       (cobb:ska shed stal)
@@ -145,10 +151,10 @@
       ::  disequal
       =/  tier  (bear 7)
       =^  left  this  $(faxe (peg 6 faxe), fate +<.fate, heir [%dab tier], vale 4)
-      =.  this  (inst [%sft ~])
+      =.  this  sift
       =^  rite  this  $(faxe (peg 7 faxe), fate +>.fate, heir [%dab here], vale 9)
       =.  this  (inst [%mov 10 8])
-      =.  this  (inst [%mov 11 5]) :: pop without overwriting 4 XX this is probably what we want ust to do anyway
+      =.  this  suft
       =.  this  (inst [%eqq will wont])
       =.  this  does
       =.  this  dont
@@ -296,10 +302,10 @@
         ::
         [%10 [@ *] *]
       =^  soot  this  $(faxe (peg 13 faxe), fate +<+.fate, heir [%dab (bear 7)], vale 4)
-      =.  this  (inst [%sft ~])
+      =.  this  sift
       =^  toot  this  $(faxe (peg 7 faxe), fate +>.fate, heir [%dab here]) :: write tree to destination
-      =.  this  (inst [%ust ~])
-      =.  this  (inst [%mov 4 (peg vale +<-.fate)]) :: write patch to axis under destination
+      =.  this  (inst [%mov 10 (peg vale +<-.fate)]) :: write patch to axis under destination
+      =.  this  suft
       :_  this
       (welt:ska +<-.fate soot toot)
         ::
@@ -351,13 +357,12 @@
     [sub.bloc for.bloc faxe 3]
   :: hide away a subject for later (clobbers 4)
   ++  hide
-    =.  this  (inst [%mov 3 4])
-    (inst [%sft ~]) :: subject is now in 10
+    =.  this  (inst [%mov 5 11])
+    (inst [%mov 3 10]) :: subject is now in 10
   :: put back a subject that was hidden away (does not clobber 4)
   ++  show
     =.  this  (inst [%mov 10 3]) :: put back the subject
-    =.  this  (inst [%mov 4 10]) :: put the result where it will get shifted back into result space
-    (inst [%ust ~])
+    suft :: put the result where it will get shifted back into result space
   ++  bran
     ?:  ?=  [%bab *]  heir
       (inst [%brn troo.heir fals.heir])

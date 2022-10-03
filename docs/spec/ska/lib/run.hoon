@@ -21,26 +21,31 @@
     =^  next  inst  ~|(%empty-instruction-list ?>(?=(^ inst) inst))
     ?+  next  ~|('TODO: full instruction set' !!)
         [%don ~]
-      ?~  tack
+      ?:  =(tack ~)
         (gett 4)  :: TODO pop stack
-      =/  res  4
-      =/  [pins=linn pend=_tend]  -.tack
-      $:(putt 4 [0 0]):this(tend pend, inst pins, tack +.tack)
+      =/  res  (gett 4)
+      =^  [pins=linn pend=_tend]  tack  tack
+      =.  inst  pins
+      =.  tend  pend
+      =.  this  (putt 4 res)
+      $
         ::
         [%jmp *]
-      =/  entu  (~(get by prog) entr)
+      =/  entu  (~(get by prog) +.next)
       ?~  entu
         ~|  'No entry for given labl'  !!
       $:this(inst does.u.entu)
         ::
         [%cal *]
-      =/  entu  (~(get by prog) entr)
+      =/  entu  (~(get by prog) +.next)
       ?~  entu
         ~|  'No entry for given labl'  !!
       =/  ject  (gett 3)
       =/  mend  tend
-      =/  thin  (putt 4 [0 0])
-      $:thin(tack [[inst mend] tack], inst does.u.entu)
+      =.  this  (putt 2 [0 0])
+      =.  tack  [[inst mend] tack]
+      =.  inst  does.u.entu
+      $
         ::
         [%lnt ~]
       =/  dorm  (gett 4)
@@ -58,7 +63,7 @@
         ~|  'No entry for given labl'  !!
       =/  ject  (gett 3)
       =/  mend  tend
-      =/  thin  (putt 4 [0 0])
+      =/  thin  (putt 2 [0 0])
       $:thin(tack [[inst mend] tack], inst does.u.entu)
         ::
         [%bom *]
@@ -100,12 +105,6 @@
         [%her *]
       ~&  'Running over label'
       $
-        ::
-        [%sft ~]
-      (putt 5 (gett 2))
-        ::
-        [%ust ~]
-      (putt 2 (gett 5))
     ==
   ++  this  .
   ++  find
