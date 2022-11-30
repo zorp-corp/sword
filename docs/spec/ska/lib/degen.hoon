@@ -1,405 +1,416 @@
-:: TODO: generate labels and jumps everywhere and stick them in the code
-:: table immediately, then linearize
-/-  *gene
-/-  *sock
 /+  ska
-=|  prog=tinn
-=|  buff=linn
-=|  bust=(list linn)
+/-  *sock
+/-  *gene
 |%
-++  this  .
-++  inst
-  |=  =dinn
-  ^-  _this
-  this(buff [dinn buff])
-++  sift
-  ^-  _this
-  (inst [%mov 2 5])
-++  suft
-  ^-  _this
-  (inst [%mov 11 5])
-++  gene
-  |=  bloc=labl
-  ^-  [boot _this]
-  =/  puff  (~(get by prog) bloc)
-  ?.  ?=(~ puff)
-    [says.u.puff this]
-  =.  prog  (~(put by prog) bloc [~ [%risk %gues ~]]) :: prevent recursive functions from infinite looping the compiler
-  =.  bust  [buff bust]
-  =.  buff  ~
-  =+  faxe=1
-  =+  fate=for.bloc
-  =+  ject=sub.bloc
-  =|  heir=cost
-  =|  vale=dast
+++  plot
+  =|  ski=farm
+  |=  ent=barn
+  ^-  [boot farm]
+  =/  ext  (~(get by ski) ent)
+  ?.  ?=(~ ext)  [says.u.ext ski]
+  =;  [res sku]  [says.res sku(yard (~(put by yard.sku) ent res), wood [ent wood.sku]]
+  =.  ski  ski(yard (~(put by yard.ski) ent [[%zer 0 %.n] [%risk %toss ~]])) :: blackhole, guard recursion
+  |-
+  ^-  [[does=nomm says=boot:ska] farm]
   =<
-  =^  moot  this
-    |-
-    ^-  [boot _this]
-    ?.  (hast vale)
-      ~|  'vale must not be 5 or a subaxis of 5'  !!
-    ?+  fate  bomb
-        [[* *] *]
-      ?:  ?=  [%bab *]  heir
-        bomb
-      =/  tier  [%dab (bear 3)]
-      =^  shed  this  $(faxe (peg faxe 2), fate -.fate, heir tier, vale 4) :: we can't clobber subject
-      =.  this  sift
-      =^  stal  this  $(faxe (peg faxe 3), fate +.fate, heir [%dab here], vale (peg vale 3))
-      =.  this  (inst [%mov 10 (peg vale 2)])
-      =.  this  suft
-      =.  this  tale
-      :_  this
-      (cobb:ska shed stal)
-        ::
-        [%0 @]
-      ?:  =(0 +.fate)
-        bomb
-      =.  this  (inst [%mov (peg 3 +.fate) vale])
-      =.  this  bale
-      :_  this
-      (pull:ska +.fate ject)
-        ::
-        [%1 *]
-      =.  this  (inst [%imm +.fate vale])
-      ?:  ?=  [%bab *]  heir
-        ?:  =(0 +.fate)
-          =.  this  (inst [%hop troo.heir])
-          =.  this  tale
-          :_  this
-          [%safe %know +.fate]
-        ?:  =(1 +.fate)
-          =.  this  (inst [%hop fals.heir])
-          =.  this  tale
-          :_  this
-          [%safe %know +.fate]
-        bomb
-      =.  this  tale
-      :_  this
-      [%safe %know +.fate]
-        ::
-        [%2 * *]
-      =/  shis  this
-      =/  tier  [%dab (bear 7)]
-      =.  this  hide
-      =^  norm  this  $(faxe (peg faxe 6), fate +<.fate, heir tier, vale 4)
-      ?:  ?=  [%boom ~]  norm
-        bomb
-      =?  this  ?=([%safe %know *] norm)  =.(this shis hide)
-      =^  news  this  $(faxe (peg faxe 7), fate +>.fate, heir [%dab here], vale 3)
-      ?:  ?=  [%boom ~]  news
-        bomb
-      =/  sewn
-        ?-  news
-          [%safe *]  sure.news
-          [%risk *]  hope.news
-        ==
-      ?:  ?=([$?(%safe %risk) %know *] norm)
-        =/  sabl
-          ?-  norm
-            [%safe *]  [sewn know.sure.norm]
-            [%risk *]  [sewn know.hope.norm]
-          ==
-        =^  toot  this  ^$(bloc sabl)
-        ?:  ?=([%ret ~] heir)
-          ?.  =(vale 4)
-            ~|  'Value destination for tail call should always be 4'  !!
-          =.  this  (inst [%jmp sabl])
-          :_  this
-          ?:  ?&  ?=([%safe *] news)  ?=([%safe *] norm)  ==
-            toot
-          (dare:ska toot)
-        =.  this  (inst [%cal sabl])
-        =.  this  show
-        =.  this  (inst [%mov 4 vale])
-        =.  this  bran
-        :_  this
-        ?:  ?&  ?=([%safe *] news)  ?=([%safe *] norm)  ==
-          toot
-        (dare:ska toot)
-      ?:  ?=([%ret ~] heir)
-        ?.  =(vale 4)
-          ~|  'Value destination for tail call should always be 4'  !!
-        =.  this  (inst [%lnt ~])
-        :_  this
-        [%risk %gues ~]
-      =.  this  (inst [%lnk ~])
-      =.  this  show
-      =.  this  (inst [%mov 4 vale])
-      =.  this  bran
-      :_  this
-      [%risk %gues ~]
-        ::
-        [%3 *]
-      :: TODO: statically jump to a branch if we know atom or cell
-      =^  spec  this  $(faxe (peg 3 faxe), fate +.fate, heir [%dab here], vale 4)
-      =.  this  (inst [%clq will wont])
-      =.  this  does
-      =.  this  dont
-      :_  this
-      (ques:ska spec)
-        ::
-        [%4 *]
-      =^  mota  this  $(faxe (peg 3 faxe), fate +.fate, heir [%dab here])  :: leave vale the same
-      =.  this  (inst [%inc vale])
-      =.  this  bale
-      :_  this
-      (pile:ska mota) 
-        ::
-        [%5 * *]
-      ::  TODO: statically jump to a branch if we know equal or
-      ::  disequal
-      =/  tier  (bear 7)
-      =^  left  this  $(faxe (peg 6 faxe), fate +<.fate, heir [%dab tier], vale 4)
-      =.  this  sift
-      =^  rite  this  $(faxe (peg 7 faxe), fate +>.fate, heir [%dab here], vale 9)
-      =.  this  (inst [%mov 10 8])
-      =.  this  suft
-      =.  this  (inst [%eqq will wont])
-      =.  this  does
-      =.  this  dont
-      :_  this
-      (bopp:ska left rite)
-        ::
-        [%6 * * *]
-      =/  troo  (bear 14)
-      =/  fals  (bear 15)
-      =/  shis  this
-      =^  cond  this  $(faxe (peg 6 faxe), fate +<.fate, heir [%bab troo fals], vale 4)
-      ?:  ?=  [%safe %know *]  cond
-        ?:  =(0 know.sure.cond)
-          =.  this  shis
-          $(faxe (peg 14 faxe), fate +>-.fate) :: pass on heir and vale
-        ?:  =(1 know.sure.cond)
-          =.  this  shis
-          $(faxe (peg 15 faxe), fate +>+.fate) :: pass on heir and vale
-        bomb
-      ?:  ?=  [%risk %know *]  cond
-        ?:  =(0 know.hope.cond)
-          =.  this  (inst [%her troo])
-          =^  trus  this  $(faxe (peg 14 faxe), fate +>-.fate) :: pass on heir and vale
-          :_  this
-          (dare:ska trus)
-        ?:  =(1 know.hope.cond)
-          =.  this  (inst [%her fals])
-          =^  lies  this  $(faxe (peg 15 faxe), fate +>+.fate)
-          :_  this
-          (dare:ska lies)
-        bomb
-      ?:  ?=  [%safe %bets *]  cond
-        bomb
-      ?:  ?=  [%risk %bets *]  cond
-        bomb
-      =.  this  (inst [%her troo])
-      =^  trus  this  $(faxe (peg 14 faxe), fate +>-.fate) :: pass on heir and vale
-      =.  this  (inst [%her fals])
-      =^  lies  this  $(faxe (peg 15 faxe), fate +>+.fate) :: pass on heir and vale
-      :_  this
-      ?:  ?=  [%safe %flip ~]  cond
-        (gnaw:ska trus lies)
-      (dare:ska (gnaw:ska trus lies))
-        ::
-        [%7 * *]
-      =.  this  hide
-      =^  news  this  $(faxe (peg 6 faxe), fate +<.fate, heir [%dab (bear 7)], vale 3) :: put result in subject
-      ?:  ?=  [%boom ~]  news
-        bomb
-      =/  sewn
-        ?-  news
-          [%safe *]  sure.news
-          [%risk *]  hope.news
-        ==
-      ?:  ?=  [%ret ~]  heir
-        =^  soot  this  $(faxe (peg 7 faxe), fate +>.fate, ject sewn)
-        :_  this
-        ?:  ?=  [%safe *]  news
-          soot
-        (dare:ska soot)
-      ::  this is what we must do for now to make sure the subject is
-      ::  cleaned up in a test expression.
-      ::  TODO: some way to inject the cleanup code at the start of
-      ::  the branches so we can still branch directly
-      =^  soot  this  $(faxe (peg 7 faxe), fate +>.fate, heir [%dab here], vale 4, ject sewn)
-      =.  this  show
-      =.  this  (inst [%mov 4 vale])
-      =.  this  bran
-      :_  this
-      ?:  ?=  [%safe *]  news
-        soot
-      (dare:ska soot)
-        ::
-        [%8 * *]
-      =^  news  this  $(faxe (peg 6 faxe), fate +<.fate, heir [%dab (bear 7)], vale 8) :: store in head of result
-      ?:  ?=  [%boom ~]  news
-        bomb
-      =/  sewn
-        ?-  news
-          [%safe *]  sure.news
-          [%risk *]  hope.news
-        ==
-      =/  newp  (knit:ska sewn ject)
-      =.  this  (inst [%mov 3 9]) :: copy subject to tail of result
-      =.  this  (inst [%mov 4 3]) :: copy cell back to subject
-      ?:  ?=  [%ret ~]  heir
-        =^  hoot  this  $(faxe (peg 7 faxe), fate +>.fate, ject newp)
-        :_  this
-        ?:  ?=  [%safe *]  news
-          hoot
-        (dare:ska hoot)
-      =^  hoot  this  $(faxe (peg 7 faxe), fate +>.fate, ject newp, heir [%dab here], vale 4)
-      =.  this  (inst [%mov 7 3]) :: put the subject back
-      =.  this  (inst [%mov 4 vale]) :: put the result in the right place
-      :_  this
-      ?:  ?=  [%safe *]  news
-        hoot
-      (dare:ska hoot)
+  ?+  for.ent  bomb
+      [[* *] *]
+    =^  [doth sath]  ski  $(for.ent -.for.ent)
+    ?:  ?=([%boom ~] sath)  bomb
+    =^  [toes tays]  ski  $(for.ent +.for.ent)
+    ?:  ?=([%boom ~] tays)  bomb
+    :_  ski
+    :_  (cobb:ska sath tays)
+    [%par doth sath]
+      ::
+      [%0 @]
+    ::  we can decompose the axis into two axes, a safe axis which can
+    ::  be implemented unchecked, and an unsafe axis which must be
+    ::  checked. We then compose these two axes into safe %zer and
+    ::  unsafe %zer composed by %sev
+    =/  [saf rik ken]  (punt:ska +.for.ent sub.ent)
+    ?:  =(0 saf)  bomb
+    ?:  =(1 rik)  [[%zer saf %.y] [%safe ken]]
+    ?:  =(1 saf)  [[%zer rik %.n] [%risk ken]] 
+    :_  ski
+    :_  [%risk ken]
+    [%sev [%zer saf %.y] [%zer rik %.n]]
+      ::
+      [%1 *]
+    :_  ski
+    :_  [%safe %know +.for.ent]
+    [%one +.for.ent]
+      ::
+      [%2 * *]
+    =^  [dost sass]  ski  $(for.ent +<.for.ent)
+    ?:  ?=([%boom ~] sass)  bomb
+    =^  [doff faff]  ski  $(for.ent +>.for.ent)
+    ?:  ?=([%boom ~] faff)  bomb
+    =/  skun
+      ?-  sass
+        [%safe *]  sure.sass
+        [%risk *]  hope.sass
+      ==
+    ?:  ?=([%safe %know *] faff)
+      =^  ret  ski  ^$(ent [skun know.sure.faff])
+      :_  ski
+      :_  ?:  ?=([%safe *] sass)  ret  (dare:ska ret)
+      [%two dost doff skun (some know.sure.faff) %.y]
+    ?:  ?=([%risk %know *] faff)
+      =^  ret  ski  ^$(ent [skun know.hope.faff])
+      :_  ski
+      :_  (dare:ska ret)
+      [%two dost doff skun (some know.hope.faff) %.n]
+    :_  ski
+    :_  [%risk %toss ~]
+    [%two dost doff skun ~ %.n]
+      ::
+      [%3 *]
+    =^  [deft koob]  ski  $(for.ent +.for.ent)
+    ?:  ?=([%boom ~] koob)  bomb
+    :_  ski
+    :_  (ques:ska koob)
+    [%thr deft]
+      ::
+      [%4 *]
+    =^  [dink sink]  ski  $(for.ent +.for.ent)
+    ?:  ?=([%boom ~] sink)  bomb
+    =/  rink
+      ?-  sink
+        [%safe *]  sure.sink
+        [%risk *]  hope.sink
+      ==
+    :_  ski
+    :_  (pile:ska sink)
+    [%fou dink ?|(?=([%dice ~] rink) ?=([%flip ~] rink) ?=([%know @] rink))]
+      ::
+      [%5 * *]
+    =^  [dome foam]  ski  $(for.ent +<.for.ent)
+    ?:  ?=([%boom ~] foam)  bomb
+    =^  [doot foot]  ski  $(for.ent +>.for.ent)
+    ?:  ?=([%boom ~] foot)  bomb
+    :_  ski
+    :_  (bopp:ska foam foot)
+    [%fiv dome doot]
+      ::
+      [%6 * * *]
+    =^  [dawn sond]  ski  $(for.ent +<.for.ent)
+    ?:  ?=([%safe %know %0] sond)  $(for.ent +>-.for.ent)
+    ?:  ?=([%safe %know %1] sond)  $(for.ent +>+.for.ent)
+    ?:  ?=([%safe %know *] sond) bomb
+    ?:  ?=([%safe %bets *] sond) bomb
+    ?:  ?=([%safe %flip ~] sond)
+      =^  [drew slew]  ski  $(for.ent +>-.for.ent)
+      =^  [darn song]  ski  $(for.ent +>+.for.ent)
+      :_  ski
+      :_  (gnaw:ska slew song)
+      [%six dawn slew song]
+    ?:  ?=([%risk %know %0] sond)
+      =^  [drew slew]  ski  $(for.ent +>-.for.ent)
+      :_  ski
+      :_  (dare:ska slew)
+      [%sev [dawn drew] [%zer 3 %.y]]
+    ?:  ?=([%risk %know %1] sond)
+      =^  [darn song]  ski  $(for.ent +>+.for.ent)
+      :_  ski
+      :_  (dare:ska song)
+      [%sev [dawn darn] [%zer 3 %.y]]
+    ?:  ?=([%risk %know *] sond) bomb
+    ?:  ?=([%risk %bets *] sond) bomb
+    =^  [drew slew]  ski  $(for.ent +>-.for.ent)
+    =^  [darn song]  ski  $(for.ent +>+.for.ent)
+    :_  ski
+    :_  (dare:ska (gnaw:ska slew song))
+    [%six dawn drew darn]
+      ::
+      [%7 * *]
+    =^  [deck keck]  ski  $(for.ent +<.for.ent)
+    ?:  ?=([%boom ~] keck)  bomb
+    =/  news
+      ?-  keck
+        [%safe *]  sure.keck
+        [%risk *]  hope.keck
+      ==
+    =^  [dest zest]  ski  $(sub.ent news, for.ent +>.for.ent)
+    ?:  ?=([%boom ~] zest)  bomb
+    :_  ski
+    :_  ?:  ?=([%safe *] keck)  zest  (dare:ska zest)
+    [%sev deck dest]
+      ::
+      [%8 * *]
+    =^  [pink pest]  ski  $(for.ent +<.for.ent)
+    ?:  ?=([%boom ~] pest)  bomb
+    =/  nest
+      ?-  pest
+        [%safe *]  sure.pest
+        [%risk *]  hope.pest
+      ==
+    =^  [dest zest]  ski  $(sub.ent (knit nest sub.ent), for.ent +>.for.ent)
+    ?:  ?=([%boom ~] zest)  bomb
+    :_  ski
+    :_  ?:  ?=([%safe *] pest)  zest)  (dare:ska zest)
+    [%eig pink dest]
       ::
       [%9 @ *]
-    =.  this  hide
-    =^  bore  this  $(faxe (peg 7 faxe), fate +>.fate, heir [%dab (bear 6)], vale 3)
-    ?:  ?=  [%boom ~]  bore
-      bomb
-    =/  sore
-      ?-  bore
-        [%safe *]  sure.bore
-        [%risk *]  hope.bore
+    =^  [lore sore]  ski  $(for.ent +>.for.ent)
+    ?:  ?=([%boom ~] sore)  bomb
+    =/  news
+      ?-  sore
+        [%safe *]  sure.sore
+        [%risk *]  hope.sore
       ==
-    =/  norm  (pull:ska +<.fate sore)
-    ?:  ?=  [%boom ~]  norm
-      bomb
-    =?  this  ?!(?=([%safe %know *] norm))  (inst [%mov (peg 3 +<.fate) 4]) :: look up axis
-    ?:  ?=([$?(%safe %risk) %know *] norm)
-      =/  sabl
-        ?-  norm
-          [%safe %know *]  [sore know.sure.norm]
-          [%risk %know *]  [sore know.hope.norm]
-        ==
-      =^  noot  this  ^$(bloc sabl)
-      ?:  ?=  [%ret ~]  heir
-        =.  this  (inst [%jmp sabl])
-        :_  this
-        ?:  ?&(?=([%safe *] bore) ?=([%safe *] norm))
-          noot
-        (dare:ska noot)
-      =.  this  (inst [%cal sabl])
-      =.  this  show
-      =.  this  (inst [%mov 4 vale])
-      =.  this  bran
-      :_  this
-      ?:  ?&(?=([%safe *] bore) ?=([%safe *] norm))
-        noot
-      (dare:ska noot)
-    ?:  ?=  [%ret ~]  heir
-      =.  this  (inst [%lnt ~])
-      :_  this
-      [%risk %gues ~]
-    =.  this  (inst [%lnk ~])
-    =.  this  show
-    =.  this  (inst [%mov 4 vale])
-    =.  this  bran
-    :_  this
-    [%risk %gues ~]
-        ::
-        [%10 [@ *] *]
-      =^  soot  this  $(faxe (peg 13 faxe), fate +<+.fate, heir [%dab (bear 7)], vale 4)
-      =.  this  sift
-      =^  toot  this  $(faxe (peg 7 faxe), fate +>.fate, heir [%dab here]) :: write tree to destination
-      =.  this  (inst [%mov 10 (peg vale +<-.fate)]) :: write patch to axis under destination
-      =.  this  suft
-      :_  this
-      (welt:ska +<-.fate soot toot)
-        ::
-        [%11 @ *]
-      $(faxe (peg 7 faxe), fate +>.fate)
-        ::
-        [%11 [@ *] *]
-      =^  hoot  this  $(faxe (peg 13 faxe), fate +<+.fate, heir [%dab (bear 7)], vale 4)
-      ?:  ?=  [%boom ~]  hoot
-        bomb
-      =^  root  this  $(faxe (peg 7 faxe), fate +>.fate)
-      :_  this
-      ?:  ?=  [%safe *]  hoot
-        root
-      (dare:ska root)
-        ::
-        [%12 * *]
-      =^  root  this  $(faxe (peg 6 faxe), fate +<.fate, heir [%dab (bear 7)], vale 8)
-      ?:  ?=  [%boom ~]  root
-        bomb
-      =^  soot  this  $(faxe (peg 7 faxe), fate +>.fate, heir [%dab here], vale 9)
-      ?:  ?=  [%boom ~]  soot
-        bomb
-      =.  this  (inst [%spy ~])
-      =.  this  (inst [%mov 4 vale])
-      :_  this
-      [%risk %gues ~]
-    ==
-  :_  this(prog (~(put by prog) bloc [(flop buff) moot]), buff -.bust, bust +.bust)
-  moot
+    =/  fork  (pull:ska +<.for.ent news)
+    ?:  ?=([%safe %know *] fork)
+      =^  ret  ski  ^$(ent [news know.sure.fork])
+      :_  ski
+      :_  ?:  ?=([%safe *] sass)  ret  (dare:ska ret)
+      [%nin +<.for.ent lore news (some know.sure.fork) %.y]
+    ?:  ?=([%risk %know *] fork)
+      =^  ret  ski  ^$(ent [news know.hope.fork])
+      :_  ski
+      :_  (dare:ska ret)
+      [%nin +<.for.ent lore news (some know.hope.fork) %.n]
+    :_  ski
+    :_  [%risk %toss ~]
+    [%nin +<.for.ent lore news ~ ?=([%safe *] fork)]
+      ::
+      [%10 [@ *] *]
+    =^  [neat seat]  ski  $(for.ent +>.for.ent)
+    ?:  ?=([%boom ~] seat)  bomb
+    =^  [pace spat]  ski  $(for.ent +<+.for.ent)
+    ?:  ?=([%boom ~] spat)  bomb
+    =/  teak
+      ?-  seat
+        [%safe *]  sure.seat
+        [%risk *]  hope.seat
+      ==
+    =/  [saf rik ken]  (punt +<-.for.ent teak)
+    ?:  =(0 saf)  bomb
+    ?:  =(1 rik)
+      :_  [(welt +<-.for.ent spat seat) ski]
+      :_  [%ten [+<-.for.ent pace] neat %.y]
+    :_  [(welt +<-.for.ent spat seat) ski]
+    :_  [%sev [neat pace] %ten [saf %ten [rik %zer 3 %.n] [%zer (peg 2 saf) %.y] %.y] [%zer 2 %.y] %.y]
+      ::
+      [%11 @ *]
+    =^  [real seal]  ski  $(for.ent +>.for.ent)
+    ?:  ?=([%boom ~] seal)  bomb
+    :_  [seal ski]
+    :_  [%els +<.for.ent real]
+      ::
+      [%11 [@ *] *]
+    =^  [fake sake]  ski  $(for.ent +<+.for.ent)
+    ?:  ?=([%boom ~] sake)  bomb
+    =^  [real seal]  ski  $(for.ent +>.for.ent)
+    ?:  ?=([%boom ~] seal)  bomb
+    :_  ski
+    ?:  ?=([%safe *] sake)
+      [[%eld [+<-.for.ent fake] real %.y] seal]
+    [[%eld [+<-.for.ent fake] real %.n] seal]
+      ::
+      [%12 * *]
+    =^  [fear sear]  ski  $(for.ent +<.for.ent)
+    ?:  ?=([%boom ~] sear)  bomb
+    =^  [pack sack]  ski  $(for.ent +>.for.ent)
+    ?:  ?=([%boom ~] sack)  bomb
+    :_  [[%risk %toss ~] ski]
+    [%twe fear pack]
+  ==
   |%
-  ++  bomb
-    ^-  [boot _this]
-    =.  this  (inst [%bom ~])
-    :_  this
-    [%boom ~]
-  ++  bear
-    |=  weir=@
-    ^-  dabl
-    [sub.bloc for.bloc (peg faxe weir) 0]
-  ++  here
-    ^-  dabl
-    [sub.bloc for.bloc faxe 1]
-  ++  will
-    ^-  dabl
-    [sub.bloc for.bloc faxe 2]
-  ++  wont
-    ^-  dabl
-    [sub.bloc for.bloc faxe 3]
-  :: hide away a subject for later (clobbers 4)
-  ++  hide
-    =.  this  (inst [%mov 5 11])
-    (inst [%mov 3 10]) :: subject is now in 10
-  :: put back a subject that was hidden away (does not clobber 4)
-  ++  show
-    =.  this  (inst [%mov 10 3]) :: put back the subject
-    suft :: put the result where it will get shifted back into result space
-  ++  bran
-    ?:  ?=  [%bab *]  heir
-      (inst [%brn troo.heir fals.heir])
-    this
-  ++  tale
-    ?:  ?=  [%ret ~]  heir
-      ?.  =(4 vale)
-        ~|  'Value destination for tail call should always be 4'  !!
-      (inst [%don ~])
-    this
-  ++  bale
-    =.  this  bran
-    tale
-  ++  does
-    =.  this  (inst [%her will])
-    =.  this  (inst [%imm 0 vale])
-    ?-  heir
-      [%dab *]  (inst [%hop wher.heir])
-      [%bab *]  (inst [%hop troo.heir])
-      [%ret ~]  (inst [%don ~])
-    ==
-  ++  dont
-    =.  this  (inst [%her wont])
-    =.  this  (inst [%imm 1 vale])
-    ?-  heir
-      [%dab *]  (inst [%hop wher.heir])
-      [%bab *]  (inst [%hop fals.heir])
-      [%ret ~]  (inst [%don ~])
-    ==
+  ++  bomb  [[%zer 0 %.n] [%boom ~] ski]
   --
-::  assert correctness of a dast: must not be 5 or a subaxis of 5
-++  hast
-  |=  wast=dast
-  ^-  ?
-  ?.  (lth wast 5)
-    ?.  =(wast 5)
-      $(wast (rsh [0 1] wast))
-    %.n
-  %.y
+++  till
+  =|  burg=town
+  |=  =farm
+  ^-  town
+  =/  work  (flop (skip wood.farm ~(has in ~(key by burg))))
+  =<  burg
+  |-
+  ^-  _this
+  ?:  =(~ work)  this
+  =^  next  work  work
+  =+  ~|  %next-miss  (~(got by yard.farm) next)
+  ::  now we have the nock-- in does
+  =/  dock  [lamb=lamb.burg lake=*lake]
+  =|  flow=line
+  =/  axle=@  1
+  =/  fawn=does
+  =+
+    =<
+    |-
+    ^-  [[hat=sans her=berm] dock]
+    ?-  fawn
+        [%par * *]
+      =^  [one two her]  dock  twin
+      =^  [bat bit]  dock  $(fawn +>.fawn, axle (peg axle 3), flow [%dab her two])
+      =^  [hat hit]  dock  $(fawn +<.fawn, axle (peg axle 2), flow [%dab bit one])
+      (copy hat bat hit)
+        ::
+        [%zer *]
+      ?-  flow
+        [%moat *]
+      =/  slow  (take +<.fawn what.flow +>.fawn)
+      ?~  slow
+        =^  hole  dock  bomb
+        :_  dock
+        [[%disc ~] hole]
+      :_  dock
+      [u.slow wher.flow]
+        ::
+        [%one *]
+      (bang +.fawn) 
+        ::
+        [%two *]
+      ~|  %todo  !!
+        ::
+    ==
+    |%
+    ++  bang
+      |=  non=*
+      ^-  [[hat=plow her=berm] _dock]
+      ?-  flow
+          [%pond ~]
+        =^  ret  dock  wean
+        =^  her  dock  (mend %rime ~[[%imm +.fawn ret]] [%don ret])
+        :_  dock
+        [[%disc ~] her]
+          ::
+          [%rift *]
+        ?:  =(0 +.fawn)  [[[%disc ~] troo.flow] dock]
+        ?:  =(1 +.fawn)  [[[%disc ~] fals.flow] dock]
+        =^  hole  dock  bomb  :: XX maybe we should assert that SKA should have caught this?
+        :_  dock
+        [[%disc ~] hole]
+          ::
+          [%moat *]
+        =/  what  what.flow
+        =/  mitt
+          |-
+          ^-  (unit (list bran))
+          ?-  what
+              [%disc ~]
+            (some ~)
+              ::
+              [%tine @]
+            (some ~[[%imm non +.what]])
+              ::
+              [%fork *]
+            ?@  non
+              ?:  safe.what
+                ~|  %safe-axis-atom  !!
+              ~
+            (clap $(what left.what, non -.non) $(what rite.what, non +.non) weld)
+          ==
+        ?~  mitt
+          =^  hole  dock  bomb
+          :_  dock
+          [[%disc ~] hole]
+        =^  rock  dock  (mend %toil u.mitt [%hop wher.flow])
+        :_  dock
+        [[%disc ~] rock]
+      ==
+    ++  take  :: axis
+      |=  [sax=@ tow=plow row=?]  :: axis, destination, safety
+      ^-  plow  :: nullary case = crash
+      ?:  =(0 sax)  ~
+      %-  some
+      |-
+      ?:  =(1 sax)  tow
+      ?-  (cap sax)
+        %2  [%fork $(sax (mas sax)) [%disc ~] row]
+        %3  [%fork [%disc ~] $(sax (mas sax)) row]
+      ==
+    ++  milk  :: local label
+      |=  gen=@
+      ^-  berm
+      [sub.does for.does axle gen]
+    ++  wean  :: fresh ssa
+      ^-  [@ _dock]
+      [lamb.dock dock(lamb .+(lamb.dock))]
+    ++  copy  :: replicate values to two destinations
+      |=  [hat=plow bat=plow her=berm]
+      ^-  [[hat=plow her=berm] _dock]
+      =^  [tog moot]  dock
+        |-
+        ^-  [[tog=plow moot=(list tins)] _dock]
+        ?:  ?=([%disc ~] hat)  [[bat ~] dock]
+        ?:  ?=([%disc ~] bat)  [[hat ~] dock]
+        ?-  hat
+            [%tine @]
+          ?-  bat
+              [%tine @]
+            ?:  =(+.hat +.bat)
+              [[hat ~] dock]
+            [[hat ~[[%mov +.hat +.bat]]] dock]
+              ::
+              [%fork *]
+            =^  one  dock  wean
+            =^  two  dock  wean
+            =^  [hog hoot]  dock  $(hat [%tine one], bat hed.bat)
+            =^  [log loot]  dock  $(hat [%tine two], bat tal.bat)
+            [[[%fork hog log safe.bat] [[%con one two +.hat] (weld hoot loot)]] dock]
+          ==
+            ::
+            [%fork *]
+          ?-  bat
+              [%tine @]
+            =^  one  dock  wean
+            =^  two  dock  wean
+            =^  [hog hoot]  dock  $(hat hed.hat, bat [%ssa one])
+            =^  [log loot]  dock  $(hat tal.hat, bat [%ssa two])
+            [[[%fork hog log safe.hat] [[%con one two +.bat] (weld hoot loot)]] dock]
+              ::
+              [%fork *]
+            =^  [hog hoot]  dock  $(hat hed.hat, bat hed.bat)
+            =^  [log loot]  dock  $(hat tal.hat, bat tal.bat)
+            [[%fork hog log ?&(safe.hat safe.bat)] (weld hoot loot)] dock]
+          ==
+        ==
+      =/  blab  (milk %copy)
+      :_  dock(pond (~(put by pond) blab [moot %hop her]))
+      [tog blab]
+    ++  twin  :: split sans from flow
+      ^-  [[plow plow berm] _dock]
+      ?-  flow
+          [%rift *]
+        =^  hole  dock  bomb
+        :_  dock
+        [[%disc ~] [%disc ~] hole]
+          ::
+          [%pond ~]
+        =^  one  dock  wean
+        =^  two  dock  wean
+        =^  ret  dock  wean
+        =^  her  dock  (mend %taco ~[[%con one two ret]] [%don ret])
+        :_  dock
+        [[%tine one] [%tine two] her]
+          ::
+          [%moat *]
+        ?-  what.flow
+            [%fork *]
+          :_  dock
+          [left.what.flow rite.what.flow wher.flow]
+            ::
+            [%disc ~]
+          :_  dock
+          [[%disc ~] [%disc ~] wher.flow]
+            [%tine @]
+          :_  dock
+          =^  one  dock  wean
+          =^  two  dock  wean
+          =^  her  dock  (mend %cons ~[[%con one two +.what.flow]] [%hop wher.flow])
+          :_  dock
+          [[%tine one] [%tine two] her]
+        ==
+      ==
+    ++  mend
+      |=  [gen=@ =lock]
+      ^-  [berm _dock]
+      =/  curb  (milk gen)
+      :-  curb
+      dock(pond (~(put by pond.dock) berm lock))
+    ++  bomb
+      ^-  [berm _dock]
+      (mend %boom ~ [%bom ~])
+    --
 --

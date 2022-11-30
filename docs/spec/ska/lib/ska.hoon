@@ -1,46 +1,45 @@
 /-  *sock
 |%
-:: Get an axis from a sock
-++  pull
+:: Split an axis into a sock into safe and unsafe components
+++  punt
   |=  [axe=@ =sock]
-  ^-  boot
-  ?:  .=  axe  0
-    [%boom ~]
+  ^-  [@ @ sock]
+  ?:  =(0 axe)
+    [0 0 %toss ~]
+  =/  saf  1
   |-
-  ?:  =(axe 1)
-    [%safe sock]
-  ?-  sock
-      ::
-      [%know @]
-    [%boom ~]
-      ::
+    ?:  =(axe 1)
+      [saf 1 sock]
+    ?+  sock  [0 0 %toss ~]
       [%know * *]
     ?-  (cap axe)
-        ::
-        %2
-      $(axe (mas axe), sock [%know -.know.sock])
-        %3
-      $(axe (mas axe), sock [%know +.know.sock])
+      %2  $(axe (mas axe), sock [%know -.know.sock], saf (peg saf 2))
+      %3  $(axe (mas axe), sock [%know +.know.sock], saf (peg saf 3))
     ==
       ::
-      [%bets * *]
+      [%bets *]
     ?-  (cap axe)
-        ::
-        %2
-      $(axe (mas axe), sock hed.sock)
-        ::
-        %3
-      $(axe (mas axe), sock tal.sock)
+      %2  $(axe (mas axe), sock hed.sock, saf (peg saf 2))
+      %3  $(axe (mas axe), sock tal.sock, saf (peg saf 3))
     ==
       ::
-      [%dice ~]
-    [%boom ~]
-      ::
-      [%flip ~]
-    [%boom ~]
-      ::
-      [%gues ~]
-    [%risk %gues ~]
+      [%toss ~]
+    [saf axe %toss ~]
+  ==
+:: Get an axis from a sock
+++  pull
+  |=  arg=[@ sock]
+  ^-  boot
+  =/  [saf rik ken]  (punt arg)
+  ?:  =(0 saf)  [%boom ~]
+  ?:  =(1 rik)  [%safe ken]
+  [%risk ken]
+++  yank
+  |=  [axe=@ =boot]
+  ?-  boot
+    [%safe *]  (pull axe sure.boot)
+    [%risk *]  (dare (pull axe hope.boot))
+    [%boom ~]  [%boom ~]
   ==
 :: Test if sock is atom or cell, or unknown
 ++  fits
@@ -63,7 +62,7 @@
       [%flip ~]
     [%know 1]
       ::
-      [%gues ~]
+      [%toss ~]
     [%flip ~]
   ==
 :: Test if we can know two socks are equal
@@ -171,8 +170,8 @@
         [%bets * *]
       (cobb $(axe (mas axe), sock hed.sock) [%safe tal.sock])
         ::
-        [%gues ~]
-      (cobb $(axe (mas axe)) [%risk %gues ~])
+        [%toss ~]
+      (cobb $(axe (mas axe)) [%risk %toss ~])
     ==
       ::
       %3
@@ -184,8 +183,8 @@
         [%bets * *]
       (cobb [%safe hed.sock] $(axe (mas axe), sock tal.sock))
         ::
-        [%gues ~]
-      (cobb [%risk %gues ~] $(axe (mas axe)))
+        [%toss ~]
+      (cobb [%risk %toss ~] $(axe (mas axe)))
     ==
   ==
 :: Stitch a boot into another boot
@@ -258,7 +257,7 @@
     [%dice ~]
   ?:  ?&(?=([%flip ~] a) ?=([%flip ~] b))
     [%flip ~]
-  [%gues ~]
+  [%toss ~]
 ::  Produce the intersection of two boots
 ::
 ::  Note that the intersection of a safe or risk
@@ -311,7 +310,7 @@
       [%safe %flip ~]
     [%safe %know 1]
       ::
-      [%safe %gues ~]
+      [%safe %toss ~]
     [%safe %flip ~]
       ::
       [%risk %know @]
@@ -329,7 +328,7 @@
       [%risk %flip ~]
     [%risk %know 1]
       ::
-      [%risk %gues ~]
+      [%risk %toss ~]
     [%risk %flip ~]
   ==
 ++  pile
@@ -346,7 +345,7 @@
       [%safe %flip ~]
     [%safe %dice ~]
       ::
-      [%safe %gues ~]
+      [%safe %toss ~]
     [%risk %dice ~]
       ::
       [%risk %know @]
@@ -358,7 +357,7 @@
       [%risk %flip ~]
     [%risk %dice ~]
       ::
-      [%risk %gues ~]
+      [%risk %toss ~]
     [%risk %dice ~]
   ==
 ::  Produce knowledge of the result given knowledge of the subject
@@ -392,7 +391,7 @@
       [%boom ~]
     ?:  ?=  [%risk %flip ~]  forn
       [%boom ~]
-    ?+  forn  [%risk %gues ~]
+    ?+  forn  [%risk %toss ~]
         ::
         [%safe %know *]
       ?-  subn
@@ -443,7 +442,7 @@
           [%dice ~]
         (dare (gnaw $(form +>-.form) $(form +>+.form)))
           ::
-          [%gues ~]
+          [%toss ~]
         (dare (gnaw $(form +>-.form) $(form +>+.form)))
       ==
         ::
@@ -462,7 +461,7 @@
           [%dice ~]
         (dare (gnaw $(form +>-.form) $(form +>+.form)))
           ::
-          [%gues ~]
+          [%toss ~]
         (dare (gnaw $(form +>-.form) $(form +>+.form)))
       ==
     ==
@@ -504,10 +503,10 @@
         (dare $(subj sure.news, form know.hope.newf))
           ::
           [%safe *]
-        [%risk %gues ~]
+        [%risk %toss ~]
           ::
           [%risk *]
-        [%risk %gues ~]
+        [%risk %toss ~]
       ==
         ::
         [%risk *]
@@ -521,10 +520,10 @@
         (dare $(subj hope.news, form know.hope.newf))
           ::
           [%safe *]
-        [%risk %gues ~]
+        [%risk %toss ~]
           ::
           [%risk *]
-        [%risk %gues ~]
+        [%risk %toss ~]
       ==
     ==
       ::
@@ -546,7 +545,7 @@
     ==
       ::
       [%12 *]
-    [%risk %gues ~]
+    [%risk %toss ~]
   ==
   ++  cuff
     |=  =sock
@@ -567,7 +566,7 @@
         [%flip ~]
       (limo [axe ~])
         ::
-        [%gues ~]
+        [%toss ~]
       (limo [axe ~])
     ==
 --

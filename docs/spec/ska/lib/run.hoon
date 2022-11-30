@@ -3,7 +3,7 @@
 |%
 ++  real
   |=  [ject=* form=*]
-  =/  labl  [[%gues ~] form]
+  =/  labl  [[%toss ~] form]
   =/  prog  prog:+:(gene:degen labl)
   (play ject prog labl)
 ++  play
@@ -49,15 +49,15 @@
         ::
         [%lnt ~]
       =/  dorm  (gett 4)
-      =.  prog  prog:+:(gene:degen(prog prog) [[%gues ~] dorm])
-      =/  entu  (~(get by prog) [[%gues ~] dorm])
+      =.  prog  prog:+:(gene:degen(prog prog) [[%toss ~] dorm])
+      =/  entu  (~(get by prog) [[%toss ~] dorm])
       ?~  entu
         ~|  'No entry for given labl'  !!
       $:this(inst does.u.entu)
         ::
         [%lnk ~]
       =/  dorm  (gett 4)
-      =.  prog  prog:+:(gene:degen(prog prog) [[%gues ~] dorm])
+      =.  prog  prog:+:(gene:degen(prog prog) [[%toss ~] dorm])
       =/  entu  (~(get by prog) entr)
       ?~  entu
         ~|  'No entry for given labl'  !!
