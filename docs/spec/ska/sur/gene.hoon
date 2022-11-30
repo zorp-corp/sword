@@ -3,6 +3,7 @@
 +|  %ska
 +$  barn  [sub=sock for=*]
 +$  nomm  :: SKA-analyzed nock
+  $~  [%one **]
   $%  [%par nomm nomm] 
       [%zer @ ?]  ::  safety-tagged lookup
       [%one *]

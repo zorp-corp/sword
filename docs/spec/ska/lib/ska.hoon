@@ -3,7 +3,7 @@
 :: Split an axis into a sock into safe and unsafe components
 ++  punt
   |=  [axe=@ =sock]
-  ^-  [@ @ sock]
+  ^-  [@ @ ^sock]
   ?:  =(0 axe)
     [0 0 %toss ~]
   =/  saf  1
@@ -30,7 +30,7 @@
 ++  pull
   |=  arg=[@ sock]
   ^-  boot
-  =/  [saf rik ken]  (punt arg)
+  =+  [saf rik ken]=(punt arg)
   ?:  =(0 saf)  [%boom ~]
   ?:  =(1 rik)  [%safe ken]
   [%risk ken]
