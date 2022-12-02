@@ -2,7 +2,7 @@
 /-  *gene
 /+  ska
 |%
-++  plot
+++  plot  ::  subject knowledge analysis, emitting nock-- or "nomm"
   =|  ski=farm
   |=  ent=barn
   ^-  [boot farm]
@@ -155,7 +155,7 @@
     :_  ?:  ?=([%safe *] pest)
           zest
         (dare:ska zest)
-    [%eig pink dest]
+    [%sev [%par pink %zer 1 %.y] dest]
   ::
       [%9 @ *]
     =^  [lore=nomm sore=boot:ska]  ski  $(for.ent +>.for.ent)
@@ -172,15 +172,15 @@
       :_  ?:  ?=([%safe *] sore)
             ret
           (dare:ska ret)
-      [%nin +<.for.ent lore news (some know.sure.fork) %.y]
+      [%sev lore [%two [%zer 1 %.y] [%zer +<.for.ent %.y] news (some know.sure.fork) %.y]]
     ?:  ?=([%risk %know *] fork)
       =^  ret  ski  ^$(ent [news know.hope.fork])
       :_  ski
       :_  (dare:ska ret)
-      [%nin +<.for.ent lore news (some know.hope.fork) %.n]
+      [%sev lore [%two [%zer 1 %.y] [%zer +<.for.ent %.n] news (some know.hope.fork) %.n]]
     :_  ski
     :_  [%risk %toss ~]
-    [%nin +<.for.ent lore news ~ ?=([%safe *] fork)]
+    [%sev lore [%two [%zer 1 %.y] [%zer +<.for.ent ?=(%safe -.fork)] news ~ ?=(%safe -.fork)]]
   ::
       [%10 [@ *] *]
     =^  [neat=nomm seat=boot:ska]  ski  $(for.ent +>.for.ent)
@@ -302,7 +302,19 @@
     (bang +.fawn)
   ::
       [%two *]
-    ~|  %todo  !!
+    ?-    -.flow
+        %moat
+      =^  flaw  dock  (peel what.flow wher.flow)
+      (tool `flaw +.fawn)
+    ::
+        %rift
+      =^  muse  dock  wean
+      =^  skit  dock  (mend %skit ~ [%brn muse [troo fals]:flow])
+      (tool `[muse skit] +.fawn)
+    ::
+        %pond
+      (tool ~ +.fawn)
+    ==
   ::
       [%thr *]
     ?-    -.flow
@@ -332,18 +344,313 @@
       $(fawn +.fawn, axle (peg axle 3), flow [%moat keck [%tine noon]])
     ==
   ::
+      [%fou *]
+    ?-    -.flow
+        %moat
+      ?-    -.what.flow
+          %fork  fail
+          %disc
+        =^  left  dock  wean
+        ?:  +>.fawn  :: safe?
+          $(fawn +<.fawn, axle (peg axle 6), flow [%moat wher.flow [%tine left]])
+        =^  meal  dock  wean
+        =^  dink  dock  (mend %dink ~[[%inc smol left]] [%hop wher.flow])
+        $(fawn +<.fawn, axle (peg axle 6), flow [%moat dink [%tine meal])
+      ::
+          %tine
+        =^  meal  dock  wean
+        =^  rink  dock
+          ?:  +>.fawn
+            (mend %rink ~[[%unc meal +.what.flow]] [%hop wher.flow])
+          (mend %rink ~[[%inc meal +.what.flow]] [%hop wher.flow])
+        $(fawn +<.fawn, axle (peg axle 6), flow [%moat rink [%tine meal]])
+      ==
+    ::
+        %rift
+      =^  iffy  dock  wean
+      =^  miff  dock  wean
+      =^  kink  dock
+        ?:  +>.fawn  :: safe?
+          (mend %kink ~[[%unc miff iffy]] [%brn iffy [troo fals]:flow])
+        (mend %kink ~[[%inc miff iffy]] [%brn iffy [troo fals]:flow])
+      $(fawn +<.fawn, axle (peg axle 6), flow [%moat kink [%tine miff]])
+    ::
+        %pond
+      =^  pend  dock  wean
+      =^  spin  dock  wean
+      =^  pink  dock
+        ?:  +>.fawn  :: safe?
+          (mend %pink ~[[%unc spin pend]] [%don pend])
+        (mend %pink ~[[%inc spin pend]] [%don pend])
+      $(fawn +<.fawn, axle (peg axle 6), flow [%moat pink [%tine spin]])
+    ==
+  ::
+      [%fiv *]
+    ?-    -.flow
+        %moat
+      ?-    -.what.flow
+          %fork  fail
+          %disc
+        =^  [hit=plow his=berm]  dock  $(fawn +<.fawn, axle (peg axle 6))
+        =^  [hot=plow hog=berm]  dock
+          $(fawn +<.fawn, axle (peg axle 7), flow [%moat his [%disc ~]])
+        (copy hit hot hog)
+      ::
+          %tine
+        =^  root  dock  (mend %root ~[[%imm 0 +.what.flow]] [%hop wher.flow]) 
+        =^  salt  dock  (mend %salt ~[[%imm 1 +.what.flow]] [%hop wher.flow])
+        =^  load  dock  wean
+        =^  toad  dock  wean
+        =^  qual  dock  (mend %qual ~ [%eqq load toad root salt])
+        =^  [hit=plow his=berm]  dock
+          $(fawn +<.fawn, axle (peg axle 6), flow [%moat qual [%tine load]])
+        =^  [hot=plow hog=berm]  dock
+          $(fawn +>.fawn, axle (peg axle 7), flow [%moat his [%tine toad]])
+        (copy hit hot hog)
+      ==
+    ::
+        %rift
+      =^  load  dock  wean
+      =^  toad  dock  wean
+      =^  rail  dock  (mend %rail ~ [%eqq load toad [troo fals]:flow])
+      =^  [hit=plow his=berm]  dock
+        $(fawn +<.fawn, axle (peg axle 6), flow [%moat qual [%tine load]])
+      =^  [hot=plow hog=berm]  dock
+        $(fawn +>.fawn, axle (peg axle 7), flow [%moat his [%tine toad]])
+      (copy hit hot hog)
+    ::
+        %pond
+      =^  bean  dock  wean
+      =^  root  dock  (mend %root ~[[%imm 0 bean]] [%don bean]) 
+      =^  salt  dock  (mend %salt ~[[%imm 1 bean]] [%don bean])
+      =^  load  dock  wean
+      =^  toad  dock  wean
+      =^  fall  dock  (mend %fall ~ [%eqq load toad root salt])
+      =^  [hit=plow his=berm]  dock
+        $(fawn +<.fawn, axle (peg axle 6), flow [%moat fall [%tine load]])
+      =^  [hot=plow hog=berm]  dock
+        $(fawn +>.fawn, axle (peg axle 7), flow [%moat his [%tine toad]])
+      (copy hit hot hog)
+    ==
+  ::
+      [%six *]
+    =^  [hut=plow hum=berm]  dock  $(fawn +>-.fawn, axle (peg axle 14))
+    =^  [hat=plow ham=berm]  dock  $(fawn +>+.fawn, axle (peg axle 15))
+    =^  [hot=plow hog=berm]  dock
+      $(fawn +<.fawn, axle (peg axle 6), flow [%rift hum ham])
+    =^  [hit=plow him=berm]  dock  (copy hut hat hog)
+    (copy hit hot him)
+  ::
       [%sev *]
     =^  [hit=plow his=berm]  dock  $(fawn +>.fawn, axle (peg axle 7))
     $(fawn +<.fawn, axle (peg axle 6), flow [%moat his hit])
   ::
-      *
-    ~|  %todo  !!
+      [%ten *]
+    ?-    -.flow
+        %moat
+      =^  [out=plow inn=plow tub=berm]  dock  (tear +<-.fawn what.flow +>+.fawn wher.flow)
+      =^  [hat=plow him=berm]  dock  $(fawn +<+.fawn, axle (peg axle 13), flow [%moat tub inn])
+      =^  [hut=plow mud=berm]  dock  $(fawn +>-.fawn, axle (peg axle 14). flow [%moat him out])
+      (copy hat hut mud)
+    ::
+        %rift
+      :: this is a weird case. It only works if the axis is one,
+      :: otherwise it crashes, and there's no point in an axis edit of
+      :: one except to discard the first result
+      ?.  =(1 +<-.fawn)  fail
+      =^  hide  dock  wean
+      =^  mood  (mend %mood ~ [%brn hide [troo fals]:flow])
+      =^  [hat=plow him=berm]  dock
+        $(fawn +<+.fawn, axle (peg axle 13), flow [%moat mood [%tine hide]])
+      =^  [hut=plow mud=berm]  dock
+        $(fawn +>-.fawn, axle (peg axle 14), flow [%moat him [%disc ~]])
+      (copy hat hut mud)
+    ::
+      %pond
+      =^  dire  dock  wean
+      =^  eden  dock  (mend %eden ~ [%don dire])
+      =^  [out=plow inn=plow tub=berm]  dock  (tear +<-.fawn [%tine dire] +>+.fawn eden)
+      =^  [hat=plow him=berm]  dock  $(fawn +<+.fawn, axle (peg axle 13), flow [%moat tub inn])
+      =^  [hut=plow mud=berm]  dock  $(fawn +>-.fawn, axle (peg axle 14). flow [%moat him out])
+      (copy hat hut mud)
+    ==
+  ::
+      [%els *]
+    =^  [hat=plow him=berm]  dock  $(fawn +>.fawn, axle (peg axle 7))
+    =^  pint  dock  wean
+    =^  tint  dock  (mend %tint ~[[%imm +<.fawn pint]] [%hnt pint him])
+    :_  dock
+    [hat tint]
+  ::
+      [%eld *]
+    =^  [hat=plow him=berm]  dock  $(fawn +>.fawn, axle (peg axle 7))
+    =^  pint  dock  wean
+    =^  dint  dock  wean
+    =^  aint  dock  wean
+    =^  tint  dock  (mend %tint ~[[%imm +<-.fawn pint] [%con pint dint aint]] [%hnt aint him])
+    =^  [hit=plow his=berm]  dock  $(fawn +<+.fawn, axle (peg axle 13), flow [%moat tint [%tine dint])
+    (copy hat hit his)
+  ::
+      [%twe *]
+    ?-    -.flow
+        %moat
+      =^  [use=@ her=berm]  dock  (peel what.flow wher.flow)
+      =^  fens  dock  wean
+      =^  phat  dock  wean
+      =^  cope  dock  (mend %cope ~ [%spy fens fat use her])
+      =^  [ham=plow pan=berm]  dock
+        $(fawn +>.fawn, axle (peg axle 7), flow [%moat cope [%tine phat]])
+      =^  [hen=plow pen=berm]  dock
+        $(fawn +<.fawn, axle (peg axle 6), flow [%moat pan [%tine fens]])
+      (copy ham hen pen)
+    ::
+        %rift
+      =^  sift  dock  wean
+      =^  bars  (mend %bars ~ [%brn sift [troo fals]:flow])
+      =^  fens  dock  wean
+      =^  phat  dock  wean
+      =^  cope  dock  (mend %cope ~ [%spy fens fat sift bars])
+      =^  [ham=plow pan=berm]  dock
+        $(fawn +>.fawn, axle (peg axle 7), flow [%moat cope [%tine phat]])
+      =^  [hen=plow pen=berm]  dock
+        $(fawn +<.fawn, axle (peg axle 6), flow [%moat pan [%tine fens]])
+      (copy ham hen pen)
+    ::
+        %pond
+      =^  sped  dock  wean
+      =^  sear  (mend %sear ~ [%don sped])
+      =^  fens  dock  wean
+      =^  phat  dock  wean
+      =^  cope  dock  (mend %cope ~ [%spy fens fat sped sear])
+      =^  [ham=plow pan=berm]  dock
+        $(fawn +>.fawn, axle (peg axle 7), flow [%moat cope [%tine phat]])
+      =^  [hen=plow pen=berm]  dock
+        $(fawn +<.fawn, axle (peg axle 6), flow [%moat pan [%tine fens]])
+      (copy ham hen pen)
+    ==
   ==
   ++  fail
     ^-  [[hat=plow her=berm] dock=_dock]
     =^  hole  dock  bomb
     :_  dock
     [[%disc ~] hole]
+  ++  tear :: take apart an ssa map for an edit
+    |=  [axe=@ bit=plow safe=? her=berm]
+    ^-  [[out=plow inn=plow his=berm] _dock]
+    ?:  =(0 axe)
+      =^  hole  dock  bomb
+      [[[%disc ~] [%disc ~] hole] dock]
+    =+
+      |-  ^-  [[out=plow inn=plow rind=(list bran)] deck=_dock]
+      ?:  =(1 axe)
+        :_  dock
+        [[%disc ~] bit ~]
+      ?-  -.bit
+          %disc
+        ?:  safe  [[[%disc ~] [%disc ~] ~] dock]
+        ?-  (cap axe)
+            %2
+          =^  ruck  dock  $(axe (mas axe))
+          :_  dock
+          [[%fork out.ruck [%disc ~] %.n] inn.ruck rind.ruck]
+            %3
+          =^  ruck  dock  $(axe (mas axe))
+          :_  dock
+          [[%fork [%disc ~] out.ruck %.n] inn.ruck rind.ruck]
+        ==
+      ::
+          %tine
+        =^  tour  dock  wean
+        =^  plat  dock  wean
+        ?-  (cap axe)
+            %2
+          =^  ruck  dock  $(axe (mas axe), bit [%tine plat])
+          :_  dock
+          [[%fork out.ruck [%tine tour] safe] inn.ruck [[%con plat tour +.bit] rind.ruck]]
+            %3
+          =^  ruck  dock  $(axe (mas axe), bit [%ine plat])
+          :_  dock
+          [[%fork [%tine tour] out.ruck safe] inn.ruck [[%con tour plat +.bit] rind.ruck]]
+        ==
+      ::
+          %fork
+        ?-  (cap axe)
+            %2
+          =^  ruck  dock  $(axe (mas axe), bit left.bit)
+          :_  dock
+          [[%fork out.ruck rite.bit ?&(safe safe.bit)] inn.ruck rind.ruck]
+            %3
+          =^  ruck  dock  $(axe (mas axe), bit rite.bit)
+          :_  dock
+          [[%fork left.bit out.ruck ?&(safe safe.bit)] inn.ruck rind.ruck]
+        ==
+      ==
+    =.  dock  deck
+    ?~  rind
+      :_  dock
+      [out inn her]
+    =^  him  dock  (mend %diet rind [%hop her])
+    :_  dock
+    [out inn him]
+  ++  tool :: generate calls
+    |=  [flaw=(unit [rut=@ rot=berm]) sums=nomm form=nomm sunk=sock fork=(unit *) safe=?]
+    ^-  [[plow berm] _dock]
+    ?~  fork
+      =^  lash  dock  wean
+      =^  frog  dock  wean
+      =^  coil  dock
+        ?~  flaw
+          (mend %coil ~ [%lnt frog lash])
+        (mend %coil ~ [%lnk frog lash rut.u.flaw rot.u.flaw])
+      =^  [bow=plow urn=berm]  dock
+        $(fawn summ, axle (peg axle 6), flow [%moat coil [%tine lash]])
+      =^  [fog=plow sog=berm]  dock
+        $(fawn form, axle (peg axle 14), flow [%moat urn [%tine frog]])
+      (copy fog bow sog)
+    =/  bale=barn  [sunk u.fork]
+    =/  bore  (~(get by land.burg) bale)
+    ?~  bore :: we don't know the registerization of the subject for the call, yet
+      =^  lash  dock  wean
+      =^  dote  dock
+        ?~  flaw
+          (mend %dote ~ [%eye bale lash])
+        (mend %dote ~ [%bec bale lash rut.u.flaw rot.u.flaw])
+      =^  [bow=plow urn=berm]  dock
+        $(fawn summ, axle (peg axle 6), flow [%moat dote [%tine lash]])
+      ?:  safe  [[bow urn] dock]
+      =^  [fog=plow sog=berm]  dock
+        $(fawn form, axle (peg axle 14), flow [%mote urn [%disc ~]])
+      (copy fog bow sog)
+    =^  uses  dock  (cool uses.does.u.bore)
+    =^  dote  dock
+      ?~  flaw
+        (mend %dote ~ [%jmp barn (boil uses)])
+      (mend %dote ~ [%cal barn (boil uses) rut.u.flaw rot.u.flaw])
+    =^  [ash=plow dot=berm]  dock  (whop uses dote)
+    =^  [bow=plow urn=berm]  dock
+      $(fawn summ, axle (peg axle 6), flow [%moat dot ash])
+    ?:  safe  [[bow urn] dock]
+    =^  [fog=plow sog=berm]  dock
+      $(fawn form, axle (peg axle 14), flow [%mote urn [%disc ~]])
+    (copy fog bow sog)
+  ++  cool :: generate SSAs for the call side of a use list
+    |=  use=(list [@ @ ?])
+    ^-  [(list [@ @ ?]) _dock]
+    ?~  use  ~
+    =^  pan  dock  wean
+    [[-.i.use pan +>.i.use] $(use t.use)]
+  ++  boil :: ssas from a use list
+    |=  use=(list [@ @ ?])
+    ^-  (list @)
+    (turn use |=([@ @ ?] ->+)))
+  ++  whop  ::  turn a use list into a plow
+    |=  [use=(list [@ @ ?]) her=berm]
+    ^-  [[plow berm] _dock]
+    ?~  [[*plow her] dock]
+    =^  [low=plow him=berm]  dock  $(use t.use)
+    =/  ace  (take -.i.use [%tine +<.i.use] +>.i.use)
+    ?~  ace  fail
+    (copy low u.ace him)
   ++  bang
     |=  non=*
     ^-  [[hat=plow her=berm] _dock]
@@ -388,6 +695,39 @@
       :_  dock
       [[%disc ~] rock]
     ==
+  ++  peel  :: split a define among a plow's worth of uses
+    |=  [=plow =berm]
+    ^-  [[use=@ her=berm] _dock]
+    =+
+      |-  ^-  [[fine=(unit @) load=(list bran)] dock=_dock]
+      ?-    -.plow
+          %tine  [[`+.plow ~] dock]
+          %disc  [[~ ~] dock]
+          %fork
+        =^  [file=(unit @) loaf=(list bran)]  dock  $(plow left.plow)
+        =^  [fire=(unit @) road=(list bran)]  dock  $(plow rite.plow)
+        ?~  file
+          ?~  fire
+            [[~ ~] dock]
+          [[fire road] dock]
+        ?~  fire
+          [[file loaf] dock]
+        =^  fell  dock  wean
+        ?:  safe.plow
+          :_  dock
+          :-  `fell
+          (weld ~[[%hud fell u.file] [%tul fell u.fire]] (weld loaf road))]
+        :_  dock
+        :-  `fell
+        (weld ~[[%hed fell u.file] [%tal fell u.fire]] (weld loaf road))]
+      ==
+   ?~  use
+     =^  crap  dock  wean  :: no uses in the plow, so just make a trash register for the result and return
+     [[crap berm] dock]
+   ?~  load  ::  no loads necessary, just return the register
+     [[u.use berm] dock]
+   =^  her  dock  (mend %peel load [%hop berm])  ::  loads necessary, add those to the dock and return
+   [[u.use her] dock]
   ++  take  :: axis
     |=  [sax=@ tow=plow row=?]  :: axis, destination, safety
     ^-  (unit plow)  :: nullary case = crash
@@ -433,7 +773,7 @@
           :_  dock
           :-  ^-  plow
               [%fork hog log safe.bat]
-          [`bran`[%con one two +.hat] (weld hoot loot)]
+          [[%con one two +.hat] (weld hoot loot)]
         ==
           ::
           [%fork *]
