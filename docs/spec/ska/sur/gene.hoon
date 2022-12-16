@@ -82,12 +82,13 @@
                                   ::   define the third as the result
       [%hnt @ berm]               :: Treat the result in the SSA register as a hint and continue to the given label
 
-      [%don @]                    :: Finish the procedure, returning the value at axis 4
+      [%don @]                    :: Finish the procedure, returning the value in the SSA
       [%bom ~]                    :: Crash
   ==
++$  pool  (list [axe=@ ssa=@ saf=?])    :: entry point subject uses: ordered subject/ssa/safety
 +$  lock  [body=(list bran) bend=germ]  :: basic block: instructions + a terminator or branch
 +$  lake  (map (unit berm) lock)        :: labeled basic blocks
-+$  rice  [goes=lake uses=(list [@ @ ?])] :: labeled basic blocks and entry point arguments as subject axes
++$  rice  [goes=lake uses=pool]         :: labeled basic blocks
 +$  sack  [does=rice says=boot]         :: code table entry: basic blocks + SKA result for an arm
 +$  town  [land=(map barn sack) lamb=@] :: code table
 --

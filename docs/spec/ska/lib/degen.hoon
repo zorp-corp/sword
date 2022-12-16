@@ -1,11 +1,182 @@
 /-  *sock
 /-  *gene
 /+  ska
+=|  burg=town
 |%
+++  mill  ::  XX todo observe crashes
+  =*  this  .
+  |=  [ject=* gist=barn]
+  ^-  [* _this]
+  =|  quay=(list [curb=berm sign=(map @ *) vale=@])
+  =^  [goes=lake uses=pool]  this  (belt gist)
+  =/  sign  (dole uses ject)
+  =/  reed  ~|  %miss-entry  (~(got by goes) ~)
+  |^  ^-  [* _this]
+    ?~  body.reed
+      ?-  -.bend.reed
+          %clq
+        ?@  (loan +<.bend.reed)
+          (lump +>+.bend.reed)
+        (lump +>-.bend.reed)
+      ::
+          %eqq
+        ~!  +<.bend.reed
+        ~!  +>-.bend.reed
+        ?:  =((loan +<.bend.reed) (loan +>-.bend.reed))
+          (lump +>+<.bend.reed)
+        (lump +>+>.bend.reed)
+      ::
+          %brn
+        ?:  =(0 (loan +<.bend.reed))
+          (lump +>-.bend.reed)
+        ?:  =(1 (loan +<.bend.reed))
+          (lump +>+.bend.reed)
+        ~|  %bad-bean  !!
+      ::
+          %hop  (lump +.bend.reed)
+          %lnk
+        =^  [goop=lake ruse=pool]  this
+          (belt [%toss ~] (loan +<.bend.reed))
+        %=  $
+          quay  [[+>+>.bend.reed sign +>+<.bend.reed] quay]
+          goes  goop
+          sign  (dole ruse (loan +>-.bend.reed))
+        ==
+      ::
+          %cal
+        =/  [goop=lake ruse=pool]  does:(~(got by land.burg) +<.bend.reed)
+        %=  $
+          quay  [[+>+>.bend.reed sign +>+<.bend.reed] quay]
+          goes  goop
+          sign  (yoke +>-.bend.reed ruse)
+        ==
+      ::
+          %bec  ~|  %bec-slip  !!
+          %lnt
+        =^  [goop=lake ruse=pool]  this
+          (belt [%toss ~] (loan +<.bend.reed))
+        ~!  +>.bend.reed
+        %=  $
+          goes  goop
+          sign  (dole ruse (loan +>.bend.reed))
+        ==
+      ::
+          %jmp
+        =/  [goop=lake ruse=pool]  does:(~(got by land.burg) +<.bend.reed)
+        %=  $
+          goes  goop
+          sign  (yoke +>.bend.reed ruse)
+        ==
+      ::
+          %eye  ~|  %eye-slip  !!
+          %spy  ~|  %fbi  !!
+          %hnt  ?>((~(has by sign) +<.bend.reed) (lump +>.bend.reed))
+          %don
+        ?~  quay  [(loan +.bend.reed) this]
+        =/  rail  [sub for]:curb.i.quay
+        =/  [goop=lake ruse=pool]  does:(~(got by land.burg) rail)
+        %=  $
+          sign  (~(put by sign.i.quay) vale.i.quay (loan +.bend.reed))
+          goes  goop
+          reed  ~|(%miss-entry (~(got by goes) `curb.i.quay))
+          quay  t.quay
+        ==
+      ::
+          %bom
+        ~|  %boom  !!
+      ==
+    %=    $
+        body.reed  t.body.reed
+        sign
+      %-  ~(put by sign)
+      ?-  -.i.body.reed
+          %imm  [+> +<]:i.body.reed 
+          %mov
+        :-  +>.i.body.reed
+        (loan +<.i.body.reed)
+      ::
+          %inc
+        :-  +>.i.body.reed
+        =/  bink  (loan +<.i.body.reed)
+        ?>  ?=(@ bink)
+        .+(bink)
+      ::
+          %unc
+        :-  +>.i.body.reed
+        =/  bink  (loan +<.i.body.reed)
+        ?>  ?=(@ bink)
+        .+(bink)
+      ::
+          %con
+        :-  +>+.i.body.reed
+        :-  (loan +<.i.body.reed)
+        (loan +>-.i.body.reed)
+      ::
+          %hed
+        =/  cash  (loan +<.i.body.reed)
+        ?>  ?=(^ cash)
+        [+>.i.body.reed -.cash]
+      ::
+          %hud
+        =/  cash  (loan +<.i.body.reed)
+        ?>  ?=(^ cash)
+        [+>.i.body.reed -.cash]
+      ::
+          %tal
+        =/  cash  (loan +<.i.body.reed)
+        ?>  ?=(^ cash)
+        [+>.i.body.reed +.cash]
+      ::
+          %tul
+        =/  cash  (loan +<.i.body.reed)
+        ?>  ?=(^ cash)
+        [+>.i.body.reed +.cash]
+      ==
+    ==
+  ++  loan
+    |=  @
+    ~|  %loan-miss  (~(got by sign) +<)
+  ++  lump
+    |=  berm
+    ^$(reed ~|(%miss-entry (~(got by goes) `+<)))
+  ++  yoke
+    |=  [ox=(list @) lo=pool]
+    =|  link=(map @ *)
+    |-  ^-  (map @ *)
+    ?~  ox
+      ?~  lo  link
+      ~|  %yoke-match  !!
+    ?~  lo
+      ~|  %yoke-match  !!
+    $(link (~(put by link) ssa.i.lo (loan i.ox)), ox t.ox, lo t.lo)
+  --
+++  dole
+  |=  [=pool ject=*]
+  %-  malt
+  %+  turn  pool
+  |=  [axe=@ ssa=@ ?]
+  [ssa .*(ject [0 axe])]
+++  belt
+  =*  this  .
+  |=  gist=barn
+  ^-  [rice _this]
+  =.  this  +:(reap gist)
+  does:(~(got by burg) gist)
+++  reap
+  =*  this  .
+  |=  =barn
+  ^-  [boot _this]
+  =/  [=boot =farm]  (plot barn)
+  =^  work  this  (till farm)
+  :-  boot
+  (weed:(rake:this work) work)
 ++  plot  ::  subject knowledge analysis, emitting nock-- or "nomm"
+  =*  this  .
   =|  ski=farm
   |=  ent=barn
   ^-  [boot farm]
+  =/  bot  (~(get by land.burg) ent)
+  ?.  ?=(~ bot)  [says.u.bot ski]  ::  no need to re-plot a barn we already know
   =/  ext  (~(get by yard.ski) ent)
   ?.  ?=(~ ext)  [says.u.ext ski]
   =;  [res=[does=nomm says=boot:ska] sku=farm]
@@ -235,12 +406,13 @@
     [[[%zer 0 %.n] [%boom ~]] ski]
   --
 ++  till
-  =|  burg=town
+  =*  this  .
   |=  =farm
-  ^-  town
-  =/  work  (flop (skip wood.farm ~(has in ~(key by land.burg))))
-  |-  ^+  burg
-  ?~  work  burg
+  ^-  [(list barn) _this]
+  =/  work  (flop (skip wood.farm ~(has by land.burg)))
+  :-  work
+  |-  ^-  _this
+  ?~  work  this
   =/  next  i.work
   =+  ~|  %next-miss  (~(got by yard.farm) next)
   ::  now we have the nock-- in does
@@ -849,5 +1021,329 @@
   ++  bomb
     ^-  [berm _dock]
     (mend %boom ~ [%bom ~])
+  --
+++  rake  ::  clean up unused basic blocks, and rewrite bec/eye into cal/jmp
+  =*  this  .
+  |=  work=(list barn)
+  ^-  _this
+  ?~  work  this
+  %=  $
+      burg
+    =+  ~|  %barn-miss  (~(got by land.burg) i.work)
+    ^-  town
+    =|  loch=lake
+    =|  sigh=(map @ $%([%mov @] [%con @] [%rug ~]))
+    =/  tack=[(list (unit berm)) (list (unit berm))]  [[~]~ ~] :: label queue
+    |-  ^-  town  ::  loop over basic blocks using a queue
+    ?~  -.tack
+      ?~  +.tack
+        %=    burg
+            land
+          (~(put by land.burg) i.work [[loch uses.does] says]) 
+        ==
+      $(tack [(flop +.tack) ~])
+    =/  hock  ~|  %miss-berm  (~(got by goes.does) i.-.tack)
+    =/  bock  body.hock
+    |^  ^-  town  ::  loop over instructions in a basic block
+      ?~  body.hock
+        ?:  ?=(%bec -.bend.hock)
+          (rend [+< +>- `+>+]:bend.hock)
+        ?:  ?=(%eye -.bend.hock)
+          (rend [+< +>- ~]:bend.bock)
+        =.  loch  (~(put by loch) i.-.tack [bock bend.hock])
+        ?-  bend.hock
+            [%clq *]
+          ^$(-.tack t.-.tack, +.tack [+>-.bend.hock +>+.bend.hock +.tack])
+        ::
+            [%eqq *]
+          ^$(-.tack t.-.tack, +.tack [+>+<.bend.hock +>+>.bend.hock +.tack])
+        ::
+            [%brn *]
+          ^$(-.tack t.-.tack, +.tack [+>-.bend.hock +>+.bend.hock +.tack])
+        ::
+            [%hop *]
+          ^$(-.tack t.-.tack, +.tack [+.bend.hock +.tack])
+        ::
+            [%lnk *]
+          %=  ^$
+            sigh  (~(put by sigh) +>+<.bend.bock [%rug ~])
+            -.tack  t.-.tack
+            +.tack  [+>+>.bend.hock +.tack]
+          ==
+        ::
+            [%cal *]
+          %=  ^$
+            sigh  (~(put by sigh) +>+<.bend.hock [%rug ~])
+            -.tack  t.-.tack
+            +.tack  [+>+>.bend.hock +.tack]
+          ==
+        ::
+            [%lnt *]  ^$(-.tack t.-.tack)
+            [%jmp *]  ^$(-.tack t.-.tack)
+            [%spy *]
+          %=  ^$
+            sigh  (~(put by sigh) +>+<.bend.hock [%rug ~])
+            -.tack  t.-.tack
+            +.tack  [+>+>.bend.hock +.tack]
+          ==
+        ::
+            [%hnt *]
+          ^$(-.tack t.-.tack, +.tack [+>.bend.hock +.tack])
+        ::
+            [%don *]  ^$(-.tack t.-.tack)
+            [%bom *]  ^$(-.tack t.-.tack)
+        ==
+      ?-  i.body.hock
+          [%imm *]  ::  XX we should split immediates too
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.hock [%rug ~]))
+      ::
+          [%mov *]
+        %=  $
+          body.hock  t.body.hock
+          sigh  (~(put by sigh) +>.i.body.hock [%mov +<.i.body.hock])
+        ==
+      ::
+          [%inc *]
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.hock [%rug ~]))
+      ::
+          [%unc *]
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.hock [%rug ~]))
+      ::
+          [%con *]
+        %=  $
+          body.hock  t.body.hock
+          sigh
+            %+  ~(put by sigh)
+              +>+.i.body.hock
+            [%con +<.body.hock +>-.i.body.hock]
+        ==
+      ::
+          [%hed @ @]
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.bock [%rug ~]))
+      ::
+          [%hud @ @]
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.bock [%rug ~]))
+      ::
+          [%tal @ @]
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.bock [%rug ~]))
+      ::
+          [%tul @ @]
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.bock [%rug ~]))
+      ==
+    ++  rend  ::  make register assignments to translate a bec/eye into a cal/jmp.
+      |=  [=barn tart=@ poem=(unit [@ berm])]
+      =/  uses  ~|  %uses-miss  uses:does:(~(got by land.burg) barn)
+      ^-  town
+      =-
+        =.  burg  fort
+        =?  sigh  ?=([~ *] poem)  (~(put by sigh) -.u.poem [%rug ~])
+        =/  term
+          ?~  poem
+            [%jmp barn bits]
+          [%cal barn bits u.poem] 
+        %=    ^^$
+            loch
+          (~(put by loch) i.-.tack [(weld bock bins) term])
+        ::
+          -.tack  t.-.tack
+        ==
+      =/  gasp  :: turn the sigh register-relating map into a register-for-axis map
+        =/  axe  1
+        |-  ^-  (map @ @)
+        =/  waft  (~(put by *(map @ @)) axe tart) 
+        =/  puff  (~(gut by sigh) tart [%rug ~])
+        ?-    puff
+            [%rug ~]  waft
+            [%mov *]  (~(uni by waft) $(tart +.puff))
+            [%con *]
+          ~!  axe
+          =/  left  $(tart +<.puff, axe (peg axe 2))
+          %-  ~(uni by waft)
+          %-  ~(uni by left)
+          $(tart +>.puff, axe (peg axe 3))
+        ==
+      =|  bits=(list @)
+      =|  bins=(list bran)
+      |-  ^-  [bits=(list @) bins=(list bran) fort=town]
+      ?~  uses  [(flop bits) bins burg]
+      =/  sour  -.i.uses
+      =/  axle  1
+      =/  vale  ~|  %vale-miss  (~(got by gasp) 1)
+      |-  ^-  [bits=(list @) bins=(list bran) fort=town]
+      ?:  =(1 sour)
+        ^$(bits [vale bits], uses t.uses)
+      ?-    (cap sour)
+          %2
+        =.  axle  (peg axle 2)
+        =.  sour  (mas sour)
+        =/  pale  (~(get by gasp) axle)
+        ?~  pale
+          %=    $
+            bins  [%hed vale lamb.burg]
+            vale  lamb.burg
+            gasp  (~(put by gasp) axle lamb.burg)
+            lamb.burg  .+(lamb.burg)
+          ==
+        $(vale u.pale)
+      ::
+          %3
+        =.  axle  (peg axle 3)
+        =.  sour  (mas sour)
+        =/  pale  (~(get by gasp) axle)
+        ?~  pale
+          %=    $
+            bins  [%tal vale lamb.burg]
+            vale  lamb.burg
+            gasp  (~(put by gasp) axle lamb.burg)
+            lamb.burg  .+(lamb.burg)
+          ==
+        $(vale u.pale)
+      ==
+    --
+  ::
+      work  t.work
+  ==
+++  weed :: remove unused safe operations (imm,mov,unc,con,hud,tul)
+  =*  this  .
+  |=  work=(list barn) 
+  ^-  _this
+  ?~  work  this
+  =/  herd  (~(got by land.burg) i.work)  ::  sack for this arm
+  =|  dead=(jug (unit berm) @)  ::  values used by a label and its successor code
+  =/  furs=(list (unit berm))  [~]~
+  |-  ^-  _this
+  ?~  furs
+    ^$(work t.work, land.burg (~(put by land.burg) i.work herd))
+  ?:  (~(has by dead) i.furs)  :: did we already analyze this arm
+    $(furs t.furs)
+  =/  meat  (~(got by goes.does.herd) i.furs)
+  |^
+    ?-  -.bend.meat
+        %clq
+      =/  troo  (~(get by dead) `+>-.bend.meat)
+      ?~  troo  $(furs [`+>-.bend.meat furs])
+      =/  fals  (~(get by dead) `+>+.bend.meat)
+      ?~  fals  $(furs [`+>+.bend.meat furs])
+      ~!  u.troo
+      ~!  u.fals
+      ~!  +<.bend.meat
+      (vein (~(uni in u.troo) (~(put in u.fals) +<.bend.meat)))
+    ::
+        %eqq
+      =/  troo  (~(get by dead) `+>+<.bend.meat)
+      ?~  troo  $(furs [`+>+<.bend.meat furs])
+      =/  fals  (~(get by dead) `+>+>.bend.meat)
+      ?~  fals  $(furs [`+>+>.bend.meat furs])
+      (vein (~(uni in u.troo) (~(gas in u.fals) [+<.bend.meat +>-.bend.meat ~])))
+    ::
+        %brn
+      =/  troo  (~(get by dead) `+>-.bend.meat)
+      ?~  troo  $(furs [`+>-.bend.meat furs])
+      =/  fals  (~(get by dead) `+>+.bend.meat)
+      ?~  fals  $(furs [`+>+.bend.meat furs])
+      (vein (~(uni in u.troo) (~(put in u.fals) +<.bend.meat)))
+    ::
+        %hop
+      =/  want  (~(get by dead) `+.bend.meat)
+      ?~  want  $(furs [`+.bend.meat furs])
+      (vein u.want)
+    ::
+        %lnk
+      =/  want  (~(get by dead) `+>+>.bend.meat)
+      ?~  want  $(furs [`+>+>.bend.meat furs])
+      (vein (~(gas in u.want) [+<.bend.meat +>-.bend.meat ~]))
+    ::
+        %cal
+      =/  want  (~(get by dead) `+>+>.bend.meat)
+      ?~  want  $(furs [`+>+>.bend.meat furs])
+      (vein (~(gas in u.want) +>-.bend.meat))
+    ::
+        %bec
+      ~|  %bec-trip  !!
+    ::
+        %lnt
+      (vein (silt [+<.bend.meat]~))
+    ::
+        %jmp
+      (vein (silt +>.bend.meat))
+    ::
+        %eye
+      ~|  %eye-trip  !!
+    ::
+        %spy
+      =/  want  (~(get by dead) `+>+>.bend.meat)
+      ?~  want  $(furs [`+>+>.bend.meat furs])
+      (vein (~(gas in u.want) [+<.bend.meat +>-.bend.meat ~]))
+    ::
+        %hnt
+      =/  want  (~(get by dead) `+>.bend.meat)
+      ?~  want  $(furs [`+>.bend.meat furs])
+      (vein (~(put in u.want) +<.bend.meat))
+    ::
+        %don
+      (vein (silt [+.bend.meat]~))
+    ::
+        %bom
+      (vein ~)
+    ==
+  ++  vein
+    |=  uses=(set @)
+    =/  boyd  (flop body.meat)
+    =|  bond=(list bran)
+    |-  ^-  _this
+    ~!  goes.does.herd
+    ~!  i.furs
+    ?~  boyd
+      %=    ^^^$
+          furs  t.furs
+          goes.does.herd
+        (~(put by goes.does.herd) i.furs [bond bend.meat])
+          dead
+        (~(put by dead) i.furs `(set @)`uses)
+      ==
+    ?-  -.i.boyd
+        %imm
+      ?:  (~(has in uses) +>.i.boyd)
+        $(bond [i.boyd bond], boyd t.boyd)
+      $(boyd t.boyd)
+    ::
+        %mov
+      ?:  (~(has in uses) +>.i.boyd)
+        $(bond [i.boyd bond], boyd t.boyd, uses (~(put in uses) +<.i.boyd))
+      $(boyd t.boyd)
+    ::
+        %inc
+      $(bond [i.boyd bond], boyd t.boyd, uses (~(put in uses) +<.i.boyd))
+    ::  
+        %unc
+      ?:  (~(has in uses) +>.i.boyd)
+        $(bond [i.boyd bond], boyd t.boyd, uses (~(put in uses) +<.i.boyd))
+      $(boyd t.boyd)
+    ::
+        %con
+      ?:  (~(has in uses) +>+.i.boyd)
+        %=  $
+          bond  [i.boyd bond]
+          boyd  t.boyd
+          uses  (~(gas in uses) [+<.i.boyd +>-.i.boyd ~])
+        ==
+      $(boyd t.boyd)
+    ::
+        %hed
+      $(bond [i.boyd bond], boyd t.boyd, uses (~(put in uses) +<.i.boyd))
+    ::
+        %hud
+      ?:  (~(has in uses) +>.i.boyd) 
+        $(bond [i.boyd bond], boyd t.boyd, uses (~(put in uses) +<.i.boyd))
+      $(boyd t.boyd)
+    ::
+        %tal
+      $(bond [i.boyd bond], boyd t.boyd, uses (~(put in uses) +<.i.boyd))
+    ::
+        %tul
+      ?:  (~(has in uses) +>.i.boyd) 
+        $(bond [i.boyd bond], boyd t.boyd, uses (~(put in uses) +<.i.boyd))
+      $(boyd t.boyd)
+    ==
   --
 --
