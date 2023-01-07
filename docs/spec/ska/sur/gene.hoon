@@ -22,7 +22,7 @@
   ==
 +$  farm  [yard=(map barn [does=nomm says=boot]) wood=(list barn)]
 +|  %lin
-+$  berm  [sub=sock for=* ax=@ gen=@] :: local label
++$  berm  [sub=sock for=* ax=@ gen=@tas] :: local label
 +$  plow :: noun<->ssa map
   $%  [%fork left=plow rite=plow safe=?] :: cons of two mappings
       [%tine @]                          :: use this SSA value at this axis
@@ -87,8 +87,8 @@
   ==
 +$  pool  (list [axe=@ ssa=@ saf=?])    :: entry point subject uses: ordered subject/ssa/safety
 +$  lock  [body=(list bran) bend=germ]  :: basic block: instructions + a terminator or branch
-+$  lake  (map (unit berm) lock)        :: labeled basic blocks
-+$  rice  [goes=lake uses=pool]         :: labeled basic blocks
++$  lake  (map berm lock)               :: code table of basic blocks
++$  rice  [goes=lake uses=pool lump=@]  :: entry information and code table for an arm
 +$  sack  [does=rice says=boot]         :: code table entry: basic blocks + SKA result for an arm
 +$  town  [land=(map barn sack) lamb=@] :: code table
 --

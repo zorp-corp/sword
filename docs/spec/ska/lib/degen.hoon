@@ -1,16 +1,23 @@
+:: XX this whole thing is a mess and needs one more rewrite
 /-  *sock
 /-  *gene
 /+  ska
 =|  burg=town
 |%
+++  vent
+  |=  barn
+  [sub for 1 %vent]
+++  dole
+  |=  barn
+  [sub for 1 %dole]
 ++  mill  ::  XX todo observe crashes
   =*  this  .
   |=  [ject=* gist=barn]
   ^-  [* _this]
   =|  quay=(list [curb=berm sign=(map @ *) vale=@])
-  =^  [goes=lake uses=pool]  this  (belt gist)
-  =/  sign  (dole uses ject)
-  =/  reed  ~|  %miss-entry  (~(got by goes) ~)
+  =^  [goes=lake uses=pool rump=@]  this  (belt gist)
+  =/  sign  (~(put by *(map @ *)) rump ject)
+  =/  reed  (~(got by goes) (vent gist))
   |^  ^-  [* _this]
     ?~  body.reed
       ?-  -.bend.reed
@@ -35,34 +42,36 @@
       ::
           %hop  (lump +.bend.reed)
           %lnk
-        =^  [goop=lake ruse=pool]  this
+        =/  gunk  `barn`[[%toss ~] (loan +<.bend.reed)]
+        =^  [goop=lake ruse=pool rump=@]  this
           (belt [%toss ~] (loan +<.bend.reed))
         %=  $
           quay  [[+>+>.bend.reed sign +>+<.bend.reed] quay]
           goes  goop
-          sign  (dole ruse (loan +>-.bend.reed))
+          sign  (lend +>-.bend.reed rump)
         ==
       ::
           %cal
-        =/  [goop=lake ruse=pool]  does:(~(got by land.burg) +<.bend.reed)
+        =/  [goop=lake ruse=pool rump=@]  does:(~(got by land.burg) +<.bend.reed)
         %=  $
           quay  [[+>+>.bend.reed sign +>+<.bend.reed] quay]
           goes  goop
           sign  (yoke +>-.bend.reed ruse)
+          reed  (~(got by goop) (vent +<.bend.reed))
         ==
       ::
           %bec  ~|  %bec-slip  !!
           %lnt
-        =^  [goop=lake ruse=pool]  this
+        =^  [goop=lake ruse=pool rump=@]  this
           (belt [%toss ~] (loan +<.bend.reed))
         ~!  +>.bend.reed
         %=  $
           goes  goop
-          sign  (dole ruse (loan +>.bend.reed))
+          sign  (lend +>.bend.reed rump)
         ==
       ::
           %jmp
-        =/  [goop=lake ruse=pool]  does:(~(got by land.burg) +<.bend.reed)
+        =/  [goop=lake ruse=pool rump=@]  does:(~(got by land.burg) +<.bend.reed)
         %=  $
           goes  goop
           sign  (yoke +>.bend.reed ruse)
@@ -74,11 +83,11 @@
           %don
         ?~  quay  [(loan +.bend.reed) this]
         =/  rail  [sub for]:curb.i.quay
-        =/  [goop=lake ruse=pool]  does:(~(got by land.burg) rail)
+        =/  [goop=lake ruse=pool bump=@]  does:(~(got by land.burg) rail)
         %=  $
           sign  (~(put by sign.i.quay) vale.i.quay (loan +.bend.reed))
           goes  goop
-          reed  ~|(%miss-entry (~(got by goes) `curb.i.quay))
+          reed  ~|(%miss-entry (~(got by goes) curb.i.quay))
           quay  t.quay
         ==
       ::
@@ -136,9 +145,13 @@
   ++  loan
     |=  @
     ~|  %loan-miss  (~(got by sign) +<)
+  ++  lend
+    |=  [src=@ dst=@]
+    ^-  _sign
+    (~(put by `_sign`~) dst (loan src))
   ++  lump
     |=  berm
-    ^$(reed ~|(%miss-entry (~(got by goes) `+<)))
+    ^$(reed ~|(%miss-entry (~(got by goes) +<)))
   ++  yoke
     |=  [ox=(list @) lo=pool]
     =|  link=(map @ *)
@@ -150,18 +163,13 @@
       ~|  %yoke-match  !!
     $(link (~(put by link) ssa.i.lo (loan i.ox)), ox t.ox, lo t.lo)
   --
-++  dole
-  |=  [=pool ject=*]
-  %-  malt
-  %+  turn  pool
-  |=  [axe=@ ssa=@ ?]
-  [ssa .*(ject [0 axe])]
 ++  belt
   =*  this  .
   |=  gist=barn
   ^-  [rice _this]
   =.  this  +:(reap gist)
-  does:(~(got by burg) gist)
+  :_  this
+  does:(~(got by land.burg) gist)
 ++  reap
   =*  this  .
   |=  =barn
@@ -420,292 +428,304 @@
   =|  flow=line
   =/  axle=@  1
   =/  fawn  does
-  =-  =.  lamb.burg  lamb.dock
-      =.  land.burg
-        %+  ~(put by land.burg)  next
-        :_  says
-        :-  (~(put by lake.dock) ~ [~ %hop her])
-        =|  safe=? :: XX state maximal safe axes, as this will overly pessimize
-        =/  bolt=@  1
-        |-  ^-  (list [@ @ ?])
-        ?-  -.hat
-            %tine  [[bolt +.hat safe]]~
-            %disc  ~
-            %fork
-          %+  weld
-            $(hat left.hat, bolt (peg bolt 2), safe ?&(safe safe.hat))
-          $(hat rite.hat, bolt (peg bolt 3), safe ?&(safe safe.hat))
+  |^
+    =-  =.  lamb.burg  lamb.dock
+        =.  land.burg
+          %+  ~(put by land.burg)  next
+          =/  flue  (~(got by lake.dock) her)
+          :_  says
+          ~|  ~(key by lake.dock)
+          =.  lake.dock  (~(put by (~(del by lake.dock) her)) (vent next) flue)
+          ~|  ~(key by lake.dock)
+          =.  ^dock  dock
+          =^  [hose=@ bole=berm]  dock  (peel hat (vent next))
+          ~|  ~(key by lake.dock)
+          ~|  bole
+          =/  alms  (~(got by lake.dock) bole)
+          =.  lake.dock  (~(put by (~(del by lake.dock) bole)) (dole next) alms)
+          :-  lake.dock
+          :_  hose
+          =|  safe=? :: XX state maximal safe axes, as this will overly pessimize
+          =/  bolt=@  1
+          |-  ^-  (list [@ @ ?])
+          ?-  -.hat
+              %tine  [[bolt +.hat safe]]~
+              %disc  ~
+              %fork
+            %+  weld
+              $(hat left.hat, bolt (peg bolt 2), safe ?&(safe safe.hat))
+            $(hat rite.hat, bolt (peg bolt 3), safe ?&(safe safe.hat))
+          ==
+        ^$(work t.work)
+    |-  ^-  [[hat=plow her=berm] dock=_dock]
+    ?-    fawn
+        [%par * *]
+      =^  [one=plow two=plow her=berm]  dock  twin
+      =^  [bat=plow bit=berm]  dock
+        $(fawn +>.fawn, axle (peg axle 3), flow [%moat her two])
+      =^  [hat=plow hit=berm]  dock
+        $(fawn +<.fawn, axle (peg axle 2), flow [%moat bit one])
+      (copy hat bat hit)
+    ::
+        [%zer *]
+      ?-    -.flow
+          %moat
+        =/  slow  (take +<.fawn what.flow +>.fawn)
+        ?~  slow
+          fail
+        :_  dock
+        [u.slow wher.flow]
+      ::
+          %rift
+        =^  miff  dock  wean
+        =/  slow  (take +<.fawn [%tine miff] +>.fawn)
+        ?~  slow
+          fail
+        =^  her  dock  (mend %miff ~ [%brn miff [troo fals]:flow])
+        :_  dock
+        [u.slow her]
+      ::
+          %pond
+        =^  tend  dock  wean
+        =/  slow  (take +<.fawn [%tine tend] +>.fawn)
+        ?~  slow
+          fail
+        =^  her  dock  (mend %tend ~ [%don tend])
+        :_  dock
+        [u.slow her]
+      ==
+    ::
+        [%one *]
+      (bang +.fawn)
+    ::
+        [%two *]
+      ?-    -.flow
+          %moat
+        =^  flaw  dock  (peel what.flow wher.flow)
+        (tool `flaw +.fawn)
+      ::
+          %rift
+        =^  muse  dock  wean
+        =^  skit  dock  (mend %skit ~ [%brn muse [troo fals]:flow])
+        (tool `[muse skit] +.fawn)
+      ::
+          %pond
+        (tool ~ +.fawn)
+      ==
+    ::
+        [%thr *]
+      ?-    -.flow
+          %moat
+        ?-    -.what.flow
+            %fork  fail
+            %disc  $(fawn +.fawn, axle (peg axle 3))
+            %tine
+          =^  pear  dock  (mend %pear [%imm 0 +.what.flow]~ [%hop wher.flow])
+          =^  bock  dock  (mend %bock [%imm 1 +.what.flow]~ [%hop wher.flow])
+          =^  noon  dock  wean
+          =^  keck  dock  (mend %keck ~ [%clq noon pear bock])
+          $(fawn +.fawn, axle (peg axle 3), flow [%moat keck [%tine noon]])
         ==
-      $(work t.work)
-  |^  ^-  [[hat=plow her=berm] dock=_dock]
-  ?-    fawn
-      [%par * *]
-    =^  [one=plow two=plow her=berm]  dock  twin
-    =^  [bat=plow bit=berm]  dock
-      $(fawn +>.fawn, axle (peg axle 3), flow [%moat her two])
-    =^  [hat=plow hit=berm]  dock
-      $(fawn +<.fawn, axle (peg axle 2), flow [%moat bit one])
-    (copy hat bat hit)
-  ::
-      [%zer *]
-    ?-    -.flow
-        %moat
-      =/  slow  (take +<.fawn what.flow +>.fawn)
-      ?~  slow
-        fail
-      :_  dock
-      [u.slow wher.flow]
-    ::
-        %rift
-      =^  miff  dock  wean
-      =/  slow  (take +<.fawn [%tine miff] +>.fawn)
-      ?~  slow
-        fail
-      =^  her  dock  (mend %miff ~ [%brn miff [troo fals]:flow])
-      :_  dock
-      [u.slow her]
-    ::
-        %pond
-      =^  tend  dock  wean
-      =/  slow  (take +<.fawn [%tine tend] +>.fawn)
-      ?~  slow
-        fail
-      =^  her  dock  (mend %tend ~ [%don tend])
-      :_  dock
-      [u.slow her]
-    ==
-  ::
-      [%one *]
-    (bang +.fawn)
-  ::
-      [%two *]
-    ?-    -.flow
-        %moat
-      =^  flaw  dock  (peel what.flow wher.flow)
-      (tool `flaw +.fawn)
-    ::
-        %rift
-      =^  muse  dock  wean
-      =^  skit  dock  (mend %skit ~ [%brn muse [troo fals]:flow])
-      (tool `[muse skit] +.fawn)
-    ::
-        %pond
-      (tool ~ +.fawn)
-    ==
-  ::
-      [%thr *]
-    ?-    -.flow
-        %moat
-      ?-    -.what.flow
-          %fork  fail
-          %disc  $(fawn +.fawn, axle (peg axle 3))
-          %tine
-        =^  pear  dock  (mend %pear [%imm 0 +.what.flow]~ [%hop wher.flow])
-        =^  bock  dock  (mend %bock [%imm 1 +.what.flow]~ [%hop wher.flow])
+      ::
+          %rift
+        =^  noon  dock  wean
+        =^  keck  dock  (mend %keck ~ [%clq noon [troo fals]:flow])
+        $(fawn +.fawn, axle (peg axle 3), flow [%moat keck [%tine noon]])
+      ::
+          %pond
+        =^  tend  dock  wean
+        =^  pear  dock  (mend %pear [%imm 0 tend]~ [%don tend])
+        =^  bock  dock  (mend %bock [%imm 1 tend]~ [%don tend])
         =^  noon  dock  wean
         =^  keck  dock  (mend %keck ~ [%clq noon pear bock])
         $(fawn +.fawn, axle (peg axle 3), flow [%moat keck [%tine noon]])
       ==
     ::
-        %rift
-      =^  noon  dock  wean
-      =^  keck  dock  (mend %keck ~ [%clq noon [troo fals]:flow])
-      $(fawn +.fawn, axle (peg axle 3), flow [%moat keck [%tine noon]])
-    ::
-        %pond
-      =^  tend  dock  wean
-      =^  pear  dock  (mend %pear [%imm 0 tend]~ [%don tend])
-      =^  bock  dock  (mend %bock [%imm 1 tend]~ [%don tend])
-      =^  noon  dock  wean
-      =^  keck  dock  (mend %keck ~ [%clq noon pear bock])
-      $(fawn +.fawn, axle (peg axle 3), flow [%moat keck [%tine noon]])
-    ==
-  ::
-      [%fou *]
-    ?-    -.flow
-        %moat
-      ?-    -.what.flow
-          %fork  fail
-          %disc
-        =^  left  dock  wean
-        ?:  +>.fawn  :: safe?
-          $(fawn +<.fawn, axle (peg axle 6), flow [%moat wher.flow [%tine left]])
-        =^  meal  dock  wean
-        =^  dink  dock  (mend %dink ~[[%inc meal left]] [%hop wher.flow])
-        $(fawn +<.fawn, axle (peg axle 6), flow [%moat dink [%tine meal]])
+        [%fou *]
+      ?-    -.flow
+          %moat
+        ?-    -.what.flow
+            %fork  fail
+            %disc
+          =^  left  dock  wean
+          ?:  +>.fawn  :: safe?
+            $(fawn +<.fawn, axle (peg axle 6), flow [%moat wher.flow [%tine left]])
+          =^  meal  dock  wean
+          =^  dink  dock  (mend %dink ~[[%inc meal left]] [%hop wher.flow])
+          $(fawn +<.fawn, axle (peg axle 6), flow [%moat dink [%tine meal]])
+        ::
+            %tine
+          =^  meal  dock  wean
+          =^  rink  dock
+            ?:  +>.fawn
+              (mend %rink ~[[%unc meal +.what.flow]] [%hop wher.flow])
+            (mend %rink ~[[%inc meal +.what.flow]] [%hop wher.flow])
+          $(fawn +<.fawn, axle (peg axle 6), flow [%moat rink [%tine meal]])
+        ==
       ::
-          %tine
-        =^  meal  dock  wean
-        =^  rink  dock
-          ?:  +>.fawn
-            (mend %rink ~[[%unc meal +.what.flow]] [%hop wher.flow])
-          (mend %rink ~[[%inc meal +.what.flow]] [%hop wher.flow])
-        $(fawn +<.fawn, axle (peg axle 6), flow [%moat rink [%tine meal]])
+          %rift
+        =^  iffy  dock  wean
+        =^  miff  dock  wean
+        =^  kink  dock
+          ?:  +>.fawn  :: safe?
+            (mend %kink ~[[%unc miff iffy]] [%brn iffy [troo fals]:flow])
+          (mend %kink ~[[%inc miff iffy]] [%brn iffy [troo fals]:flow])
+        $(fawn +<.fawn, axle (peg axle 6), flow [%moat kink [%tine miff]])
+      ::
+          %pond
+        =^  pend  dock  wean
+        =^  spin  dock  wean
+        =^  pink  dock
+          ?:  +>.fawn  :: safe?
+            (mend %pink ~[[%unc spin pend]] [%don pend])
+          (mend %pink ~[[%inc spin pend]] [%don pend])
+        $(fawn +<.fawn, axle (peg axle 6), flow [%moat pink [%tine spin]])
       ==
     ::
-        %rift
-      =^  iffy  dock  wean
-      =^  miff  dock  wean
-      =^  kink  dock
-        ?:  +>.fawn  :: safe?
-          (mend %kink ~[[%unc miff iffy]] [%brn iffy [troo fals]:flow])
-        (mend %kink ~[[%inc miff iffy]] [%brn iffy [troo fals]:flow])
-      $(fawn +<.fawn, axle (peg axle 6), flow [%moat kink [%tine miff]])
-    ::
-        %pond
-      =^  pend  dock  wean
-      =^  spin  dock  wean
-      =^  pink  dock
-        ?:  +>.fawn  :: safe?
-          (mend %pink ~[[%unc spin pend]] [%don pend])
-        (mend %pink ~[[%inc spin pend]] [%don pend])
-      $(fawn +<.fawn, axle (peg axle 6), flow [%moat pink [%tine spin]])
-    ==
-  ::
-      [%fiv *]
-    ?-    -.flow
-        %moat
-      ?-    -.what.flow
-          %fork  fail
-          %disc
-        =^  [hit=plow his=berm]  dock  $(fawn +<.fawn, axle (peg axle 6))
-        =^  [hot=plow hog=berm]  dock
-          $(fawn +<.fawn, axle (peg axle 7), flow [%moat his [%disc ~]])
-        (copy hit hot hog)
+        [%fiv *]
+      ?-    -.flow
+          %moat
+        ?-    -.what.flow
+            %fork  fail
+            %disc
+          =^  [hit=plow his=berm]  dock  $(fawn +<.fawn, axle (peg axle 6))
+          =^  [hot=plow hog=berm]  dock
+            $(fawn +<.fawn, axle (peg axle 7), flow [%moat his [%disc ~]])
+          (copy hit hot hog)
+        ::
+            %tine
+          =^  root  dock  (mend %root ~[[%imm 0 +.what.flow]] [%hop wher.flow]) 
+          =^  salt  dock  (mend %salt ~[[%imm 1 +.what.flow]] [%hop wher.flow])
+          =^  load  dock  wean
+          =^  toad  dock  wean
+          =^  qual  dock  (mend %qual ~ [%eqq load toad root salt])
+          =^  [hit=plow his=berm]  dock
+            $(fawn +<.fawn, axle (peg axle 6), flow [%moat qual [%tine load]])
+          =^  [hot=plow hog=berm]  dock
+            $(fawn +>.fawn, axle (peg axle 7), flow [%moat his [%tine toad]])
+          (copy hit hot hog)
+        ==
       ::
-          %tine
-        =^  root  dock  (mend %root ~[[%imm 0 +.what.flow]] [%hop wher.flow]) 
-        =^  salt  dock  (mend %salt ~[[%imm 1 +.what.flow]] [%hop wher.flow])
+          %rift
         =^  load  dock  wean
         =^  toad  dock  wean
-        =^  qual  dock  (mend %qual ~ [%eqq load toad root salt])
+        =^  rail  dock  (mend %rail ~ [%eqq load toad [troo fals]:flow])
         =^  [hit=plow his=berm]  dock
-          $(fawn +<.fawn, axle (peg axle 6), flow [%moat qual [%tine load]])
+          $(fawn +<.fawn, axle (peg axle 6), flow [%moat rail [%tine load]])
+        =^  [hot=plow hog=berm]  dock
+          $(fawn +>.fawn, axle (peg axle 7), flow [%moat his [%tine toad]])
+        (copy hit hot hog)
+      ::
+          %pond
+        =^  bean  dock  wean
+        =^  root  dock  (mend %root ~[[%imm 0 bean]] [%don bean]) 
+        =^  salt  dock  (mend %salt ~[[%imm 1 bean]] [%don bean])
+        =^  load  dock  wean
+        =^  toad  dock  wean
+        =^  fall  dock  (mend %fall ~ [%eqq load toad root salt])
+        =^  [hit=plow his=berm]  dock
+          $(fawn +<.fawn, axle (peg axle 6), flow [%moat fall [%tine load]])
         =^  [hot=plow hog=berm]  dock
           $(fawn +>.fawn, axle (peg axle 7), flow [%moat his [%tine toad]])
         (copy hit hot hog)
       ==
     ::
-        %rift
-      =^  load  dock  wean
-      =^  toad  dock  wean
-      =^  rail  dock  (mend %rail ~ [%eqq load toad [troo fals]:flow])
-      =^  [hit=plow his=berm]  dock
-        $(fawn +<.fawn, axle (peg axle 6), flow [%moat rail [%tine load]])
+        [%six *]
+      =^  [hut=plow hum=berm]  dock  $(fawn +>-.fawn, axle (peg axle 14))
+      =^  [hat=plow ham=berm]  dock  $(fawn +>+.fawn, axle (peg axle 15))
       =^  [hot=plow hog=berm]  dock
-        $(fawn +>.fawn, axle (peg axle 7), flow [%moat his [%tine toad]])
-      (copy hit hot hog)
+        $(fawn +<.fawn, axle (peg axle 6), flow [%rift hum ham])
+      =^  [hit=plow him=berm]  dock  (copy hut hat hog)
+      (copy hit hot him)
     ::
+        [%sev *]
+      =^  [hit=plow his=berm]  dock  $(fawn +>.fawn, axle (peg axle 7))
+      $(fawn +<.fawn, axle (peg axle 6), flow [%moat his hit])
+    ::
+        [%ten *]
+      ?-    -.flow
+          %moat
+        =^  [out=plow inn=plow tub=berm]  dock  (tear +<-.fawn what.flow +>+.fawn wher.flow)
+        =^  [hat=plow him=berm]  dock  $(fawn +<+.fawn, axle (peg axle 13), flow [%moat tub inn])
+        =^  [hut=plow mud=berm]  dock  $(fawn +>-.fawn, axle (peg axle 14), flow [%moat him out])
+        (copy hat hut mud)
+      ::
+          %rift
+        :: this is a weird case. It only works if the axis is one,
+        :: otherwise it crashes, and there's no point in an axis edit of
+        :: one except to discard the first result
+        ?.  =(1 +<-.fawn)  fail
+        =^  hide  dock  wean
+        =^  mood  dock  (mend %mood ~ [%brn hide [troo fals]:flow])
+        =^  [hat=plow him=berm]  dock
+          $(fawn +<+.fawn, axle (peg axle 13), flow [%moat mood [%tine hide]])
+        =^  [hut=plow mud=berm]  dock
+          $(fawn +>-.fawn, axle (peg axle 14), flow [%moat him [%disc ~]])
+        (copy hat hut mud)
+      ::
         %pond
-      =^  bean  dock  wean
-      =^  root  dock  (mend %root ~[[%imm 0 bean]] [%don bean]) 
-      =^  salt  dock  (mend %salt ~[[%imm 1 bean]] [%don bean])
-      =^  load  dock  wean
-      =^  toad  dock  wean
-      =^  fall  dock  (mend %fall ~ [%eqq load toad root salt])
-      =^  [hit=plow his=berm]  dock
-        $(fawn +<.fawn, axle (peg axle 6), flow [%moat fall [%tine load]])
-      =^  [hot=plow hog=berm]  dock
-        $(fawn +>.fawn, axle (peg axle 7), flow [%moat his [%tine toad]])
-      (copy hit hot hog)
+        =^  dire  dock  wean
+        =^  eden  dock  (mend %eden ~ [%don dire])
+        =^  [out=plow inn=plow tub=berm]  dock  (tear +<-.fawn [%tine dire] +>+.fawn eden)
+        =^  [hat=plow him=berm]  dock  $(fawn +<+.fawn, axle (peg axle 13), flow [%moat tub inn])
+        =^  [hut=plow mud=berm]  dock  $(fawn +>-.fawn, axle (peg axle 14), flow [%moat him out])
+        (copy hat hut mud)
+      ==
+    ::
+        [%els *]
+      =^  [hat=plow him=berm]  dock  $(fawn +>.fawn, axle (peg axle 7))
+      =^  pint  dock  wean
+      =^  tint  dock  (mend %tint ~[[%imm +<.fawn pint]] [%hnt pint him])
+      :_  dock
+      [hat tint]
+    ::
+        [%eld *]
+      =^  [hat=plow him=berm]  dock  $(fawn +>-.fawn, axle (peg axle 7))
+      =^  pint  dock  wean
+      =^  dint  dock  wean
+      =^  aint  dock  wean
+      =^  tint  dock  (mend %tint ~[[%imm +<-.fawn pint] [%con pint dint aint]] [%hnt aint him])
+      =^  [hit=plow his=berm]  dock  $(fawn +<+.fawn, axle (peg axle 13), flow [%moat tint [%tine dint]])
+      (copy hat hit his)
+    ::
+        [%twe *]
+      ?-    -.flow
+          %moat
+        =^  [use=@ her=berm]  dock  (peel what.flow wher.flow)
+        =^  fens  dock  wean
+        =^  phat  dock  wean
+        =^  cope  dock  (mend %cope ~ [%spy fens phat use her])
+        =^  [ham=plow pan=berm]  dock
+          $(fawn +>.fawn, axle (peg axle 7), flow [%moat cope [%tine phat]])
+        =^  [hen=plow pen=berm]  dock
+          $(fawn +<.fawn, axle (peg axle 6), flow [%moat pan [%tine fens]])
+        (copy ham hen pen)
+      ::
+          %rift
+        =^  sift  dock  wean
+        =^  bars  dock  (mend %bars ~ [%brn sift [troo fals]:flow])
+        =^  fens  dock  wean
+        =^  phat  dock  wean
+        =^  cope  dock  (mend %cope ~ [%spy fens phat sift bars])
+        =^  [ham=plow pan=berm]  dock
+          $(fawn +>.fawn, axle (peg axle 7), flow [%moat cope [%tine phat]])
+        =^  [hen=plow pen=berm]  dock
+          $(fawn +<.fawn, axle (peg axle 6), flow [%moat pan [%tine fens]])
+        (copy ham hen pen)
+      ::
+          %pond
+        =^  sped  dock  wean
+        =^  sear  dock  (mend %sear ~ [%don sped])
+        =^  fens  dock  wean
+        =^  phat  dock  wean
+        =^  cope  dock  (mend %cope ~ [%spy fens phat sped sear])
+        =^  [ham=plow pan=berm]  dock
+          $(fawn +>.fawn, axle (peg axle 7), flow [%moat cope [%tine phat]])
+        =^  [hen=plow pen=berm]  dock
+          $(fawn +<.fawn, axle (peg axle 6), flow [%moat pan [%tine fens]])
+        (copy ham hen pen)
+      ==
     ==
-  ::
-      [%six *]
-    =^  [hut=plow hum=berm]  dock  $(fawn +>-.fawn, axle (peg axle 14))
-    =^  [hat=plow ham=berm]  dock  $(fawn +>+.fawn, axle (peg axle 15))
-    =^  [hot=plow hog=berm]  dock
-      $(fawn +<.fawn, axle (peg axle 6), flow [%rift hum ham])
-    =^  [hit=plow him=berm]  dock  (copy hut hat hog)
-    (copy hit hot him)
-  ::
-      [%sev *]
-    =^  [hit=plow his=berm]  dock  $(fawn +>.fawn, axle (peg axle 7))
-    $(fawn +<.fawn, axle (peg axle 6), flow [%moat his hit])
-  ::
-      [%ten *]
-    ?-    -.flow
-        %moat
-      =^  [out=plow inn=plow tub=berm]  dock  (tear +<-.fawn what.flow +>+.fawn wher.flow)
-      =^  [hat=plow him=berm]  dock  $(fawn +<+.fawn, axle (peg axle 13), flow [%moat tub inn])
-      =^  [hut=plow mud=berm]  dock  $(fawn +>-.fawn, axle (peg axle 14), flow [%moat him out])
-      (copy hat hut mud)
-    ::
-        %rift
-      :: this is a weird case. It only works if the axis is one,
-      :: otherwise it crashes, and there's no point in an axis edit of
-      :: one except to discard the first result
-      ?.  =(1 +<-.fawn)  fail
-      =^  hide  dock  wean
-      =^  mood  dock  (mend %mood ~ [%brn hide [troo fals]:flow])
-      =^  [hat=plow him=berm]  dock
-        $(fawn +<+.fawn, axle (peg axle 13), flow [%moat mood [%tine hide]])
-      =^  [hut=plow mud=berm]  dock
-        $(fawn +>-.fawn, axle (peg axle 14), flow [%moat him [%disc ~]])
-      (copy hat hut mud)
-    ::
-      %pond
-      =^  dire  dock  wean
-      =^  eden  dock  (mend %eden ~ [%don dire])
-      =^  [out=plow inn=plow tub=berm]  dock  (tear +<-.fawn [%tine dire] +>+.fawn eden)
-      =^  [hat=plow him=berm]  dock  $(fawn +<+.fawn, axle (peg axle 13), flow [%moat tub inn])
-      =^  [hut=plow mud=berm]  dock  $(fawn +>-.fawn, axle (peg axle 14), flow [%moat him out])
-      (copy hat hut mud)
-    ==
-  ::
-      [%els *]
-    =^  [hat=plow him=berm]  dock  $(fawn +>.fawn, axle (peg axle 7))
-    =^  pint  dock  wean
-    =^  tint  dock  (mend %tint ~[[%imm +<.fawn pint]] [%hnt pint him])
-    :_  dock
-    [hat tint]
-  ::
-      [%eld *]
-    =^  [hat=plow him=berm]  dock  $(fawn +>-.fawn, axle (peg axle 7))
-    =^  pint  dock  wean
-    =^  dint  dock  wean
-    =^  aint  dock  wean
-    =^  tint  dock  (mend %tint ~[[%imm +<-.fawn pint] [%con pint dint aint]] [%hnt aint him])
-    =^  [hit=plow his=berm]  dock  $(fawn +<+.fawn, axle (peg axle 13), flow [%moat tint [%tine dint]])
-    (copy hat hit his)
-  ::
-      [%twe *]
-    ?-    -.flow
-        %moat
-      =^  [use=@ her=berm]  dock  (peel what.flow wher.flow)
-      =^  fens  dock  wean
-      =^  phat  dock  wean
-      =^  cope  dock  (mend %cope ~ [%spy fens phat use her])
-      =^  [ham=plow pan=berm]  dock
-        $(fawn +>.fawn, axle (peg axle 7), flow [%moat cope [%tine phat]])
-      =^  [hen=plow pen=berm]  dock
-        $(fawn +<.fawn, axle (peg axle 6), flow [%moat pan [%tine fens]])
-      (copy ham hen pen)
-    ::
-        %rift
-      =^  sift  dock  wean
-      =^  bars  dock  (mend %bars ~ [%brn sift [troo fals]:flow])
-      =^  fens  dock  wean
-      =^  phat  dock  wean
-      =^  cope  dock  (mend %cope ~ [%spy fens phat sift bars])
-      =^  [ham=plow pan=berm]  dock
-        $(fawn +>.fawn, axle (peg axle 7), flow [%moat cope [%tine phat]])
-      =^  [hen=plow pen=berm]  dock
-        $(fawn +<.fawn, axle (peg axle 6), flow [%moat pan [%tine fens]])
-      (copy ham hen pen)
-    ::
-        %pond
-      =^  sped  dock  wean
-      =^  sear  dock  (mend %sear ~ [%don sped])
-      =^  fens  dock  wean
-      =^  phat  dock  wean
-      =^  cope  dock  (mend %cope ~ [%spy fens phat sped sear])
-      =^  [ham=plow pan=berm]  dock
-        $(fawn +>.fawn, axle (peg axle 7), flow [%moat cope [%tine phat]])
-      =^  [hen=plow pen=berm]  dock
-        $(fawn +<.fawn, axle (peg axle 6), flow [%moat pan [%tine fens]])
-      (copy ham hen pen)
-    ==
-  ==
   ++  fail
     ^-  [[hat=plow her=berm] dock=_dock]
     =^  hole  dock  bomb
@@ -874,40 +894,7 @@
       :_  dock
       [[%disc ~] rock]
     ==
-  ++  peel  :: split a define among a plow's worth of uses
-    |=  [mole=plow hill=berm]
-    ^-  [[use=@ her=berm] _dock]
-    =+
-      |-  ^-  [[fine=(unit @) load=(list bran)] dock=_dock]
-      ?-    -.mole
-          %tine  [[`+.mole ~] dock]
-          %disc  [[~ ~] dock]
-          %fork
-        =^  [file=(unit @) loaf=(list bran)]  dock  $(mole left.mole)
-        =^  [fire=(unit @) road=(list bran)]  dock  $(mole rite.mole)
-        ?~  file
-          ?~  fire
-            [[~ ~] dock]
-          [[fire road] dock]
-        ?~  fire
-          [[file loaf] dock]
-        =^  fell  dock  wean
-        ?:  safe.mole
-          :_  dock
-          :-  `fell
-          [[%hud fell u.file] [%tul fell u.fire] (weld loaf road)]
-        :_  dock
-        :-  `fell
-        [[%hed fell u.file] [%tal fell u.fire] (weld loaf road)]
-      ==
-   ?~  fine
-     =^  crap  dock  wean  :: no uses in the plow, so just make a trash register for the result and return
-     [[crap hill] dock]
-   ?~  load  ::  no loads necessary, just return the register
-     [[u.fine hill] dock]
-   =^  her  dock  (mend %peel load [%hop hill])  ::  loads necessary, add those to the dock and return
-   [[u.fine her] dock]
-  ++  take  :: axis
+ ++  take  :: axis
     |=  [sax=@ tow=plow row=?]  :: axis, destination, safety
     ^-  (unit plow)  :: nullary case = crash
     ?:  =(0 sax)  ~
@@ -918,14 +905,6 @@
       %2  [%fork $(sax (mas sax)) [%disc ~] row]
       %3  [%fork [%disc ~] $(sax (mas sax)) row]
     ==
-  ++  milk  :: local label
-    |=  gen=@
-    ^-  berm
-    ~!  next
-    [sub.next for.next axle gen]
-  ++  wean  :: fresh ssa
-    ^-  [@ _dock]
-    [lamb.dock dock(lamb .+(lamb.dock))]
   ++  copy  :: replicate values to two destinations
     |=  [hat=plow bat=plow her=berm]
     ^-  [[hat=plow her=berm] _dock]
@@ -975,7 +954,7 @@
         ==
       ==
     =/  blab  (milk %copy)
-    :_  dock(lake (~(put by lake.dock) `blab [moot %hop her]))
+    :_  dock(lake (~(put by lake.dock) blab [moot %hop her]))
     [tog blab]
   ++  twin  :: split sans from flow
     ^-  [[plow plow berm] _dock]
@@ -1012,15 +991,57 @@
         [[%tine one] [%tine two] her]
       ==
     ==
+  ++  bomb
+    ^-  [berm _dock]
+    (mend %boom ~ [%bom ~])
+  ++  milk  :: local label
+    |=  gen=@
+    ^-  berm
+    ~!  next
+    [sub.next for.next axle gen]
   ++  mend
     |=  [gen=@ =lock]
     ^-  [berm _dock]
     =/  curb  (milk gen)
     :-  curb
-    dock(lake (~(put by lake.dock) `curb lock))
-  ++  bomb
-    ^-  [berm _dock]
-    (mend %boom ~ [%bom ~])
+    dock(lake (~(put by lake.dock) curb lock))
+  ++  wean  :: fresh ssa
+    ^-  [@ _dock]
+    [lamb.dock dock(lamb .+(lamb.dock))]
+  ++  peel  :: split a define among a plow's worth of uses
+    |=  [mole=plow hill=berm]
+    ^-  [[use=@ her=berm] _dock]
+    ~&  ~(key by lake.dock)
+    =+
+      |-  ^-  [[fine=(unit @) load=(list bran)] dock=_dock]
+      ?-    -.mole
+          %tine  [[`+.mole ~] dock]
+          %disc  [[~ ~] dock]
+          %fork
+        =^  [file=(unit @) loaf=(list bran)]  dock  $(mole left.mole)
+        =^  [fire=(unit @) road=(list bran)]  dock  $(mole rite.mole)
+        ?~  file
+          ?~  fire
+            [[~ ~] dock]
+          [[fire road] dock]
+        ?~  fire
+          [[file loaf] dock]
+        =^  fell  dock  wean
+        ?:  safe.mole
+          :_  dock
+          :-  `fell
+          [[%hud fell u.file] [%tul fell u.fire] (weld loaf road)]
+        :_  dock
+        :-  `fell
+        [[%hed fell u.file] [%tal fell u.fire] (weld loaf road)]
+      ==
+    ?~  fine
+      =^  crap  dock  wean  :: no uses in the plow, so just make a trash register for the result and return
+      =^  her  dock  (mend %peel ~ [%hop hill])
+      [[crap her] dock]
+    =^  her  dock  (mend %peel load [%hop hill])  ::  loads necessary, add those to the dock and return
+    [[u.fine her] dock]
+ 
   --
 ++  rake  ::  clean up unused basic blocks, and rewrite bec/eye into cal/jmp
   =*  this  .
@@ -1032,24 +1053,24 @@
     =+  ~|  %barn-miss  (~(got by land.burg) i.work)
     ^-  town
     =|  loch=lake
-    =|  sigh=(map @ $%([%mov @] [%con @] [%rug ~]))
-    =/  tack=[(list (unit berm)) (list (unit berm))]  [[~]~ ~] :: label queue
+    =|  sigh=(map @ $%([%mov @] [%con @ @] [%rug ~]))
+    =/  tack=[(list berm) (list berm)]  [[(vent i.work) ~] ~] :: label queue
     |-  ^-  town  ::  loop over basic blocks using a queue
     ?~  -.tack
       ?~  +.tack
         %=    burg
             land
-          (~(put by land.burg) i.work [[loch uses.does] says]) 
+          (~(put by land.burg) i.work [[loch uses.does lump.does] says]) 
         ==
       $(tack [(flop +.tack) ~])
-    =/  hock  ~|  %miss-berm  (~(got by goes.does) i.-.tack)
+    =/  hock  ~|  %miss-berm  ~|  i.-.tack  (~(got by goes.does) i.-.tack)
     =/  bock  body.hock
     |^  ^-  town  ::  loop over instructions in a basic block
       ?~  body.hock
         ?:  ?=(%bec -.bend.hock)
           (rend [+< +>- `+>+]:bend.hock)
         ?:  ?=(%eye -.bend.hock)
-          (rend [+< +>- ~]:bend.bock)
+          (rend [+< +> ~]:bend.hock)
         =.  loch  (~(put by loch) i.-.tack [bock bend.hock])
         ?-  bend.hock
             [%clq *]
@@ -1066,7 +1087,7 @@
         ::
             [%lnk *]
           %=  ^$
-            sigh  (~(put by sigh) +>+<.bend.bock [%rug ~])
+            sigh  (~(put by sigh) +>+<.bend.hock [%rug ~])
             -.tack  t.-.tack
             +.tack  [+>+>.bend.hock +.tack]
           ==
@@ -1115,20 +1136,20 @@
           sigh
             %+  ~(put by sigh)
               +>+.i.body.hock
-            [%con +<.body.hock +>-.i.body.hock]
+            [%con +<.i.body.hock +>-.i.body.hock]
         ==
       ::
           [%hed @ @]
-        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.bock [%rug ~]))
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.hock [%rug ~]))
       ::
           [%hud @ @]
-        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.bock [%rug ~]))
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.hock [%rug ~]))
       ::
           [%tal @ @]
-        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.bock [%rug ~]))
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.hock [%rug ~]))
       ::
           [%tul @ @]
-        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.bock [%rug ~]))
+        $(body.hock t.body.hock, sigh (~(put by sigh) +>.i.body.hock [%rug ~]))
       ==
     ++  rend  ::  make register assignments to translate a bec/eye into a cal/jmp.
       |=  [=barn tart=@ poem=(unit [@ berm])]
@@ -1156,7 +1177,6 @@
             [%rug ~]  waft
             [%mov *]  (~(uni by waft) $(tart +.puff))
             [%con *]
-          ~!  axe
           =/  left  $(tart +<.puff, axe (peg axe 2))
           %-  ~(uni by waft)
           %-  ~(uni by left)
@@ -1179,7 +1199,7 @@
         =/  pale  (~(get by gasp) axle)
         ?~  pale
           %=    $
-            bins  [%hed vale lamb.burg]
+            bins  [[%hed vale lamb.burg] bins]
             vale  lamb.burg
             gasp  (~(put by gasp) axle lamb.burg)
             lamb.burg  .+(lamb.burg)
@@ -1192,7 +1212,7 @@
         =/  pale  (~(get by gasp) axle)
         ?~  pale
           %=    $
-            bins  [%tal vale lamb.burg]
+            bins  [[%tal vale lamb.burg] bins]
             vale  lamb.burg
             gasp  (~(put by gasp) axle lamb.burg)
             lamb.burg  .+(lamb.burg)
@@ -1209,8 +1229,8 @@
   ^-  _this
   ?~  work  this
   =/  herd  (~(got by land.burg) i.work)  ::  sack for this arm
-  =|  dead=(jug (unit berm) @)  ::  values used by a label and its successor code
-  =/  furs=(list (unit berm))  [~]~
+  =|  dead=(jug berm @)  ::  values used by a label and its successor code
+  =/  furs=(list berm)  [[sub for 1 %vent]:i.work ~]
   |-  ^-  _this
   ?~  furs
     ^$(work t.work, land.burg (~(put by land.burg) i.work herd))
@@ -1220,42 +1240,42 @@
   |^
     ?-  -.bend.meat
         %clq
-      =/  troo  (~(get by dead) `+>-.bend.meat)
-      ?~  troo  $(furs [`+>-.bend.meat furs])
-      =/  fals  (~(get by dead) `+>+.bend.meat)
-      ?~  fals  $(furs [`+>+.bend.meat furs])
+      =/  troo  (~(get by dead) +>-.bend.meat)
+      ?~  troo  $(furs [+>-.bend.meat furs])
+      =/  fals  (~(get by dead) +>+.bend.meat)
+      ?~  fals  $(furs [+>+.bend.meat furs])
       ~!  u.troo
       ~!  u.fals
       ~!  +<.bend.meat
       (vein (~(uni in u.troo) (~(put in u.fals) +<.bend.meat)))
     ::
         %eqq
-      =/  troo  (~(get by dead) `+>+<.bend.meat)
-      ?~  troo  $(furs [`+>+<.bend.meat furs])
-      =/  fals  (~(get by dead) `+>+>.bend.meat)
-      ?~  fals  $(furs [`+>+>.bend.meat furs])
+      =/  troo  (~(get by dead) +>+<.bend.meat)
+      ?~  troo  $(furs [+>+<.bend.meat furs])
+      =/  fals  (~(get by dead) +>+>.bend.meat)
+      ?~  fals  $(furs [+>+>.bend.meat furs])
       (vein (~(uni in u.troo) (~(gas in u.fals) [+<.bend.meat +>-.bend.meat ~])))
     ::
         %brn
-      =/  troo  (~(get by dead) `+>-.bend.meat)
-      ?~  troo  $(furs [`+>-.bend.meat furs])
-      =/  fals  (~(get by dead) `+>+.bend.meat)
-      ?~  fals  $(furs [`+>+.bend.meat furs])
+      =/  troo  (~(get by dead) +>-.bend.meat)
+      ?~  troo  $(furs [+>-.bend.meat furs])
+      =/  fals  (~(get by dead) +>+.bend.meat)
+      ?~  fals  $(furs [+>+.bend.meat furs])
       (vein (~(uni in u.troo) (~(put in u.fals) +<.bend.meat)))
     ::
         %hop
-      =/  want  (~(get by dead) `+.bend.meat)
-      ?~  want  $(furs [`+.bend.meat furs])
+      =/  want  (~(get by dead) +.bend.meat)
+      ?~  want  $(furs [+.bend.meat furs])
       (vein u.want)
     ::
         %lnk
-      =/  want  (~(get by dead) `+>+>.bend.meat)
-      ?~  want  $(furs [`+>+>.bend.meat furs])
+      =/  want  (~(get by dead) +>+>.bend.meat)
+      ?~  want  $(furs [+>+>.bend.meat furs])
       (vein (~(gas in u.want) [+<.bend.meat +>-.bend.meat ~]))
     ::
         %cal
-      =/  want  (~(get by dead) `+>+>.bend.meat)
-      ?~  want  $(furs [`+>+>.bend.meat furs])
+      =/  want  (~(get by dead) +>+>.bend.meat)
+      ?~  want  $(furs [+>+>.bend.meat furs])
       (vein (~(gas in u.want) +>-.bend.meat))
     ::
         %bec
@@ -1271,13 +1291,13 @@
       ~|  %eye-trip  !!
     ::
         %spy
-      =/  want  (~(get by dead) `+>+>.bend.meat)
-      ?~  want  $(furs [`+>+>.bend.meat furs])
+      =/  want  (~(get by dead) +>+>.bend.meat)
+      ?~  want  $(furs [+>+>.bend.meat furs])
       (vein (~(gas in u.want) [+<.bend.meat +>-.bend.meat ~]))
     ::
         %hnt
-      =/  want  (~(get by dead) `+>.bend.meat)
-      ?~  want  $(furs [`+>.bend.meat furs])
+      =/  want  (~(get by dead) +>.bend.meat)
+      ?~  want  $(furs [+>.bend.meat furs])
       (vein (~(put in u.want) +<.bend.meat))
     ::
         %don
@@ -1299,7 +1319,7 @@
           goes.does.herd
         (~(put by goes.does.herd) i.furs [bond bend.meat])
           dead
-        (~(put by dead) i.furs `(set @)`uses)
+        (~(put by dead) i.furs uses)
       ==
     ?-  -.i.boyd
         %imm
