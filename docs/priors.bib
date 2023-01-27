@@ -1,0 +1,67 @@
+@techreport{DestinationDrivenCodeGeneration,
+	author = {Dybvig, R. Kent and Heib, Robert and Butler, Tom},
+	institution = {Indiana University},
+	month = feb,
+	school = {Computer Science Department},
+	title = {Destination-Driven Code Generation},
+	volume = {302},
+	year = {1990}
+}
+
+@inproceedings{LifeAfterBerkeleyDB,
+	abstract = {OpenLDAP's new MDB library is a highly optimized B+tree implementation that is orders of magnitude faster and more efficient than everything else in the software world. Reads scale perfectly linearly across arbitrarily many CPUs with no bottlenecks, and data is returned with zero memcpy's. Writes are on average twenty times faster than commonly available databases such as SQLite. The entire library compiles down to only 32K of object code, allowing it to execute completely inside a typical CPU's L1 cache. Backends for OpenLDAP slapd, Cyrus SASL, Heimdal Kerberos, SQLite 3, and OpenDKIM have already been written, with other projects in progress.},
+	author = {Chu, Howard},
+	booktitle = {LinuxConf 2012},
+	title = {Life After BerkeleyDB: OpenLDAP's Memory-Mapped Database},
+	year = {2012}
+}
+
+@inproceedings{Malloc3Revisited,
+	author = {Kamp, Poul-Henning},
+	booktitle = {1998 USENIX Annual Technical Conference (USENIX ATC 98)},
+	title = {Malloc (3) revisited},
+	year = {1998}
+}
+
+@manual{NotesFromTheArchitect,
+	author = {Kamp, Poul-Henning},
+	booktitle = {Varnish Documentation},
+	howpublished = {\url{https://varnish-cache.org/docs/trunk/phk/notes.html}},
+	title = {Notes From The Architect}
+}
+
+@misc{CraneliftNewRegisterAllocator,
+	author = {Fallin, Chris},
+	howpublished = {\url{https://cfallin.org/blog/2022/06/09/cranelift-regalloc2/}},
+	month = jun,
+	title = {Cranelift, Part 4: A New Register Allocator},
+	year = {2022}
+}
+
+@inproceedings{SSAElimAfterRegAlloc,
+	abstract = {Compilers such as gcc use static-single-assignment (SSA) form as an intermediate representation and usually perform SSA elimination before register allocation. But the order could as well be the opposite: the recent approach of SSA-based register allocation performs SSA elimination after register allocation. SSA elimination before register allocation is straightforward and standard, while previously described approaches to SSA elimination after register allocation have shortcomings; in particular, they have problems with implementing copies between memory locations. We present spill-free SSA elimination, a simple and efficient algorithm for SSA elimination after register allocation that avoids increasing the number of spilled variables. We also present three optimizations of the core algorithm. Our experiments show that spill-free SSA elimination takes less than five percent of the total compilation time of a JIT compiler. Our optimizations reduce the number of memory accesses by more than 9{\%} and improve the program execution time by more than 1.8{\%}.},
+	address = {Berlin, Heidelberg},
+	author = {Pereira, Fernando Magno Quint{\~a}o and Palsberg, Jens},
+	booktitle = {Compiler Construction},
+	editor = {de Moor, Oege and Schwartzbach, Michael I.},
+	isbn = {978-3-642-00722-4},
+	pages = {158--173},
+	publisher = {Springer Berlin Heidelberg},
+	title = {SSA Elimination after Register Allocation},
+	year = {2009}
+}
+
+@inproceedings{TailModuloCons,
+	abstract = {Abstract : OCaml function calls consume space on the system stack. Operating systems set default limits on the stack space which are much lower than the available memory. If a program runs out of stack space, they get the dreaded "Stack Overflow" exception -- they crash. As a result, OCaml programmers have to be careful, when they write recursive functions, to remain in the so-called \_tail-recursive\_ fragment, using \_tail\_ calls that do not consume stack space. This discipline is a source of difficulties for both beginners and experts. Beginners have to be taught recursion, and then tail-recursion. Experts disagree on the "right" way to write `List.map`. The direct version is beautiful but not tail-recursive, so it crashes on larger inputs. The naive tail-recursive transformation is (slightly) slower than the direct version, and experts may want to avoid that cost. Some libraries propose horrible implementations, unrolling code by hand, to compensate for this performance loss. In general, tail-recursion requires the programmer to manually perform sophisticated program transformations. In this work we propose an implementation of "Tail Modulo Cons" (TMC) for OCaml. TMC is a program transformation for a fragment of non-tail-recursive functions, that rewrites them in \_destination-passing style\_. The supported fragment is smaller than other approaches such as continuation-passing-style, but the performance of the transformed code is on par with the direct, non-tail-recursive version. Many useful functions that traverse a recursive datastructure and rebuild another recursive structure are in the TMC fragment, in particular `List.map` (and `List.filter`, `List.append`, etc.). Finally those functions can be written in a way that is beautiful, correct on all inputs, and efficient. In this work we give a novel modular, compositional definition of the TMC transformation. We discuss the design space of user-interface choices: what degree of control for the user, when to warn or fail when the transformation may lead unexpected results. We mention a few remaining design difficulties, and present (in appendices) a performance evaluation of the transformed code.},
+	address = {Saint M{\'e}dard d'Excideuil, France},
+	author = {Bour, Fr{\'e}d{\'e}ric and Cl{\'e}ment, Basile and Scherer, Gabriel},
+	booktitle = {JFLA 2021 - Journ{\'e}es Francophones des Langages Applicatifs},
+	hal_id = {hal-03146495},
+	hal_version = {v1},
+	month = apr,
+	pdf = {https://hal.inria.fr/hal-03146495/file/tmc.pdf},
+	title = {Tail Modulo Cons},
+	url = {https://hal.inria.fr/hal-03146495},
+	year = {2021}
+}
+
