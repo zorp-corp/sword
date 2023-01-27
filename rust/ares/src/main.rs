@@ -1,7 +1,7 @@
-use iron_planet::interpreter::interpret;
-use iron_planet::mem::NockStack;
-use iron_planet::noun::IndirectAtom;
-use iron_planet::serialization::{cue, jam};
+use ares::interpreter::interpret;
+use ares::mem::NockStack;
+use ares::noun::IndirectAtom;
+use ares::serialization::{cue, jam};
 use memmap::Mmap;
 use memmap::MmapMut;
 use std::env;

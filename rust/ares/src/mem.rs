@@ -1,4 +1,4 @@
-use crate::noun::{CellMemory, IndirectAtom, Noun, NounAllocator};
+use crate::noun::{CellMemory, IndirectAtom, Noun, NounAllocator, Cell};
 use either::Either::{self, Left, Right};
 use libc::{c_void, memcmp};
 use memmap::MmapMut;
@@ -328,7 +328,7 @@ impl NockStack {
                             *next_dest = new_allocated.as_noun();
                         }
                         Option::None => {
-                            if (allocated.to_raw_pointer() as *const u64) > work_start
+                            if (allocated.to_raw_pointer() as *const u64) >= work_start
                                 && (allocated.to_raw_pointer() as *const u64) < self.frame_pointer
                             {
                                 match allocated.as_either() {
@@ -363,9 +363,6 @@ impl NockStack {
                                         (*new_cell_alloc).metadata =
                                             (*cell.to_raw_pointer()).metadata;
 
-                                        // Set the forwarding pointer
-                                        cell.set_forwarding_pointer(new_cell_alloc);
-
                                         // Push the tail and the head to the work stack
                                         self.stack_pointer = self.stack_pointer.sub(4);
                                         *(self.stack_pointer as *mut Noun) = cell.tail();
@@ -374,6 +371,12 @@ impl NockStack {
                                         *(self.stack_pointer.add(2) as *mut Noun) = cell.head();
                                         *(self.stack_pointer.add(3) as *mut *mut Noun) =
                                             &mut (*new_cell_alloc).head;
+
+                                        // Set the forwarding pointer
+                                        cell.set_forwarding_pointer(new_cell_alloc);
+
+                                        *next_dest =
+                                            Cell::from_raw_pointer(new_cell_alloc).as_noun();
                                     }
                                 }
                             } else {
@@ -437,7 +440,7 @@ impl NockStack {
                         }
                         Option::None => {
                             if (allocated.to_raw_pointer() as *const u64) < work_start
-                                && (allocated.to_raw_pointer() as *const u64) > self.frame_pointer
+                                && (allocated.to_raw_pointer() as *const u64) >= self.frame_pointer
                             {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
@@ -471,9 +474,6 @@ impl NockStack {
                                         (*new_cell_alloc).metadata =
                                             (*cell.to_raw_pointer()).metadata;
 
-                                        // Set the forwarding pointer
-                                        cell.set_forwarding_pointer(new_cell_alloc);
-
                                         *(self.stack_pointer as *mut Noun) = cell.tail();
                                         *(self.stack_pointer.add(1) as *mut *mut Noun) =
                                             &mut (*new_cell_alloc).tail;
@@ -481,6 +481,12 @@ impl NockStack {
                                         *(self.stack_pointer.add(3) as *mut *mut Noun) =
                                             &mut (*new_cell_alloc).head;
                                         self.stack_pointer = self.stack_pointer.add(4);
+
+                                        // Set the forwarding pointer
+                                        cell.set_forwarding_pointer(new_cell_alloc);
+
+                                        *next_dest =
+                                            Cell::from_raw_pointer(new_cell_alloc).as_noun();
                                     }
                                 }
                             } else {

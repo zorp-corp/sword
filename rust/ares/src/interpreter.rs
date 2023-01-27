@@ -262,7 +262,7 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
             }
             Nock8RestoreSubject => {
                 unsafe {
-                    subject = *(stack.local_noun_pointer(2));
+                    subject = *(stack.local_noun_pointer(1));
                     stack.pop(&mut res);
                 };
             }
@@ -305,6 +305,8 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
                     let tree = *stack.local_noun_pointer(3);
                     res = edit(stack, edit_axis.as_bitslice(), res, tree);
                     stack.pop(&mut res);
+                } else {
+                    panic!("Axis into tree must be atom");
                 }
             },
             Nock11ComputeHint => unsafe {
