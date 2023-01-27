@@ -3,6 +3,20 @@
 version = 3
 
 [[package]]
+name = "ares"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "either",
+ "intmap",
+ "libc",
+ "memmap",
+ "murmur3",
+ "num-derive",
+ "num-traits",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -37,20 +51,6 @@ name = "intmap"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b357564d111300f8a33b79e06795235529a627a1f7078d2b1db7f7dcdf032874"
-
-[[package]]
-name = "iron-planet"
-version = "0.1.0"
-dependencies = [
- "bitvec",
- "either",
- "intmap",
- "libc",
- "memmap",
- "murmur3",
- "num-derive",
- "num-traits",
-]
 
 [[package]]
 name = "libc"
