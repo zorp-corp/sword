@@ -671,6 +671,13 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                                     stack.reclaim_in_previous_frame::<(*mut Noun, *mut Noun)>();
                                     continue;
                                 } else {
+                                    /* THIS ISN'T AN INFINITE LOOP
+                                     * If we discover a disequality in either side, we will
+                                     * short-circuit the entire loop and reset the work stack.
+                                     *
+                                     * If both sides are equal, then we will discover pointer
+                                     * equality when we return and unify the cell.
+                                     */
                                     *(stack.alloc_in_previous_frame()) =
                                         (x_cell.tail_as_mut(), y_cell.tail_as_mut());
                                     *(stack.alloc_in_previous_frame()) =
