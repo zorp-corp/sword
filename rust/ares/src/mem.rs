@@ -668,13 +668,13 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                                     } else {
                                         *y = *x;
                                     }
-                                    stack.pop_no_copy();
+                                    stack.reclaim_in_previous_frame::<(*mut Noun, *mut Noun)>();
                                     continue;
                                 } else {
                                     *(stack.alloc_in_previous_frame()) =
                                         (x_cell.tail_as_mut(), y_cell.tail_as_mut());
                                     *(stack.alloc_in_previous_frame()) =
-                                        (x_cell.head_as_mut(), y_cell.tail_as_mut());
+                                        (x_cell.head_as_mut(), y_cell.head_as_mut());
                                     continue;
                                 }
                             }
