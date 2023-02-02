@@ -6,7 +6,6 @@ use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
 use intmap::IntMap;
-use crate::noun::acyclic_noun;
 
 pub fn met0_usize(atom: Atom) -> usize {
     let atom_bitslice = atom.as_bitslice();
@@ -70,8 +69,10 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                         *dest_ptr = cell.as_noun();
                         backref_map.insert(backref as u64, *dest_ptr);
                         stack.reclaim_in_previous_frame::<*mut Noun>();
-                        (*cell_mem_ptr).tail = DirectAtom::new_unchecked(0xEDBEEF).as_atom().as_noun();
-                        (*cell_mem_ptr).head = DirectAtom::new_unchecked(0xDEBEEF).as_atom().as_noun();
+                        (*cell_mem_ptr).tail =
+                            DirectAtom::new_unchecked(0xEDBEEF).as_atom().as_noun();
+                        (*cell_mem_ptr).head =
+                            DirectAtom::new_unchecked(0xDEBEEF).as_atom().as_noun();
                         *(stack.alloc_in_previous_frame::<*mut Noun>()) =
                             &mut ((*cell_mem_ptr).tail);
                         *(stack.alloc_in_previous_frame::<*mut Noun>()) =
@@ -98,15 +99,9 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
 fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> usize {
     let mut bitsize: usize = 0;
     let buff_at_cursor = &buffer[*cursor..];
-    let bitsize = buff_at_cursor.first_one().expect("Size encoding must terminate with a 1 bit");
-    /*loop {
-        if buffer[*cursor + bitsize] {
-            break;
-        } else {
-            bitsize += 1;
-            continue;
-        }
-    }*/
+    let bitsize = buff_at_cursor
+        .first_one()
+        .expect("Size encoding must terminate with a 1 bit");
     if bitsize == 0 {
         *cursor += 1;
         0

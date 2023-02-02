@@ -74,12 +74,8 @@ impl Read for PaddedReadAtom {
 // Murmur3 hash an atom with a given padded length
 fn muk_u32(syd: u32, len: usize, key: Atom) -> u32 {
     match key.as_either() {
-        Left(direct) => {
-            murmur3_32_nocopy(&direct.data().to_le_bytes()[0..len], syd)
-        },
-        Right(indirect) => {
-            murmur3_32_nocopy(&indirect.as_bytes()[..len], syd)
-        },
+        Left(direct) => murmur3_32_nocopy(&direct.data().to_le_bytes()[0..len], syd),
+        Right(indirect) => murmur3_32_nocopy(&indirect.as_bytes()[..len], syd),
     }
 }
 

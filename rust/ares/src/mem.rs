@@ -1,5 +1,5 @@
-use crate::noun::{CellMemory, IndirectAtom, Noun, NounAllocator, Cell};
 use crate::assert_acyclic;
+use crate::noun::{Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use either::Either::{self, Left, Right};
 use libc::{c_void, memcmp};
 use memmap::MmapMut;
@@ -41,7 +41,7 @@ pub enum Polarity {
  * Unless I'm mistaken this requires a three-pointer stack: the frame pointer is the basis for
  * relative-offset locals as per usual, the stack pointer denotes the extent of the current frame,
  * and the allocation denotes the current frontier of allocations on the opposite stack.
- * 
+ *
  * Allocation means bumping the allocation pointer as per usual. Traversal stacks are implemented
  * by saving the stack pointer to a local and then manipulating the stack pointer.
  *

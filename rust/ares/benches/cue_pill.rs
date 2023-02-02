@@ -1,12 +1,12 @@
-use memmap;
-use ares::serialization::{cue,jam};
 use ares::mem::NockStack;
-use ares::noun::{IndirectAtom,DirectAtom};
+use ares::noun::{DirectAtom, IndirectAtom};
+use ares::serialization::{cue, jam};
+use memmap;
 use std::env;
-use std::fs::{File,OpenOptions};
+use std::fs::{File, OpenOptions};
 use std::io;
 use std::mem;
-use std::ptr::{copy_nonoverlapping,write_bytes};
+use std::ptr::{copy_nonoverlapping, write_bytes};
 use std::time::SystemTime;
 
 fn main() -> io::Result<()> {
@@ -30,15 +30,17 @@ fn main() -> io::Result<()> {
     let mut i = 0;
     let mut input = unsafe { DirectAtom::new_unchecked(0).as_atom().as_noun() };
     loop {
-      if (i >= 1) { break; };
-      i += 1;
-      input = cue(&mut stack, jammed_input);
-    };
+        if (i >= 1) {
+            break;
+        };
+        i += 1;
+        input = cue(&mut stack, jammed_input);
+    }
 
     match now.elapsed() {
         Ok(elapse) => {
             println!("{}", elapse.as_secs_f64());
-        },
+        }
         Err(_) => println!("NO TIME FOR YOU!"),
     };
 
@@ -49,11 +51,15 @@ fn main() -> io::Result<()> {
     match nuw.elapsed() {
         Ok(elapse) => {
             println!("Jam: {}", elapse.as_secs_f64());
-        },
+        }
         Err(_) => println!("NO TIME FOR YOU!"),
     };
 
-    let f_out = OpenOptions::new().read(true).write(true).create(true).open(output_filename)?;
+    let f_out = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(output_filename)?;
     f_out.set_len((jammed_output.size() << 3) as u64)?;
     unsafe {
         let mut out_map = memmap::MmapMut::map_mut(&f_out)?;
@@ -64,7 +70,6 @@ fn main() -> io::Result<()> {
         );
         out_map.flush();
     };
-        
-      
+
     Ok(())
 }

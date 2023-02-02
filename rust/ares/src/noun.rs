@@ -1,9 +1,9 @@
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either;
+use intmap::IntMap;
+use std::fmt::Debug;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut, from_ref};
-use std::fmt::Debug;
-use intmap::IntMap;
 
 /** Tag for a direct atom. */
 const DIRECT_TAG: u64 = 0x0;
@@ -37,16 +37,14 @@ const FORWARDING_MASK: u64 = CELL_MASK;
 macro_rules! assert_acyclic {
     ( $x:expr ) => {
         assert!(acyclic_noun($x));
-    }
+    };
 }
 
 #[cfg(not(feature = "check_acyclic"))]
 #[macro_export]
 macro_rules! assert_acyclic {
-    ( $x:expr ) => {
-    }
+    ( $x:expr ) => {};
 }
-
 
 pub fn acyclic_noun(noun: Noun) -> bool {
     let mut seen = IntMap::new();
@@ -60,17 +58,17 @@ fn acyclic_noun_go(noun: Noun, seen: &mut IntMap<()>) -> bool {
             if let Some(_) = seen.get(cell.0) {
                 false
             } else {
-              seen.insert(cell.0, ());
-              if acyclic_noun_go(cell.head(), seen) {
-                  if acyclic_noun_go(cell.tail(), seen) {
-                      seen.remove(cell.0);
-                      true
-                  } else {
-                      false
-                  }
-              } else {
-                  false
-              }
+                seen.insert(cell.0, ());
+                if acyclic_noun_go(cell.head(), seen) {
+                    if acyclic_noun_go(cell.tail(), seen) {
+                        seen.remove(cell.0);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
             }
         }
     }
