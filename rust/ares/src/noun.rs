@@ -131,6 +131,10 @@ impl DirectAtom {
         Atom { direct: self }
     }
 
+    pub fn as_noun(self) -> Noun {
+        Noun { direct: self }
+    }
+
     pub fn data(self) -> u64 {
         self.0
     }
