@@ -25,6 +25,40 @@ pub enum Polarity {
     West,
 }
 
+/* XX
+ * ~master-morzod suggests splitting stack frames:
+ * when FP-relative slots are on the west stack, allocate on the east stack, and vice versa.
+ * This would mean that traversal stacks must be allocated adjacent to the current frame's locals,
+ * rather than being allocated adjacent to the previous frame, which may in fact make more sense.
+ *
+ * This would enable completely reliable tail calls. Currently we cannot do tail-call optimization
+ * reliably for indirect calls, since the called arm might need arbitrarily many stack slots. With
+ * the proposed "split" layoud we can simply extend the number of slots if a tail-called arm
+ * requires more.
+ *
+ * Unless I'm mistaken this requires a three-pointer stack: the frame pointer is the basis for
+ * relative-offset locals as per usual, the stack pointer denotes the extent of the current frame,
+ * and the allocation denotes the current frontier of allocations on the opposite stack.
+ * 
+ * Allocation means bumping the allocation pointer as per usual. Traversal stacks are implemented
+ * by saving the stack pointer to a local and then manipulating the stack pointer.
+ *
+ * Pushing is implemented by setting the frame pointer to the allocation pointer, the stack pointer
+ * to the necessary offset from the frame pointer to accomodate the locals, and the allocation
+ * pointer to the stack pointer. The previous values of all three are saved in the new frame's
+ * first three locals.
+ *
+ * Popping must first save the parent-frame stored values to temporaries. Then a copy is run which
+ * will, in general, run over the stored locals, and update the temporary for the allocation
+ * pointer. Finally, the temporaries are restored as the current frame/stack/allocation pointer.
+ *
+ * An alternative to this model is to copy anyway when making a tail call, using the tail call's
+ * parameters as roots. (Notably this requires the copier to take a list of mutable references to
+ * roots.) This ensures that no allocations are in the way if we need to extend the list of locals,
+ * at the expense of removing an obvious point of programmer control over the timing of memory
+ * management.
+ */
+
 /** A stack for Nock computation, which supports stack allocation and delimited copying collection
  * for returned nouns
  */
