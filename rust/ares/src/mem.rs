@@ -157,8 +157,8 @@ impl NockStack {
     }
 
     unsafe fn restore_prev_stack_pointer_from_local_west(&mut self, local: usize) {
-        *(self.previous_stack_pointer_pointer_east()) =
-            *(self.slot_pointer_east(local + 2) as *mut *mut u64);
+        *(self.previous_stack_pointer_pointer_west()) =
+            *(self.slot_pointer_west(local + 2) as *mut *mut u64);
     }
 
     unsafe fn restore_prev_stack_pointer_from_local(&mut self, local: usize) {
