@@ -1,3 +1,4 @@
+use crate::assert_acyclic;
 use crate::mem::*;
 use crate::noun::{Allocated, Atom, DirectAtom, Noun};
 use either::Either::*;
@@ -177,6 +178,7 @@ pub fn mug_u32_one(noun: Noun) -> Option<u32> {
 }
 
 pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
+    assert_acyclic!(noun);
     stack.push(1);
     unsafe {
         stack.save_prev_stack_pointer_to_local(0);

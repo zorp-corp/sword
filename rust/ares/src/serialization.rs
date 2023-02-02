@@ -1,3 +1,4 @@
+use crate::assert_acyclic;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
@@ -34,6 +35,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     loop {
         if unsafe { stack.prev_stack_pointer_equals_local(0) } {
             let mut result = unsafe { *(stack.local_noun_pointer(1)) };
+            assert_acyclic!(result);
             unsafe {
                 stack.pop(&mut result);
             };
@@ -46,9 +48,15 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                     // 11 bits - cue backreference
                     cursor += 2;
                     unsafe {
-                        *dest_ptr = *(backref_map
+                        let reffed_noun = *(backref_map
                             .get(rub_backref(&mut cursor, buffer_bitslice))
                             .expect("Invalid backref in cue"));
+                        assert_acyclic!(reffed_noun);
+                        if let Ok(indirect) = reffed_noun.as_indirect() {
+                            debug_assert!(indirect.size() > 0);
+                        }
+                        *dest_ptr = reffed_noun;
+                        assert_acyclic!(reffed_noun);
                         stack.reclaim_in_previous_frame::<*mut Noun>();
                     }
                     continue;
@@ -61,6 +69,8 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                         *dest_ptr = cell.as_noun();
                         backref_map.insert(backref as u64, *dest_ptr);
                         stack.reclaim_in_previous_frame::<*mut Noun>();
+                        (*cell_mem_ptr).tail = DirectAtom::new_unchecked(0xEDBEEF).as_atom().as_noun();
+                        (*cell_mem_ptr).head = DirectAtom::new_unchecked(0xDEBEEF).as_atom().as_noun();
                         *(stack.alloc_in_previous_frame::<*mut Noun>()) =
                             &mut ((*cell_mem_ptr).tail);
                         *(stack.alloc_in_previous_frame::<*mut Noun>()) =

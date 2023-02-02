@@ -1,4 +1,5 @@
 use crate::noun::{CellMemory, IndirectAtom, Noun, NounAllocator, Cell};
+use crate::assert_acyclic;
 use either::Either::{self, Left, Right};
 use libc::{c_void, memcmp};
 use memmap::MmapMut;
@@ -422,6 +423,7 @@ impl NockStack {
             }
         }
         *self.previous_stack_pointer_pointer_east() = other_stack_pointer;
+        assert_acyclic!(*noun);
     }
 
     /** Copy a result noun and its subnouns from a west frame to its parent east frame
@@ -532,6 +534,7 @@ impl NockStack {
             }
         }
         *self.previous_stack_pointer_pointer_west() = other_stack_pointer;
+        assert_acyclic!(*noun);
     }
 
     /** Pop a frame from the (east) stack, providing a result, which will be copied to the return target
@@ -733,6 +736,8 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
     }
     stack.restore_prev_stack_pointer_from_local(0);
     stack.pop_no_copy();
+    assert_acyclic!(*a);
+    assert_acyclic!(*b);
     (*a).raw_equals(*b)
 }
 

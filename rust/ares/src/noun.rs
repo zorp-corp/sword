@@ -30,6 +30,50 @@ const FORWARDING_TAG: u64 = u64::MAX & CELL_MASK;
 /** Tag mask for a forwarding pointer */
 const FORWARDING_MASK: u64 = CELL_MASK;
 
+#[cfg(feature = "check_acyclic")]
+#[macro_export]
+macro_rules! assert_acyclic {
+    ( $x:expr ) => {
+        assert!(acyclic_noun($x));
+    }
+}
+
+#[cfg(not(feature = "check_acyclic"))]
+#[macro_export]
+macro_rules! assert_acyclic {
+    ( $x:expr ) => {
+    }
+}
+
+
+pub fn acyclic_noun(noun: Noun) -> bool {
+    let mut seen = IntMap::new();
+    acyclic_noun_go(noun, &mut seen)
+}
+
+fn acyclic_noun_go(noun: Noun, seen: &mut IntMap<()>) -> bool {
+    match noun.as_either_atom_cell() {
+        Either::Left(_atom) => true,
+        Either::Right(cell) => {
+            if let Some(_) = seen.get(cell.0) {
+                false
+            } else {
+              seen.insert(cell.0, ());
+              if acyclic_noun_go(cell.head(), seen) {
+                  if acyclic_noun_go(cell.tail(), seen) {
+                      seen.remove(cell.0);
+                      true
+                  } else {
+                      false
+                  }
+              } else {
+                  false
+              }
+            }
+        }
+    }
+}
+
 /** Test if a noun is a direct atom. */
 fn is_direct_atom(noun: u64) -> bool {
     noun & DIRECT_MASK == DIRECT_TAG
