@@ -6,7 +6,6 @@ use murmur3::murmur3_32_nocopy;
 use std::cmp::min;
 use std::io::{Read, Result};
 use std::ptr::{copy_nonoverlapping, write_bytes};
-use crate::noun::acyclic_noun;
 
 /** A reader for an atom which pads the atom out to a given length */
 struct PaddedReadAtom {
