@@ -1,5 +1,7 @@
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either;
+use intmap::IntMap;
+use std::fmt::Debug;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
@@ -30,6 +32,48 @@ const FORWARDING_TAG: u64 = u64::MAX & CELL_MASK;
 /** Tag mask for a forwarding pointer */
 const FORWARDING_MASK: u64 = CELL_MASK;
 
+#[cfg(feature = "check_acyclic")]
+#[macro_export]
+macro_rules! assert_acyclic {
+    ( $x:expr ) => {
+        assert!(acyclic_noun($x));
+    };
+}
+
+#[cfg(not(feature = "check_acyclic"))]
+#[macro_export]
+macro_rules! assert_acyclic {
+    ( $x:expr ) => {};
+}
+
+pub fn acyclic_noun(noun: Noun) -> bool {
+    let mut seen = IntMap::new();
+    acyclic_noun_go(noun, &mut seen)
+}
+
+fn acyclic_noun_go(noun: Noun, seen: &mut IntMap<()>) -> bool {
+    match noun.as_either_atom_cell() {
+        Either::Left(_atom) => true,
+        Either::Right(cell) => {
+            if let Some(_) = seen.get(cell.0) {
+                false
+            } else {
+                seen.insert(cell.0, ());
+                if acyclic_noun_go(cell.head(), seen) {
+                    if acyclic_noun_go(cell.tail(), seen) {
+                        seen.remove(cell.0);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+        }
+    }
+}
+
 /** Test if a noun is a direct atom. */
 fn is_direct_atom(noun: u64) -> bool {
     noun & DIRECT_MASK == DIRECT_TAG
@@ -50,6 +94,7 @@ fn is_cell(noun: u64) -> bool {
  * Direct atoms represent an atom up to and including DIRECT_MAX as a machine word.
  */
 #[derive(Copy, Clone)]
+#[repr(C)]
 #[repr(packed(8))]
 pub struct DirectAtom(u64);
 
@@ -105,6 +150,7 @@ impl DirectAtom {
  * Indirect atoms are always stored in little-endian byte order
  */
 #[derive(Copy, Clone)]
+#[repr(C)]
 #[repr(packed(8))]
 pub struct IndirectAtom(u64);
 
@@ -161,6 +207,7 @@ impl IndirectAtom {
      * indirect atom, to be written into.
      */
     pub unsafe fn new_raw_mut(allocator: &mut dyn NounAllocator, size: usize) -> (Self, *mut u64) {
+        debug_assert!(size > 0);
         let buffer = allocator.alloc_indirect(size);
         *buffer = 0;
         *buffer.add(1) = size as u64;
@@ -176,7 +223,7 @@ impl IndirectAtom {
         size: usize,
     ) -> (Self, *mut u64) {
         let allocation = Self::new_raw_mut(allocator, size);
-        ptr::write_bytes(allocation.1, 0, size << 3);
+        ptr::write_bytes(allocation.1, 0, size);
         allocation
     }
 
@@ -208,7 +255,7 @@ impl IndirectAtom {
         unsafe { from_raw_parts(self.data_pointer(), self.size()) }
     }
 
-    pub fn as_byte_size<'a>(&'a self) -> &'a [u8] {
+    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
         unsafe { from_raw_parts(self.data_pointer() as *const u8, self.size() << 3) }
     }
 
@@ -263,7 +310,8 @@ impl IndirectAtom {
  * the noun which is the cell's head, and a word describing a noun which is the cell's tail, each
  * at a fixed offset.
  */
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
+#[repr(C)]
 #[repr(packed(8))]
 pub struct Cell(u64);
 
@@ -341,6 +389,7 @@ impl Cell {
  * Memory representation of the contents of a cell
  */
 #[derive(Copy, Clone)]
+#[repr(C)]
 #[repr(packed(8))]
 pub struct CellMemory {
     pub metadata: u64,
@@ -349,6 +398,7 @@ pub struct CellMemory {
 }
 
 #[derive(Copy, Clone)]
+#[repr(C)]
 #[repr(packed(8))]
 pub union Atom {
     raw: u64,
@@ -413,7 +463,7 @@ impl Atom {
 
     pub fn data_pointer(&self) -> *const u64 {
         match self.as_either() {
-            Either::Left(direct) => (self as *const Atom) as *const u64,
+            Either::Left(_direct) => (self as *const Atom) as *const u64,
             Either::Right(indirect) => indirect.data_pointer(),
         }
     }
@@ -432,6 +482,7 @@ impl Atom {
 }
 
 #[derive(Copy, Clone)]
+#[repr(C)]
 #[repr(packed(8))]
 pub union Allocated {
     raw: u64,
@@ -500,6 +551,7 @@ impl Allocated {
 }
 
 #[derive(Copy, Clone)]
+#[repr(C)]
 #[repr(packed(8))]
 pub union Noun {
     raw: u64,

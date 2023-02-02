@@ -1,4 +1,5 @@
-use crate::noun::{CellMemory, IndirectAtom, Noun, NounAllocator, Cell};
+use crate::assert_acyclic;
+use crate::noun::{Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use either::Either::{self, Left, Right};
 use libc::{c_void, memcmp};
 use memmap::MmapMut;
@@ -13,6 +14,7 @@ pub const fn word_size_of<T>() -> usize {
 
 /** Utility function to compute the raw memory usage of an IndirectAtom */
 fn indirect_raw_size(atom: IndirectAtom) -> usize {
+    debug_assert!(atom.size() > 0);
     atom.size() + 2
 }
 
@@ -25,9 +27,44 @@ pub enum Polarity {
     West,
 }
 
+/* XX
+ * ~master-morzod suggests splitting stack frames:
+ * when FP-relative slots are on the west stack, allocate on the east stack, and vice versa.
+ * This would mean that traversal stacks must be allocated adjacent to the current frame's locals,
+ * rather than being allocated adjacent to the previous frame, which may in fact make more sense.
+ *
+ * This would enable completely reliable tail calls. Currently we cannot do tail-call optimization
+ * reliably for indirect calls, since the called arm might need arbitrarily many stack slots. With
+ * the proposed "split" layoud we can simply extend the number of slots if a tail-called arm
+ * requires more.
+ *
+ * Unless I'm mistaken this requires a three-pointer stack: the frame pointer is the basis for
+ * relative-offset locals as per usual, the stack pointer denotes the extent of the current frame,
+ * and the allocation denotes the current frontier of allocations on the opposite stack.
+ *
+ * Allocation means bumping the allocation pointer as per usual. Traversal stacks are implemented
+ * by saving the stack pointer to a local and then manipulating the stack pointer.
+ *
+ * Pushing is implemented by setting the frame pointer to the allocation pointer, the stack pointer
+ * to the necessary offset from the frame pointer to accomodate the locals, and the allocation
+ * pointer to the stack pointer. The previous values of all three are saved in the new frame's
+ * first three locals.
+ *
+ * Popping must first save the parent-frame stored values to temporaries. Then a copy is run which
+ * will, in general, run over the stored locals, and update the temporary for the allocation
+ * pointer. Finally, the temporaries are restored as the current frame/stack/allocation pointer.
+ *
+ * An alternative to this model is to copy anyway when making a tail call, using the tail call's
+ * parameters as roots. (Notably this requires the copier to take a list of mutable references to
+ * roots.) This ensures that no allocations are in the way if we need to extend the list of locals,
+ * at the expense of removing an obvious point of programmer control over the timing of memory
+ * management.
+ */
+
 /** A stack for Nock computation, which supports stack allocation and delimited copying collection
  * for returned nouns
  */
+#[allow(dead_code)] // We need the memory field to keep our memory from being unmapped
 pub struct NockStack {
     /** The base pointer */
     start: *const u64,
@@ -388,6 +425,7 @@ impl NockStack {
             }
         }
         *self.previous_stack_pointer_pointer_east() = other_stack_pointer;
+        assert_acyclic!(*noun);
     }
 
     /** Copy a result noun and its subnouns from a west frame to its parent east frame
@@ -498,6 +536,7 @@ impl NockStack {
             }
         }
         *self.previous_stack_pointer_pointer_west() = other_stack_pointer;
+        assert_acyclic!(*noun);
     }
 
     /** Pop a frame from the (east) stack, providing a result, which will be copied to the return target
@@ -603,6 +642,9 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             break;
         } else {
             let (x, y): (*mut Noun, *mut Noun) = *(stack.top_in_previous_frame());
+            if (*x).raw_equals(*y) {
+                break;
+            };
             match (
                 (*x).as_either_direct_allocated(),
                 (*y).as_either_direct_allocated(),
@@ -656,6 +698,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                             let x_as_ptr = x_cell.to_raw_pointer();
                             let y_as_ptr = y_cell.to_raw_pointer();
                             if x_as_ptr == y_as_ptr {
+                                // XX reclaim
                                 continue;
                             } else {
                                 if x_cell.head().raw_equals(y_cell.head())
@@ -668,13 +711,20 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                                     } else {
                                         *y = *x;
                                     }
-                                    stack.pop_no_copy();
+                                    stack.reclaim_in_previous_frame::<(*mut Noun, *mut Noun)>();
                                     continue;
                                 } else {
+                                    /* THIS ISN'T AN INFINITE LOOP
+                                     * If we discover a disequality in either side, we will
+                                     * short-circuit the entire loop and reset the work stack.
+                                     *
+                                     * If both sides are equal, then we will discover pointer
+                                     * equality when we return and unify the cell.
+                                     */
                                     *(stack.alloc_in_previous_frame()) =
                                         (x_cell.tail_as_mut(), y_cell.tail_as_mut());
                                     *(stack.alloc_in_previous_frame()) =
-                                        (x_cell.head_as_mut(), y_cell.tail_as_mut());
+                                        (x_cell.head_as_mut(), y_cell.head_as_mut());
                                     continue;
                                 }
                             }
@@ -692,6 +742,8 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
     }
     stack.restore_prev_stack_pointer_from_local(0);
     stack.pop_no_copy();
+    assert_acyclic!(*a);
+    assert_acyclic!(*b);
     (*a).raw_equals(*b)
 }
 
