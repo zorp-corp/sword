@@ -6,6 +6,7 @@ use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
 use intmap::IntMap;
+use crate::noun::acyclic_noun;
 
 pub fn met0_usize(atom: Atom) -> usize {
     let atom_bitslice = atom.as_bitslice();
@@ -96,14 +97,16 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
 // TODO: use first_zero() on a slice of the buffer
 fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> usize {
     let mut bitsize: usize = 0;
-    loop {
+    let buff_at_cursor = &buffer[*cursor..];
+    let bitsize = buff_at_cursor.first_one().expect("Size encoding must terminate with a 1 bit");
+    /*loop {
         if buffer[*cursor + bitsize] {
             break;
         } else {
             bitsize += 1;
             continue;
         }
-    }
+    }*/
     if bitsize == 0 {
         *cursor += 1;
         0
@@ -132,6 +135,8 @@ fn rub_atom(stack: &mut NockStack, cursor: &mut usize, buffer: &BitSlice<u64, Ls
         let wordsize = (size + 63) >> 6;
         let (atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, wordsize) }; // fast round to wordsize
         slice[0..size].copy_from_bitslice(&buffer[*cursor..*cursor + size]);
+        debug_assert!(atom.size() > 0);
+        *cursor += size;
         atom.as_atom()
     }
 }
@@ -179,6 +184,7 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
         } else {
             let mut noun = unsafe { *(stack.top_in_previous_frame::<Noun>()) };
             let mug = mug_u32(stack, noun);
+            let backref_map_len = backref_map.len();
             match backref_map.get_mut(mug as u64) {
                 None => {}
                 Some(backref_chain) => {

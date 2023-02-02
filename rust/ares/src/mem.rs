@@ -14,6 +14,7 @@ pub const fn word_size_of<T>() -> usize {
 
 /** Utility function to compute the raw memory usage of an IndirectAtom */
 fn indirect_raw_size(atom: IndirectAtom) -> usize {
+    debug_assert!(atom.size() > 0);
     atom.size() + 2
 }
 
@@ -640,6 +641,9 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             break;
         } else {
             let (x, y): (*mut Noun, *mut Noun) = *(stack.top_in_previous_frame());
+            if (*x).raw_equals(*y) {
+                break;
+            };
             match (
                 (*x).as_either_direct_allocated(),
                 (*y).as_either_direct_allocated(),
@@ -693,6 +697,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                             let x_as_ptr = x_cell.to_raw_pointer();
                             let y_as_ptr = y_cell.to_raw_pointer();
                             if x_as_ptr == y_as_ptr {
+                                // XX reclaim
                                 continue;
                             } else {
                                 if x_cell.head().raw_equals(y_cell.head())

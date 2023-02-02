@@ -2,10 +2,11 @@ use crate::assert_acyclic;
 use crate::mem::*;
 use crate::noun::{Allocated, Atom, DirectAtom, Noun};
 use either::Either::*;
-use murmur3::murmur3_32;
+use murmur3::murmur3_32_nocopy;
 use std::cmp::min;
 use std::io::{Read, Result};
 use std::ptr::{copy_nonoverlapping, write_bytes};
+use crate::noun::acyclic_noun;
 
 /** A reader for an atom which pads the atom out to a given length */
 struct PaddedReadAtom {
@@ -73,7 +74,14 @@ impl Read for PaddedReadAtom {
 
 // Murmur3 hash an atom with a given padded length
 fn muk_u32(syd: u32, len: usize, key: Atom) -> u32 {
-    murmur3_32(&mut PaddedReadAtom::new(key, len), syd).expect("Murmur3 hashing failed.")
+    match key.as_either() {
+        Left(direct) => {
+            murmur3_32_nocopy(&direct.data().to_le_bytes()[0..len], syd)
+        },
+        Right(indirect) => {
+            murmur3_32_nocopy(&indirect.as_bytes()[..len], syd)
+        },
+    }
 }
 
 /** Byte size of an atom.
