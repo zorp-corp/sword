@@ -698,7 +698,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                             let x_as_ptr = x_cell.to_raw_pointer();
                             let y_as_ptr = y_cell.to_raw_pointer();
                             if x_as_ptr == y_as_ptr {
-                                // XX reclaim
+                                stack.reclaim_in_previous_frame::<(*mut Noun, *mut Noun)>();
                                 continue;
                             } else {
                                 if x_cell.head().raw_equals(y_cell.head())
