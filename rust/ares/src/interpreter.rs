@@ -505,6 +505,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
     }
 }
 
+/** Note: axis must fit in a direct atom */
 pub fn raw_slot(noun: Noun, axis: u64) -> Noun {
     slot(noun, DirectAtom::new(axis).unwrap().as_bitslice())
 }
