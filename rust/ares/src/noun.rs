@@ -1,7 +1,7 @@
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either;
 use intmap::IntMap;
-use std::fmt::Debug;
+use std::fmt;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
@@ -137,6 +137,12 @@ impl DirectAtom {
 
     pub fn as_bitslice<'a>(&'a self) -> &'a BitSlice<u64, Lsb0> {
         &(BitSlice::from_element(&self.0))
+    }
+}
+
+impl fmt::Debug for DirectAtom {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -303,6 +309,21 @@ impl IndirectAtom {
     }
 }
 
+impl fmt::Debug for IndirectAtom {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "0x")?;
+        let mut i = self.size() - 1;
+        loop {
+            write!(f, "_{:016x}", unsafe { *(self.data_pointer().add(i)) })?;
+            if i == 0 {
+                break;
+            }
+            i -= 1;
+        }
+        Ok(())
+    }
+}
+
 /**
  * A cell.
  *
@@ -310,7 +331,7 @@ impl IndirectAtom {
  * the noun which is the cell's head, and a word describing a noun which is the cell's tail, each
  * at a fixed offset.
  */
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 #[repr(C)]
 #[repr(packed(8))]
 pub struct Cell(u64);
@@ -382,6 +403,27 @@ impl Cell {
 
     pub fn as_noun(&self) -> Noun {
         Noun { cell: *self }
+    }
+}
+
+impl fmt::Debug for Cell {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[")?;
+        let mut cell = *self;
+        loop {
+            write!(f, "{:?}", cell.head())?;
+            match cell.tail().as_cell() {
+                Ok(next_cell) => {
+                    write!(f, " ")?;
+                    cell = next_cell;
+                }
+                Err(_) => {
+                    write!(f, " {:?}]", cell.tail())?;
+                    break;
+                }
+            }
+        }
+        Ok(())
     }
 }
 
@@ -481,6 +523,12 @@ impl Atom {
     }
 }
 
+impl fmt::Debug for Atom {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.as_noun().fmt(f)
+    }
+}
+
 #[derive(Copy, Clone)]
 #[repr(C)]
 #[repr(packed(8))]
@@ -547,6 +595,12 @@ impl Allocated {
                 None
             }
         }
+    }
+}
+
+impl fmt::Debug for Allocated {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.as_noun().fmt(f)
     }
 }
 
@@ -642,6 +696,28 @@ impl Noun {
     /** Are these the same noun */
     pub unsafe fn raw_equals(self, other: Noun) -> bool {
         self.raw == other.raw
+    }
+}
+
+impl fmt::Debug for Noun {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        unsafe {
+            if self.is_direct() {
+                write!(f, "{:?}", self.direct)
+            } else if self.is_indirect() {
+                write!(f, "{:?}", self.indirect)
+            } else if self.is_cell() {
+                write!(f, "{:?}", self.cell)
+            } else if self.allocated.forwarding_pointer().is_some() {
+                write!(
+                    f,
+                    "Noun::Forwarding({:?})",
+                    self.allocated.forwarding_pointer().unwrap()
+                )
+            } else {
+                write!(f, "Noun::Unknown({:x})", self.raw)
+            }
+        }
     }
 }
 

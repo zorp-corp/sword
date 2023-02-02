@@ -6,7 +6,7 @@ use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 
-#[derive(Copy, Clone, FromPrimitive, ToPrimitive)]
+#[derive(Copy, Clone, FromPrimitive, ToPrimitive, Debug)]
 #[repr(u64)]
 enum NockWork {
     Done,
@@ -523,7 +523,7 @@ fn axis(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
                 noun = cell.head();
             }
         } else {
-            panic!("Axis tried to descend through atom.");
+            panic!("Axis tried to descend through atom: {:?}", noun);
         };
     }
     noun
