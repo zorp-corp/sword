@@ -64,6 +64,7 @@ pub enum Polarity {
 /** A stack for Nock computation, which supports stack allocation and delimited copying collection
  * for returned nouns
  */
+#[allow(dead_code)] // We need the memory field to keep our memory from being unmapped
 pub struct NockStack {
     /** The base pointer */
     start: *const u64,

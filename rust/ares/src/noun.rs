@@ -3,7 +3,7 @@ use either::Either;
 use intmap::IntMap;
 use std::fmt::Debug;
 use std::ptr;
-use std::slice::{from_raw_parts, from_raw_parts_mut, from_ref};
+use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 /** Tag for a direct atom. */
 const DIRECT_TAG: u64 = 0x0;
@@ -463,7 +463,7 @@ impl Atom {
 
     pub fn data_pointer(&self) -> *const u64 {
         match self.as_either() {
-            Either::Left(direct) => (self as *const Atom) as *const u64,
+            Either::Left(_direct) => (self as *const Atom) as *const u64,
             Either::Right(indirect) => indirect.data_pointer(),
         }
     }

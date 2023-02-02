@@ -30,7 +30,7 @@ fn main() -> io::Result<()> {
     let mut i = 0;
     let mut input = unsafe { DirectAtom::new_unchecked(0).as_atom().as_noun() };
     loop {
-        if (i >= 1) {
+        if i >= 1 {
             break;
         };
         i += 1;
@@ -68,7 +68,7 @@ fn main() -> io::Result<()> {
             out_map.as_mut_ptr(),
             jammed_output.size() << 3,
         );
-        out_map.flush();
+        out_map.flush()?;
     };
 
     Ok(())

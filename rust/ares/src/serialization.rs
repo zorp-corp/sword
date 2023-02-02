@@ -36,9 +36,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
         if unsafe { stack.prev_stack_pointer_equals_local(0) } {
             let mut result = unsafe { *(stack.local_noun_pointer(1)) };
             assert_acyclic!(result);
-            unsafe {
-                stack.pop(&mut result);
-            };
+            stack.pop(&mut result);
             break result;
         } else {
             let dest_ptr: *mut Noun = unsafe { *(stack.top_in_previous_frame()) };
@@ -97,7 +95,6 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
 
 // TODO: use first_zero() on a slice of the buffer
 fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> usize {
-    let mut bitsize: usize = 0;
     let buff_at_cursor = &buffer[*cursor..];
     let bitsize = buff_at_cursor
         .first_one()
@@ -179,7 +176,6 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
         } else {
             let mut noun = unsafe { *(stack.top_in_previous_frame::<Noun>()) };
             let mug = mug_u32(stack, noun);
-            let backref_map_len = backref_map.len();
             match backref_map.get_mut(mug as u64) {
                 None => {}
                 Some(backref_chain) => {
