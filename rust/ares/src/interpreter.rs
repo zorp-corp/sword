@@ -6,7 +6,7 @@ use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 
-#[derive(Copy, Clone, FromPrimitive, ToPrimitive)]
+#[derive(Copy, Clone, FromPrimitive, ToPrimitive, Debug)]
 #[repr(u64)]
 enum NockWork {
     Done,
@@ -99,7 +99,7 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
             }
             Nock0Axis => {
                 if let Ok(atom) = unsafe { (*(stack.local_noun_pointer(1))).as_atom() } {
-                    res = axis(subject, atom.as_bitslice());
+                    res = slot(subject, atom.as_bitslice());
                     stack.pop(&mut res);
                 } else {
                     panic!("Axis must be atom");
@@ -279,7 +279,7 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
                         *(stack.local_noun_pointer(0)) = work_to_noun(Nock9RestoreSubject);
                         *(stack.local_noun_pointer(2)) = subject;
                         subject = res;
-                        push_formula(stack, axis(subject, formula_axis.as_bitslice()));
+                        push_formula(stack, slot(subject, formula_axis.as_bitslice()));
                     } else {
                         panic!("Axis into core must be atom");
                     }
@@ -505,7 +505,12 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
     }
 }
 
-fn axis(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
+/** Note: axis must fit in a direct atom */
+pub fn raw_slot(noun: Noun, axis: u64) -> Noun {
+    slot(noun, DirectAtom::new(axis).unwrap().as_bitslice())
+}
+
+pub fn slot(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
     let mut cursor = if let Some(x) = axis.last_one() {
         x
     } else {
@@ -523,7 +528,7 @@ fn axis(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
                 noun = cell.head();
             }
         } else {
-            panic!("Axis tried to descend through atom.");
+            panic!("Axis tried to descend through atom: {:?}", noun);
         };
     }
     noun

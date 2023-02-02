@@ -32,6 +32,9 @@ fn main() -> io::Result<()> {
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
     let result = interpret(&mut stack, input_cell.head(), input_cell.tail());
+    if let Ok(atom) = result.as_atom() {
+        println!("Result: {:?}", atom);
+    }
     let jammed_result = jam(&mut stack, result);
     let f_out = OpenOptions::new()
         .read(true)
