@@ -1,4 +1,5 @@
 use self::NockWork::*;
+use crate::jets::get_jet;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
@@ -312,6 +313,20 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
             Nock11ComputeHint => unsafe {
                 let hint = *stack.local_noun_pointer(1);
                 if let Ok(hint_cell) = hint.as_cell() {
+                    if hint_cell
+                        .head()
+                        .raw_equals(DirectAtom::new_unchecked(0x706f7270).as_noun())
+                    {
+                        if let Ok(jet_formula) = hint_cell.tail().as_cell() {
+                            let jet_name = jet_formula.tail();
+                            let jet = get_jet(jet_name);
+                            if let Ok(jet) = jet {
+                                res = jet(stack, subject);
+                                stack.pop(&mut res);
+                                continue;
+                            }
+                        }
+                    }
                     *(stack.local_noun_pointer(0)) = work_to_noun(Nock11ComputeResult);
                     push_formula(stack, hint_cell.tail());
                 } else {
