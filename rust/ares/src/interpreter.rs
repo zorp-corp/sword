@@ -313,9 +313,10 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
             Nock11ComputeHint => unsafe {
                 let hint = *stack.local_noun_pointer(1);
                 if let Ok(hint_cell) = hint.as_cell() {
+                    // match %sham hints, which are scaffolding until we have a real jet dashboard
                     if hint_cell
                         .head()
-                        .raw_equals(DirectAtom::new_unchecked(0x706f7270).as_noun())
+                        .raw_equals(DirectAtom::new_unchecked(0x6d616873).as_noun())
                     {
                         if let Ok(jet_formula) = hint_cell.tail().as_cell() {
                             let jet_name = jet_formula.tail();
