@@ -12,6 +12,7 @@ checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 name = "ares"
 version = "0.1.0"
 dependencies = [
+ "ares_macros",
  "bitvec",
  "criterion",
  "either",
@@ -21,6 +22,14 @@ dependencies = [
  "murmur3",
  "num-derive",
  "num-traits",
+]
+
+[[package]]
+name = "ares_macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
