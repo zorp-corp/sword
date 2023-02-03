@@ -1,12 +1,13 @@
 use crate::interpreter::raw_slot;
 use crate::mem::NockStack;
 use crate::noun::{DirectAtom, IndirectAtom, Noun};
+use ares_macros::tas;
 use either::Either::*;
 
 pub fn get_jet(jet_name: Noun) -> Result<fn(&mut NockStack, Noun) -> Noun, ()> {
     match jet_name.as_direct()?.data() {
-        0x636564 => Ok(jet_dec),
-        0x747563 => Ok(jet_cut),
+        tas!(b"dec") => Ok(jet_dec),
+        tas!(b"cut") => Ok(jet_cut),
         _ => Err(()),
     }
 }
