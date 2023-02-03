@@ -687,7 +687,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         && memcmp(
                             x_indirect.data_pointer() as *const c_void,
                             y_indirect.data_pointer() as *const c_void,
-                            indirect_raw_size(x_indirect),
+                            indirect_raw_size(x_indirect) << 3,
                         ) == 0
                     {
                         let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
