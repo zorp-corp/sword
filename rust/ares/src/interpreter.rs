@@ -3,6 +3,7 @@ use crate::jets;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
+use ares_macros::tas;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
@@ -316,7 +317,7 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
                     // match %sham hints, which are scaffolding until we have a real jet dashboard
                     if hint_cell
                         .head()
-                        .raw_equals(DirectAtom::new_unchecked(0x6d616873).as_noun())
+                        .raw_equals(DirectAtom::new_unchecked(tas!(b"sham")).as_noun())
                     {
                         if let Ok(jet_formula) = hint_cell.tail().as_cell() {
                             let jet_name = jet_formula.tail();
