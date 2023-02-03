@@ -208,7 +208,7 @@ impl IndirectAtom {
         data: *const u64,
     ) -> Self {
         let (mut indirect, buffer) = Self::new_raw_mut(allocator, size);
-        ptr::copy_nonoverlapping(data, buffer.add(2), size);
+        ptr::copy_nonoverlapping(data, buffer, size);
         *(indirect.normalize())
     }
 
