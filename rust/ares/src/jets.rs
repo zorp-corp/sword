@@ -4,14 +4,10 @@ use crate::noun::{DirectAtom, IndirectAtom, Noun};
 use either::Either::*;
 
 pub fn get_jet(jet_name: Noun) -> Result<fn(&mut NockStack, Noun) -> Noun, ()> {
-    if let Ok(jet_direct) = jet_name.as_direct() {
-        match jet_direct.data() {
-            0x636564 => Ok(jet_dec),
-            0x747563 => Ok(jet_cut),
-            _ => Err(()),
-        }
-    } else {
-        Err(())
+    match jet_name.as_direct()?.data() {
+        0x636564 => Ok(jet_dec),
+        0x747563 => Ok(jet_cut),
+        _ => Err(()),
     }
 }
 

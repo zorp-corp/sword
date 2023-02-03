@@ -1,5 +1,5 @@
 use self::NockWork::*;
-use crate::jets::get_jet;
+use crate::jets;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
@@ -319,8 +319,7 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
                     {
                         if let Ok(jet_formula) = hint_cell.tail().as_cell() {
                             let jet_name = jet_formula.tail();
-                            let jet = get_jet(jet_name);
-                            if let Ok(jet) = jet {
+                            if let Ok(jet) = jets::get_jet(jet_name) {
                                 res = jet(stack, subject);
                                 stack.pop(&mut res);
                                 continue;
