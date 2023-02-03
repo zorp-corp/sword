@@ -15,5 +15,6 @@ mod tests {
         use ares_macros::tas;
         assert_eq!(tas!(b"cut"), 0x747563);
         assert_eq!(tas!(b"dec"), 0x636564);
+        assert_eq!(tas!(b"prop"), 0x706f7270);
     }
 }
