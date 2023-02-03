@@ -656,6 +656,22 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
      * senior noun, *never vice versa*, to avoid introducing references from more senior frames
      * into more junior frames, which would result in incorrect operation of the copier.
      */
+    // If the nouns are already word-equal we have nothing to do
+    if (*a).raw_equals(*b) {
+        return true;
+    };
+    // If the nouns have cached mugs which are disequal we have nothing to do
+    if let (Ok(a_alloc), Ok(b_alloc)) = (
+        (*a).as_allocated(),
+        (*b).as_allocated(),
+    ) {
+        if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug())
+        {
+            if a_mug != b_mug {
+                return false;
+            };
+        };
+    };
     stack.push(1);
     stack.save_prev_stack_pointer_to_local(0);
     *(stack.alloc_in_previous_frame()) = (a, b);
