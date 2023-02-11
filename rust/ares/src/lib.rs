@@ -4,6 +4,7 @@ pub mod interpreter;
 pub mod jets;
 pub mod mem;
 pub mod mug;
+pub mod newt;
 pub mod noun;
 pub mod serialization;
 
