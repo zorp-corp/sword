@@ -150,6 +150,11 @@ impl fmt::Debug for DirectAtom {
     }
 }
 
+#[allow(non_snake_case)]
+pub fn D(n: u64) -> Noun {
+    DirectAtom::new_panic(n).as_noun()
+}
+
 /** An indirect atom.
  *
  * Indirect atoms represent atoms above DIRECT_MAX as a tagged pointer to a memory buffer
@@ -385,6 +390,19 @@ impl Cell {
             (*memory).tail = tail;
             cell
         }
+    }
+
+    pub fn new_tuple(allocator: &mut dyn NounAllocator, tup: &[Noun]) -> Cell {
+        if tup.len() < 2 {
+            panic!("Cannot create tuple with fewer than 2 elements");
+        }
+
+        let len = tup.len();
+        let mut cell = Cell::new(allocator, tup[len-2], tup[len-1]);
+        for i in (0..len-2).rev() {
+            cell = Cell::new(allocator, tup[i], cell.as_noun());
+        }
+        cell
     }
 
     pub unsafe fn new_raw_mut(allocator: &mut dyn NounAllocator) -> (Cell, *mut CellMemory) {
