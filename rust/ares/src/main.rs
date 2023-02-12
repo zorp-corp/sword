@@ -1,9 +1,8 @@
-use ares::interpreter::{interpret, raw_slot};
+use ares::interpreter::interpret;
 use ares::mem::NockStack;
-use ares::newt::Newt;
-use ares::noun::{IndirectAtom, D};
+use ares::noun::IndirectAtom;
+use ares::serf::serf;
 use ares::serialization::{cue, jam};
-use ares_macros::tas;
 use memmap::Mmap;
 use memmap::MmapMut;
 use std::env;
@@ -37,7 +36,7 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let result = interpret(&mut stack, input_cell.head(), input_cell.tail());
+    let result = interpret(&mut stack, &mut None, input_cell.head(), input_cell.tail());
     if let Ok(atom) = result.as_atom() {
         println!("Result: {:?}", atom);
     }
@@ -57,56 +56,5 @@ fn main() -> io::Result<()> {
         );
         out_map.flush()?;
     };
-    Ok(())
-}
-
-/**
- * This is suitable for talking to the king process.  To test, change the arg_c[0] line in
- * u3_lord_init in vere to point at this binary and start vere like normal.
- */
-fn serf() -> io::Result<()> {
-    let mut newt = Newt::new();
-    newt.ripe(0, 0);
-
-    let mut eve = 0;
-
-    // Can't use for loop because it borrows newt
-    loop {
-        let writ = if let Some(writ) = newt.next() {
-            writ
-        } else {
-            break;
-        };
-
-        let tag = raw_slot(writ, 2).as_direct().unwrap();
-        match tag.data() {
-            tas!(b"live") => {
-                newt.live();
-            }
-            tas!(b"peek") => {
-                newt.peek_done(D(0));
-            }
-            tas!(b"play") => {
-                eve = raw_slot(writ, 6).as_direct().unwrap().data();
-                let mut lit = raw_slot(writ, 7);
-                loop {
-                    if let Ok(cell) = lit.as_cell() {
-                        eve += 1;
-                        lit = cell.tail();
-                    } else {
-                        break;
-                    }
-                }
-                newt.play_done(0);
-            }
-            tas!(b"work") => {
-                newt.flog(D(tas!(b"working")));
-                newt.work_done(eve, 0, D(0));
-                eve += 1;
-            }
-            _ => panic!("got message with unknown tag {:?}", tag),
-        };
-    }
-
     Ok(())
 }

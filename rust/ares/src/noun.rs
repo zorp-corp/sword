@@ -398,8 +398,8 @@ impl Cell {
         }
 
         let len = tup.len();
-        let mut cell = Cell::new(allocator, tup[len-2], tup[len-1]);
-        for i in (0..len-2).rev() {
+        let mut cell = Cell::new(allocator, tup[len - 2], tup[len - 1]);
+        for i in (0..len - 2).rev() {
             cell = Cell::new(allocator, tup[i], cell.as_noun());
         }
         cell

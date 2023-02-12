@@ -6,6 +6,7 @@ pub mod mem;
 pub mod mug;
 pub mod newt;
 pub mod noun;
+pub mod serf;
 pub mod serialization;
 
 #[cfg(test)]

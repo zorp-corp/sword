@@ -60,7 +60,6 @@ use std::os::unix::prelude::FromRawFd;
 use std::ptr::{copy_nonoverlapping, write_bytes};
 
 pub struct Newt {
-    stack: NockStack,
     input: std::fs::File,
     output: std::fs::File,
 }
@@ -68,7 +67,6 @@ pub struct Newt {
 impl Newt {
     pub fn new() -> Newt {
         Newt {
-            stack: NockStack::new(8 << 10 << 10, 0),
             input: unsafe { std::fs::File::from_raw_fd(0) },
             output: unsafe { std::fs::File::from_raw_fd(1) },
         }
@@ -79,8 +77,8 @@ impl Newt {
      * NB: we write 64-bit words, while vere writes bytes.  The extra zero bytes shouldn't be a
      * problem.
      */
-    fn write_noun(&mut self, noun: Noun) {
-        let atom = jam(&mut self.stack, noun);
+    fn write_noun(&mut self, stack: &mut NockStack, noun: Noun) {
+        let atom = jam(stack, noun);
         let size = atom.size() << 3;
         let mut buf = vec![0 as u8; size + 5];
         buf[1] = size as u8;
@@ -108,9 +106,9 @@ impl Newt {
     }
 
     /** Send %ripe, the first event. */
-    pub fn ripe(&mut self, eve: u64, mug: u64) {
+    pub fn ripe(&mut self, stack: &mut NockStack, eve: u64, mug: u64) {
         let version = Cell::new_tuple(
-            &mut self.stack,
+            stack,
             &[
                 D(1),   // newt protocol
                 D(139), // hoon kelvin
@@ -118,99 +116,84 @@ impl Newt {
             ],
         )
         .as_noun();
-        let ripe = Cell::new_tuple(
-            &mut self.stack,
-            &[D(tas!(b"ripe")), version, D(eve), D(mug)],
-        )
-        .as_noun();
-        self.write_noun(ripe);
+        let ripe = Cell::new_tuple(stack, &[D(tas!(b"ripe")), version, D(eve), D(mug)]).as_noun();
+        self.write_noun(stack, ripe);
     }
 
     /** Send %live, acknowledging. */
-    pub fn live(&mut self) {
-        let live = Cell::new_tuple(&mut self.stack, &[D(tas!(b"live")), D(0)]).as_noun();
-        self.write_noun(live);
+    pub fn live(&mut self, stack: &mut NockStack) {
+        let live = Cell::new_tuple(stack, &[D(tas!(b"live")), D(0)]).as_noun();
+        self.write_noun(stack, live);
     }
 
     /** Send %slog, pretty-printed debug output. */
-    pub fn slog(&mut self, pri: u64, tank: Noun) {
-        let slog = Cell::new_tuple(&mut self.stack, &[D(tas!(b"slog")), D(pri), tank]).as_noun();
-        self.write_noun(slog);
+    pub fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
+        let slog = Cell::new_tuple(stack, &[D(tas!(b"slog")), D(pri), tank]).as_noun();
+        self.write_noun(stack, slog);
     }
 
     /** Send %flog, raw debug output. */
-    pub fn flog(&mut self, cord: Noun) {
-        let flog = Cell::new_tuple(&mut self.stack, &[D(tas!(b"flog")), cord]).as_noun();
-        self.write_noun(flog);
+    pub fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
+        let flog = Cell::new_tuple(stack, &[D(tas!(b"flog")), cord]).as_noun();
+        self.write_noun(stack, flog);
     }
 
     /** Send %peek %done, successfully scried. */
-    pub fn peek_done(&mut self, dat: Noun) {
-        let peek =
-            Cell::new_tuple(&mut self.stack, &[D(tas!(b"peek")), D(tas!(b"done")), dat]).as_noun();
-        self.write_noun(peek);
+    pub fn peek_done(&mut self, stack: &mut NockStack, dat: Noun) {
+        let peek = Cell::new_tuple(stack, &[D(tas!(b"peek")), D(tas!(b"done")), dat]).as_noun();
+        self.write_noun(stack, peek);
     }
 
     /** Send %peek %bail, unsuccessfully scried. */
-    pub fn peek_bail(&mut self, dud: Noun) {
-        let peek =
-            Cell::new_tuple(&mut self.stack, &[D(tas!(b"peek")), D(tas!(b"bail")), dud]).as_noun();
-        self.write_noun(peek);
+    pub fn peek_bail(&mut self, stack: &mut NockStack, dud: Noun) {
+        let peek = Cell::new_tuple(stack, &[D(tas!(b"peek")), D(tas!(b"bail")), dud]).as_noun();
+        self.write_noun(stack, peek);
     }
 
     /** Send %play %done, successfully replayed events. */
-    pub fn play_done(&mut self, mug: u64) {
-        let play = Cell::new_tuple(
-            &mut self.stack,
-            &[D(tas!(b"play")), D(tas!(b"done")), D(mug)],
-        )
-        .as_noun();
-        self.write_noun(play);
+    pub fn play_done(&mut self, stack: &mut NockStack, mug: u64) {
+        let play = Cell::new_tuple(stack, &[D(tas!(b"play")), D(tas!(b"done")), D(mug)]).as_noun();
+        self.write_noun(stack, play);
     }
 
     /** Send %play %bail, failed to replay events. */
-    pub fn play_bail(&mut self, eve: u64, mug: u64, dud: Noun) {
+    pub fn play_bail(&mut self, stack: &mut NockStack, eve: u64, mug: u64, dud: Noun) {
         let play = Cell::new_tuple(
-            &mut self.stack,
+            stack,
             &[D(tas!(b"play")), D(tas!(b"bail")), D(eve), D(mug), dud],
         )
         .as_noun();
-        self.write_noun(play);
+        self.write_noun(stack, play);
     }
 
     /** Send %work %done, successfully ran event. */
-    pub fn work_done(&mut self, eve: u64, mug: u64, fec: Noun) {
+    pub fn work_done(&mut self, stack: &mut NockStack, eve: u64, mug: u64, fec: Noun) {
         let work = Cell::new_tuple(
-            &mut self.stack,
+            stack,
             &[D(tas!(b"work")), D(tas!(b"done")), D(eve), D(mug), fec],
         )
         .as_noun();
-        self.write_noun(work);
+        self.write_noun(stack, work);
     }
 
     /** Send %work %swap, successfully replaced failed event. */
-    pub fn work_swap(&mut self, eve: u64, mug: u64, job: Noun, fec: Noun) {
+    pub fn work_swap(&mut self, stack: &mut NockStack, eve: u64, mug: u64, job: Noun, fec: Noun) {
         let work = Cell::new_tuple(
-            &mut self.stack,
+            stack,
             &[D(tas!(b"work")), D(tas!(b"swap")), D(eve), D(mug), job, fec],
         )
         .as_noun();
-        self.write_noun(work);
+        self.write_noun(stack, work);
     }
 
     /** Send %work %bail, failed to run event. */
-    pub fn work_bail(&mut self, lud: Noun) {
-        let work =
-            Cell::new_tuple(&mut self.stack, &[D(tas!(b"work")), D(tas!(b"bail")), lud]).as_noun();
-        self.write_noun(work);
+    pub fn work_bail(&mut self, stack: &mut NockStack, lud: Noun) {
+        let work = Cell::new_tuple(stack, &[D(tas!(b"work")), D(tas!(b"bail")), lud]).as_noun();
+        self.write_noun(stack, work);
     }
-}
-
-impl Iterator for Newt {
-    type Item = Noun;
 
     /** Fetch next message. */
-    fn next(&mut self) -> Option<Noun> {
+    pub fn next(&mut self, stack: &mut NockStack) -> Option<Noun> {
         let mut header: Vec<u8> = Vec::with_capacity(5);
         header.resize(5, 0);
         if let Err(err) = self.input.read_exact(&mut header) {
@@ -237,12 +220,12 @@ impl Iterator for Newt {
 
         let atom = unsafe {
             let word_len = (byte_len + 7) >> 3;
-            let (mut atom, dest) = IndirectAtom::new_raw_mut(&mut self.stack, word_len as usize);
+            let (mut atom, dest) = IndirectAtom::new_raw_mut(stack, word_len as usize);
             write_bytes(dest.add(word_len as usize - 1), 0, 8);
             copy_nonoverlapping(body.as_ptr(), dest as *mut u8, byte_len);
             atom.normalize_as_atom()
         };
 
-        Some(cue(&mut self.stack, atom))
+        Some(cue(stack, atom))
     }
 }
