@@ -24,13 +24,14 @@ use std::path::PathBuf;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::write_bytes;
 
-pub fn save(
-    stack: &mut NockStack,
-    mut snap_path: PathBuf,
-    snap_number: u8,
-    event_number: u64,
-    arvo: Noun,
-) {
+pub fn save(stack: &mut NockStack, mut snap_path: PathBuf, event_number: u64, arvo: Noun) {
+    // Find the latest valid snapshot, and write to the other file.
+    let prev_snap = if let Ok((prev_snap, _, _)) = latest_snapshot(stack, snap_path.clone()) {
+        prev_snap
+    } else {
+        0
+    };
+    let snap_number = if prev_snap == 0 { 1 } else { 0 };
     snap_path.push(format!("snapshot-{}.snap", snap_number));
 
     let jammed_arvo = jam(stack, arvo);
@@ -71,23 +72,41 @@ pub fn save(
             state.size() << 3,
         );
         out_map.flush().unwrap();
+
+        // This appears to match c3/portable.h: fdatasync for linux, fcntl with F_FULLFSYNC for for
+        // macos, and fsync for some other platforms.
+        f.sync_data().unwrap();
     };
 }
 
-pub fn load(stack: &mut NockStack, snap_path: PathBuf) -> io::Result<(u64, Noun, u8)> {
+pub fn load(stack: &mut NockStack, snap_path: PathBuf) -> io::Result<(u64, Noun)> {
+    let (_num, event_number, state) = latest_snapshot(stack, snap_path)?;
+
+    let jammed_arvo =
+        unsafe { IndirectAtom::new_raw(stack, state.size() - 1, state.data_pointer().add(1)) };
+
+    let arvo = cue(stack, jammed_arvo.as_atom());
+
+    Ok((event_number, arvo))
+}
+
+fn latest_snapshot(
+    stack: &mut NockStack,
+    snap_path: PathBuf,
+) -> io::Result<(u8, u64, IndirectAtom)> {
     let res0 = load_snapshot(stack, snap_path.clone(), 0);
     let res1 = load_snapshot(stack, snap_path.clone(), 1);
 
     match (res0, res1) {
-        (Ok((event_number_0, arvo_0)), Ok((event_number_1, arvo_1))) => {
+        (Ok((event_number_0, state_0)), Ok((event_number_1, state_1))) => {
             if event_number_0 > event_number_1 {
-                Ok((event_number_0, arvo_0, 0))
+                Ok((0, event_number_0, state_0))
             } else {
-                Ok((event_number_1, arvo_1, 1))
+                Ok((1, event_number_1, state_1))
             }
         }
-        (Ok((event_number_0, arvo_0)), Err(_)) => Ok((event_number_0, arvo_0, 0)),
-        (Err(_), Ok((event_number_1, arvo_1))) => Ok((event_number_1, arvo_1, 1)),
+        (Ok((event_number_0, state_0)), Err(_)) => Ok((0, event_number_0, state_0)),
+        (Err(_), Ok((event_number_1, state_1))) => Ok((1, event_number_1, state_1)),
         (Err(_), Err(_)) => Err(io::Error::new(
             io::ErrorKind::NotFound,
             "no valid snapshot found",
@@ -99,7 +118,7 @@ fn load_snapshot(
     stack: &mut NockStack,
     mut snap_path: PathBuf,
     number: u8,
-) -> io::Result<(u64, Noun)> {
+) -> io::Result<(u64, IndirectAtom)> {
     snap_path.push(format!("snapshot-{}.snap", number));
 
     eprintln!("\rload: snapshot at {:?}", snap_path);
@@ -108,7 +127,7 @@ fn load_snapshot(
 
     let in_len = f.metadata().unwrap().len() - 8;
     let word_len = (in_len + 7) >> 3;
-    let (event_number, jammed) = unsafe {
+    let (event_number, state) = unsafe {
         let in_map = Mmap::map(&f).unwrap();
         let in_ptr = in_map.as_ptr();
         let (mut state, dest) = IndirectAtom::new_raw_mut(stack, word_len as usize);
@@ -128,13 +147,8 @@ fn load_snapshot(
             ));
         }
 
-        let event_number = *state.data_pointer();
-        let jammed =
-            IndirectAtom::new_raw(stack, word_len as usize - 1, state.data_pointer().add(1));
-        (event_number, jammed)
+        (*state.data_pointer(), state)
     };
 
-    let arvo = cue(stack, jammed.as_atom());
-
-    Ok((event_number, arvo))
+    Ok((event_number, state))
 }

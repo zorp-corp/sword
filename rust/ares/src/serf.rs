@@ -31,11 +31,10 @@ pub fn serf() -> io::Result<()> {
 
     let ref mut stack = NockStack::new(8 << 10 << 10, 0);
     let ref mut newt = Newt::new();
-    let mut snap_number; // Last valid snapshot number.
     let mut event_number;
     let mut arvo;
 
-    (event_number, arvo, snap_number) = load(stack, snap_path.clone()).unwrap_or((0, D(0), 0));
+    (event_number, arvo) = load(stack, snap_path.clone()).unwrap_or((0, D(0)));
     let mug = mug_u32(stack, arvo);
 
     newt.ripe(stack, event_number, mug as u64);
@@ -58,8 +57,7 @@ pub fn serf() -> io::Result<()> {
                     tas!(b"save") => {
                         // XX what is eve for?
                         eprintln!("save");
-                        snap_number = if snap_number == 0 { 1 } else { 0 };
-                        save(stack, snap_path.clone(), snap_number, event_number, arvo);
+                        save(stack, snap_path.clone(), event_number, arvo);
                     }
                     tas!(b"meld") => eprintln!("meld"),
                     tas!(b"pack") => eprintln!("pack"),
@@ -121,10 +119,10 @@ pub fn serf() -> io::Result<()> {
     Ok(())
 }
 
-pub fn slam(stack: &mut NockStack, newt: &mut Newt, arvo: Noun, axis: u64, ovo: Noun) -> Noun {
+pub fn slam(stack: &mut NockStack, newt: &mut Newt, core: Noun, axis: u64, ovo: Noun) -> Noun {
     let pul = Cell::new_tuple(stack, &[D(9), D(axis), D(0), D(2)]).as_noun();
     let sam = Cell::new_tuple(stack, &[D(6), D(0), D(7)]).as_noun();
     let fol = Cell::new_tuple(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]).as_noun();
-    let sub = Cell::new_tuple(stack, &[arvo, ovo]).as_noun();
+    let sub = Cell::new_tuple(stack, &[core, ovo]).as_noun();
     interpret(stack, &mut Some(newt), sub, fol)
 }
