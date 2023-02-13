@@ -632,7 +632,7 @@ fn match_pre_hint(stack: &mut NockStack, subject: Noun, cell: Cell) -> Result<No
         tas!(b"sham") => {
             let jet_formula = cell.tail().as_cell()?;
             let jet = jets::get_jet(jet_formula.tail())?;
-            return Ok(jet(stack, subject));
+            return Ok(jet(stack, subject)?); // Punt all errors to Nock
         }
         _ => Err(()),
     }
