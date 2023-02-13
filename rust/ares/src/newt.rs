@@ -57,7 +57,7 @@ use ares_macros::tas;
 use either::Either;
 use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
-use std::ptr::{copy_nonoverlapping, write_bytes};
+use std::ptr::copy_nonoverlapping;
 
 pub struct Newt {
     input: std::fs::File,
@@ -202,23 +202,15 @@ impl Newt {
 
         let byte_len = u32::from_le_bytes([header[1], header[2], header[3], header[4]]) as usize;
 
-        // Would be nice to copy directly into an indirect atom, but I don't know how to do that
-        // when these are aligned to bytes
-        let mut body: Vec<u8> = Vec::with_capacity(byte_len);
-        body.resize(byte_len, 0);
-        if let Err(err) = self.input.read_exact(&mut body) {
-            if err.kind() == std::io::ErrorKind::UnexpectedEof {
-                return None;
-            } else {
-                panic!("Error reading body: {}", err);
-            }
-        }
-
         let atom = unsafe {
-            let word_len = (byte_len + 7) >> 3;
-            let (mut atom, dest) = IndirectAtom::new_raw_mut(stack, word_len as usize);
-            write_bytes(dest.add(word_len as usize - 1), 0, 8);
-            copy_nonoverlapping(body.as_ptr(), dest as *mut u8, byte_len);
+            let (mut atom, dest) = IndirectAtom::new_raw_mut_bytes(stack, byte_len);
+            if let Err(err) = self.input.read_exact(dest) {
+                if err.kind() == std::io::ErrorKind::UnexpectedEof {
+                    return None;
+                } else {
+                    panic!("Error reading body: {}", err);
+                }
+            }
             atom.normalize_as_atom()
         };
 

@@ -261,6 +261,20 @@ impl IndirectAtom {
         )
     }
 
+    /** Make an indirect atom that can be written into as a slice of bytes. The constraints of
+     * [new_raw_mut_zeroed] also apply here
+     *
+     * Note: size is bytes, not words
+     */
+    pub unsafe fn new_raw_mut_bytes<'a>(
+        allocator: &mut dyn NounAllocator,
+        size: usize,
+    ) -> (Self, &'a mut [u8]) {
+        let word_size = (size + 7) << 3;
+        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size);
+        (noun, from_raw_parts_mut(ptr as *mut u8, size))
+    }
+
     /** Size of an indirect atom in 64-bit words */
     pub fn size(&self) -> usize {
         unsafe { *(self.to_raw_pointer().add(1)) as usize }
