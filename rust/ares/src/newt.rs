@@ -51,7 +51,7 @@
  * It's important to not use io::Stdin and io::Stdout directly.  All printfs should use stderr.
  */
 use crate::mem::NockStack;
-use crate::noun::{Cell, IndirectAtom, Noun, D};
+use crate::noun::{T, IndirectAtom, Noun, D};
 use crate::serialization::{cue, jam};
 use ares_macros::tas;
 use either::Either;
@@ -107,88 +107,84 @@ impl Newt {
 
     /** Send %ripe, the first event. */
     pub fn ripe(&mut self, stack: &mut NockStack, eve: u64, mug: u64) {
-        let version = Cell::new_tuple(
+        let version = T(
             stack,
             &[
                 D(1),   // newt protocol
                 D(139), // hoon kelvin
                 D(4),   // nock kelvin
             ],
-        )
-        .as_noun();
-        let ripe = Cell::new_tuple(stack, &[D(tas!(b"ripe")), version, D(eve), D(mug)]).as_noun();
+        );
+        let ripe = T(stack, &[D(tas!(b"ripe")), version, D(eve), D(mug)]);
         self.write_noun(stack, ripe);
     }
 
     /** Send %live, acknowledging. */
     pub fn live(&mut self, stack: &mut NockStack) {
-        let live = Cell::new_tuple(stack, &[D(tas!(b"live")), D(0)]).as_noun();
+        let live = T(stack, &[D(tas!(b"live")), D(0)]);
         self.write_noun(stack, live);
     }
 
     /** Send %slog, pretty-printed debug output. */
     pub fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
-        let slog = Cell::new_tuple(stack, &[D(tas!(b"slog")), D(pri), tank]).as_noun();
+        let slog = T(stack, &[D(tas!(b"slog")), D(pri), tank]);
         self.write_noun(stack, slog);
     }
 
     /** Send %flog, raw debug output. */
     pub fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
-        let flog = Cell::new_tuple(stack, &[D(tas!(b"flog")), cord]).as_noun();
+        let flog = T(stack, &[D(tas!(b"flog")), cord]);
         self.write_noun(stack, flog);
     }
 
     /** Send %peek %done, successfully scried. */
     pub fn peek_done(&mut self, stack: &mut NockStack, dat: Noun) {
-        let peek = Cell::new_tuple(stack, &[D(tas!(b"peek")), D(tas!(b"done")), dat]).as_noun();
+        let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"done")), dat]);
         self.write_noun(stack, peek);
     }
 
     /** Send %peek %bail, unsuccessfully scried. */
     pub fn peek_bail(&mut self, stack: &mut NockStack, dud: Noun) {
-        let peek = Cell::new_tuple(stack, &[D(tas!(b"peek")), D(tas!(b"bail")), dud]).as_noun();
+        let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"bail")), dud]);
         self.write_noun(stack, peek);
     }
 
     /** Send %play %done, successfully replayed events. */
     pub fn play_done(&mut self, stack: &mut NockStack, mug: u64) {
-        let play = Cell::new_tuple(stack, &[D(tas!(b"play")), D(tas!(b"done")), D(mug)]).as_noun();
+        let play = T(stack, &[D(tas!(b"play")), D(tas!(b"done")), D(mug)]);
         self.write_noun(stack, play);
     }
 
     /** Send %play %bail, failed to replay events. */
     pub fn play_bail(&mut self, stack: &mut NockStack, eve: u64, mug: u64, dud: Noun) {
-        let play = Cell::new_tuple(
+        let play = T(
             stack,
             &[D(tas!(b"play")), D(tas!(b"bail")), D(eve), D(mug), dud],
-        )
-        .as_noun();
+        );
         self.write_noun(stack, play);
     }
 
     /** Send %work %done, successfully ran event. */
     pub fn work_done(&mut self, stack: &mut NockStack, eve: u64, mug: u64, fec: Noun) {
-        let work = Cell::new_tuple(
+        let work = T(
             stack,
             &[D(tas!(b"work")), D(tas!(b"done")), D(eve), D(mug), fec],
-        )
-        .as_noun();
+        );
         self.write_noun(stack, work);
     }
 
     /** Send %work %swap, successfully replaced failed event. */
     pub fn work_swap(&mut self, stack: &mut NockStack, eve: u64, mug: u64, job: Noun, fec: Noun) {
-        let work = Cell::new_tuple(
+        let work = T(
             stack,
             &[D(tas!(b"work")), D(tas!(b"swap")), D(eve), D(mug), job, fec],
-        )
-        .as_noun();
+        );
         self.write_noun(stack, work);
     }
 
     /** Send %work %bail, failed to run event. */
     pub fn work_bail(&mut self, stack: &mut NockStack, lud: Noun) {
-        let work = Cell::new_tuple(stack, &[D(tas!(b"work")), D(tas!(b"bail")), lud]).as_noun();
+        let work = T(stack, &[D(tas!(b"work")), D(tas!(b"bail")), lud]);
         self.write_noun(stack, work);
     }
 

@@ -131,7 +131,7 @@ impl DirectAtom {
         Atom { direct: self }
     }
 
-    pub fn as_noun(self) -> Noun {
+    pub const fn as_noun(self) -> Noun {
         Noun { direct: self }
     }
 
@@ -151,8 +151,13 @@ impl fmt::Debug for DirectAtom {
 }
 
 #[allow(non_snake_case)]
-pub fn D(n: u64) -> Noun {
+pub const fn D(n: u64) -> Noun {
     DirectAtom::new_panic(n).as_noun()
+}
+
+#[allow(non_snake_case)]
+pub fn T(allocator: &mut dyn NounAllocator, tup: &[Noun]) -> Noun {
+    Cell::new_tuple(allocator, tup).as_noun()
 }
 
 /** An indirect atom.

@@ -2,7 +2,7 @@ use crate::interpreter::{interpret, raw_slot};
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
-use crate::noun::{Cell, Noun, D};
+use crate::noun::{T, Noun, D};
 use crate::snapshot::{load, save};
 use ares_macros::tas;
 use std::fs::create_dir_all;
@@ -74,8 +74,8 @@ pub fn serf() -> io::Result<()> {
                 let run = if event_number == 0 {
                     // apply lifecycle to first batch
                     let lit = raw_slot(writ, 7);
-                    let sub = Cell::new_tuple(stack, &[D(0), D(3)]).as_noun();
-                    let lyf = Cell::new_tuple(stack, &[D(2), sub, D(0), D(2)]).as_noun();
+                    let sub = T(stack, &[D(0), D(3)]);
+                    let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
                     let gat = interpret(stack, &mut Some(newt), lit, lyf);
                     arvo = raw_slot(gat, 7);
                     false
@@ -120,9 +120,9 @@ pub fn serf() -> io::Result<()> {
 }
 
 pub fn slam(stack: &mut NockStack, newt: &mut Newt, core: Noun, axis: u64, ovo: Noun) -> Noun {
-    let pul = Cell::new_tuple(stack, &[D(9), D(axis), D(0), D(2)]).as_noun();
-    let sam = Cell::new_tuple(stack, &[D(6), D(0), D(7)]).as_noun();
-    let fol = Cell::new_tuple(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]).as_noun();
-    let sub = Cell::new_tuple(stack, &[core, ovo]).as_noun();
+    let pul = T(stack, &[D(9), D(axis), D(0), D(2)]);
+    let sam = T(stack, &[D(6), D(0), D(7)]);
+    let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
+    let sub = T(stack, &[core, ovo]);
     interpret(stack, &mut Some(newt), sub, fol)
 }
