@@ -1,18 +1,13 @@
 use crate::interpreter::{interpret, raw_slot};
 use crate::mem::NockStack;
-use crate::mug::{mug, mug_u32};
+use crate::mug::mug_u32;
 use crate::newt::Newt;
-use crate::noun::{Cell, IndirectAtom, Noun, D};
-use crate::serialization::{cue, jam};
+use crate::noun::{Cell, Noun, D};
+use crate::snapshot::{load, save};
 use ares_macros::tas;
-use memmap::Mmap;
-use memmap::MmapMut;
-use std::fs::{create_dir_all, File, OpenOptions};
+use std::fs::create_dir_all;
 use std::io;
-use std::mem;
 use std::path::PathBuf;
-use std::ptr::copy_nonoverlapping;
-use std::ptr::write_bytes;
 
 #[allow(dead_code)]
 const LOAD_AXIS: u64 = 4;
@@ -36,7 +31,7 @@ pub fn serf() -> io::Result<()> {
 
     let ref mut stack = NockStack::new(8 << 10 << 10, 0);
     let ref mut newt = Newt::new();
-    let mut snap_number;  // Last valid snapshot number.
+    let mut snap_number; // Last valid snapshot number.
     let mut event_number;
     let mut arvo;
 
@@ -132,98 +127,4 @@ pub fn slam(stack: &mut NockStack, newt: &mut Newt, arvo: Noun, axis: u64, ovo: 
     let fol = Cell::new_tuple(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]).as_noun();
     let sub = Cell::new_tuple(stack, &[arvo, ovo]).as_noun();
     interpret(stack, &mut Some(newt), sub, fol)
-}
-
-fn save(
-    stack: &mut NockStack,
-    mut snap_path: PathBuf,
-    snap_number: u8,
-    event_number: u64,
-    arvo: Noun,
-) {
-    snap_path.push(format!("snapshot-{}.snap", snap_number));
-
-    let state = Cell::new(stack, D(event_number), arvo).as_noun();
-    let mugged = mug(stack, state).as_noun();
-    let snapshot = Cell::new(stack, mugged, state).as_noun();
-
-    let jammed = jam(stack, snapshot);
-    let f = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .open(snap_path)
-        .unwrap();
-
-    f.set_len((jammed.size() << 3) as u64).unwrap();
-    unsafe {
-        let mut out_map = MmapMut::map_mut(&f).unwrap();
-        copy_nonoverlapping(
-            jammed.data_pointer() as *mut u8,
-            out_map.as_mut_ptr(),
-            jammed.size() << 3,
-        );
-        out_map.flush().unwrap();
-    };
-}
-
-fn load(stack: &mut NockStack, snap_path: PathBuf) -> io::Result<(u64, Noun, u8)> {
-    let res0 = load_snapshot(stack, snap_path.clone(), 0);
-    let res1 = load_snapshot(stack, snap_path.clone(), 1);
-
-    match (res0, res1) {
-        (Ok((event_number_0, arvo_0)), Ok((event_number_1, arvo_1))) => {
-            if event_number_0 > event_number_1 {
-                Ok((event_number_0, arvo_0, 0))
-            } else {
-                Ok((event_number_1, arvo_1, 1))
-            }
-        }
-        (Ok((event_number_0, arvo_0)), Err(_)) => Ok((event_number_0, arvo_0, 0)),
-        (Err(_), Ok((event_number_1, arvo_1))) => Ok((event_number_1, arvo_1, 1)),
-        (Err(_), Err(_)) => Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            "no valid snapshot found",
-        )),
-    }
-}
-
-fn load_snapshot(
-    stack: &mut NockStack,
-    mut snap_path: PathBuf,
-    number: u8,
-) -> io::Result<(u64, Noun)> {
-    snap_path.push(format!("snapshot-{}.snap", number));
-
-    eprintln!("\rload: snapshot at {:?}", snap_path);
-
-    let f = File::open(snap_path)?;
-
-    let in_len = f.metadata().unwrap().len();
-    let jammed = unsafe {
-        let in_map = Mmap::map(&f).unwrap();
-        let word_len = (in_len + 7) >> 3;
-        let (mut atom, dest) = IndirectAtom::new_raw_mut(stack, word_len as usize);
-        write_bytes(dest.add(word_len as usize - 1), 0, 8);
-        copy_nonoverlapping(in_map.as_ptr(), dest as *mut u8, in_len as usize);
-        mem::drop(in_map);
-        atom.normalize_as_atom()
-    };
-
-    let snapshot = cue(stack, jammed).as_cell().unwrap();
-    let state = snapshot.tail().as_cell().unwrap();
-    if !unsafe {
-        snapshot
-            .head()
-            .raw_equals(mug(stack, state.as_noun()).as_noun())
-    } {
-        return Err(io::Error::new(
-            io::ErrorKind::Other,
-            "snapshot checksum failed",
-        ))
-    }
-    let event_number = state.head().as_direct().unwrap().data();
-    let arvo = state.tail();
-
-    Ok((event_number, arvo))
 }

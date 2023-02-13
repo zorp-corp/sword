@@ -8,6 +8,7 @@ pub mod newt;
 pub mod noun;
 pub mod serf;
 pub mod serialization;
+pub mod snapshot;
 
 #[cfg(test)]
 mod tests {
