@@ -65,9 +65,10 @@ fn noun_to_work(noun: Noun) -> NockWork {
     }
 }
 
+/** Interpret nock */
 pub fn interpret(
     stack: &mut NockStack,
-    newt: &mut Option<&mut Newt>,
+    newt: &mut Option<&mut Newt>, // For printing slogs; if None, print to stdout
     mut subject: Noun,
     formula: Noun,
 ) -> Noun {
@@ -623,6 +624,7 @@ fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
     }
 }
 
+/** Match hints which apply before the formula is evaluated */
 fn match_pre_hint(stack: &mut NockStack, subject: Noun, cell: Cell) -> Result<Noun, ()> {
     let direct = cell.head().as_direct()?;
     match direct.data() {
@@ -636,6 +638,7 @@ fn match_pre_hint(stack: &mut NockStack, subject: Noun, cell: Cell) -> Result<No
     }
 }
 
+/** Match static hints and dynamic hints after they're evaluated */
 fn match_post_hint(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,

@@ -2,7 +2,7 @@ use crate::interpreter::{interpret, raw_slot};
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
-use crate::noun::{T, Noun, D};
+use crate::noun::{Noun, D, T};
 use crate::snapshot::{load, save};
 use ares_macros::tas;
 use std::fs::create_dir_all;

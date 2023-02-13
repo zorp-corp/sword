@@ -51,7 +51,7 @@
  * It's important to not use io::Stdin and io::Stdout directly.  All printfs should use stderr.
  */
 use crate::mem::NockStack;
-use crate::noun::{T, IndirectAtom, Noun, D};
+use crate::noun::{IndirectAtom, Noun, D, T};
 use crate::serialization::{cue, jam};
 use ares_macros::tas;
 use either::Either;
