@@ -2,6 +2,7 @@ use self::NockWork::*;
 use crate::jets;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
+use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
 use ares_macros::tas;
 use bitvec::prelude::{BitSlice, Lsb0};
@@ -64,7 +65,13 @@ fn noun_to_work(noun: Noun) -> NockWork {
     }
 }
 
-pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Noun {
+/** Interpret nock */
+pub fn interpret(
+    stack: &mut NockStack,
+    newt: &mut Option<&mut Newt>, // For printing slogs; if None, print to stdout
+    mut subject: Noun,
+    formula: Noun,
+) -> Noun {
     let mut res = unsafe { DirectAtom::new_unchecked(0).as_atom().as_noun() };
     stack.push(1);
     unsafe {
@@ -314,30 +321,27 @@ pub fn interpret(stack: &mut NockStack, mut subject: Noun, formula: Noun) -> Nou
             Nock11ComputeHint => unsafe {
                 let hint = *stack.local_noun_pointer(1);
                 if let Ok(hint_cell) = hint.as_cell() {
-                    // match %sham hints, which are scaffolding until we have a real jet dashboard
-                    if hint_cell
-                        .head()
-                        .raw_equals(DirectAtom::new_unchecked(tas!(b"sham")).as_noun())
-                    {
-                        if let Ok(jet_formula) = hint_cell.tail().as_cell() {
-                            let jet_name = jet_formula.tail();
-                            if let Ok(jet) = jets::get_jet(jet_name) {
-                                res = jet(stack, subject);
-                                stack.pop(&mut res);
-                                continue;
-                            }
-                        }
+                    if let Ok(found) = match_pre_hint(stack, subject, hint_cell) {
+                        res = found;
+                        stack.pop(&mut res);
+                    } else {
+                        *(stack.local_noun_pointer(0)) = work_to_noun(Nock11ComputeResult);
+                        push_formula(stack, hint_cell.tail());
                     }
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock11ComputeResult);
-                    push_formula(stack, hint_cell.tail());
                 } else {
                     panic!("IMPOSSIBLE: tried to compute a dynamic hint but hint is an atom");
                 }
             },
             Nock11ComputeResult => unsafe {
-                *(stack.local_noun_pointer(0)) = work_to_noun(Nock11Done);
-                let formula = *stack.local_noun_pointer(2);
-                push_formula(stack, formula);
+                let hint = *stack.local_noun_pointer(1);
+                if let Ok(found) = match_post_hint(stack, newt, subject, hint, res) {
+                    res = found;
+                    stack.pop(&mut res);
+                } else {
+                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock11Done);
+                    let formula = *stack.local_noun_pointer(2);
+                    push_formula(stack, formula);
+                }
             },
             Nock11Done => {
                 stack.pop(&mut res);
@@ -517,7 +521,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
             }
         }
     } else {
-        panic!("Bad formula: atoms are not formulas");
+        panic!("Bad formula: atoms are not formulas: {:?}", formula);
     }
 }
 
@@ -617,5 +621,44 @@ fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
                 }
             }
         }
+    }
+}
+
+/** Match hints which apply before the formula is evaluated */
+fn match_pre_hint(stack: &mut NockStack, subject: Noun, cell: Cell) -> Result<Noun, ()> {
+    let direct = cell.head().as_direct()?;
+    match direct.data() {
+        // %sham hints are scaffolding until we have a real jet dashboard
+        tas!(b"sham") => {
+            let jet_formula = cell.tail().as_cell()?;
+            let jet = jets::get_jet(jet_formula.tail())?;
+            return Ok(jet(stack, subject));
+        }
+        _ => Err(()),
+    }
+}
+
+/** Match static hints and dynamic hints after they're evaluated */
+fn match_post_hint(
+    stack: &mut NockStack,
+    newt: &mut Option<&mut Newt>,
+    _subject: Noun,
+    hint: Noun,
+    res: Noun,
+) -> Result<Noun, ()> {
+    let direct = hint.as_cell()?.head().as_direct()?;
+    match direct.data() {
+        tas!(b"slog") => {
+            let slog_cell = res.as_cell()?;
+            let pri = slog_cell.head().as_direct()?.data();
+            let tank = slog_cell.tail();
+            if let Some(not) = newt {
+                not.slog(stack, pri, tank);
+            } else {
+                println!("slog: {:?} {:?}", pri, tank);
+            }
+            Err(())
+        }
+        _ => Err(()),
     }
 }

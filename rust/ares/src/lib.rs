@@ -4,8 +4,11 @@ pub mod interpreter;
 pub mod jets;
 pub mod mem;
 pub mod mug;
+pub mod newt;
 pub mod noun;
+pub mod serf;
 pub mod serialization;
+pub mod snapshot;
 
 #[cfg(test)]
 mod tests {

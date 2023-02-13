@@ -661,12 +661,8 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         return true;
     };
     // If the nouns have cached mugs which are disequal we have nothing to do
-    if let (Ok(a_alloc), Ok(b_alloc)) = (
-        (*a).as_allocated(),
-        (*b).as_allocated(),
-    ) {
-        if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug())
-        {
+    if let (Ok(a_alloc), Ok(b_alloc)) = ((*a).as_allocated(), (*b).as_allocated()) {
+        if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug()) {
             if a_mug != b_mug {
                 return false;
             };

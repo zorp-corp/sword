@@ -1,6 +1,7 @@
 use ares::interpreter::interpret;
 use ares::mem::NockStack;
 use ares::noun::IndirectAtom;
+use ares::serf::serf;
 use ares::serialization::{cue, jam};
 use memmap::Mmap;
 use memmap::MmapMut;
@@ -14,6 +15,10 @@ use std::ptr::write_bytes;
 
 fn main() -> io::Result<()> {
     let filename = env::args().nth(1).expect("Must provide input filename");
+    if filename == "serf" {
+        return serf();
+    }
+
     let output_filename = format!("{}.out", filename.clone());
     let f = File::open(filename)?;
     let in_len = f.metadata()?.len();
@@ -31,7 +36,7 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let result = interpret(&mut stack, input_cell.head(), input_cell.tail());
+    let result = interpret(&mut stack, &mut None, input_cell.head(), input_cell.tail());
     if let Ok(atom) = result.as_atom() {
         println!("Result: {:?}", atom);
     }

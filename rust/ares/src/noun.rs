@@ -131,7 +131,7 @@ impl DirectAtom {
         Atom { direct: self }
     }
 
-    pub fn as_noun(self) -> Noun {
+    pub const fn as_noun(self) -> Noun {
         Noun { direct: self }
     }
 
@@ -148,6 +148,16 @@ impl fmt::Debug for DirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.0)
     }
+}
+
+#[allow(non_snake_case)]
+pub const fn D(n: u64) -> Noun {
+    DirectAtom::new_panic(n).as_noun()
+}
+
+#[allow(non_snake_case)]
+pub fn T(allocator: &mut dyn NounAllocator, tup: &[Noun]) -> Noun {
+    Cell::new_tuple(allocator, tup).as_noun()
 }
 
 /** An indirect atom.
@@ -249,6 +259,20 @@ impl IndirectAtom {
             noun,
             BitSlice::from_slice_mut(from_raw_parts_mut(ptr, size)),
         )
+    }
+
+    /** Make an indirect atom that can be written into as a slice of bytes. The constraints of
+     * [new_raw_mut_zeroed] also apply here
+     *
+     * Note: size is bytes, not words
+     */
+    pub unsafe fn new_raw_mut_bytes<'a>(
+        allocator: &mut dyn NounAllocator,
+        size: usize,
+    ) -> (Self, &'a mut [u8]) {
+        let word_size = (size + 7) << 3;
+        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size);
+        (noun, from_raw_parts_mut(ptr as *mut u8, size))
     }
 
     /** Size of an indirect atom in 64-bit words */
@@ -385,6 +409,19 @@ impl Cell {
             (*memory).tail = tail;
             cell
         }
+    }
+
+    pub fn new_tuple(allocator: &mut dyn NounAllocator, tup: &[Noun]) -> Cell {
+        if tup.len() < 2 {
+            panic!("Cannot create tuple with fewer than 2 elements");
+        }
+
+        let len = tup.len();
+        let mut cell = Cell::new(allocator, tup[len - 2], tup[len - 1]);
+        for i in (0..len - 2).rev() {
+            cell = Cell::new(allocator, tup[i], cell.as_noun());
+        }
+        cell
     }
 
     pub unsafe fn new_raw_mut(allocator: &mut dyn NounAllocator) -> (Cell, *mut CellMemory) {
