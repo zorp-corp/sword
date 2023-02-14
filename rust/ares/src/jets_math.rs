@@ -248,3 +248,29 @@ pub fn jet_lte(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         }
     })
 }
+
+pub fn jet_gth(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let a = raw_slot(arg, 2).as_atom()?;
+    let b = raw_slot(arg, 3).as_atom()?;
+
+    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+        if a.data() > b.data() {
+            YES
+        } else {
+            NO
+        }
+    } else {
+        if a.bit_size() > b.bit_size() {
+            YES
+        } else if a.bit_size() < b.bit_size() {
+            NO
+        } else {
+            if a.as_ubig() > b.as_ubig() {
+                YES
+            } else {
+                NO
+            }
+        }
+    })
+}
