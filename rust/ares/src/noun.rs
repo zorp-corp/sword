@@ -309,8 +309,8 @@ impl IndirectAtom {
 
     pub fn bit_size(&self) -> usize {
         unsafe {
-            ((self.size() - 1) << 6)
-                + (*(self.to_raw_pointer().add(2 + self.size() - 1))).leading_zeros() as usize
+            ((self.size() - 1) << 6) + 64
+                - (*(self.to_raw_pointer().add(2 + self.size() - 1))).leading_zeros() as usize
         }
     }
 

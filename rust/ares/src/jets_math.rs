@@ -1,3 +1,7 @@
+use crate::interpreter::raw_slot;
+use crate::jets::{JetErr, JetErr::*};
+use crate::mem::NockStack;
+use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 /** Math jets
  *
  * We use ibig for math operations.  This is a pure rust library, and it is very convenient to use.
@@ -12,10 +16,7 @@
  * Another approach is use a global custom allocator.  This is fairly involved, but it would allow
  * us to use any library without worrying whether it allocates.
  */
-use crate::interpreter::raw_slot;
-use crate::jets::{JetErr, JetErr::*};
-use crate::mem::NockStack;
-use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
+use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use ibig::ops::DivRem;
 use ibig::UBig;
@@ -60,17 +61,18 @@ pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 
 pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
-    let bloq = raw_slot(arg, 2).as_direct()?.data();
-    let start = raw_slot(arg, 12).as_direct()?.data();
-    let run = raw_slot(arg, 13).as_direct()?.data();
+    let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
+    if bloq >= 64 {
+        return Err(Deterministic);
+    }
+    let start = raw_slot(arg, 12).as_direct()?.data() as usize;
+    let run = raw_slot(arg, 13).as_direct()?.data() as usize;
     let atom = raw_slot(arg, 7).as_atom()?;
-    let slice = atom.as_bitslice();
-    let unit = 1 << bloq;
+
     let new_indirect = unsafe {
         let (mut new_indirect, new_slice) =
-            IndirectAtom::new_raw_mut_bitslice(stack, ((run * unit + 63) >> 6) as usize);
-        new_slice[..(unit * run) as usize]
-            .copy_from_bitslice(&slice[(unit * start) as usize..(unit * (start + run)) as usize]);
+            IndirectAtom::new_raw_mut_bitslice(stack, ((run << bloq) + 63) >> 6);
+        chop(bloq, start, run, 0, new_slice, atom.as_bitslice())?;
         new_indirect.normalize_as_atom()
     };
     Ok(new_indirect.as_noun())
@@ -312,5 +314,91 @@ pub fn jet_bex(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         let mut res = UBig::one();
         res <<= arg as usize;
         Ok(Atom::from_ubig(stack, &res).as_noun())
+    }
+}
+
+pub fn jet_lsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let (bloq, step) = bite(raw_slot(arg, 2))?;
+    let bloq = bloq.as_direct()?.data() as usize;
+    if bloq >= 64 {
+        return Err(Deterministic);
+    }
+    let step = step.as_direct()?.data() as usize;
+    let a = raw_slot(arg, 3).as_atom()?;
+
+    let len = met(bloq, a);
+    let new_size = (a
+        .bit_size()
+        .checked_add(step << bloq)
+        .ok_or(NonDeterministic)?
+        .checked_add(63)
+        .ok_or(NonDeterministic)?)
+        >> 6;
+
+    if unsafe { a.as_noun().raw_equals(D(0)) } {
+        Ok(D(0))
+    } else {
+        unsafe {
+            let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+            chop(bloq, 0, len, step, dest, a.as_bitslice())?;
+            Ok(atom.normalize_as_atom().as_noun())
+        }
+    }
+}
+
+/** Extract the bloq and step from a bite */
+fn bite(a: Noun) -> Result<(Atom, Atom), ()> {
+    if let Ok(cell) = a.as_cell() {
+        Ok((cell.head().as_atom()?, cell.tail().as_atom()?))
+    } else {
+        Ok((a.as_atom()?, D(1).as_atom()?))
+    }
+}
+
+/** In a bloq space, copy from `from` for a span of `step`, to position `to`.
+ *
+ * Note: unlike the vere version, this sets the bits instead of XORing them.
+ */
+fn chop(
+    bloq: usize,
+    from: usize,
+    step: usize,
+    to: usize,
+    dest: &mut BitSlice<u64, Lsb0>,
+    source: &BitSlice<u64, Lsb0>,
+) -> Result<(), ()> {
+    let from_b = from << bloq;
+    let to_b = to << bloq;
+    let mut step_b = step << bloq;
+    let end_b = from_b.checked_add(step_b).ok_or(())?;
+
+    if (from_b >> bloq) != from {
+        return Err(());
+    }
+
+    if from_b >= source.len() {
+        return Ok(());
+    }
+
+    if end_b > source.len() {
+        step_b -= end_b - source.len();
+    }
+
+    dest[to_b..to_b + step_b].copy_from_bitslice(&source[from_b..from_b + step_b]);
+    Ok(())
+}
+
+/** Measure the number of bloqs in an atom */
+pub fn met(bloq: usize, a: Atom) -> usize {
+    if unsafe { a.as_noun().raw_equals(D(0)) } {
+        0
+    } else {
+        if bloq < 6 {
+            (a.bit_size() + ((1 << bloq) - 1)) >> bloq
+        } else {
+            let bloq_word = bloq - 6;
+            (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
+        }
     }
 }
