@@ -1,10 +1,10 @@
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either;
+use ibig::UBig;
 use intmap::IntMap;
 use std::fmt;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
-use ibig::UBig;
 
 /** Tag for a direct atom. */
 const DIRECT_TAG: u64 = 0x0;
@@ -527,9 +527,10 @@ impl Atom {
         let bit_size = big.bit_len();
         let buffer = big.to_le_bytes();
         if bit_size < 64 {
-            let value: u64 = if bit_size == 0 { 0 } else {
-                buffer[0] as u64
-                | if bit_size <= 8 { 0 } else { (buffer[1] as u64) << 8
+            #[rustfmt::skip]
+            let value: u64 =
+                  if bit_size == 0  { 0 } else { (buffer[0] as u64)
+                | if bit_size <= 8  { 0 } else { (buffer[1] as u64) << 8
                 | if bit_size <= 16 { 0 } else { (buffer[2] as u64) << 16
                 | if bit_size <= 24 { 0 } else { (buffer[3] as u64) << 24
                 | if bit_size <= 32 { 0 } else { (buffer[4] as u64) << 32

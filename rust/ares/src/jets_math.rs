@@ -15,7 +15,7 @@
 use crate::interpreter::raw_slot;
 use crate::jets::{JetErr, JetErr::*};
 use crate::mem::NockStack;
-use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun};
+use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, DIRECT_MAX};
 use either::Either::*;
 
 pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
@@ -111,6 +111,36 @@ pub fn jet_sub(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
                 let res = a_int - b_int;
                 Ok(Atom::from_ubig(stack, &res).as_noun())
             }
+        }
+    }
+}
+
+pub fn jet_mul(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let a = raw_slot(arg, 2).as_atom()?;
+    let b = raw_slot(arg, 3).as_atom()?;
+
+    match (a.as_direct(), b.as_direct()) {
+        (Ok(a), Ok(b)) => {
+            let res = a.data() as u128 * b.data() as u128;
+            if res < DIRECT_MAX as u128 {
+                Ok(Atom::new(stack, res as u64).as_noun())
+            } else {
+                Ok(unsafe {
+                    IndirectAtom::new_raw_bytes(
+                        stack,
+                        if res < u64::MAX as u128 { 8 } else { 16 },
+                        &res.to_le_bytes() as *const u8,
+                    )
+                }
+                .as_noun())
+            }
+        }
+        (_, _) => {
+            let a_int = a.as_ubig();
+            let b_int = b.as_ubig();
+            let res = a_int * b_int;
+            Ok(Atom::from_ubig(stack, &res).as_noun())
         }
     }
 }
