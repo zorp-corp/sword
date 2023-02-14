@@ -579,10 +579,10 @@ mod tests {
     #[test]
     fn test_dec() {
         let ref mut s = init();
-        let a = atom_128(s);
-        assert_jet_ubig(s, jet_dec, a, ubig!(0xdeadbeef12345678fedcba987654320f));
-        let a = atom_63(s);
-        assert_jet(s, jet_dec, a, D(0x7ffffffffffffffe));
+        let (a0, _a24, a63, _a96, a128) = atoms(s);
+        assert_jet_ubig(s, jet_dec, a128, ubig!(0xdeadbeef12345678fedcba987654320f));
+        assert_jet(s, jet_dec, a63, D(0x7ffffffffffffffe));
+        assert_jet_err(s, jet_dec, a0, Deterministic);
     }
 
     #[test]
@@ -765,5 +765,19 @@ mod tests {
         assert_math_jet_noun(s, jet_gte, &[atom_128, atom_24], YES);
         assert_math_jet_noun(s, jet_gte, &[atom_128, atom_128_b], YES);
         assert_math_jet_noun(s, jet_gte, &[atom_128_b, atom_128], NO);
+    }
+
+    #[test]
+    fn test_bex() {
+        let ref mut s = init();
+        assert_jet(s, jet_bex, D(0), D(1));
+        assert_jet(s, jet_bex, D(5), D(32));
+        assert_jet(s, jet_bex, D(62), D(0x4000000000000000));
+        assert_jet_ubig(
+            s,
+            jet_bex,
+            D(256),
+            ubig!(_0x10000000000000000000000000000000000000000000000000000000000000000),
+        );
     }
 }
