@@ -810,4 +810,29 @@ mod tests {
         );
         assert_jet(s, jet_lsh, sam, res);
     }
+
+    #[test]
+    fn test_rsh() {
+        let ref mut s = init();
+        let (a0, a24, _a63, a96, a128) = atoms(s);
+        let sam = T(s, &[a0, a24]);
+        assert_jet(s, jet_rsh, sam, D(0x43b2a1));
+        let sam = T(s, &[D(3), a24]);
+        assert_jet(s, jet_rsh, sam, D(0x8765));
+        let sam = T(s, &[D(7), a24]);
+        assert_jet(s, jet_rsh, sam, D(0));
+        let sam = T(s, &[D(2), a128]);
+        let res = A(s, &ubig!(0xdeadbeef12345678fedcba987654321));
+        assert_jet(s, jet_rsh, sam, res);
+        let sam = T(s, &[D(6), a128]);
+        let res = A(s, &ubig!(0xdeadbeef12345678));
+        assert_jet(s, jet_rsh, sam, res);
+
+        let bit = T(s, &[D(0), D(5)]);
+        let sam = T(s, &[bit, a24]);
+        assert_jet(s, jet_rsh, sam, D(0x43b2a));
+        let bit = T(s, &[D(4), D(6)]);
+        let sam = T(s, &[bit, a96]);
+        assert_jet(s, jet_rsh, sam, D(0));
+    }
 }
