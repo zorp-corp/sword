@@ -18,6 +18,8 @@ use crate::mem::NockStack;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 use either::Either::*;
 use ibig::ops::DivRem;
+use ibig::UBig;
+use num_traits::identities::One;
 
 pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
@@ -299,4 +301,16 @@ pub fn jet_gte(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
             }
         }
     })
+}
+
+pub fn jet_bex(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6).as_direct()?.data();
+
+    if arg < 63 {
+        Ok(unsafe { DirectAtom::new_unchecked(1 << arg) }.as_noun())
+    } else {
+        let mut res = UBig::one();
+        res <<= arg as usize;
+        Ok(Atom::from_ubig(stack, &res).as_noun())
+    }
 }
