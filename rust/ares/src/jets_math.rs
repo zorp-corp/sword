@@ -740,4 +740,17 @@ mod tests {
         assert_math_jet_noun(s, jet_lte, &[atom_128, atom_128_b], NO);
         assert_math_jet_noun(s, jet_lte, &[atom_128_b, atom_128], YES);
     }
+
+    #[test]
+    fn test_gth() {
+        let ref mut s = init();
+        assert_math_jet_noun(s, jet_gth, &[atom_128, atom_96], YES);
+        assert_math_jet_noun(s, jet_gth, &[atom_96, atom_63], YES);
+        assert_math_jet_noun(s, jet_gth, &[atom_63, atom_96], NO);
+        assert_math_jet_noun(s, jet_gth, &[atom_63, atom_63], NO);
+        assert_math_jet_noun(s, jet_gth, &[atom_63, atom_24], YES);
+        assert_math_jet_noun(s, jet_gth, &[atom_128, atom_24], YES);
+        assert_math_jet_noun(s, jet_gth, &[atom_128, atom_128_b], YES);
+        assert_math_jet_noun(s, jet_gth, &[atom_128_b, atom_128], NO);
+    }
 }
