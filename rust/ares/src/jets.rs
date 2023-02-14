@@ -37,6 +37,7 @@ pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
         tas!(b"lth") => Ok(jet_lth),
         tas!(b"lte") => Ok(jet_lte),
         tas!(b"gth") => Ok(jet_gth),
+        tas!(b"gte") => Ok(jet_gte),
         tas!(b"cut") => Ok(jet_cut),
         tas!(b"mug") => Ok(jet_mug),
         _ => {
