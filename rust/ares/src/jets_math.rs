@@ -471,6 +471,10 @@ mod tests {
         A(stack, &ubig!(0xdeadbeef12345678fedcba9876543210))
     }
 
+    fn atom_128_b(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(0xdeadbeef12345678fedcba9876540000))
+    }
+
     #[allow(non_snake_case)]
     fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
         Atom::from_ubig(stack, &ubig).as_noun()
@@ -505,6 +509,17 @@ mod tests {
     ) {
         let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
         assert_nary_jet_ubig(stack, jet, &sam, res);
+    }
+
+    fn assert_math_jet_noun(
+        stack: &mut NockStack,
+        jet: Jet,
+        sam: &[fn(&mut NockStack) -> Noun],
+        res: Noun,
+    ) {
+        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
+        let sam = T(stack, &sam);
+        assert_jet(stack, jet, sam, res);
     }
 
     fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
@@ -698,5 +713,18 @@ mod tests {
         assert_jet(s, jet_dvr, sam, res);
 
         assert_math_jet_err(s, jet_dvr, &[atom_63, atom_0], Deterministic);
+    }
+
+    #[test]
+    fn test_lth() {
+        let ref mut s = init();
+        assert_math_jet_noun(s, jet_lth, &[atom_128, atom_96], NO);
+        assert_math_jet_noun(s, jet_lth, &[atom_96, atom_63], NO);
+        assert_math_jet_noun(s, jet_lth, &[atom_63, atom_96], YES);
+        assert_math_jet_noun(s, jet_lth, &[atom_63, atom_63], NO);
+        assert_math_jet_noun(s, jet_lth, &[atom_63, atom_24], NO);
+        assert_math_jet_noun(s, jet_lth, &[atom_128, atom_24], NO);
+        assert_math_jet_noun(s, jet_lth, &[atom_128, atom_128_b], NO);
+        assert_math_jet_noun(s, jet_lth, &[atom_128_b, atom_128], YES);
     }
 }
