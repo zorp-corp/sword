@@ -200,3 +200,25 @@ pub fn jet_dvr(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         Ok(T(stack, &[div, rem]))
     }
 }
+
+pub fn jet_mod(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let a = raw_slot(arg, 2).as_atom()?;
+    let b = raw_slot(arg, 3).as_atom()?;
+
+    if unsafe { b.as_noun().raw_equals(D(0)) } {
+        Err(Deterministic)
+    } else {
+        match (a.as_direct(), b.as_direct()) {
+            (Ok(a), Ok(b)) => {
+                Ok(unsafe { DirectAtom::new_unchecked(a.data() % b.data()) }.as_noun())
+            }
+            (_, _) => {
+                let a_int = a.as_ubig();
+                let b_int = b.as_ubig();
+                let res = a_int % b_int;
+                Ok(Atom::from_ubig(stack, &res).as_noun())
+            }
+        }
+    }
+}
