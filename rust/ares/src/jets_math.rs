@@ -434,3 +434,82 @@ pub fn met(bloq: usize, a: Atom) -> usize {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::jets::Jet;
+    use crate::mem::unifying_equality;
+    use crate::noun::Atom;
+    use ibig::ubig;
+
+    fn init() -> NockStack {
+        NockStack::new(8 << 10 << 10, 0)
+    }
+
+    fn atom_63() -> Noun {
+        D(0x7fffffffffffffff)
+    }
+
+    fn atom_128(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(0xdeadbeef12345678fedcba9876543210))
+    }
+
+    #[allow(non_snake_case)]
+    fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
+        Atom::from_ubig(stack, &ubig).as_noun()
+    }
+
+    fn assert_noun_eq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
+        let eq = unsafe { unifying_equality(stack, &mut a, &mut b) };
+        assert!(eq, "got: {:?}, need: {:?}", a, b);
+    }
+
+    fn assert_jet_eq(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
+        let sam = sample(stack, sam);
+        let jet_res = jet(stack, sam).unwrap();
+        assert_noun_eq(stack, jet_res, res);
+    }
+
+    fn assert_jet_eq_ubig(stack: &mut NockStack, jet: Jet, sam: Noun, res: UBig) {
+        let res = A(stack, &res);
+        assert_jet_eq(stack, jet, sam, res);
+    }
+
+    fn sample(stack: &mut NockStack, a: Noun) -> Noun {
+        T(stack, &[D(0), a, D(0)])
+    }
+
+    #[test]
+    fn test_met() {
+        let ref mut s = init();
+        let a = atom_128(s).as_atom().unwrap();
+        assert_eq!(met(0, a), 128);
+        assert_eq!(met(1, a), 64);
+        assert_eq!(met(2, a), 32);
+        assert_eq!(met(3, a), 16);
+        assert_eq!(met(4, a), 8);
+        assert_eq!(met(5, a), 4);
+        assert_eq!(met(6, a), 2);
+        assert_eq!(met(7, a), 1);
+        assert_eq!(met(8, a), 1);
+
+        let a = atom_63().as_atom().unwrap();
+        assert_eq!(met(0, a), 63);
+        assert_eq!(met(1, a), 32);
+        assert_eq!(met(2, a), 16);
+        assert_eq!(met(3, a), 8);
+        assert_eq!(met(4, a), 4);
+        assert_eq!(met(5, a), 2);
+        assert_eq!(met(6, a), 1);
+        assert_eq!(met(7, a), 1);
+    }
+
+    #[test]
+    fn test_dec() {
+        let ref mut s = init();
+        let a = atom_128(s);
+        assert_jet_eq_ubig(s, jet_dec, a, ubig!(0xdeadbeef12345678fedcba987654320f));
+        assert_jet_eq(s, jet_dec, atom_63(), D(0x7ffffffffffffffe));
+    }
+}
