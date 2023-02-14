@@ -780,4 +780,34 @@ mod tests {
             ubig!(_0x10000000000000000000000000000000000000000000000000000000000000000),
         );
     }
+
+    #[test]
+    fn test_lsh() {
+        let ref mut s = init();
+        let (a0, a24, _a63, a96, a128) = atoms(s);
+        let sam = T(s, &[a0, a24]);
+        assert_jet(s, jet_lsh, sam, D(0x10eca86));
+        let sam = T(s, &[D(3), a24]);
+        assert_jet(s, jet_lsh, sam, D(0x87654300));
+        let sam = T(s, &[D(7), a24]);
+        let res = A(s, &ubig!(_0x87654300000000000000000000000000000000));
+        assert_jet(s, jet_lsh, sam, res);
+        let sam = T(s, &[D(6), a128]);
+        let res = A(
+            s,
+            &ubig!(_0xdeadbeef12345678fedcba98765432100000000000000000),
+        );
+        assert_jet(s, jet_lsh, sam, res);
+
+        let bit = T(s, &[D(0), D(5)]);
+        let sam = T(s, &[bit, a24]);
+        assert_jet(s, jet_lsh, sam, D(0x10eca860));
+        let bit = T(s, &[D(4), D(6)]);
+        let sam = T(s, &[bit, a96]);
+        let res = A(
+            s,
+            &ubig!(_0xfaceb00c15deadbeef123456000000000000000000000000),
+        );
+        assert_jet(s, jet_lsh, sam, res);
+    }
 }
