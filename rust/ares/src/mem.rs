@@ -777,21 +777,14 @@ unsafe fn senior_pointer_first<T>(
         ),
     };
     loop {
-        if a < high_pointer && a >= low_pointer {
-            // a is in the current frame
-            if b < high_pointer && b >= low_pointer {
-                // so is b, pick arbitrarily
-                break (a, b);
-            } else {
-                // b is not, so b must be further up, b is senior
-                break (b, a);
-            }
-        } else {
-            // a is not in the current frame
-            if b < high_pointer && b >= low_pointer {
-                // b is, a is senior
-                break (a, b);
-            } else {
+        match (
+            a < high_pointer && a >= low_pointer,
+            b < high_pointer && b >= low_pointer,
+        ) {
+            (true, true) => break (a, b), // both pointers are in the same frame, pick arbitrarily
+            (true, false) => break (b, a), // a is in the frame, b is not, so b is senior
+            (false, true) => break (a, b), // b is in the frame, a is not, so a is senior
+            (false, false) => {
                 // chase up the stack
                 if (frame_pointer as *const u64) == stack.start {
                     // we found the top of the stack!
@@ -801,15 +794,15 @@ unsafe fn senior_pointer_first<T>(
                         Polarity::East => {
                             high_pointer = *(frame_pointer.sub(2)) as *const T;
                             low_pointer = *(frame_pointer.sub(1)) as *const T;
-                            frame_pointer = *(frame_pointer.sub(1)) as *const u64;
+                            frame_pointer = *(frame_pointer.sub(2)) as *const u64;
                             polarity = Polarity::West;
                             continue;
                         }
                         Polarity::West => {
                             high_pointer = *frame_pointer as *const T;
                             low_pointer = *(frame_pointer.add(1)) as *const T;
-                            frame_pointer = *frame_pointer as *const u64;
-                            polarity = Polarity::West;
+                            frame_pointer = *(frame_pointer.add(1)) as *const u64;
+                            polarity = Polarity::East;
                             continue;
                         }
                     }
