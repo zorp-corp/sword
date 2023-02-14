@@ -835,4 +835,23 @@ mod tests {
         let sam = T(s, &[bit, a96]);
         assert_jet(s, jet_rsh, sam, D(0));
     }
+
+    #[test]
+    fn test_cut() {
+        let ref mut s = init();
+        let (_a0, a24, _a63, a96, a128) = atoms(s);
+        let run = T(s, &[D(0), D(5)]);
+        let sam = T(s, &[D(0), run, a24]);
+        assert_jet(s, jet_cut, sam, D(0x3));
+        let run = T(s, &[D(4), D(6)]);
+        let sam = T(s, &[D(3), run, a96]);
+        assert_jet(s, jet_cut, sam, D(0xb00c15deadbe));
+        let run = T(s, &[D(4), D(1)]);
+        let sam = T(s, &[D(4), run, a24]);
+        assert_jet(s, jet_cut, sam, D(0));
+        let run = T(s, &[D(2), D(10)]);
+        let sam = T(s, &[D(4), run, a128]);
+        let res = A(s, &ubig!(0xdeadbeef12345678fedcba98));
+        assert_jet(s, jet_cut, sam, res);
+    }
 }
