@@ -1,5 +1,6 @@
 use crate::interpreter::raw_slot;
 use crate::mem::NockStack;
+use crate::mug::mug;
 use crate::noun::{DirectAtom, IndirectAtom, Noun};
 use ares_macros::tas;
 use either::Either::*;
@@ -30,6 +31,7 @@ pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
     match jet_name.as_direct()?.data() {
         tas!(b"dec") => Ok(jet_dec),
         tas!(b"cut") => Ok(jet_cut),
+        tas!(b"mug") => Ok(jet_mug),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             Err(())
@@ -98,4 +100,9 @@ fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         new_indirect.normalize_as_atom()
     };
     Ok(new_indirect.as_noun())
+}
+
+fn jet_mug(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    Ok(mug(stack, arg).as_noun())
 }
