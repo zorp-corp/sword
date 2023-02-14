@@ -15,8 +15,9 @@
 use crate::interpreter::raw_slot;
 use crate::jets::{JetErr, JetErr::*};
 use crate::mem::NockStack;
-use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX};
+use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, T};
 use either::Either::*;
+use ibig::ops::DivRem;
 
 pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
@@ -164,5 +165,38 @@ pub fn jet_div(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
                 Ok(Atom::from_ubig(stack, &res).as_noun())
             }
         }
+    }
+}
+
+pub fn jet_dvr(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let a = raw_slot(arg, 2).as_atom()?;
+    let b = raw_slot(arg, 3).as_atom()?;
+
+    if unsafe { b.as_noun().raw_equals(D(0)) } {
+        Err(Deterministic)
+    } else {
+        let (div, rem) = match (a.as_direct(), b.as_direct()) {
+            (Ok(a), Ok(b)) => {
+                let (div, rem) = (a.data() / b.data(), a.data() % b.data());
+                unsafe {
+                    (
+                        DirectAtom::new_unchecked(div).as_noun(),
+                        DirectAtom::new_unchecked(rem).as_noun(),
+                    )
+                }
+            }
+            (_, _) => {
+                let a_int = a.as_ubig();
+                let b_int = b.as_ubig();
+                let (div, rem) = a_int.div_rem(&b_int);
+                (
+                    Atom::from_ubig(stack, &div).as_noun(),
+                    Atom::from_ubig(stack, &rem).as_noun(),
+                )
+            }
+        };
+
+        Ok(T(stack, &[div, rem]))
     }
 }
