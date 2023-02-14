@@ -33,6 +33,10 @@ const FORWARDING_TAG: u64 = u64::MAX & CELL_MASK;
 /** Tag mask for a forwarding pointer */
 const FORWARDING_MASK: u64 = CELL_MASK;
 
+/** Loobeans */
+pub const YES: Noun = D(0);
+pub const NO: Noun = D(1);
+
 #[cfg(feature = "check_acyclic")]
 #[macro_export]
 macro_rules! assert_acyclic {
@@ -126,6 +130,10 @@ impl DirectAtom {
      */
     pub const unsafe fn new_unchecked(value: u64) -> Self {
         DirectAtom(value)
+    }
+
+    pub fn bit_size(self) -> usize {
+        (64 - self.0.leading_zeros()) as usize
     }
 
     pub fn as_atom(self) -> Atom {
@@ -297,6 +305,13 @@ impl IndirectAtom {
     /** Size of an indirect atom in 64-bit words */
     pub fn size(&self) -> usize {
         unsafe { *(self.to_raw_pointer().add(1)) as usize }
+    }
+
+    pub fn bit_size(&self) -> usize {
+        unsafe {
+            ((self.size() - 1) << 6)
+                + (*(self.to_raw_pointer().add(2 + self.size() - 1))).leading_zeros() as usize
+        }
     }
 
     /** Pointer to data for indirect atom */
@@ -596,6 +611,13 @@ impl Atom {
         match self.as_either() {
             Either::Left(_direct) => 1,
             Either::Right(indirect) => indirect.size(),
+        }
+    }
+
+    pub fn bit_size(&self) -> usize {
+        match self.as_either() {
+            Either::Left(direct) => direct.bit_size(),
+            Either::Right(indirect) => indirect.bit_size(),
         }
     }
 

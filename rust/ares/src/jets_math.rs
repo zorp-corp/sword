@@ -15,7 +15,7 @@
 use crate::interpreter::raw_slot;
 use crate::jets::{JetErr, JetErr::*};
 use crate::mem::NockStack;
-use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, T};
+use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 use either::Either::*;
 use ibig::ops::DivRem;
 
@@ -221,4 +221,33 @@ pub fn jet_mod(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
             }
         }
     }
+}
+
+pub fn jet_lth(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let a = raw_slot(arg, 2).as_atom()?;
+    let b = raw_slot(arg, 3).as_atom()?;
+
+    Ok(match (a.as_direct(), b.as_direct()) {
+        (Ok(a), Ok(b)) => {
+            if a.data() < b.data() {
+                YES
+            } else {
+                NO
+            }
+        }
+        (_, _) => {
+            if a.bit_size() < b.bit_size() {
+                YES
+            } else if a.bit_size() > b.bit_size() {
+                NO
+            } else {
+                if a.as_ubig() < b.as_ubig() {
+                    YES
+                } else {
+                    NO
+                }
+            }
+        }
+    })
 }
