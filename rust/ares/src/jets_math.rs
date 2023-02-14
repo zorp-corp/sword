@@ -495,6 +495,35 @@ mod tests {
         assert_nary_jet_ubig(stack, jet, &sam, res);
     }
 
+    fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
+        let sam = T(stack, &[D(0), sam, D(0)]);
+        let jet_res = jet(stack, sam);
+        assert!(
+            jet_res.is_err(),
+            "with sample: {:?}, expected err: {:?}, got: {:?}",
+            sam,
+            err,
+            &jet_res
+        );
+        let jet_err = jet_res.unwrap_err();
+        assert_eq!(
+            jet_err, err,
+            "with sample: {:?}, expected err: {:?}, got: {:?}",
+            sam, err, jet_err
+        );
+    }
+
+    fn assert_math_jet_err(
+        stack: &mut NockStack,
+        jet: Jet,
+        sam: &[fn(&mut NockStack) -> Noun],
+        err: JetErr,
+    ) {
+        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
+        let sam = T(stack, &sam);
+        assert_jet_err(stack, jet, sam, err);
+    }
+
     #[test]
     fn test_met() {
         let ref mut s = init();
@@ -545,5 +574,25 @@ mod tests {
             ubig!(0xfaceb00c95deadbeef123455),
         );
         assert_math_jet(s, jet_add, &[atom_63, atom_63], ubig!(0xfffffffffffffffe));
+    }
+
+    #[test]
+    fn test_sub() {
+        let ref mut s = init();
+        assert_math_jet(
+            s,
+            jet_sub,
+            &[atom_128, atom_96],
+            ubig!(0xdeadbeee1765a66ce8fe0cd98741fdba),
+        );
+        assert_math_jet(
+            s,
+            jet_sub,
+            &[atom_96, atom_63],
+            ubig!(0xfaceb00b95deadbeef123457),
+        );
+        assert_math_jet(s, jet_sub, &[atom_63, atom_63], ubig!(0));
+        assert_math_jet(s, jet_sub, &[atom_128, atom_128], ubig!(0));
+        assert_math_jet_err(s, jet_sub, &[atom_63, atom_96], Deterministic);
     }
 }

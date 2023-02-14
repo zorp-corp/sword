@@ -9,7 +9,7 @@ use ares_macros::tas;
 pub type Jet = fn(&mut NockStack, Noun) -> Result<Noun, JetErr>;
 
 /// Only return a deterministic error if the Nock would have deterministically crashed.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum JetErr {
     Punt,             // Retry with the raw nock
     Deterministic,    // The Nock would have crashed
