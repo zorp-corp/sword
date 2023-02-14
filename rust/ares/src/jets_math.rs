@@ -327,6 +327,7 @@ pub fn jet_lsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let step = step.as_direct()?.data() as usize;
     let a = raw_slot(arg, 3).as_atom()?;
 
+    // TODO: need to assert step << bloq doesn't overflow?
     let len = met(bloq, a);
     let new_size = (a
         .bit_size()
@@ -344,6 +345,37 @@ pub fn jet_lsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
             chop(bloq, 0, len, step, dest, a.as_bitslice())?;
             Ok(atom.normalize_as_atom().as_noun())
         }
+    }
+}
+
+pub fn jet_rsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let (bloq, step) = bite(raw_slot(arg, 2))?;
+    let bloq = bloq.as_direct()?.data() as usize;
+    if bloq >= 64 {
+        return Err(Deterministic);
+    }
+    let step = step.as_direct()?.data() as usize;
+    let a = raw_slot(arg, 3).as_atom()?;
+
+    let len = met(bloq, a);
+    if step >= len {
+        return Ok(D(0));
+    }
+
+    // TODO: need to assert step << bloq doesn't overflow?
+    let new_size = (a
+        .bit_size()
+        .checked_sub(step << bloq)
+        .ok_or(NonDeterministic)?
+        .checked_add(63)
+        .ok_or(NonDeterministic)?)
+        >> 6;
+
+    unsafe {
+        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+        chop(bloq, step, len - step, 0, dest, a.as_bitslice())?;
+        Ok(atom.normalize_as_atom().as_noun())
     }
 }
 

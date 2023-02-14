@@ -40,6 +40,7 @@ pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
         tas!(b"gte") => Ok(jet_gte),
         tas!(b"bex") => Ok(jet_bex),
         tas!(b"lsh") => Ok(jet_lsh),
+        tas!(b"rsh") => Ok(jet_rsh),
         tas!(b"cut") => Ok(jet_cut),
         tas!(b"mug") => Ok(jet_mug),
         _ => {
@@ -52,6 +53,7 @@ pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
 pub fn get_jet_test_mode(jet_name: Noun) -> bool {
     match jet_name.as_direct().unwrap().data() {
         tas!(b"cut") => true,
+        tas!(b"rsh") => true,
         _ => false,
     }
 }
