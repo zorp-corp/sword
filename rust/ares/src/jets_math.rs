@@ -156,6 +156,23 @@ pub fn jet_div(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
+pub fn jet_mod(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let a = raw_slot(arg, 2).as_atom()?;
+    let b = raw_slot(arg, 3).as_atom()?;
+
+    if unsafe { b.as_noun().raw_equals(D(0)) } {
+        Err(Deterministic)
+    } else {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            Ok(unsafe { DirectAtom::new_unchecked(a.data() % b.data()) }.as_noun())
+        } else {
+            let res = a.as_ubig() % b.as_ubig();
+            Ok(Atom::from_ubig(stack, &res).as_noun())
+        }
+    }
+}
+
 pub fn jet_dvr(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
@@ -181,23 +198,6 @@ pub fn jet_dvr(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         };
 
         Ok(T(stack, &[div, rem]))
-    }
-}
-
-pub fn jet_mod(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
-    let arg = raw_slot(subject, 6);
-    let a = raw_slot(arg, 2).as_atom()?;
-    let b = raw_slot(arg, 3).as_atom()?;
-
-    if unsafe { b.as_noun().raw_equals(D(0)) } {
-        Err(Deterministic)
-    } else {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            Ok(unsafe { DirectAtom::new_unchecked(a.data() % b.data()) }.as_noun())
-        } else {
-            let res = a.as_ubig() % b.as_ubig();
-            Ok(Atom::from_ubig(stack, &res).as_noun())
-        }
     }
 }
 
@@ -648,6 +648,24 @@ mod tests {
         );
         assert_math_jet_err(s, jet_div, &[atom_63, atom_0], Deterministic);
         assert_math_jet_err(s, jet_div, &[atom_0, atom_0], Deterministic);
+    }
+
+    #[test]
+    fn test_mod() {
+        let ref mut s = init();
+        assert_math_jet(
+            s,
+            jet_mod,
+            &[atom_128, atom_96],
+            ubig!(0xcb0ce564ec598f658409d170),
+        );
+        assert_math_jet(s, jet_mod, &[atom_96, atom_63], ubig!(0x15deadc0e4af946e));
+        assert_math_jet(s, jet_mod, &[atom_63, atom_96], ubig!(0x7fffffffffffffff));
+        assert_math_jet(s, jet_mod, &[atom_63, atom_63], ubig!(0));
+        assert_math_jet(s, jet_mod, &[atom_63, atom_24], ubig!(0x798385));
+        assert_math_jet(s, jet_mod, &[atom_128, atom_24], ubig!(0x3b2013));
+        assert_math_jet_err(s, jet_mod, &[atom_63, atom_0], Deterministic);
+        assert_math_jet_err(s, jet_mod, &[atom_0, atom_0], Deterministic);
     }
 
     #[test]
