@@ -4,6 +4,7 @@ use intmap::IntMap;
 use std::fmt;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
+use ibig::UBig;
 
 /** Tag for a direct atom. */
 const DIRECT_TAG: u64 = 0x0;
@@ -131,6 +132,10 @@ impl DirectAtom {
         Atom { direct: self }
     }
 
+    pub fn as_ubig(self) -> UBig {
+        UBig::from(self.0)
+    }
+
     pub const fn as_noun(self) -> Noun {
         Noun { direct: self }
     }
@@ -210,7 +215,7 @@ impl IndirectAtom {
 
     /** Make an indirect atom by copying from other memory.
      *
-     *  The size is specified in 64 bit words, not in bytes.
+     *  Note: size is in 64-bit words, not bytes.
      */
     pub unsafe fn new_raw(
         allocator: &mut dyn NounAllocator,
@@ -219,6 +224,20 @@ impl IndirectAtom {
     ) -> Self {
         let (mut indirect, buffer) = Self::new_raw_mut(allocator, size);
         ptr::copy_nonoverlapping(data, buffer, size);
+        *(indirect.normalize())
+    }
+
+    /** Make an indirect atom by copying from other memory.
+     *
+     *  Note: size is bytes, not words
+     */
+    pub unsafe fn new_raw_bytes(
+        allocator: &mut dyn NounAllocator,
+        size: usize,
+        data: *const u8,
+    ) -> Self {
+        let (mut indirect, buffer) = Self::new_raw_mut_bytes(allocator, size);
+        ptr::copy_nonoverlapping(data, buffer.as_mut_ptr(), size);
         *(indirect.normalize())
     }
 
@@ -270,7 +289,7 @@ impl IndirectAtom {
         allocator: &mut dyn NounAllocator,
         size: usize,
     ) -> (Self, &'a mut [u8]) {
-        let word_size = (size + 7) << 3;
+        let word_size = (size + 7) >> 3;
         let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size);
         (noun, from_raw_parts_mut(ptr as *mut u8, size))
     }
@@ -296,6 +315,10 @@ impl IndirectAtom {
     /** BitSlice view on an indirect atom, with lifetime tied to reference to indirect atom. */
     pub fn as_bitslice<'a>(&'a self) -> &'a BitSlice<u64, Lsb0> {
         BitSlice::from_slice(self.as_slice())
+    }
+
+    pub fn as_ubig(self) -> UBig {
+        UBig::from_le_bytes(self.as_bytes())
     }
 
     /** Ensure that the size does not contain any trailing 0 words */
@@ -497,6 +520,29 @@ impl Atom {
             unsafe { IndirectAtom::new_raw(allocator, 1, &value).as_atom() }
         }
     }
+
+    // to_le_bytes and new_raw are copies.  We should be able to do this completely without copies
+    // if we integrate with ibig properly.
+    pub fn from_ubig(allocator: &mut dyn NounAllocator, big: &UBig) -> Atom {
+        let bit_size = big.bit_len();
+        let buffer = big.to_le_bytes();
+        if bit_size < 64 {
+            let value: u64 = if bit_size == 0 { 0 } else {
+                buffer[0] as u64
+                | if bit_size <= 8 { 0 } else { (buffer[1] as u64) << 8
+                | if bit_size <= 16 { 0 } else { (buffer[2] as u64) << 16
+                | if bit_size <= 24 { 0 } else { (buffer[3] as u64) << 24
+                | if bit_size <= 32 { 0 } else { (buffer[4] as u64) << 32
+                | if bit_size <= 40 { 0 } else { (buffer[5] as u64) << 40
+                | if bit_size <= 48 { 0 } else { (buffer[6] as u64) << 48
+                | if bit_size <= 56 { 0 } else { (buffer[7] as u64) << 56 } } } } } } } };
+            unsafe { DirectAtom::new_unchecked(value).as_atom() }
+        } else {
+            let byte_size = (big.bit_len() + 7) >> 3;
+            unsafe { IndirectAtom::new_raw_bytes(allocator, byte_size, buffer.as_ptr()).as_atom() }
+        }
+    }
+
     pub fn is_direct(&self) -> bool {
         unsafe { is_direct_atom(self.raw) }
     }
@@ -534,6 +580,14 @@ impl Atom {
             unsafe { self.indirect.as_bitslice() }
         } else {
             unsafe { &(self.direct.as_bitslice()) }
+        }
+    }
+
+    pub fn as_ubig(&self) -> UBig {
+        if self.is_indirect() {
+            unsafe { self.indirect.as_ubig() }
+        } else {
+            unsafe { self.direct.as_ubig() }
         }
     }
 
