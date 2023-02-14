@@ -2,7 +2,7 @@ use crate::interpreter::raw_slot;
 use crate::jets_math::*;
 use crate::mem::NockStack;
 use crate::mug::mug;
-use crate::noun::{Noun};
+use crate::noun::Noun;
 use ares_macros::tas;
 
 /// Return Err if the computation crashed or should punt to Nock
@@ -29,12 +29,13 @@ pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
     match jet_name.as_direct()?.data() {
         tas!(b"dec") => Ok(jet_dec),
         tas!(b"add") => Ok(jet_add),
+        tas!(b"sub") => Ok(jet_sub),
         tas!(b"cut") => Ok(jet_cut),
         tas!(b"mug") => Ok(jet_mug),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             Err(())
-        },
+        }
     }
 }
 

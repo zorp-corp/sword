@@ -12,7 +12,6 @@
  * Another approach is use a global custom allocator.  This is fairly involved, but it would allow
  * us to use any library without worrying whether it allocates.
  */
-
 use crate::interpreter::raw_slot;
 use crate::jets::{JetErr, JetErr::*};
 use crate::mem::NockStack;
@@ -75,21 +74,43 @@ pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 }
 
 pub fn jet_add(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
-    eprintln!("\radd");
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
 
-    let res = match (a.as_direct(), b.as_direct()) {
-        (Ok(a), Ok(b)) => {
-            Atom::new(stack, a.data() + b.data())
-        }
+    match (a.as_direct(), b.as_direct()) {
+        (Ok(a), Ok(b)) => Ok(Atom::new(stack, a.data() + b.data()).as_noun()),
         (_, _) => {
             let a_int = a.as_ubig();
             let b_int = b.as_ubig();
             let res = a_int + b_int;
-            Atom::from_ubig(stack, &res)
+            Ok(Atom::from_ubig(stack, &res).as_noun())
         }
-    };
-    Ok(res.as_noun())
+    }
+}
+
+pub fn jet_sub(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let a = raw_slot(arg, 2).as_atom()?;
+    let b = raw_slot(arg, 3).as_atom()?;
+
+    match (a.as_direct(), b.as_direct()) {
+        (Ok(a), Ok(b)) => {
+            if a.data() < b.data() {
+                Err(Deterministic)
+            } else {
+                Ok(unsafe { DirectAtom::new_unchecked(a.data() - b.data()) }.as_noun())
+            }
+        }
+        (_, _) => {
+            let a_int = a.as_ubig();
+            let b_int = b.as_ubig();
+            if a_int < b_int {
+                Err(Deterministic)
+            } else {
+                let res = a_int - b_int;
+                Ok(Atom::from_ubig(stack, &res).as_noun())
+            }
+        }
+    }
 }
