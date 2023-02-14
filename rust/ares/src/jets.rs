@@ -30,7 +30,18 @@ pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
     match jet_name.as_direct()?.data() {
         tas!(b"dec") => Ok(jet_dec),
         tas!(b"cut") => Ok(jet_cut),
-        _ => Err(()),
+        _ => {
+            // eprintln!("Unknown jet: {:?}", jet_name);
+            Err(())
+        }
+    }
+}
+
+pub fn get_jet_test_mode(jet_name: Noun) -> bool {
+    match jet_name.as_direct().unwrap().data() {
+        tas!(b"dec") => true,
+        tas!(b"cut") => true,
+        _ => false,
     }
 }
 

@@ -321,7 +321,8 @@ pub fn interpret(
             Nock11ComputeHint => unsafe {
                 let hint = *stack.local_noun_pointer(1);
                 if let Ok(hint_cell) = hint.as_cell() {
-                    if let Ok(found) = match_pre_hint(stack, subject, hint_cell) {
+                    let formula = *stack.local_noun_pointer(2);
+                    if let Ok(found) = match_pre_hint(stack, newt, subject, hint_cell, formula) {
                         res = found;
                         stack.pop(&mut res);
                     } else {
@@ -625,14 +626,34 @@ fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 }
 
 /** Match hints which apply before the formula is evaluated */
-fn match_pre_hint(stack: &mut NockStack, subject: Noun, cell: Cell) -> Result<Noun, ()> {
+fn match_pre_hint(
+    stack: &mut NockStack,
+    newt: &mut Option<&mut Newt>,
+    subject: Noun,
+    cell: Cell,
+    formula: Noun,
+) -> Result<Noun, ()> {
     let direct = cell.head().as_direct()?;
     match direct.data() {
         // %sham hints are scaffolding until we have a real jet dashboard
         tas!(b"sham") => {
             let jet_formula = cell.tail().as_cell()?;
-            let jet = jets::get_jet(jet_formula.tail())?;
-            return Ok(jet(stack, subject)?); // Punt all errors to Nock
+            let jet_name = jet_formula.tail();
+            let jet = jets::get_jet(jet_name)?;
+            let mut jet_res = jet(stack, subject)?; // Punt all errors to Nock
+
+            // if in test mode, check that the jet returns the same result as the raw nock
+            if jets::get_jet_test_mode(jet_name) {
+                let mut nock_res = interpret(stack, newt, subject, formula);
+                if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
+                    eprintln!(
+                        "\rJet {:?} failed, raw: {:?}, jetted: {:?}",
+                        jet_name, nock_res, jet_res
+                    );
+                    return Err(());
+                }
+            }
+            return Ok(jet_res);
         }
         _ => Err(()),
     }
