@@ -447,6 +447,10 @@ mod tests {
         NockStack::new(8 << 10 << 10, 0)
     }
 
+    fn atom_0(_stack: &mut NockStack) -> Noun {
+        D(0)
+    }
+
     fn atom_24(_stack: &mut NockStack) -> Noun {
         D(0x876543)
     }
@@ -622,5 +626,23 @@ mod tests {
             ubig!(0x3fffffffffffffff0000000000000001),
         );
         assert_math_jet(s, jet_mul, &[atom_24, atom_24], ubig!(0x479bf4b7ef89));
+    }
+
+    #[test]
+    fn test_div() {
+        let ref mut s = init();
+        assert_math_jet(s, jet_div, &[atom_128, atom_96], ubig!(0xe349f8f0));
+        assert_math_jet(s, jet_div, &[atom_96, atom_63], ubig!(0x1f59d6018));
+        assert_math_jet(s, jet_div, &[atom_63, atom_96], ubig!(0));
+        assert_math_jet(s, jet_div, &[atom_63, atom_63], ubig!(1));
+        assert_math_jet(s, jet_div, &[atom_63, atom_24], ubig!(0xf2044dacfe));
+        assert_math_jet(
+            s,
+            jet_div,
+            &[atom_128, atom_24],
+            ubig!(0x1a507f98b6fa8605ea3a79e97bf),
+        );
+        assert_math_jet_err(s, jet_div, &[atom_63, atom_0], Deterministic);
+        assert_math_jet_err(s, jet_div, &[atom_0, atom_0], Deterministic);
     }
 }
