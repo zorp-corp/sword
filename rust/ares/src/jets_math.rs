@@ -447,12 +447,16 @@ mod tests {
         NockStack::new(8 << 10 << 10, 0)
     }
 
-    fn atom_63() -> Noun {
+    fn atom_63(_stack: &mut NockStack) -> Noun {
         D(0x7fffffffffffffff)
     }
 
     fn atom_128(stack: &mut NockStack) -> Noun {
         A(stack, &ubig!(0xdeadbeef12345678fedcba9876543210))
+    }
+
+    fn atom_96(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(0xfaceb00c15deadbeef123456))
     }
 
     #[allow(non_snake_case)]
@@ -465,19 +469,30 @@ mod tests {
         assert!(eq, "got: {:?}, need: {:?}", a, b);
     }
 
-    fn assert_jet_eq(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
-        let sam = sample(stack, sam);
+    fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
+        let sam = T(stack, &[D(0), sam, D(0)]);
         let jet_res = jet(stack, sam).unwrap();
         assert_noun_eq(stack, jet_res, res);
     }
 
-    fn assert_jet_eq_ubig(stack: &mut NockStack, jet: Jet, sam: Noun, res: UBig) {
+    fn assert_jet_ubig(stack: &mut NockStack, jet: Jet, sam: Noun, res: UBig) {
         let res = A(stack, &res);
-        assert_jet_eq(stack, jet, sam, res);
+        assert_jet(stack, jet, sam, res);
     }
 
-    fn sample(stack: &mut NockStack, a: Noun) -> Noun {
-        T(stack, &[D(0), a, D(0)])
+    fn assert_nary_jet_ubig(stack: &mut NockStack, jet: Jet, sam: &[Noun], res: UBig) {
+        let sam = T(stack, sam);
+        assert_jet_ubig(stack, jet, sam, res);
+    }
+
+    fn assert_math_jet(
+        stack: &mut NockStack,
+        jet: Jet,
+        sam: &[fn(&mut NockStack) -> Noun],
+        res: UBig,
+    ) {
+        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
+        assert_nary_jet_ubig(stack, jet, &sam, res);
     }
 
     #[test]
@@ -494,7 +509,7 @@ mod tests {
         assert_eq!(met(7, a), 1);
         assert_eq!(met(8, a), 1);
 
-        let a = atom_63().as_atom().unwrap();
+        let a = atom_63(s).as_atom().unwrap();
         assert_eq!(met(0, a), 63);
         assert_eq!(met(1, a), 32);
         assert_eq!(met(2, a), 16);
@@ -509,7 +524,26 @@ mod tests {
     fn test_dec() {
         let ref mut s = init();
         let a = atom_128(s);
-        assert_jet_eq_ubig(s, jet_dec, a, ubig!(0xdeadbeef12345678fedcba987654320f));
-        assert_jet_eq(s, jet_dec, atom_63(), D(0x7ffffffffffffffe));
+        assert_jet_ubig(s, jet_dec, a, ubig!(0xdeadbeef12345678fedcba987654320f));
+        let a = atom_63(s);
+        assert_jet(s, jet_dec, a, D(0x7ffffffffffffffe));
+    }
+
+    #[test]
+    fn test_add() {
+        let ref mut s = init();
+        assert_math_jet(
+            s,
+            jet_add,
+            &[atom_128, atom_96],
+            ubig!(0xdeadbef00d03068514bb685765666666),
+        );
+        assert_math_jet(
+            s,
+            jet_add,
+            &[atom_63, atom_96],
+            ubig!(0xfaceb00c95deadbeef123455),
+        );
+        assert_math_jet(s, jet_add, &[atom_63, atom_63], ubig!(0xfffffffffffffffe));
     }
 }
