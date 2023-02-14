@@ -1,6 +1,7 @@
 use crate::interpreter::raw_slot;
 use crate::jets::{JetErr, JetErr::*};
 use crate::mem::NockStack;
+use crate::mug::mug;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 /** Math jets
  *
@@ -377,6 +378,11 @@ pub fn jet_rsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         chop(bloq, step, len - step, 0, dest, a.as_bitslice())?;
         Ok(atom.normalize_as_atom().as_noun())
     }
+}
+
+pub fn jet_mug(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    Ok(mug(stack, arg).as_noun())
 }
 
 /** Extract the bloq and step from a bite */
@@ -853,5 +859,26 @@ mod tests {
         let sam = T(s, &[D(4), run, a128]);
         let res = A(s, &ubig!(0xdeadbeef12345678fedcba98));
         assert_jet(s, jet_cut, sam, res);
+    }
+
+    #[test]
+    fn test_mug() {
+        let ref mut s = init();
+        let (a0, a24, a63, a96, a128) = atoms(s);
+        assert_jet(s, jet_mug, a0, D(0x79ff04e8));
+        assert_jet(s, jet_mug, a24, D(0x69d59d90));
+        assert_jet(s, jet_mug, a63, D(0x7a9f252e));
+        assert_jet(s, jet_mug, a96, D(0x2aa4c8fb));
+        assert_jet(s, jet_mug, a128, D(0x44fb2c0c));
+        let sam = T(s, &[a128, a128]);
+        assert_jet(s, jet_mug, sam, D(0x61c0ea5c));
+        let sam = T(s, &[a96, a128]);
+        assert_jet(s, jet_mug, sam, D(0x20fb143f));
+        let sam = T(s, &[a0, a0]);
+        assert_jet(s, jet_mug, sam, D(0x192f5588));
+        let sam = T(s, &[a0, a24, a63, a96, a128]);
+        let sam = T(s, &[sam, a0, a24, a63, a96, a128]);
+        let sam = T(s, &[sam, a0, a24, a63, a96, a128]);
+        assert_jet(s, jet_mug, sam, D(0x7543cac7));
     }
 }

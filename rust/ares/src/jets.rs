@@ -1,7 +1,5 @@
-use crate::interpreter::raw_slot;
 use crate::jets_math::*;
 use crate::mem::NockStack;
-use crate::mug::mug;
 use crate::noun::Noun;
 use ares_macros::tas;
 
@@ -57,9 +55,4 @@ pub fn get_jet_test_mode(jet_name: Noun) -> bool {
         tas!(b"rsh") => true,
         _ => false,
     }
-}
-
-fn jet_mug(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
-    let arg = raw_slot(subject, 6);
-    Ok(mug(stack, arg).as_noun())
 }
