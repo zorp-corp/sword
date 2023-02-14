@@ -447,6 +447,10 @@ mod tests {
         NockStack::new(8 << 10 << 10, 0)
     }
 
+    fn atoms(s: &mut NockStack) -> (Noun, Noun, Noun, Noun, Noun) {
+        (atom_0(s), atom_24(s), atom_63(s), atom_96(s), atom_128(s))
+    }
+
     fn atom_0(_stack: &mut NockStack) -> Noun {
         D(0)
     }
@@ -459,12 +463,12 @@ mod tests {
         D(0x7fffffffffffffff)
     }
 
-    fn atom_128(stack: &mut NockStack) -> Noun {
-        A(stack, &ubig!(0xdeadbeef12345678fedcba9876543210))
-    }
-
     fn atom_96(stack: &mut NockStack) -> Noun {
         A(stack, &ubig!(0xfaceb00c15deadbeef123456))
+    }
+
+    fn atom_128(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(0xdeadbeef12345678fedcba9876543210))
     }
 
     #[allow(non_snake_case)]
@@ -644,5 +648,37 @@ mod tests {
         );
         assert_math_jet_err(s, jet_div, &[atom_63, atom_0], Deterministic);
         assert_math_jet_err(s, jet_div, &[atom_0, atom_0], Deterministic);
+    }
+
+    #[test]
+    fn test_dvr() {
+        let ref mut s = init();
+        let (a0, a24, a63, a96, a128) = atoms(s);
+
+        let sam = T(s, &[a128, a96]);
+        let res_a = A(s, &ubig!(0xe349f8f0));
+        let res_b = A(s, &ubig!(0xcb0ce564ec598f658409d170));
+        let res = T(s, &[res_a, res_b]);
+        assert_jet(s, jet_dvr, sam, res);
+
+        let sam = T(s, &[a128, a24]);
+        let res_a = A(s, &ubig!(0x1a507f98b6fa8605ea3a79e97bf));
+        let res_b = A(s, &ubig!(0x3b2013));
+        let res = T(s, &[res_a, res_b]);
+        assert_jet(s, jet_dvr, sam, res);
+
+        let sam = T(s, &[a63, a63]);
+        let res_a = A(s, &ubig!(1));
+        let res_b = A(s, &ubig!(0));
+        let res = T(s, &[res_a, res_b]);
+        assert_jet(s, jet_dvr, sam, res);
+
+        let sam = T(s, &[a0, a24]);
+        let res_a = A(s, &ubig!(0));
+        let res_b = A(s, &ubig!(0));
+        let res = T(s, &[res_a, res_b]);
+        assert_jet(s, jet_dvr, sam, res);
+
+        assert_math_jet_err(s, jet_dvr, &[atom_63, atom_0], Deterministic);
     }
 }
