@@ -410,6 +410,36 @@ pub fn jet_mix(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
+pub fn jet_end(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let (bloq, step) = bite(raw_slot(arg, 2))?;
+    let bloq = bloq.as_direct()?.data() as usize;
+    if bloq >= 64 {
+        return Err(Deterministic);
+    }
+    let step = step.as_direct()?.data() as usize;
+    let a = raw_slot(arg, 3).as_atom()?;
+
+    if step == 0 {
+        Ok(D(0))
+    } else if step >= met(bloq, a) {
+        Ok(a.as_noun())
+    } else {
+        unsafe {
+            let new_size = (a
+                .bit_size()
+                .checked_sub(step << bloq)
+                .ok_or(NonDeterministic)?
+                .checked_add(63)
+                .ok_or(NonDeterministic)?)
+                >> 6;
+            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+            chop(bloq, 0, step, 0, new_slice, a.as_bitslice())?;
+            Ok(new_indirect.normalize_as_atom().as_noun())
+        }
+    }
+}
+
 pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
@@ -456,7 +486,8 @@ fn bite(a: Noun) -> Result<(Atom, Atom), ()> {
 
 /** In a bloq space, copy from `from` for a span of `step`, to position `to`.
  *
- * Note: unlike the vere version, this sets the bits instead of XORing them.
+ * Note: unlike the vere version, this sets the bits instead of XORing them.  If we need the XOR
+ * version, we could use ^=.
  */
 fn chop(
     bloq: usize,
@@ -961,6 +992,28 @@ mod tests {
         assert_math_jet(s, jet_mix, &[atom_24, atom_63], ubig!(0x7fffffffff789abc));
         assert_math_jet_noun(s, jet_mix, &[atom_0, atom_128], a128);
         assert_math_jet_noun(s, jet_mix, &[atom_128, atom_0], a128);
+    }
+
+    #[test]
+    fn test_end() {
+        let ref mut s = init();
+        let (a0, a24, _a63, a96, a128) = atoms(s);
+        let sam = T(s, &[a0, a24]);
+        assert_jet(s, jet_end, sam, D(0x1));
+        let sam = T(s, &[D(3), a24]);
+        assert_jet(s, jet_end, sam, D(0x43));
+        let sam = T(s, &[D(7), a24]);
+        assert_jet(s, jet_end, sam, a24);
+        let sam = T(s, &[D(6), a128]);
+        let res = A(s, &ubig!(0xfedcba9876543210));
+        assert_jet(s, jet_end, sam, res);
+
+        let bit = T(s, &[D(0), D(5)]);
+        let sam = T(s, &[bit, a24]);
+        assert_jet(s, jet_end, sam, D(0x3));
+        let bit = T(s, &[D(4), D(6)]);
+        let sam = T(s, &[bit, a96]);
+        assert_jet(s, jet_end, sam, a96);
     }
 
     #[test]
