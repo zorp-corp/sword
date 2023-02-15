@@ -1,4 +1,6 @@
-use crate::jets_math::*;
+mod math;
+
+use crate::jets::math::*;
 use crate::mem::NockStack;
 use crate::noun::Noun;
 use ares_macros::tas;
