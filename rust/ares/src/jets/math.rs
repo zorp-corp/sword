@@ -1,8 +1,3 @@
-use crate::interpreter::raw_slot;
-use crate::jets::{JetErr, JetErr::*};
-use crate::mem::NockStack;
-use crate::mug::mug;
-use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 /** Math jets
  *
  * We use ibig for math operations.  This is a pure rust library, and it is very convenient to use.
@@ -17,11 +12,17 @@ use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YE
  * Another approach is use a global custom allocator.  This is fairly involved, but it would allow
  * us to use any library without worrying whether it allocates.
  */
+use crate::interpreter::raw_slot;
+use crate::jets::{JetErr, JetErr::*};
+use crate::mem::NockStack;
+use crate::mug::mug;
+use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use ibig::ops::DivRem;
 use ibig::UBig;
 use num_traits::identities::One;
+use std::cmp;
 
 pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
@@ -58,25 +59,6 @@ pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     } else {
         Err(Deterministic)
     }
-}
-
-pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
-    let arg = raw_slot(subject, 6);
-    let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
-    if bloq >= 64 {
-        return Err(Deterministic);
-    }
-    let start = raw_slot(arg, 12).as_direct()?.data() as usize;
-    let run = raw_slot(arg, 13).as_direct()?.data() as usize;
-    let atom = raw_slot(arg, 7).as_atom()?;
-
-    let new_indirect = unsafe {
-        let (mut new_indirect, new_slice) =
-            IndirectAtom::new_raw_mut_bitslice(stack, ((run << bloq) + 63) >> 6);
-        chop(bloq, start, run, 0, new_slice, atom.as_bitslice())?;
-        new_indirect.normalize_as_atom()
-    };
-    Ok(new_indirect.as_noun())
 }
 
 pub fn jet_add(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
@@ -378,6 +360,41 @@ pub fn jet_rsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         chop(bloq, step, len - step, 0, dest, a.as_bitslice())?;
         Ok(atom.normalize_as_atom().as_noun())
     }
+}
+
+pub fn jet_con(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let a = raw_slot(arg, 2).as_atom()?;
+    let b = raw_slot(arg, 3).as_atom()?;
+
+    let new_size = cmp::max(a.size(), b.size());
+
+    unsafe {
+        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+        let a_bit = a.as_bitslice();
+        dest[..a_bit.len()].copy_from_bitslice(a_bit);
+        *dest |= b.as_bitslice();
+        Ok(atom.normalize_as_atom().as_noun())
+    }
+}
+
+pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
+    if bloq >= 64 {
+        return Err(Deterministic);
+    }
+    let start = raw_slot(arg, 12).as_direct()?.data() as usize;
+    let run = raw_slot(arg, 13).as_direct()?.data() as usize;
+    let atom = raw_slot(arg, 7).as_atom()?;
+
+    let new_indirect = unsafe {
+        let (mut new_indirect, new_slice) =
+            IndirectAtom::new_raw_mut_bitslice(stack, ((run << bloq) + 63) >> 6);
+        chop(bloq, start, run, 0, new_slice, atom.as_bitslice())?;
+        new_indirect.normalize_as_atom()
+    };
+    Ok(new_indirect.as_noun())
 }
 
 pub fn jet_met(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
@@ -851,6 +868,28 @@ mod tests {
         let bit = T(s, &[D(4), D(6)]);
         let sam = T(s, &[bit, a96]);
         assert_jet(s, jet_rsh, sam, D(0));
+    }
+
+    #[test]
+    fn test_con() {
+        let ref mut s = init();
+        let (_a0, _a24, a63, _a96, a128) = atoms(s);
+        assert_math_jet(s, jet_con, &[atom_0, atom_0], ubig!(0));
+        assert_math_jet(
+            s,
+            jet_con,
+            &[atom_24, atom_96],
+            ubig!(0xfaceb00c15deadbeef977557),
+        );
+        assert_math_jet(
+            s,
+            jet_con,
+            &[atom_96, atom_128],
+            ubig!(0xdeadbeeffafef67cffdebfbeff563656),
+        );
+        assert_math_jet_noun(s, jet_con, &[atom_24, atom_63], a63);
+        assert_math_jet_noun(s, jet_con, &[atom_0, atom_128], a128);
+        assert_math_jet_noun(s, jet_con, &[atom_128, atom_0], a128);
     }
 
     #[test]
