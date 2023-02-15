@@ -43,6 +43,7 @@ pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
         tas!(b"lsh") => Ok(jet_lsh),
         tas!(b"rsh") => Ok(jet_rsh),
         tas!(b"cut") => Ok(jet_cut),
+        tas!(b"met") => Ok(jet_met),
         tas!(b"mug") => Ok(jet_mug),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);

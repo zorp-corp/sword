@@ -380,6 +380,17 @@ pub fn jet_rsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
+pub fn jet_met(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
+    if bloq >= 64 {
+        return Err(Deterministic);
+    }
+    let a = raw_slot(arg, 3).as_atom()?;
+
+    Ok(D(met(bloq, a) as u64))
+}
+
 pub fn jet_mug(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     Ok(mug(stack, arg).as_noun())
@@ -859,6 +870,20 @@ mod tests {
         let sam = T(s, &[D(4), run, a128]);
         let res = A(s, &ubig!(0xdeadbeef12345678fedcba98));
         assert_jet(s, jet_cut, sam, res);
+    }
+
+    #[test]
+    fn test_jet_met() {
+        let ref mut s = init();
+        let (a0, a24, _a63, _a96, a128) = atoms(s);
+        let sam = T(s, &[a0, a0]);
+        assert_jet(s, jet_met, sam, D(0));
+        let sam = T(s, &[a0, a24]);
+        assert_jet(s, jet_met, sam, D(24));
+        let sam = T(s, &[D(3), a24]);
+        assert_jet(s, jet_met, sam, D(3));
+        let sam = T(s, &[D(1), a128]);
+        assert_jet(s, jet_met, sam, D(64));
     }
 
     #[test]
