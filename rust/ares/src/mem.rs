@@ -1,8 +1,10 @@
 use crate::assert_acyclic;
 use crate::noun::{Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use either::Either::{self, Left, Right};
+use ibig::Stack;
 use libc::{c_void, memcmp};
 use memmap::MmapMut;
+use std::alloc::Layout;
 use std::mem;
 use std::ptr;
 use std::ptr::copy_nonoverlapping;
@@ -315,6 +317,15 @@ impl NockStack {
         match &self.polarity {
             Polarity::East => self.struct_alloc_east::<T>(count),
             Polarity::West => self.struct_alloc_west::<T>(count),
+        }
+    }
+
+    /** Allocate space for an alloc::Layout in a stack frame */
+    unsafe fn layout_alloc(&mut self, layout: Layout) -> *mut u64 {
+        assert!(layout.align() <= 64, "layout alignment must be <= 64");
+        match &self.polarity {
+            Polarity::East => self.raw_alloc_east((layout.size() + 7) >> 3),
+            Polarity::West => self.raw_alloc_west((layout.size() + 7) >> 3),
         }
     }
 
@@ -821,5 +832,11 @@ impl NounAllocator for NockStack {
 
     unsafe fn alloc_cell(&mut self) -> *mut CellMemory {
         self.struct_alloc::<CellMemory>(1)
+    }
+}
+
+impl Stack for NockStack {
+    unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64 {
+        self.layout_alloc(layout)
     }
 }

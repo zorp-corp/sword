@@ -265,8 +265,7 @@ dependencies = [
 [[package]]
 name = "ibig"
 version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1fcc7f316b2c079dde77564a1360639c1a956a23fa96122732e416cb10717bb"
+source = "git+https://github.com/urbit/ibig-rs#7a675f26d3ca129045ba54f13c8e5bbde6784fd3"
 dependencies = [
  "cfg-if",
  "num-traits",

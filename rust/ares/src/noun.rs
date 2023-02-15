@@ -1,6 +1,6 @@
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either;
-use ibig::UBig;
+use ibig::{Stack, UBig};
 use intmap::IntMap;
 use std::fmt;
 use std::ptr;
@@ -142,7 +142,7 @@ impl DirectAtom {
         Atom { direct: self }
     }
 
-    pub fn as_ubig(self) -> UBig {
+    pub fn as_ubig(self, _stack: &mut dyn Stack) -> UBig {
         UBig::from(self.0)
     }
 
@@ -357,8 +357,8 @@ impl IndirectAtom {
         BitSlice::from_slice(self.as_slice())
     }
 
-    pub fn as_ubig(self) -> UBig {
-        UBig::from_le_bytes(self.as_bytes())
+    pub fn as_ubig(&self, stack: &mut dyn Stack) -> UBig {
+        UBig::from_le_bytes_stack(stack, self.as_bytes())
     }
 
     /** Ensure that the size does not contain any trailing 0 words */
@@ -565,7 +565,7 @@ impl Atom {
     // if we integrate with ibig properly.
     pub fn from_ubig(allocator: &mut dyn NounAllocator, big: &UBig) -> Atom {
         let bit_size = big.bit_len();
-        let buffer = big.to_le_bytes();
+        let buffer = big.to_le_bytes_stack();
         if bit_size < 64 {
             #[rustfmt::skip]
             let value: u64 =
@@ -624,11 +624,11 @@ impl Atom {
         }
     }
 
-    pub fn as_ubig(&self) -> UBig {
+    pub fn as_ubig(self, stack: &mut dyn Stack) -> UBig {
         if self.is_indirect() {
-            unsafe { self.indirect.as_ubig() }
+            unsafe { self.indirect.as_ubig(stack) }
         } else {
-            unsafe { self.direct.as_ubig() }
+            unsafe { self.direct.as_ubig(stack) }
         }
     }
 
