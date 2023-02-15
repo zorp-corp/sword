@@ -464,6 +464,56 @@ pub fn jet_cat(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
+pub fn jet_can(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
+    if bloq >= 64 {
+        return Err(Deterministic);
+    }
+    let original_list = raw_slot(arg, 3);
+
+    let mut len = 0 as usize;
+    let mut list = original_list;
+    loop {
+        if unsafe { list.raw_equals(D(0)) } {
+            break;
+        }
+
+        let cell = list.as_cell()?;
+        let item = cell.head().as_cell()?;
+        let step = item.head().as_direct()?.data() as usize;
+
+        len = len.checked_add(step).ok_or(NonDeterministic)?;
+        list = cell.tail();
+    }
+
+    if len == 0 {
+        Ok(D(0))
+    } else {
+        unsafe {
+            let (mut new_indirect, new_slice) =
+                IndirectAtom::new_raw_mut_bitslice(stack, len << bloq);
+            let mut pos = 0;
+            let mut list = original_list;
+            loop {
+                if list.raw_equals(D(0)) {
+                    break;
+                }
+
+                let cell = list.as_cell()?;
+                let item = cell.head().as_cell()?;
+                let step = item.head().as_direct()?.data() as usize;
+                let atom = item.tail().as_atom()?;
+                chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
+
+                pos += step;
+                list = cell.tail();
+            }
+            Ok(new_indirect.normalize_as_atom().as_noun())
+        }
+    }
+}
+
 pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
@@ -1077,6 +1127,25 @@ mod tests {
         let sam = T(s, &[D(4), run, a128]);
         let res = A(s, &ubig!(0xdeadbeef12345678fedcba98));
         assert_jet(s, jet_cut, sam, res);
+    }
+
+    #[test]
+    fn test_can() {
+        let ref mut s = init();
+        let (a0, a24, a63, a96, a128) = atoms(s);
+        let sam = T(s, &[D(0), D(0)]);
+        assert_jet(s, jet_can, sam, D(0));
+        let run1 = T(s, &[D(0), a0]);
+        let run2 = T(s, &[D(3), a24]);
+        let run3 = T(s, &[D(2), a63]);
+        let run4 = T(s, &[D(16), a96]);
+        let run5 = T(s, &[D(8), a128]);
+        let sam = T(s, &[D(3), run1, run2, run3, run4, run5, D(0)]);
+        let res = A(
+            s,
+            &ubig!(_0xfedcba987654321000000000faceb00c15deadbeef123456ffff876543),
+        );
+        assert_jet(s, jet_can, sam, res);
     }
 
     #[test]
