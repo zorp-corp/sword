@@ -303,11 +303,6 @@ pub fn jet_bex(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 pub fn jet_lsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let (bloq, step) = bite(raw_slot(arg, 2))?;
-    let bloq = bloq.as_direct()?.data() as usize;
-    if bloq >= 64 {
-        return Err(Deterministic);
-    }
-    let step = step.as_direct()?.data() as usize;
     let a = raw_slot(arg, 3).as_atom()?;
 
     // TODO: need to assert step << bloq doesn't overflow?
@@ -334,11 +329,6 @@ pub fn jet_lsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 pub fn jet_rsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let (bloq, step) = bite(raw_slot(arg, 2))?;
-    let bloq = bloq.as_direct()?.data() as usize;
-    if bloq >= 64 {
-        return Err(Deterministic);
-    }
-    let step = step.as_direct()?.data() as usize;
     let a = raw_slot(arg, 3).as_atom()?;
 
     let len = met(bloq, a);
@@ -413,11 +403,6 @@ pub fn jet_mix(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 pub fn jet_end(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let (bloq, step) = bite(raw_slot(arg, 2))?;
-    let bloq = bloq.as_direct()?.data() as usize;
-    if bloq >= 64 {
-        return Err(Deterministic);
-    }
-    let step = step.as_direct()?.data() as usize;
     let a = raw_slot(arg, 3).as_atom()?;
 
     if step == 0 {
@@ -444,7 +429,7 @@ pub fn jet_cat(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
     if bloq >= 64 {
-        return Err(Deterministic);
+        return Err(NonDeterministic);
     }
     let a = raw_slot(arg, 6).as_atom()?;
     let b = raw_slot(arg, 7).as_atom()?;
@@ -468,7 +453,7 @@ pub fn jet_can(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
     if bloq >= 64 {
-        return Err(Deterministic);
+        return Err(NonDeterministic);
     }
     let original_list = raw_slot(arg, 3);
 
@@ -514,11 +499,54 @@ pub fn jet_can(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
+pub fn jet_rep(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let (bloq, step) = bite(raw_slot(arg, 2))?;
+    let original_list = raw_slot(arg, 3);
+
+    let mut len = 0 as usize;
+    let mut list = original_list;
+    loop {
+        if unsafe { list.raw_equals(D(0)) } {
+            break;
+        }
+
+        let cell = list.as_cell()?;
+
+        len = len.checked_add(step).ok_or(NonDeterministic)?;
+        list = cell.tail();
+    }
+
+    if len == 0 {
+        Ok(D(0))
+    } else {
+        unsafe {
+            let (mut new_indirect, new_slice) =
+                IndirectAtom::new_raw_mut_bitslice(stack, len << bloq);
+            let mut pos = 0;
+            let mut list = original_list;
+            loop {
+                if list.raw_equals(D(0)) {
+                    break;
+                }
+
+                let cell = list.as_cell()?;
+                let atom = cell.head().as_atom()?;
+                chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
+
+                pos += step;
+                list = cell.tail();
+            }
+            Ok(new_indirect.normalize_as_atom().as_noun())
+        }
+    }
+}
+
 pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
     if bloq >= 64 {
-        return Err(Deterministic);
+        return Err(NonDeterministic);
     }
     let start = raw_slot(arg, 12).as_direct()?.data() as usize;
     let run = raw_slot(arg, 13).as_direct()?.data() as usize;
@@ -537,7 +565,7 @@ pub fn jet_met(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
     if bloq >= 64 {
-        return Err(Deterministic);
+        return Err(NonDeterministic);
     }
     let a = raw_slot(arg, 3).as_atom()?;
 
@@ -550,11 +578,20 @@ pub fn jet_mug(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 }
 
 /** Extract the bloq and step from a bite */
-fn bite(a: Noun) -> Result<(Atom, Atom), ()> {
+fn bite(a: Noun) -> Result<(usize, usize), ()> {
     if let Ok(cell) = a.as_cell() {
-        Ok((cell.head().as_atom()?, cell.tail().as_atom()?))
+        let bloq = cell.head().as_direct()?.data() as usize;
+        if bloq >= 64 {
+            return Err(());
+        }
+        let step = cell.tail().as_direct()?.data() as usize;
+        Ok((bloq, step))
     } else {
-        Ok((a.as_atom()?, D(1).as_atom()?))
+        let bloq = a.as_direct()?.data() as usize;
+        if bloq >= 64 {
+            return Err(());
+        }
+        Ok((bloq, 1))
     }
 }
 
@@ -1146,6 +1183,18 @@ mod tests {
             &ubig!(_0xfedcba987654321000000000faceb00c15deadbeef123456ffff876543),
         );
         assert_jet(s, jet_can, sam, res);
+    }
+
+    #[test]
+    fn test_rep() {
+        let ref mut s = init();
+        let (a0, a24, a63, a96, a128) = atoms(s);
+        let sam = T(s, &[D(0), D(0)]);
+        assert_jet(s, jet_rep, sam, D(0));
+        let bit = T(s, &[D(3), D(2)]);
+        let sam = T(s, &[bit, a0, a24, a63, a96, a128, D(0)]);
+        let res = A(s, &ubig!(0x32103456ffff65430000));
+        assert_jet(s, jet_rep, sam, res);
     }
 
     #[test]
