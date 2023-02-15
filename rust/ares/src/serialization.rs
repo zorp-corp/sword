@@ -7,6 +7,8 @@ use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
 use intmap::IntMap;
 
+crate::gdb!();
+
 pub fn met0_usize(atom: Atom) -> usize {
     let atom_bitslice = atom.as_bitslice();
     match atom_bitslice.last_one() {

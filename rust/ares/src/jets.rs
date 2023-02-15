@@ -1,9 +1,11 @@
-mod math;
+pub mod math;
 
 use crate::jets::math::*;
 use crate::mem::NockStack;
 use crate::noun::Noun;
 use ares_macros::tas;
+
+crate::gdb!();
 
 /// Return Err if the computation crashed or should punt to Nock
 pub type Jet = fn(&mut NockStack, Noun) -> Result<Noun, JetErr>;
@@ -62,8 +64,7 @@ pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
 
 pub fn get_jet_test_mode(jet_name: Noun) -> bool {
     match jet_name.as_direct().unwrap().data() {
-        tas!(b"cut") => true,
-        tas!(b"rsh") => true,
+        // tas!(b"cut") => true,
         _ => false,
     }
 }

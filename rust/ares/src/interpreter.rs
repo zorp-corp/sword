@@ -9,6 +9,8 @@ use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 
+crate::gdb!();
+
 #[derive(Copy, Clone, FromPrimitive, ToPrimitive, Debug)]
 #[repr(u64)]
 enum NockWork {
@@ -522,7 +524,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
             }
         }
     } else {
-        panic!("Bad formula: atoms are not formulas: {:?}", formula);
+        panic!("Bad formula: atoms are not formulas: {}", formula);
     }
 }
 
@@ -549,7 +551,7 @@ pub fn slot(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
                 noun = cell.head();
             }
         } else {
-            panic!("Axis tried to descend through atom: {:?}", noun);
+            panic!("Axis tried to descend through atom: {}", noun);
         };
     }
     noun
@@ -590,7 +592,7 @@ fn edit(
                     (*cellmem).tail = tree_cell.tail();
                     dest = &mut ((*cellmem).head);
                 }
-                tree = tree_cell.tail();
+                tree = tree_cell.head();
             }
         } else {
             panic!("Invalid axis for edit");
@@ -639,21 +641,26 @@ fn match_pre_hint(
         tas!(b"sham") => {
             let jet_formula = cell.tail().as_cell()?;
             let jet_name = jet_formula.tail();
-            let jet = jets::get_jet(jet_name)?;
-            let mut jet_res = jet(stack, subject)?; // Punt all errors to Nock
 
-            // if in test mode, check that the jet returns the same result as the raw nock
-            if jets::get_jet_test_mode(jet_name) {
-                let mut nock_res = interpret(stack, newt, subject, formula);
-                if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
-                    eprintln!(
-                        "\rJet {:?} failed, raw: {:?}, jetted: {:?}",
-                        jet_name, nock_res, jet_res
-                    );
-                    return Err(());
+            let jet = jets::get_jet(jet_name)?;
+            if let Ok(mut jet_res) = jet(stack, subject) {
+                // if in test mode, check that the jet returns the same result as the raw nock
+                if jets::get_jet_test_mode(jet_name) {
+                    let mut nock_res = interpret(stack, newt, subject, formula);
+                    if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
+                        eprintln!(
+                            "\rJet {} failed, raw: {}, jetted: {}",
+                            jet_name, nock_res, jet_res
+                        );
+                        return Err(());
+                    }
                 }
+                return Ok(jet_res);
+            } else {
+                // Print jet errors and punt to Nock
+                eprintln!("\rJet {} failed", jet_name);
+                return Err(());
             }
-            return Ok(jet_res);
         }
         _ => Err(()),
     }
@@ -676,7 +683,7 @@ fn match_post_hint(
             if let Some(not) = newt {
                 not.slog(stack, pri, tank);
             } else {
-                println!("slog: {:?} {:?}", pri, tank);
+                println!("slog: {} {}", pri, tank);
             }
             Err(())
         }

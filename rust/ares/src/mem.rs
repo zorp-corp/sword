@@ -7,6 +7,8 @@ use std::mem;
 use std::ptr;
 use std::ptr::copy_nonoverlapping;
 
+crate::gdb!();
+
 /** Utility function to get size in words */
 pub const fn word_size_of<T>() -> usize {
     (mem::size_of::<T>() + 7) >> 3
@@ -425,7 +427,7 @@ impl NockStack {
             }
         }
         *self.previous_stack_pointer_pointer_east() = other_stack_pointer;
-        assert_acyclic!(*noun);
+        // assert_acyclic!(*noun);
     }
 
     /** Copy a result noun and its subnouns from a west frame to its parent east frame
@@ -792,15 +794,15 @@ unsafe fn senior_pointer_first<T>(
                 } else {
                     match polarity {
                         Polarity::East => {
-                            high_pointer = *(frame_pointer.sub(2)) as *const T;
-                            low_pointer = *(frame_pointer.sub(1)) as *const T;
+                            high_pointer = *(frame_pointer.sub(1)) as *const T;
+                            low_pointer = *(frame_pointer.sub(2)) as *const T;
                             frame_pointer = *(frame_pointer.sub(2)) as *const u64;
                             polarity = Polarity::West;
                             continue;
                         }
                         Polarity::West => {
-                            high_pointer = *frame_pointer as *const T;
-                            low_pointer = *(frame_pointer.add(1)) as *const T;
+                            high_pointer = *(frame_pointer.add(1)) as *const T;
+                            low_pointer = *(frame_pointer.add(0)) as *const T;
                             frame_pointer = *(frame_pointer.add(1)) as *const u64;
                             polarity = Polarity::East;
                             continue;

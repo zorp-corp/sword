@@ -24,6 +24,8 @@ use ibig::UBig;
 use num_traits::identities::One;
 use std::cmp;
 
+crate::gdb!();
+
 pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     if let Ok(atom) = arg.as_atom() {
@@ -709,7 +711,7 @@ mod tests {
 
     fn assert_noun_eq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
         let eq = unsafe { unifying_equality(stack, &mut a, &mut b) };
-        assert!(eq, "got: {:?}, need: {:?}", a, b);
+        assert!(eq, "got: {}, need: {}", a, b);
     }
 
     fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
@@ -754,7 +756,7 @@ mod tests {
         let jet_res = jet(stack, sam);
         assert!(
             jet_res.is_err(),
-            "with sample: {:?}, expected err: {:?}, got: {:?}",
+            "with sample: {}, expected err: {:?}, got: {:?}",
             sam,
             err,
             &jet_res
@@ -762,7 +764,7 @@ mod tests {
         let jet_err = jet_res.unwrap_err();
         assert_eq!(
             jet_err, err,
-            "with sample: {:?}, expected err: {:?}, got: {:?}",
+            "with sample: {}, expected err: {:?}, got: {:?}",
             sam, err, jet_err
         );
     }

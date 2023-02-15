@@ -6,6 +6,8 @@ use std::fmt;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
+crate::gdb!();
+
 /** Tag for a direct atom. */
 const DIRECT_TAG: u64 = 0x0;
 
@@ -41,7 +43,7 @@ pub const NO: Noun = D(1);
 #[macro_export]
 macro_rules! assert_acyclic {
     ( $x:expr ) => {
-        assert!(acyclic_noun($x));
+        assert!(crate::noun::acyclic_noun($x));
     };
 }
 
@@ -157,9 +159,32 @@ impl DirectAtom {
     }
 }
 
-impl fmt::Debug for DirectAtom {
+impl fmt::Display for DirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.0)
+        if self.0 == 0 {
+            return write!(f, "0");
+        }
+
+        let mut null = false;
+        let mut n = 0;
+        let bytes = self.0.to_le_bytes();
+        for byte in bytes.iter() {
+            if *byte == 0 {
+                null = true;
+                continue;
+            }
+            if (null && *byte != 0) || *byte < 33 || *byte > 126 {
+                return write!(f, "{}", self.0);
+            }
+            n += 1;
+        }
+        if n > 1 {
+            write!(f, "%{}", unsafe {
+                std::str::from_utf8_unchecked(&bytes[..n])
+            })
+        } else {
+            write!(f, "{}", self.0)
+        }
     }
 }
 
@@ -375,7 +400,7 @@ impl IndirectAtom {
     }
 }
 
-impl fmt::Debug for IndirectAtom {
+impl fmt::Display for IndirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x")?;
         let mut i = self.size() - 1;
@@ -485,19 +510,19 @@ impl Cell {
     }
 }
 
-impl fmt::Debug for Cell {
+impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
         let mut cell = *self;
         loop {
-            write!(f, "{:?}", cell.head())?;
+            write!(f, "{}", cell.head())?;
             match cell.tail().as_cell() {
                 Ok(next_cell) => {
                     write!(f, " ")?;
                     cell = next_cell;
                 }
                 Err(_) => {
-                    write!(f, " {:?}]", cell.tail())?;
+                    write!(f, " {}]", cell.tail())?;
                     break;
                 }
             }
@@ -641,7 +666,7 @@ impl Atom {
     }
 }
 
-impl fmt::Debug for Atom {
+impl fmt::Display for Atom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_noun().fmt(f)
     }
@@ -716,7 +741,7 @@ impl Allocated {
     }
 }
 
-impl fmt::Debug for Allocated {
+impl fmt::Display for Allocated {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_noun().fmt(f)
     }
@@ -818,18 +843,24 @@ impl Noun {
 }
 
 impl fmt::Debug for Noun {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
+impl fmt::Display for Noun {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         unsafe {
             if self.is_direct() {
-                write!(f, "{:?}", self.direct)
+                write!(f, "{}", self.direct)
             } else if self.is_indirect() {
-                write!(f, "{:?}", self.indirect)
+                write!(f, "{}", self.indirect)
             } else if self.is_cell() {
-                write!(f, "{:?}", self.cell)
+                write!(f, "{}", self.cell)
             } else if self.allocated.forwarding_pointer().is_some() {
                 write!(
                     f,
-                    "Noun::Forwarding({:?})",
+                    "Noun::Forwarding({})",
                     self.allocated.forwarding_pointer().unwrap()
                 )
             } else {
