@@ -378,6 +378,22 @@ pub fn jet_con(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
+pub fn jet_dis(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let a = raw_slot(arg, 2).as_atom()?;
+    let b = raw_slot(arg, 3).as_atom()?;
+
+    let new_size = cmp::max(a.size(), b.size());
+
+    unsafe {
+        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+        let a_bit = a.as_bitslice();
+        dest[..a_bit.len()].copy_from_bitslice(a_bit);
+        *dest &= b.as_bitslice();
+        Ok(atom.normalize_as_atom().as_noun())
+    }
+}
+
 pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
@@ -890,6 +906,23 @@ mod tests {
         assert_math_jet_noun(s, jet_con, &[atom_24, atom_63], a63);
         assert_math_jet_noun(s, jet_con, &[atom_0, atom_128], a128);
         assert_math_jet_noun(s, jet_con, &[atom_128, atom_0], a128);
+    }
+
+    #[test]
+    fn test_dis() {
+        let ref mut s = init();
+        let (a0, a24, _a63, _a96, _a128) = atoms(s);
+        assert_math_jet(s, jet_dis, &[atom_0, atom_0], ubig!(0));
+        assert_math_jet(s, jet_dis, &[atom_24, atom_96], ubig!(0x22442));
+        assert_math_jet(
+            s,
+            jet_dis,
+            &[atom_96, atom_128],
+            ubig!(0x1204100814dca89866103010),
+        );
+        assert_math_jet_noun(s, jet_dis, &[atom_24, atom_63], a24);
+        assert_math_jet_noun(s, jet_dis, &[atom_0, atom_128], a0);
+        assert_math_jet_noun(s, jet_dis, &[atom_128, atom_0], a0);
     }
 
     #[test]
