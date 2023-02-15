@@ -16,7 +16,7 @@ use crate::interpreter::raw_slot;
 use crate::jets::{JetErr, JetErr::*};
 use crate::mem::NockStack;
 use crate::mug::mug;
-use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
+use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use ibig::ops::DivRem;
@@ -561,6 +561,25 @@ pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     Ok(new_indirect.as_noun())
 }
 
+pub fn jet_rip(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let (bloq, step) = bite(raw_slot(arg, 2))?;
+    let atom = raw_slot(arg, 3).as_atom()?;
+    let len = (met(bloq, atom) + step - 1) / step;
+
+    let mut list = D(0);
+    for i in (0..len).rev() {
+        let new_atom = unsafe {
+            let (mut new_indirect, new_slice) =
+                IndirectAtom::new_raw_mut_bitslice(stack, step << bloq);
+            chop(bloq, i * step, step, 0, new_slice, atom.as_bitslice())?;
+            new_indirect.normalize_as_atom()
+        };
+        list = Cell::new(stack, new_atom.as_noun(), list).as_noun();
+    }
+    Ok(list)
+}
+
 pub fn jet_met(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
@@ -600,7 +619,7 @@ fn bite(a: Noun) -> Result<(usize, usize), ()> {
  * Note: unlike the vere version, this sets the bits instead of XORing them.  If we need the XOR
  * version, we could use ^=.
  */
-fn chop(
+unsafe fn chop(
     bloq: usize,
     from: usize,
     step: usize,
@@ -1195,6 +1214,29 @@ mod tests {
         let sam = T(s, &[bit, a0, a24, a63, a96, a128, D(0)]);
         let res = A(s, &ubig!(0x32103456ffff65430000));
         assert_jet(s, jet_rep, sam, res);
+    }
+
+    #[test]
+    fn test_rip() {
+        let ref mut s = init();
+        let (_a0, _a24, _a63, _a96, a128) = atoms(s);
+        let sam = T(s, &[D(0), D(0)]);
+        assert_jet(s, jet_rip, sam, D(0));
+        let bit = T(s, &[D(1), D(2)]);
+        let sam = T(s, &[bit, a128]);
+        #[rustfmt::skip]
+        let res = T(
+            s,
+            &[
+                D(0x0), D(0x1), D(0x2), D(0x3), D(0x4), D(0x5), D(0x6), D(0x7),
+                D(0x8), D(0x9), D(0xa), D(0xb), D(0xc), D(0xd), D(0xe), D(0xf),
+                D(0x8), D(0x7), D(0x6), D(0x5), D(0x4), D(0x3), D(0x2), D(0x1),
+                D(0xf), D(0xe), D(0xe), D(0xb), D(0xd), D(0xa), D(0xe), D(0xd),
+                D(0x0),
+            ],
+        );
+
+        assert_jet(s, jet_rip, sam, res);
     }
 
     #[test]
