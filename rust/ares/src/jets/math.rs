@@ -440,6 +440,30 @@ pub fn jet_end(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
+pub fn jet_cat(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
+    if bloq >= 64 {
+        return Err(Deterministic);
+    }
+    let a = raw_slot(arg, 6).as_atom()?;
+    let b = raw_slot(arg, 7).as_atom()?;
+
+    let new_size = a.size() + b.size();
+    if new_size == 0 {
+        Ok(a.as_noun())
+    } else {
+        unsafe {
+            let len_a = met(bloq, a);
+            let len_b = met(bloq, b);
+            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+            chop(bloq, 0, len_a, 0, new_slice, a.as_bitslice())?;
+            chop(bloq, 0, len_b, len_a, new_slice, b.as_bitslice())?;
+            Ok(new_indirect.normalize_as_atom().as_noun())
+        }
+    }
+}
+
 pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
@@ -1014,6 +1038,26 @@ mod tests {
         let bit = T(s, &[D(4), D(6)]);
         let sam = T(s, &[bit, a96]);
         assert_jet(s, jet_end, sam, a96);
+    }
+
+    #[test]
+    fn test_cat() {
+        let ref mut s = init();
+        let (a0, a24, a63, _a96, a128) = atoms(s);
+        let sam = T(s, &[a0, a0, a0]);
+        assert_jet(s, jet_cat, sam, D(0));
+        let sam = T(s, &[a0, a24, a128]);
+        let res = A(s, &ubig!(_0xdeadbeef12345678fedcba9876543210876543));
+        assert_jet(s, jet_cat, sam, res);
+        let sam = T(s, &[a0, a63, a24]);
+        let res = A(s, &ubig!(0x43b2a1ffffffffffffffff));
+        assert_jet(s, jet_cat, sam, res);
+        let sam = T(s, &[D(1), a63, a24]);
+        let res = A(s, &ubig!(0x8765437fffffffffffffff));
+        assert_jet(s, jet_cat, sam, res);
+        let sam = T(s, &[D(4), a24, a128]);
+        let res = A(s, &ubig!(_0xdeadbeef12345678fedcba987654321000876543));
+        assert_jet(s, jet_cat, sam, res);
     }
 
     #[test]
