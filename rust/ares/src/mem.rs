@@ -792,15 +792,15 @@ unsafe fn senior_pointer_first<T>(
                 } else {
                     match polarity {
                         Polarity::East => {
-                            high_pointer = *(frame_pointer.sub(2)) as *const T;
-                            low_pointer = *(frame_pointer.sub(1)) as *const T;
+                            high_pointer = *(frame_pointer.sub(1)) as *const T;
+                            low_pointer = *(frame_pointer.sub(2)) as *const T;
                             frame_pointer = *(frame_pointer.sub(2)) as *const u64;
                             polarity = Polarity::West;
                             continue;
                         }
                         Polarity::West => {
-                            high_pointer = *frame_pointer as *const T;
-                            low_pointer = *(frame_pointer.add(1)) as *const T;
+                            high_pointer = *frame_pointer.add(1) as *const T;
+                            low_pointer = *frame_pointer as *const T;
                             frame_pointer = *(frame_pointer.add(1)) as *const u64;
                             polarity = Polarity::East;
                             continue;
