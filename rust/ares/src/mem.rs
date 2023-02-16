@@ -1,5 +1,5 @@
 use crate::assert_acyclic;
-use crate::noun::{Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
+use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use either::Either::{self, Left, Right};
 use libc::{c_void, memcmp};
 use memmap::MmapMut;
@@ -106,6 +106,18 @@ impl NockStack {
     /** Size **in 64-bit words** of this NockStack */
     pub fn size(&self) -> usize {
         self.size
+    }
+
+    #[inline]
+    pub fn in_frame(&self, ptr: *const u64) -> bool {
+        match &self.polarity {
+            Polarity::East => {
+                ptr >= self.frame_pointer && ptr < self.stack_pointer
+            },
+            Polarity::West => {
+                ptr >= self.stack_pointer && ptr < self.frame_pointer
+            },
+        }
     }
 
     /** Mutable pointer to a slot in a stack frame: east stack */
@@ -229,6 +241,28 @@ impl NockStack {
         }
     }
 
+    unsafe fn struct_alloc_in_previous_frame_east<T>(&mut self, count: usize) -> *mut T {
+        let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_east();
+        // note that the allocation is on the west frame, and thus resembles raw_alloc_west
+        let alloc = *(prev_stack_pointer_pointer);
+        *prev_stack_pointer_pointer = (*prev_stack_pointer_pointer).add(word_size_of::<T>() * count);
+        alloc as *mut T
+    }
+
+    unsafe fn struct_alloc_in_previous_frame_west<T>(&mut self, count: usize) -> *mut T {
+        let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_west();
+        // note that the allocation is on the east frame, and thus resembles raw_alloc_east
+        *prev_stack_pointer_pointer = (*prev_stack_pointer_pointer).sub(word_size_of::<T>() * count);
+        *prev_stack_pointer_pointer as *mut T
+    }
+
+    pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
+        match &self.polarity {
+            Polarity::East => self.struct_alloc_in_previous_frame_east(count),
+            Polarity::West => self.struct_alloc_in_previous_frame_west(count),
+        }
+    }
+
     unsafe fn top_in_previous_frame_east<T>(&mut self) -> *mut T {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_east();
         (*prev_stack_pointer_pointer).sub(word_size_of::<T>()) as *mut T
@@ -309,7 +343,7 @@ impl NockStack {
         self.raw_alloc_west(word_size_of::<T>() * count) as *mut T
     }
 
-    unsafe fn struct_alloc<T>(&mut self, count: usize) -> *mut T {
+    pub unsafe fn struct_alloc<T>(&mut self, count: usize) -> *mut T {
         match &self.polarity {
             Polarity::East => self.struct_alloc_east::<T>(count),
             Polarity::West => self.struct_alloc_west::<T>(count),
@@ -539,48 +573,31 @@ impl NockStack {
         assert_acyclic!(*noun);
     }
 
-    /** Pop a frame from the (east) stack, providing a result, which will be copied to the return target
-     * (west) frame. */
-    unsafe fn pop_east(&mut self, result: &mut Noun) {
-        self.copy_east(result);
-        self.pop_no_copy_east();
-    }
-
-    unsafe fn pop_no_copy_east(&mut self) {
+    unsafe fn pop_east(&mut self) {
         self.stack_pointer = *self.previous_stack_pointer_pointer_east();
         self.frame_pointer = *self.previous_frame_pointer_pointer_east();
         self.polarity = Polarity::West;
     }
 
-    /** Pop a frame from the (west) stack, providing a result, which will be copied to the return target
-     * (east) frame. */
-    unsafe fn pop_west(&mut self, result: &mut Noun) {
-        self.copy_west(result);
-        self.pop_no_copy_west();
-    }
 
-    unsafe fn pop_no_copy_west(&mut self) {
+    unsafe fn pop_west(&mut self) {
         self.stack_pointer = *self.previous_stack_pointer_pointer_west();
         self.frame_pointer = *self.previous_frame_pointer_pointer_west();
         self.polarity = Polarity::East;
     }
 
-    pub unsafe fn pop_no_copy(&mut self) {
+    /** Pop a stack frame. If references to stack allocated functions are maintained past a pop,
+     * then call `preserve()` to ensure those objects are copied out.
+     */
+    pub unsafe fn pop(&mut self) {
         match &self.polarity {
-            Polarity::East => self.pop_no_copy_east(),
-            Polarity::West => self.pop_no_copy_west(),
+            Polarity::East => self.pop_east(),
+            Polarity::West => self.pop_west(),
         }
     }
 
-    /** Pop a frame from the stack, providing a result, which will be copied to the return target
-     * frame. */
-    pub fn pop(&mut self, result: &mut Noun) {
-        unsafe {
-            match &self.polarity {
-                Polarity::East => self.pop_east(result),
-                Polarity::West => self.pop_west(result),
-            };
-        }
+    pub unsafe fn preserve<T: Preserve>(&mut self, x: &mut T) {
+        x.preserve(self);
     }
 
     /** Push a frame onto the west stack with 0 or more local variable slots.
@@ -753,7 +770,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         }
     }
     stack.restore_prev_stack_pointer_from_local(0);
-    stack.pop_no_copy();
+    stack.pop();
     assert_acyclic!(*a);
     assert_acyclic!(*b);
     (*a).raw_equals(*b)
@@ -826,5 +843,45 @@ impl NounAllocator for NockStack {
 
     unsafe fn alloc_cell(&mut self) -> *mut CellMemory {
         self.struct_alloc::<CellMemory>(1)
+    }
+}
+
+/// Immutable, acyclic objects which may be copied up the stack
+pub trait Preserve {
+    /// Ensure an object will not be invalidated by popping the NockStack
+    unsafe fn preserve(&mut self, stack: &mut NockStack);
+}
+
+impl Preserve for IndirectAtom {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        let size = indirect_raw_size(*self);
+        let buf = stack.struct_alloc_in_previous_frame::<u64>(size);
+        copy_nonoverlapping(self.to_raw_pointer(), buf, size);
+        *self = IndirectAtom::from_raw_pointer(buf);
+    }
+}
+
+impl Preserve for Atom {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        match self.as_either() {
+            Left(_direct) => {},
+            Right(mut indirect) => {
+                indirect.preserve(stack);
+                *self = indirect.as_atom();
+            },
+        }
+    }
+}
+
+impl Preserve for Noun {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        match stack.polarity {
+            Polarity::East => {
+                stack.copy_east(self);
+            },
+            Polarity::West => {
+                stack.copy_west(self);
+            },
+        }
     }
 }

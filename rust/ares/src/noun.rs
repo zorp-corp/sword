@@ -649,7 +649,7 @@ impl fmt::Debug for Allocated {
 #[repr(C)]
 #[repr(packed(8))]
 pub union Noun {
-    raw: u64,
+    pub(crate) raw: u64,
     direct: DirectAtom,
     indirect: IndirectAtom,
     atom: Atom,
@@ -737,6 +737,10 @@ impl Noun {
     /** Are these the same noun */
     pub unsafe fn raw_equals(self, other: Noun) -> bool {
         self.raw == other.raw
+    }
+
+    pub unsafe fn from_raw(raw: u64) -> Noun {
+        Noun { raw: raw }
     }
 }
 

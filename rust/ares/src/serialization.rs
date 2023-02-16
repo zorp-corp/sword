@@ -36,7 +36,10 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
         if unsafe { stack.prev_stack_pointer_equals_local(0) } {
             let mut result = unsafe { *(stack.local_noun_pointer(1)) };
             assert_acyclic!(result);
-            stack.pop(&mut result);
+            unsafe {
+                stack.preserve(&mut result);
+                stack.pop();
+            }
             break result;
         } else {
             let dest_ptr: *mut Noun = unsafe { *(stack.top_in_previous_frame()) };
@@ -241,11 +244,12 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
             }
         }
     }
-    let mut result = unsafe { state.atom.normalize_as_atom().as_noun() };
-    stack.pop(&mut result);
-    result.as_atom().expect(
-        "IMPOSSIBLE: result was coerced from an atom so should not fail coercion to an atom",
-    )
+    unsafe {
+        let mut result = state.atom.normalize_as_atom();
+        stack.preserve(&mut result);
+        stack.pop();
+        result
+    }
 }
 
 fn jam_atom(traversal: &mut NockStack, state: &mut JamState, atom: Atom) {

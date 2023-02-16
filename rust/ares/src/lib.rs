@@ -7,8 +7,10 @@ pub mod mug;
 pub mod newt;
 pub mod noun;
 pub mod serf;
+//pub mod bytecode;
 pub mod serialization;
 pub mod snapshot;
+pub mod hamt;
 
 #[cfg(test)]
 mod tests {
