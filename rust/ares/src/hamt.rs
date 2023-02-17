@@ -54,7 +54,7 @@ impl<T: Copy> Stem<T> {
         self.index(chunk).map(|idx| {
             (
                 unsafe {
-                    if self.typemap & chunk_to_bit(chunk) == 1 {
+                    if self.typemap & chunk_to_bit(chunk) != 0 {
                         Left((*self.buffer.add(idx)).stem)
                     } else {
                         Right((*self.buffer.add(idx)).leaf)
@@ -239,9 +239,12 @@ impl<T: Copy> Hamt<T> {
                             assert!(leaf.len == 1);
                             let fake_buffer = stack.struct_alloc(1);
                             *fake_buffer = Entry { leaf: leaf };
+                            // get the mug chunk for the noun at *the next level* so
+                            // we can build a fake stem for it
+                            let fake_mug = mug_u32(stack, (*leaf.buffer).0);
+                            let fake_chunk = (fake_mug >> (depth + 1)) & 0x1F;
                             let next_stem = Stem {
-                                // XX bug, we need the *next* chunk in the *conflicting key's mug*
-                                bitmap: chunk_to_bit(chunk),
+                                bitmap: chunk_to_bit(fake_chunk),
                                 typemap: 0,
                                 buffer: fake_buffer,
                             };
