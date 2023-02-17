@@ -242,7 +242,7 @@ impl<T: Copy> Hamt<T> {
                             // get the mug chunk for the noun at *the next level* so
                             // we can build a fake stem for it
                             let fake_mug = mug_u32(stack, (*leaf.buffer).0);
-                            let fake_chunk = (fake_mug >> (depth + 1)) & 0x1F;
+                            let fake_chunk = (fake_mug >> ((depth + 1) * 5)) & 0x1F;
                             let next_stem = Stem {
                                 bitmap: chunk_to_bit(fake_chunk),
                                 typemap: 0,
