@@ -1,5 +1,7 @@
 #[macro_use]
 extern crate num_derive;
+#[macro_use]
+extern crate static_assertions;
 pub mod interpreter;
 pub mod jets;
 pub mod mem;
