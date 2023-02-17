@@ -1,7 +1,7 @@
-use either::Either::{self, *};
-use crate::noun::Noun;
-use crate::mem::{NockStack, unifying_equality, Preserve};
+use crate::mem::{unifying_equality, NockStack, Preserve};
 use crate::mug::mug_u32;
+use crate::noun::Noun;
+use either::Either::{self, *};
 use std::ptr::{copy_nonoverlapping, null};
 use std::slice;
 
@@ -11,13 +11,13 @@ fn chunk_to_bit(chunk: u32) -> u32 {
 }
 
 #[inline]
-fn chunk_to_mask(chunk: u32) -> u32 { // mask out the bit for the chunk and all more significant
+fn chunk_to_mask(chunk: u32) -> u32 {
+    // mask out the bit for the chunk and all more significant
     chunk_to_bit(chunk) - 1
 }
 
-
 #[repr(packed)]
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 struct Stem<T: Copy> {
     bitmap: u32,
     typemap: u32,
@@ -31,12 +31,12 @@ impl<T: Copy> Stem<T> {
     }
 
     #[inline]
-    fn has_index(self, chunk:u32) -> bool {
+    fn has_index(self, chunk: u32) -> bool {
         self.bitmap & chunk_to_bit(chunk) == 1
     }
 
     #[inline]
-    fn hypothetical_index(self, chunk:u32) -> usize {
+    fn hypothetical_index(self, chunk: u32) -> usize {
         (self.bitmap & chunk_to_mask(chunk)).count_ones() as usize
     }
 
@@ -50,25 +50,27 @@ impl<T: Copy> Stem<T> {
     }
 
     #[inline]
-    fn entry(self, chunk: u32) -> Option<(Either<Stem<T>,Leaf<T>>, usize)> {
+    fn entry(self, chunk: u32) -> Option<(Either<Stem<T>, Leaf<T>>, usize)> {
         self.index(chunk).map(|idx| {
-            (unsafe {
-                if self.typemap & chunk_to_bit(chunk) == 1 {
-                    Left((*self.buffer.add(idx)).stem)
-                } else {
-                    Right((*self.buffer.add(idx)).leaf)
-                }
-             },
-             idx)
+            (
+                unsafe {
+                    if self.typemap & chunk_to_bit(chunk) == 1 {
+                        Left((*self.buffer.add(idx)).stem)
+                    } else {
+                        Right((*self.buffer.add(idx)).leaf)
+                    }
+                },
+                idx,
+            )
         })
     }
 }
 
 #[repr(packed)]
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 struct Leaf<T: Copy> {
     len: usize,
-    buffer: *mut (Noun, T) // mutable for unifying equality
+    buffer: *mut (Noun, T), // mutable for unifying equality
 }
 
 impl<T: Copy> Leaf<T> {
@@ -77,8 +79,7 @@ impl<T: Copy> Leaf<T> {
     }
 }
 
-
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 union Entry<T: Copy> {
     stem: Stem<T>,
     leaf: Leaf<T>,
@@ -96,7 +97,6 @@ assert_eq_size!(&[(Noun, ())], Leaf<()>);
 // Our custom stem type is the same size as a fat pointer to `Entry`s
 assert_eq_size!(&[Entry<()>], Stem<()>);
 
-
 pub struct Hamt<T: Copy>(Stem<T>);
 
 impl<T: Copy> Hamt<T> {
@@ -105,7 +105,7 @@ impl<T: Copy> Hamt<T> {
         Hamt(Stem {
             bitmap: 0,
             typemap: 0,
-            buffer: null()
+            buffer: null(),
         })
     }
 
@@ -124,11 +124,11 @@ impl<T: Copy> Hamt<T> {
             match stem.entry(chunk) {
                 None => {
                     break None;
-                },
+                }
                 Some((Left(next_stem), _idx)) => {
                     stem = next_stem;
                     continue;
-                },
+                }
                 Some((Right(leaf), _idx)) => {
                     for pair in unsafe { leaf.to_mut_slice().iter_mut() } {
                         if unsafe { unifying_equality(stack, n, &mut pair.0) } {
@@ -136,11 +136,9 @@ impl<T: Copy> Hamt<T> {
                         }
                     }
                     break None;
-                },
-
+                }
             }
         }
-
     }
 
     // XX a delete function requires a stack, do we need one?
@@ -163,20 +161,24 @@ impl<T: Copy> Hamt<T> {
                         let split = stem.hypothetical_index(chunk);
                         let new_buffer = stack.struct_alloc(stem.size() + 1);
                         copy_nonoverlapping(stem.buffer, new_buffer, split);
-                        *new_buffer.add(split) = Entry{
+                        *new_buffer.add(split) = Entry {
                             leaf: Leaf {
                                 len: 1,
                                 buffer: new_leaf_buffer,
-                            }
+                            },
                         };
-                        copy_nonoverlapping(stem.buffer.add(split), new_buffer.add(split + 1), stem.size() - split);
+                        copy_nonoverlapping(
+                            stem.buffer.add(split),
+                            new_buffer.add(split + 1),
+                            stem.size() - split,
+                        );
                         *dest = Stem {
                             bitmap: stem.bitmap | chunk_to_bit(chunk),
                             typemap: stem.typemap & !chunk_to_bit(chunk),
-                            buffer: new_buffer
+                            buffer: new_buffer,
                         };
                         break Hamt(stem_ret);
-                    },
+                    }
                     Some((Left(next_stem), idx)) => {
                         let new_buffer = stack.struct_alloc(stem.size());
                         copy_nonoverlapping(stem.buffer, new_buffer, stem.size());
@@ -189,7 +191,7 @@ impl<T: Copy> Hamt<T> {
                         stem = next_stem;
                         depth += 1;
                         continue;
-                    },
+                    }
                     Some((Right(leaf), idx)) => {
                         for (ldx, pair) in leaf.to_mut_slice().iter_mut().enumerate() {
                             if unifying_equality(stack, n, &mut pair.0) {
@@ -202,7 +204,7 @@ impl<T: Copy> Hamt<T> {
                                     leaf: Leaf {
                                         len: leaf.len,
                                         buffer: new_leaf_buffer,
-                                    }
+                                    },
                                 };
                                 *dest = Stem {
                                     bitmap: stem.bitmap,
@@ -211,7 +213,7 @@ impl<T: Copy> Hamt<T> {
                                 };
                                 break 'insert Hamt(stem_ret);
                             }
-                        };
+                        }
                         if depth >= 5 {
                             let new_leaf_buffer = stack.struct_alloc(leaf.len + 1);
                             copy_nonoverlapping(leaf.buffer, new_leaf_buffer, leaf.len);
@@ -222,7 +224,7 @@ impl<T: Copy> Hamt<T> {
                                 leaf: Leaf {
                                     len: leaf.len,
                                     buffer: new_leaf_buffer,
-                                }
+                                },
                             };
                             *dest = Stem {
                                 bitmap: stem.bitmap,
@@ -236,10 +238,9 @@ impl<T: Copy> Hamt<T> {
                             // next time around
                             assert!(leaf.len == 1);
                             let fake_buffer = stack.struct_alloc(1);
-                            *fake_buffer = Entry {
-                                leaf: leaf
-                            };
+                            *fake_buffer = Entry { leaf: leaf };
                             let next_stem = Stem {
+                                // XX bug, we need the *next* chunk in the *conflicting key's mug*
                                 bitmap: chunk_to_bit(chunk),
                                 typemap: 0,
                                 buffer: fake_buffer,
@@ -274,7 +275,9 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
             let mut traversal_depth = 1;
             *traversal_stack = ((*self).0, 0);
             'preserve: loop {
-                if traversal_depth == 0 { break; }
+                if traversal_depth == 0 {
+                    break;
+                }
                 let (stem, mut position) = *traversal_stack.add(traversal_depth - 1);
                 // can we loop over the size and count leading 0s remaining in the bitmap?
                 'preserve_stem: loop {
@@ -286,11 +289,16 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                         None => {
                             position += 1;
                             continue 'preserve_stem;
-                        },
+                        }
                         Some((Left(next_stem), idx)) => {
                             if stack.in_frame(next_stem.buffer as *const u64) {
-                                let dest_buffer = stack.struct_alloc_in_previous_frame(next_stem.size());
-                                copy_nonoverlapping(next_stem.buffer, dest_buffer, next_stem.size());
+                                let dest_buffer =
+                                    stack.struct_alloc_in_previous_frame(next_stem.size());
+                                copy_nonoverlapping(
+                                    next_stem.buffer,
+                                    dest_buffer,
+                                    next_stem.size(),
+                                );
                                 let new_stem = Stem {
                                     bitmap: next_stem.bitmap,
                                     typemap: next_stem.typemap,
@@ -306,7 +314,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                 position += 1;
                                 continue 'preserve_stem;
                             }
-                        },
+                        }
                         Some((Right(leaf), idx)) => {
                             if stack.in_frame(leaf.buffer as *const u64) {
                                 let dest_buffer = stack.struct_alloc_in_previous_frame(leaf.len);
@@ -318,85 +326,11 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                 for pair in new_leaf.to_mut_slice().iter_mut() {
                                     (*pair).0.preserve(stack);
                                     (*pair).1.preserve(stack);
-                                };
-                                *(stem.buffer.add(idx) as *mut Entry<T>) = Entry {
-                                    leaf: new_leaf,
-                                };
+                                }
+                                *(stem.buffer.add(idx) as *mut Entry<T>) = Entry { leaf: new_leaf };
                             }
                             position += 1;
                             continue 'preserve_stem;
-                        },
-                    }
-                }
-            }
-        }
-
-    }
-}
-
-/*
-impl <T: Copy + Preserve> Preserve for Hamt<T> {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        // we special case the outer copy because it's destination is just a pointer and not a
-        // pointer + index
-        if stack.in_frame((*self).0.ptr) {
-            let dest_buf = stack.struct_alloc_in_previous_frame::<u64>((*self).0.size() + 2);
-            copy_nonoverlapping((*self).0.ptr, dest_buf, (*self).0.size() + 2);
-            (*self).0.ptr = dest_buf;
-            let traversal_stack = stack.struct_alloc::<(*mut u64, u32)>(6);
-            let mut traversal_depth = 1;
-            *traversal_stack = (dest_buf, 0);
-            'preserve: loop {
-                if traversal_depth == 0 { break; }
-                let (buffer, mut position) = *traversal_stack.add(traversal_depth - 1);
-                let node: HamtNode<T> = ptr_as_node(buffer);
-                'preserve_node: loop {
-                    if position >= 64 {
-                        traversal_depth -= 1;
-                        continue 'preserve;
-                    }
-                    match node.entry(position) {
-                        None => {
-                            position += 1;
-                            continue 'preserve_node;
-                        },
-                        Some((Left(next_node), idx)) => {
-                            // Another node
-                            let size = next_node.size();
-                            if stack.in_frame(next_node.ptr) {
-                                let dest_buf = stack.struct_alloc_in_previous_frame::<u64>(size + 2);
-                                copy_nonoverlapping(next_node.ptr, dest_buf, size);
-                                assert!(traversal_depth <= 5); // We're gonna be incrementing so it
-                                                              // has to stay below 6
-                                *node.ptr.add(idx+2) = dest_buf as u64;
-                                (*traversal_stack.add(traversal_depth - 1)).1 = position + 1;
-                                *traversal_stack.add(traversal_depth) = (dest_buf, 0);
-                                traversal_depth = traversal_depth + 1;
-                                continue 'preserve;
-                            } else {
-                                position += 1;
-                                continue 'preserve_node;
-                            }
-                        },
-                        Some((Right(leaf), idx)) => {
-                            // Leaf structs and entry buffers get allocated together so no need to
-                            // check the entry buffer separately
-                            if stack.in_frame(leaf as *const u64) {
-                                let new_entries = stack.struct_alloc_in_previous_frame::<(Noun, T)>((*leaf).claimants);
-                                copy_nonoverlapping((*leaf).entries, new_entries, (*leaf).claimants);
-                                for i in 0 .. (*leaf).claimants {
-                                    (*new_entries.add(i)).0.preserve(stack);
-                                    (*new_entries.add(i)).1.preserve(stack);
-                                };
-                                let new_leaf = stack.alloc_in_previous_frame::<HamtLeaf<T>>();
-                                (*new_leaf) = HamtLeaf {
-                                    claimants: (*leaf).claimants,
-                                    entries: new_entries,
-                                };
-                                *node.ptr.add(idx + 2) = new_leaf as u64;
-                            }
-                            position +=1;
-                            continue 'preserve_node;
                         }
                     }
                 }
@@ -404,4 +338,3 @@ impl <T: Copy + Preserve> Preserve for Hamt<T> {
         }
     }
 }
-*/
