@@ -563,7 +563,7 @@ fn edit(
                     (*cellmem).tail = tree_cell.tail();
                     dest = &mut ((*cellmem).head);
                 }
-                tree = tree_cell.tail();
+                tree = tree_cell.head();
             }
         } else {
             panic!("Invalid axis for edit");
