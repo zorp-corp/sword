@@ -1,11 +1,9 @@
 use crate::assert_acyclic;
-use crate::mem::unifying_equality;
 use crate::mem::NockStack;
-use crate::mug::mug_u32;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
+use crate::hamt::Hamt;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
-use intmap::IntMap;
 
 pub fn met0_usize(atom: Atom) -> usize {
     let atom_bitslice = atom.as_bitslice();
@@ -26,7 +24,7 @@ pub fn met0_u64_to_usize(x: u64) -> usize {
 pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     let buffer_bitslice = buffer.as_bitslice();
     let mut cursor: usize = 0;
-    let mut backref_map = IntMap::<Noun>::new();
+    let mut backref_map = Hamt::<Noun>::new();
     stack.push(2);
     unsafe {
         stack.save_prev_stack_pointer_to_local(0);
@@ -49,9 +47,10 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                     // 11 bits - cue backreference
                     cursor += 2;
                     unsafe {
-                        let reffed_noun = *(backref_map
-                            .get(rub_backref(&mut cursor, buffer_bitslice))
-                            .expect("Invalid backref in cue"));
+                        let mut backref_noun = Atom::new(stack, rub_backref(&mut cursor, buffer_bitslice)).as_noun();
+                        let reffed_noun = backref_map
+                            .lookup(stack, &mut backref_noun)
+                            .expect("Invalid backref in cue");
                         assert_acyclic!(reffed_noun);
                         if let Ok(indirect) = reffed_noun.as_indirect() {
                             debug_assert!(indirect.size() > 0);
@@ -68,7 +67,8 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                     unsafe {
                         let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
                         *dest_ptr = cell.as_noun();
-                        backref_map.insert(backref as u64, *dest_ptr);
+                        let mut backref_atom = Atom::new(stack, backref as u64).as_noun();
+                        backref_map = backref_map.insert(stack, &mut backref_atom, *dest_ptr);
                         stack.reclaim_in_previous_frame::<*mut Noun>();
                         (*cell_mem_ptr).tail =
                             DirectAtom::new_unchecked(0xEDBEEF).as_atom().as_noun();
@@ -87,7 +87,8 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                 cursor += 1;
                 unsafe {
                     *dest_ptr = rub_atom(stack, &mut cursor, buffer_bitslice).as_noun();
-                    backref_map.insert(backref as u64, *dest_ptr);
+                    let mut backref_atom = Atom::new(stack, backref as u64).as_noun();
+                    backref_map = backref_map.insert(stack, &mut backref_atom, *dest_ptr);
                     stack.reclaim_in_previous_frame::<*mut Noun>();
                 };
                 continue;
@@ -159,7 +160,7 @@ struct JamState<'a> {
 }
 
 pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
-    let mut backref_map: IntMap<Vec<(Noun, u64)>> = IntMap::new();
+    let mut backref_map = Hamt::new();
     let size = 8;
     let (atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, size) };
     let mut state = JamState {
@@ -178,45 +179,26 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
             break;
         } else {
             let mut noun = unsafe { *(stack.top_in_previous_frame::<Noun>()) };
-            let mug = mug_u32(stack, noun);
-            match backref_map.get_mut(mug as u64) {
-                None => {}
-                Some(backref_chain) => {
-                    for (mut key, backref) in backref_chain {
-                        if unsafe { unifying_equality(stack, &mut noun, &mut key) } {
-                            match noun.as_either_atom_cell() {
-                                Left(atom) => {
-                                    let atom_size = met0_usize(atom);
-                                    let backref_size = met0_u64_to_usize(*backref);
-                                    if atom_size <= backref_size {
-                                        jam_atom(stack, &mut state, atom);
-                                    } else {
-                                        jam_backref(stack, &mut state, *backref);
-                                    }
-                                }
-                                Right(_cell) => {
-                                    jam_backref(stack, &mut state, *backref);
-                                }
-                            }
-                            unsafe {
-                                stack.reclaim_in_previous_frame::<Noun>();
-                            }
-                            continue 'jam;
+            if let Some(backref) = backref_map.lookup(stack, &mut noun) {
+                match noun.as_either_atom_cell() {
+                    Left(atom) => {
+                        let atom_size = met0_usize(atom);
+                        let backref_size = met0_u64_to_usize(backref);
+                        if atom_size <= backref_size {
+                            jam_atom(stack, &mut state, atom);
+                        } else {
+                            jam_backref(stack, &mut state, backref);
                         }
-                    }
+                    },
+                    Right(_cell) => {
+                        jam_backref(stack, &mut state, backref);
+                    },
                 }
+                continue 'jam;
             };
+            backref_map = backref_map.insert(stack, &mut noun, state.cursor as u64);
             match noun.as_either_atom_cell() {
                 Left(atom) => {
-                    let backref = state.cursor;
-                    match backref_map.get_mut(mug as u64) {
-                        None => {
-                            backref_map.insert(mug as u64, vec![(noun, backref as u64)]);
-                        }
-                        Some(vec) => {
-                            vec.push((noun, backref as u64));
-                        }
-                    };
                     jam_atom(stack, &mut state, atom);
                     unsafe {
                         stack.reclaim_in_previous_frame::<Noun>();
@@ -224,15 +206,6 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
                     continue;
                 }
                 Right(cell) => {
-                    let backref = state.cursor;
-                    match backref_map.get_mut(mug as u64) {
-                        None => {
-                            backref_map.insert(mug as u64, vec![(noun, backref as u64)]);
-                        }
-                        Some(vec) => {
-                            vec.push((noun, backref as u64));
-                        }
-                    };
                     jam_cell(stack, &mut state);
                     unsafe {
                         stack.reclaim_in_previous_frame::<Noun>();
