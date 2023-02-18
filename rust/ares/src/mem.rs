@@ -109,13 +109,14 @@ impl NockStack {
     }
 
     #[inline]
-    pub fn in_frame(&self, ptr: *const u64) -> bool {
+    pub fn in_frame<T>(&self, ptr: *const T) -> bool {
+        let ptr_u64 = ptr as *const u64;
         match &self.polarity {
             Polarity::East => {
-                ptr >= self.frame_pointer && ptr < self.stack_pointer
+                ptr_u64 >= self.frame_pointer && ptr_u64 < self.stack_pointer
             },
             Polarity::West => {
-                ptr >= self.stack_pointer && ptr < self.frame_pointer
+                ptr_u64 >= self.stack_pointer && ptr_u64 < self.frame_pointer
             },
         }
     }

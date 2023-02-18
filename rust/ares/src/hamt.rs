@@ -269,8 +269,7 @@ impl<T: Copy> Hamt<T> {
 
 impl<T: Copy + Preserve> Preserve for Hamt<T> {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        // XX make in_frame not care about pointer type
-        if stack.in_frame((*self).0.buffer as *const u64) {
+        if stack.in_frame((*self).0.buffer) {
             let dest_buffer = stack.struct_alloc_in_previous_frame((*self).0.size());
             copy_nonoverlapping((*self).0.buffer, dest_buffer, (*self).0.size());
             (*self).0.buffer = dest_buffer;
@@ -294,7 +293,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                             continue 'preserve_stem;
                         }
                         Some((Left(next_stem), idx)) => {
-                            if stack.in_frame(next_stem.buffer as *const u64) {
+                            if stack.in_frame(next_stem.buffer) {
                                 let dest_buffer =
                                     stack.struct_alloc_in_previous_frame(next_stem.size());
                                 copy_nonoverlapping(
@@ -319,7 +318,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                             }
                         }
                         Some((Right(leaf), idx)) => {
-                            if stack.in_frame(leaf.buffer as *const u64) {
+                            if stack.in_frame(leaf.buffer) {
                                 let dest_buffer = stack.struct_alloc_in_previous_frame(leaf.len);
                                 copy_nonoverlapping(leaf.buffer, dest_buffer, leaf.len);
                                 let new_leaf = Leaf {
