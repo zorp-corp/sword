@@ -17,6 +17,148 @@ fn chunk_to_mask(chunk: u32) -> u32 {
 }
 
 #[repr(packed)]
+struct MutStem<T: Copy> {
+    bitmap: u32,
+    typemap: u32,
+    buffer: [MutEntry<T>; 32]
+}
+
+union MutEntry<T: Copy> {
+    stem: *mut MutStem<T>,
+    // XX we might want a mutable leaf field with some
+    // preallocated capacity
+    leaf: Leaf<T>,
+}
+
+impl<T: Copy> MutStem<T> {
+    #[inline]
+    fn has_index(&self, chunk: u32) -> bool {
+        self.bitmap & chunk_to_bit(chunk) != 0
+    }
+
+    #[inline]
+    fn entry(&self, chunk: u32) -> Option<Either<*mut MutStem<T>, Leaf<T>>> {
+        if self.has_index(chunk) {
+            if self.typemap & chunk_to_bit(chunk) != 0 {
+                unsafe {
+                    Some(Left(self.buffer[chunk as usize].stem))
+                }
+            } else {
+                unsafe {
+                    Some(Right(self.buffer[chunk as usize].leaf))
+                }
+            }
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Copy,Clone)]
+pub struct MutHamt<T: Copy>(*mut MutStem<T>);
+
+impl<T: Copy> MutHamt<T> {
+    pub fn new(stack: &mut NockStack) -> MutHamt<T> {
+        unsafe {
+            let new_stem = stack.struct_alloc::<MutStem<T>>(1);
+            (*new_stem).bitmap = 0;
+            (*new_stem).typemap = 0; 
+            MutHamt(new_stem)
+        }
+    }
+
+    pub fn lookup(self, stack: &mut NockStack, n: &mut Noun) -> Option<T> {
+        let mut stem = self.0;
+        let mut mug = mug_u32(stack, *n);
+        unsafe {
+            'lookup: loop {
+                let chunk = mug & 0x1f;
+                mug = mug >> 5;
+                match (*stem).entry(chunk) {
+                    None => { break None; },
+                    Some(Left(next_stem)) => {
+                        stem = next_stem;
+                    },
+                    Some(Right(leaf)) =>  {
+                        for pair in leaf.to_mut_slice().iter_mut() {
+                            if unifying_equality(stack, n, &mut (*pair).0) {
+                                break 'lookup Some((*pair).1);
+                            }
+                        }
+                        break None;
+                    },
+                }
+            }
+        }
+    }
+
+    pub fn insert(self, stack: &mut NockStack, n: &mut Noun, t: T) {
+        let mut stem = self.0;
+        let mut mug = mug_u32(stack, *n);
+        let mut depth = 0u8;
+        unsafe {
+            'insert: loop {
+                let chunk = mug & 0x1f;
+                mug = mug >> 5;
+                match (*stem).entry(chunk) {
+                    None => {
+                        let new_leaf_buffer = stack.struct_alloc(1);
+                        *new_leaf_buffer = (*n, t);
+                        (*stem).bitmap = (*stem).bitmap | chunk_to_bit(chunk);
+                        (*stem).typemap = (*stem).typemap & !chunk_to_bit(chunk);
+                        (*stem).buffer[chunk as usize] = MutEntry {
+                            leaf: Leaf {
+                                len: 1,
+                                buffer: new_leaf_buffer,
+                            }
+                        };
+                        break;
+                    },
+                    Some(Left(next_stem)) => {
+                        depth += 1;
+                        stem = next_stem;
+                        continue;
+                    },
+                    Some(Right(leaf)) => {
+                        for pair in leaf.to_mut_slice().iter_mut() {
+                            if unifying_equality(stack, n, &mut (*pair).0) {
+                                (*pair).1 = t;
+                                break 'insert;
+                            }
+                        }
+                        if depth >= 5 {
+                            let new_leaf_buffer = stack.struct_alloc::<(Noun, T)>(leaf.len + 1);
+                            copy_nonoverlapping(leaf.buffer, new_leaf_buffer, leaf.len);
+                            *new_leaf_buffer.add(leaf.len) = (*n, t);
+                            (*stem).buffer[chunk as usize] = MutEntry {
+                                leaf: Leaf {
+                                    len: leaf.len + 1,
+                                    buffer: new_leaf_buffer,
+                                }
+                            };
+                            break;
+                        } else {
+                            assert!(leaf.len == 1);
+                            let new_stem = stack.struct_alloc::<MutStem<T>>(1);
+                            let leaf_mug = mug_u32(stack, (*leaf.buffer).0);
+                            let leaf_chunk = (leaf_mug >> (depth * 5)) & 0x1f;
+                            (*new_stem).bitmap = chunk_to_bit(leaf_chunk);
+                            (*new_stem).typemap = 0;
+                            (*new_stem).buffer[leaf_chunk as usize] = MutEntry{ leaf: leaf};
+                            (*stem).buffer[chunk as usize] = MutEntry{ stem: new_stem };
+                            (*stem).typemap = (*stem).typemap | chunk_to_bit(chunk);
+                            stem = new_stem;
+                            depth += 1;
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[repr(packed)]
 #[derive(Copy, Clone)]
 struct Stem<T: Copy> {
     bitmap: u32,
@@ -32,7 +174,7 @@ impl<T: Copy> Stem<T> {
 
     #[inline]
     fn has_index(self, chunk: u32) -> bool {
-        self.bitmap & chunk_to_bit(chunk) == 1
+        self.bitmap & chunk_to_bit(chunk) != 0
     }
 
     #[inline]
@@ -65,7 +207,6 @@ impl<T: Copy> Stem<T> {
         })
     }
 }
-
 #[repr(packed)]
 #[derive(Copy, Clone)]
 struct Leaf<T: Copy> {

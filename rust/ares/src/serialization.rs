@@ -1,7 +1,7 @@
 use crate::assert_acyclic;
 use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
-use crate::hamt::Hamt;
+use crate::hamt::MutHamt;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
 
@@ -24,7 +24,7 @@ pub fn met0_u64_to_usize(x: u64) -> usize {
 pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     let buffer_bitslice = buffer.as_bitslice();
     let mut cursor: usize = 0;
-    let mut backref_map = Hamt::<Noun>::new();
+    let backref_map = MutHamt::<Noun>::new(stack);
     stack.push(2);
     unsafe {
         stack.save_prev_stack_pointer_to_local(0);
@@ -68,7 +68,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                         let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
                         *dest_ptr = cell.as_noun();
                         let mut backref_atom = Atom::new(stack, backref as u64).as_noun();
-                        backref_map = backref_map.insert(stack, &mut backref_atom, *dest_ptr);
+                        backref_map.insert(stack, &mut backref_atom, *dest_ptr);
                         stack.reclaim_in_previous_frame::<*mut Noun>();
                         (*cell_mem_ptr).tail =
                             DirectAtom::new_unchecked(0xEDBEEF).as_atom().as_noun();
@@ -88,7 +88,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                 unsafe {
                     *dest_ptr = rub_atom(stack, &mut cursor, buffer_bitslice).as_noun();
                     let mut backref_atom = Atom::new(stack, backref as u64).as_noun();
-                    backref_map = backref_map.insert(stack, &mut backref_atom, *dest_ptr);
+                    backref_map.insert(stack, &mut backref_atom, *dest_ptr);
                     stack.reclaim_in_previous_frame::<*mut Noun>();
                 };
                 continue;
@@ -160,7 +160,7 @@ struct JamState<'a> {
 }
 
 pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
-    let mut backref_map = Hamt::new();
+    let backref_map = MutHamt::new(stack);
     let size = 8;
     let (atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, size) };
     let mut state = JamState {
@@ -196,7 +196,7 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
                 }
                 continue 'jam;
             };
-            backref_map = backref_map.insert(stack, &mut noun, state.cursor as u64);
+            backref_map.insert(stack, &mut noun, state.cursor as u64);
             match noun.as_either_atom_cell() {
                 Left(atom) => {
                     jam_atom(stack, &mut state, atom);
