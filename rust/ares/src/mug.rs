@@ -114,6 +114,9 @@ pub fn mug_u32_one(noun: Noun) -> Option<u32> {
 }
 
 pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
+    if let Some(mug) = get_mug(noun) {
+        return mug;
+    }
     assert_acyclic!(noun);
     stack.push(1);
     unsafe {

@@ -141,7 +141,7 @@ impl<T: Copy> MutHamt<T> {
                             assert!(leaf.len == 1);
                             let new_stem = stack.struct_alloc::<MutStem<T>>(1);
                             let leaf_mug = mug_u32(stack, (*leaf.buffer).0);
-                            let leaf_chunk = (leaf_mug >> (depth * 5)) & 0x1f;
+                            let leaf_chunk = (leaf_mug >> ((depth + 1) * 5)) & 0x1f;
                             (*new_stem).bitmap = chunk_to_bit(leaf_chunk);
                             (*new_stem).typemap = 0;
                             (*new_stem).buffer[leaf_chunk as usize] = MutEntry{ leaf: leaf};

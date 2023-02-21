@@ -194,6 +194,9 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
                         jam_backref(stack, &mut state, backref);
                     },
                 }
+                unsafe {
+                    stack.reclaim_in_previous_frame::<Noun>();
+                };
                 continue 'jam;
             };
             backref_map.insert(stack, &mut noun, state.cursor as u64);
