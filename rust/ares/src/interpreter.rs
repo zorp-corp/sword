@@ -4,6 +4,7 @@ use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
+use crate::hamt::Hamt;
 use ares_macros::tas;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
@@ -74,6 +75,7 @@ pub fn interpret(
 ) -> Noun {
     let mut res = unsafe { DirectAtom::new_unchecked(0).as_atom().as_noun() };
     stack.push(1);
+    let mut cache = Hamt::<Noun>::new();
     unsafe {
         *(stack.local_noun_pointer(0)) = work_to_noun(Done);
     }
@@ -291,7 +293,7 @@ pub fn interpret(
                 Nock11ComputeHint => {
                     let hint = *stack.local_noun_pointer(1);
                     if let Ok(hint_cell) = hint.as_cell() {
-                        if let Ok(found) = match_pre_hint(stack, subject, hint_cell) {
+                        if let Ok(found) = match_pre_hint(stack, subject, hint_cell, &cache) {
                             res = found;
                             stack.preserve(&mut res);
                             stack.pop();
@@ -316,6 +318,8 @@ pub fn interpret(
                     }
                 },
                 Nock11Done => {
+                    let hint = *stack.local_noun_pointer(1);
+                    let _ = match_post_hinted(stack, subject, hint, res, &mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
                 }
@@ -599,7 +603,7 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 }
 
 /** Match hints which apply before the formula is evaluated */
-fn match_pre_hint(stack: &mut NockStack, subject: Noun, cell: Cell) -> Result<Noun, ()> {
+fn match_pre_hint(stack: &mut NockStack, subject: Noun, cell: Cell, cache: &Hamt<Noun>) -> Result<Noun, ()> {
     let direct = cell.head().as_direct()?;
     match direct.data() {
         // %sham hints are scaffolding until we have a real jet dashboard
@@ -608,6 +612,15 @@ fn match_pre_hint(stack: &mut NockStack, subject: Noun, cell: Cell) -> Result<No
             let jet = jets::get_jet(jet_formula.tail())?;
             return Ok(jet(stack, subject));
         }
+        tas!(b"memo") => {
+            let formula = unsafe { *stack.local_noun_pointer(2) };
+            let mut key = Cell::new(stack, subject, formula).as_noun();
+            if let Some(res) = cache.lookup(stack, &mut key) {
+                return Ok(res);
+            } else {
+                return Err(());
+            }
+        },
         _ => Err(()),
     }
 }
@@ -636,3 +649,25 @@ fn match_post_hint(
         _ => Err(()),
     }
 }
+
+fn match_post_hinted(
+    stack: &mut NockStack,
+    subject: Noun,
+    hint: Noun,
+    res: Noun,
+    cache: &mut Hamt<Noun>,
+) -> Result<(),()> {
+    let direct = hint.as_cell()?.head().as_direct()?;
+    match direct.data() {
+        tas!(b"memo") => {
+            let formula = unsafe { *stack.local_noun_pointer(2) };
+            let mut key = Cell::new(stack, subject, formula).as_noun();
+            *cache = cache.insert(stack, &mut key, res);
+            return Ok(());
+        },
+        _ => {
+            return Err(());
+        },
+    }
+}
+
