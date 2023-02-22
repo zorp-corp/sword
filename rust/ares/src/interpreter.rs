@@ -5,6 +5,7 @@ use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
 use ares_macros::tas;
+use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
@@ -80,7 +81,7 @@ pub fn interpret(
         *(stack.local_noun_pointer(0)) = work_to_noun(Done);
     }
     push_formula(stack, formula);
-    loop {
+    assert_no_alloc(|| loop {
         match unsafe { noun_to_work(*(stack.local_noun_pointer(0))) } {
             Done => {
                 stack.pop(&mut res);
@@ -350,7 +351,7 @@ pub fn interpret(
                 stack.pop(&mut res);
             }
         };
-    }
+    });
     res
 }
 
