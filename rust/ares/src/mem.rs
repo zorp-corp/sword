@@ -113,10 +113,10 @@ impl NockStack {
         let ptr_u64 = ptr as *const u64;
         match &self.polarity {
             Polarity::East => {
-                ptr_u64 >= self.frame_pointer && ptr_u64 < self.stack_pointer
+                ptr_u64 >= self.stack_pointer && ptr_u64 < self.frame_pointer
             },
             Polarity::West => {
-                ptr_u64 >= self.stack_pointer && ptr_u64 < self.frame_pointer
+                ptr_u64 >= self.frame_pointer && ptr_u64 < self.stack_pointer
             },
         }
     }
