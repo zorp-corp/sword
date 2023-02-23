@@ -21,7 +21,6 @@ use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use ibig::ops::DivRem;
 use ibig::UBig;
-use num_traits::identities::One;
 use std::cmp;
 
 crate::gdb!();
@@ -95,7 +94,9 @@ pub fn jet_sub(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         if a_int < b_int {
             Err(Deterministic)
         } else {
-            let res = a_int - b_int;
+            let a_big = a.as_ubig(stack);
+            let b_big = b.as_ubig(stack);
+            let res = UBig::sub_stack(stack, a_big, b_big);
             Ok(Atom::from_ubig(stack, &res).as_noun())
         }
     }
@@ -139,7 +140,9 @@ pub fn jet_div(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             Ok(unsafe { DirectAtom::new_unchecked(a.data() / b.data()) }.as_noun())
         } else {
-            let res = a.as_ubig(stack) / b.as_ubig(stack);
+            let a_big = a.as_ubig(stack);
+            let b_big = b.as_ubig(stack);
+            let res = UBig::div_stack(stack, a_big, b_big);
             Ok(Atom::from_ubig(stack, &res).as_noun())
         }
     }
@@ -295,14 +298,16 @@ pub fn jet_gte(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 }
 
 pub fn jet_bex(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
-    let arg = raw_slot(subject, 6).as_direct()?.data();
+    let arg = raw_slot(subject, 6).as_direct()?.data() as usize;
 
     if arg < 63 {
         Ok(unsafe { DirectAtom::new_unchecked(1 << arg) }.as_noun())
     } else {
-        let mut res = UBig::one();
-        res <<= arg as usize;
-        Ok(Atom::from_ubig(stack, &res).as_noun())
+        unsafe {
+            let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, (arg + 7) >> 3);
+            dest.set(arg, true);
+            Ok(atom.normalize_as_atom().as_noun())
+        }
     }
 }
 
@@ -674,6 +679,7 @@ mod tests {
     use crate::jets::Jet;
     use crate::mem::unifying_equality;
     use crate::noun::Atom;
+    use assert_no_alloc::assert_no_alloc;
     use ibig::ubig;
 
     fn init() -> NockStack {
@@ -708,6 +714,17 @@ mod tests {
         A(stack, &ubig!(0xdeadbeef12345678fedcba9876540000))
     }
 
+    fn atom_264(stack: &mut NockStack) -> Noun {
+        A(
+            stack,
+            &ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ff),
+        )
+    }
+
+    fn atom_528(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff))
+    }
+
     #[allow(non_snake_case)]
     fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
         Atom::from_ubig(stack, &ubig).as_noun()
@@ -720,7 +737,7 @@ mod tests {
 
     fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
         let sam = T(stack, &[D(0), sam, D(0)]);
-        let jet_res = jet(stack, sam).unwrap();
+        let jet_res = assert_no_alloc(|| jet(stack, sam).unwrap());
         assert_noun_eq(stack, jet_res, res);
     }
 
@@ -894,6 +911,10 @@ mod tests {
             &[atom_128, atom_24],
             ubig!(0x1a507f98b6fa8605ea3a79e97bf),
         );
+        let res = ubig!(
+            _0x00000000000001000000000000000000000000000000000000000000000000000000000000000001
+        );
+        assert_math_jet(s, jet_div, &[atom_528, atom_264], res);
         assert_math_jet_err(s, jet_div, &[atom_63, atom_0], Deterministic);
         assert_math_jet_err(s, jet_div, &[atom_0, atom_0], Deterministic);
     }
@@ -912,6 +933,7 @@ mod tests {
         assert_math_jet(s, jet_mod, &[atom_63, atom_63], ubig!(0));
         assert_math_jet(s, jet_mod, &[atom_63, atom_24], ubig!(0x798385));
         assert_math_jet(s, jet_mod, &[atom_128, atom_24], ubig!(0x3b2013));
+        assert_math_jet(s, jet_mod, &[atom_528, atom_264], ubig!(0x100));
         assert_math_jet_err(s, jet_mod, &[atom_63, atom_0], Deterministic);
         assert_math_jet_err(s, jet_mod, &[atom_0, atom_0], Deterministic);
     }
@@ -920,6 +942,8 @@ mod tests {
     fn test_dvr() {
         let ref mut s = init();
         let (a0, a24, a63, a96, a128) = atoms(s);
+        let a264 = atom_264(s);
+        let a528 = atom_528(s);
 
         let sam = T(s, &[a128, a96]);
         let res_a = A(s, &ubig!(0xe349f8f0));
@@ -942,6 +966,17 @@ mod tests {
         let sam = T(s, &[a0, a24]);
         let res_a = A(s, &ubig!(0));
         let res_b = A(s, &ubig!(0));
+        let res = T(s, &[res_a, res_b]);
+        assert_jet(s, jet_dvr, sam, res);
+
+        let sam = T(s, &[a528, a264]);
+        let res_a = A(
+            s,
+            &ubig!(
+                _0x00000000000001000000000000000000000000000000000000000000000000000000000000000001
+            ),
+        );
+        let res_b = A(s, &ubig!(0x100));
         let res = T(s, &[res_a, res_b]);
         assert_jet(s, jet_dvr, sam, res);
 

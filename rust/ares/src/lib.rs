@@ -32,6 +32,10 @@ macro_rules! gdb {
     };
 }
 
+#[cfg(debug_assertions)]
+#[global_allocator]
+static A: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
+
 pub(crate) use gdb;
 
 #[cfg(test)]

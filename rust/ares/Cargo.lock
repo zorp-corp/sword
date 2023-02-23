@@ -265,7 +265,7 @@ dependencies = [
 [[package]]
 name = "ibig"
 version = "0.3.6"
-source = "git+https://github.com/urbit/ibig-rs#7a675f26d3ca129045ba54f13c8e5bbde6784fd3"
+source = "git+https://github.com/urbit/ibig-rs#4ab48b869384ceaaddb82de50808bca4e05aacd1"
 dependencies = [
  "cfg-if",
  "num-traits",

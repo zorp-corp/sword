@@ -3,7 +3,6 @@ use ares::mem::NockStack;
 use ares::noun::IndirectAtom;
 use ares::serf::serf;
 use ares::serialization::{cue, jam};
-use assert_no_alloc::AllocDisabler;
 use memmap::Mmap;
 use memmap::MmapMut;
 use std::env;
@@ -13,10 +12,6 @@ use std::io;
 use std::mem;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::write_bytes;
-
-#[cfg(debug_assertions)]
-#[global_allocator]
-static A: AllocDisabler = AllocDisabler;
 
 fn main() -> io::Result<()> {
     let filename = env::args().nth(1).expect("Must provide input filename");
