@@ -24,6 +24,9 @@ static_assertions = "1.1.0"
 ibig = "0.3.6"
 assert_no_alloc = "1.1.2"
 
+[build-dependencies]
+cc = "1.0.79"
+
 [[bin]]
 name = "cue_pill"
 path = "benches/cue_pill.rs"
@@ -33,7 +36,7 @@ name = "ares"
 path = "src/main.rs"
 
 [profile.dev]
-opt-level = 3
+opt-level = 0
 
 [profile.dev.package."*"]
 opt-level = 3

@@ -3,15 +3,70 @@ use ares::mem::NockStack;
 use ares::noun::IndirectAtom;
 use ares::serf::serf;
 use ares::serialization::{cue, jam};
+use libc::{c_char, c_int, c_void, size_t};
 use memmap::Mmap;
 use memmap::MmapMut;
 use std::env;
+use std::ffi::CString;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io;
 use std::mem;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::write_bytes;
+
+#[link(name = "pma_malloc", kind = "static")]
+extern {
+    fn pma_init(path: *const c_char) -> c_int;
+    fn pma_load(path: *const c_char) -> c_int;
+    fn pma_close(epoch: u64, event: u64) -> c_int;
+    fn pma_malloc(size: size_t) -> *mut c_void;
+    fn pma_free(ptr: *mut c_void) -> c_int;
+    fn pma_sync(epoch: u64, event: u64) -> c_int;
+}
+
+fn pma() -> io::Result<()> {
+    unsafe {
+        std::fs::remove_dir_all("/tmp/pma");
+        eprintln!("\rpma_init");
+        pma_init(CString::new("/tmp/pma").expect("init").as_ptr());
+        eprintln!("\rpma_malloc 8");
+        let eight = pma_malloc(8) as *mut u64;
+        *eight = 0xdeadbeef;
+        eprintln!("\rpma_close");
+        assert!(0 == pma_close(10, 12));
+        eprintln!("\rpma_load");
+        pma_load(CString::new("/tmp/pma").expect("init").as_ptr());
+        eprintln!("\rpma_sync 1 {}", pma_sync(13, 15));
+        eprintln!("\rpma_malloc 20");
+        let twenty = pma_malloc(8) as *mut u64;
+        eprintln!("\rpma_sync 2 {}", pma_sync(14, 16));
+        eprintln!("\rpma_malloc 20");
+        let twenty = pma_malloc(8) as *mut u64;
+        eprintln!("\rpma_sync 3 {}", pma_sync(15, 16));
+        eprintln!("\rpma_malloc 20");
+        let twenty = pma_malloc(8) as *mut u64;
+        eprintln!("\rpma_free 20");
+        pma_free(twenty as *mut c_void);
+        eprintln!("\rpma_sync 4 {}", pma_sync(16, 15));
+        eprintln!("\rpma_malloc 20");
+        let twenty = pma_malloc(8) as *mut u64;
+        eprintln!("\rpma_sync 5 {}", pma_sync(17, 15));
+        eprintln!("\rpma_malloc 20");
+        let twenty = pma_malloc(8) as *mut u64;
+        eprintln!("\rpma_sync 6 {}", pma_sync(18, 15));
+        eprintln!("\rpma_malloc 20");
+        let twenty = pma_malloc(8) as *mut u64;
+        eprintln!("\rpma_malloc 20");
+        let twenty = pma_malloc(8) as *mut u64;
+        *twenty = 0xcafebabe;
+        eprintln!("\rpma_free 20");
+        pma_free(twenty as *mut c_void);
+        eprintln!("\rpma_close 20");
+        pma_close(123, 124);
+    }
+    Ok(())
+}
 
 fn main() -> io::Result<()> {
     let filename = env::args().nth(1).expect("Must provide input filename");
@@ -30,7 +85,11 @@ fn main() -> io::Result<()> {
     }
 
     if filename == "serf" {
-        return serf();
+        return serf()
+    }
+
+    if filename == "pma" {
+        return pma()
     }
 
     let output_filename = format!("{}.out", filename.clone());
