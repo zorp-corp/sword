@@ -71,7 +71,9 @@ pub fn jet_add(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         Ok(Atom::new(stack, a.data() + b.data()).as_noun())
     } else {
-        let res = a.as_ubig(stack) + b.as_ubig(stack);
+        let a_big = a.as_ubig(stack);
+        let b_big = b.as_ubig(stack);
+        let res = UBig::add_stack(stack, a_big, b_big);
         Ok(Atom::from_ubig(stack, &res).as_noun())
     }
 }
