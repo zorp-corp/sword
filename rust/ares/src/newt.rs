@@ -59,6 +59,8 @@ use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
 use std::ptr::copy_nonoverlapping;
 
+crate::gdb!();
+
 pub struct Newt {
     input: std::fs::File,
     output: std::fs::File,

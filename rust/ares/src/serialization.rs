@@ -5,6 +5,8 @@ use crate::hamt::MutHamt;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
 
+crate::gdb!();
+
 pub fn met0_usize(atom: Atom) -> usize {
     let atom_bitslice = atom.as_bitslice();
     match atom_bitslice.last_one() {

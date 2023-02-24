@@ -6,9 +6,12 @@ use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
 use ares_macros::tas;
+use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
+
+crate::gdb!();
 
 #[derive(Copy, Clone, FromPrimitive, ToPrimitive, Debug)]
 #[repr(u64)]
@@ -80,7 +83,7 @@ pub fn interpret(
         *(stack.local_noun_pointer(0)) = work_to_noun(Done);
     }
     push_formula(stack, formula);
-    unsafe {
+    assert_no_alloc(|| unsafe {
         loop {
             match noun_to_work(*(stack.local_noun_pointer(0))) {
                 Done => {
@@ -306,7 +309,8 @@ pub fn interpret(
                 Nock11ComputeHint => {
                     let hint = *stack.local_noun_pointer(1);
                     if let Ok(hint_cell) = hint.as_cell() {
-                        if let Ok(found) = match_pre_hint(stack, subject, hint_cell, &cache) {
+                    let formula = *stack.local_noun_pointer(2);
+                    if let Ok(found) = match_pre_hint(stack, newt, subject, hint_cell, formula, &cache) {
                             res = found;
                             stack.preserve(&mut cache);
                             stack.preserve(&mut res);
@@ -340,8 +344,7 @@ pub fn interpret(
                     stack.pop();
                 }
             };
-        }
-    };
+    }});
     res
 }
 
@@ -515,7 +518,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
             }
         }
     } else {
-        panic!("Bad formula: atoms are not formulas: {:?}", formula);
+        panic!("Bad formula: atoms are not formulas: {}", formula);
     }
 }
 
@@ -542,7 +545,7 @@ pub fn slot(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
                 noun = cell.head();
             }
         } else {
-            panic!("Axis tried to descend through atom: {:?}", noun);
+            panic!("Axis tried to descend through atom: {}", noun);
         };
     }
     noun
@@ -621,8 +624,10 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 /** Match hints which apply before the formula is evaluated */
 fn match_pre_hint(
     stack: &mut NockStack,
+    newt: &mut Option<&mut Newt>,
     subject: Noun,
     cell: Cell,
+    formula: Noun,
     cache: &Hamt<Noun>,
 ) -> Result<Noun, ()> {
     let direct = cell.head().as_direct()?;
@@ -630,8 +635,27 @@ fn match_pre_hint(
         // %sham hints are scaffolding until we have a real jet dashboard
         tas!(b"sham") => {
             let jet_formula = cell.tail().as_cell()?;
-            let jet = jets::get_jet(jet_formula.tail())?;
-            return Ok(jet(stack, subject));
+            let jet_name = jet_formula.tail();
+
+            let jet = jets::get_jet(jet_name)?;
+            if let Ok(mut jet_res) = jet(stack, subject) {
+                // if in test mode, check that the jet returns the same result as the raw nock
+                if jets::get_jet_test_mode(jet_name) {
+                    let mut nock_res = interpret(stack, newt, subject, formula);
+                    if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
+                        eprintln!(
+                            "\rJet {} failed, raw: {}, jetted: {}",
+                            jet_name, nock_res, jet_res
+                        );
+                        return Err(());
+                    }
+                }
+                return Ok(jet_res);
+            } else {
+                // Print jet errors and punt to Nock
+                eprintln!("\rJet {} failed", jet_name);
+                return Err(());
+            }
         }
         tas!(b"memo") => {
             let formula = unsafe { *stack.local_noun_pointer(2) };
@@ -663,7 +687,7 @@ fn match_post_hint(
             if let Some(not) = newt {
                 not.slog(stack, pri, tank);
             } else {
-                println!("slog: {:?} {:?}", pri, tank);
+                println!("slog: {} {}", pri, tank);
             }
             Err(())
         }

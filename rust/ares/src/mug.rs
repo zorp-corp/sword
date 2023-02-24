@@ -4,6 +4,8 @@ use crate::noun::{Allocated, Atom, DirectAtom, Noun};
 use either::Either::*;
 use murmur3::murmur3_32_nocopy;
 
+crate::gdb!();
+
 // Murmur3 hash an atom with a given padded length
 fn muk_u32(syd: u32, len: usize, key: Atom) -> u32 {
     match key.as_either() {

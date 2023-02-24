@@ -14,6 +14,34 @@ pub mod serialization;
 pub mod snapshot;
 pub mod hamt;
 
+/** Introduce useful functions for debugging
+ *
+ * The main difficulty with these is that rust wants to strip them out if they're not used in the
+ * code.  Even if you get it past the compiler, the linker will get rid of them.  The solution here
+ * is to call use_gdb() from main.rs on each module.  This is ugly, but I haven't found another way
+ * that keeps these available in the debugger.
+ *
+ * Thus, every file that touches nouns should include `crate::gdb!();` at the top, and main.rs should
+ * call use_gdb on that module.
+ */
+macro_rules! gdb {
+    () => {
+        fn pretty_noun(noun: crate::noun::Noun) -> String {
+            noun.to_string()
+        }
+
+        pub fn use_gdb() {
+            pretty_noun(crate::noun::D(0));
+        }
+    };
+}
+
+#[cfg(debug_assertions)]
+#[global_allocator]
+static A: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
+
+pub(crate) use gdb;
+
 #[cfg(test)]
 mod tests {
 

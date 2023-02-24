@@ -1,9 +1,12 @@
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either;
+use ibig::{Stack, UBig};
 use intmap::IntMap;
 use std::fmt;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
+
+crate::gdb!();
 
 /** Tag for a direct atom. */
 const DIRECT_TAG: u64 = 0x0;
@@ -32,11 +35,15 @@ const FORWARDING_TAG: u64 = u64::MAX & CELL_MASK;
 /** Tag mask for a forwarding pointer */
 const FORWARDING_MASK: u64 = CELL_MASK;
 
+/** Loobeans */
+pub const YES: Noun = D(0);
+pub const NO: Noun = D(1);
+
 #[cfg(feature = "check_acyclic")]
 #[macro_export]
 macro_rules! assert_acyclic {
     ( $x:expr ) => {
-        assert!(acyclic_noun($x));
+        assert!(crate::noun::acyclic_noun($x));
     };
 }
 
@@ -127,8 +134,16 @@ impl DirectAtom {
         DirectAtom(value)
     }
 
+    pub fn bit_size(self) -> usize {
+        (64 - self.0.leading_zeros()) as usize
+    }
+
     pub fn as_atom(self) -> Atom {
         Atom { direct: self }
+    }
+
+    pub fn as_ubig(self, _stack: &mut dyn Stack) -> UBig {
+        UBig::from(self.0)
     }
 
     pub const fn as_noun(self) -> Noun {
@@ -144,10 +159,33 @@ impl DirectAtom {
     }
 }
 
-impl fmt::Debug for DirectAtom {
+impl fmt::Display for DirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.0 == 0 {
+            return write!(f, "0");
+        }
+
+        let mut null = false;
+        let mut n = 0;
+        let bytes = self.0.to_le_bytes();
+        for byte in bytes.iter() {
+            if *byte == 0 {
+                null = true;
+                continue;
+            }
+            if (null && *byte != 0) || *byte < 33 || *byte > 126 {
+                return write!(f, "{}", self.0);
+            }
+            n += 1;
+        }
+        if n > 1 {
+            write!(f, "%{}", unsafe {
+                std::str::from_utf8_unchecked(&bytes[..n])
+            })
+        } else {
         write!(f, "{}", self.0)
     }
+}
 }
 
 #[allow(non_snake_case)]
@@ -210,7 +248,7 @@ impl IndirectAtom {
 
     /** Make an indirect atom by copying from other memory.
      *
-     *  The size is specified in 64 bit words, not in bytes.
+     *  Note: size is in 64-bit words, not bytes.
      */
     pub unsafe fn new_raw(
         allocator: &mut dyn NounAllocator,
@@ -219,6 +257,20 @@ impl IndirectAtom {
     ) -> Self {
         let (mut indirect, buffer) = Self::new_raw_mut(allocator, size);
         ptr::copy_nonoverlapping(data, buffer, size);
+        *(indirect.normalize())
+    }
+
+    /** Make an indirect atom by copying from other memory.
+     *
+     *  Note: size is bytes, not words
+     */
+    pub unsafe fn new_raw_bytes(
+        allocator: &mut dyn NounAllocator,
+        size: usize,
+        data: *const u8,
+    ) -> Self {
+        let (mut indirect, buffer) = Self::new_raw_mut_bytes(allocator, size);
+        ptr::copy_nonoverlapping(data, buffer.as_mut_ptr(), size);
         *(indirect.normalize())
     }
 
@@ -270,7 +322,7 @@ impl IndirectAtom {
         allocator: &mut dyn NounAllocator,
         size: usize,
     ) -> (Self, &'a mut [u8]) {
-        let word_size = (size + 7) << 3;
+        let word_size = (size + 7) >> 3;
         let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size);
         (noun, from_raw_parts_mut(ptr as *mut u8, size))
     }
@@ -278,6 +330,13 @@ impl IndirectAtom {
     /** Size of an indirect atom in 64-bit words */
     pub fn size(&self) -> usize {
         unsafe { *(self.to_raw_pointer().add(1)) as usize }
+    }
+
+    pub fn bit_size(&self) -> usize {
+        unsafe {
+            ((self.size() - 1) << 6) + 64
+                - (*(self.to_raw_pointer().add(2 + self.size() - 1))).leading_zeros() as usize
+        }
     }
 
     /** Pointer to data for indirect atom */
@@ -296,6 +355,10 @@ impl IndirectAtom {
     /** BitSlice view on an indirect atom, with lifetime tied to reference to indirect atom. */
     pub fn as_bitslice<'a>(&'a self) -> &'a BitSlice<u64, Lsb0> {
         BitSlice::from_slice(self.as_slice())
+    }
+
+    pub fn as_ubig(&self, stack: &mut dyn Stack) -> UBig {
+        UBig::from_le_bytes_stack(stack, self.as_bytes())
     }
 
     /** Ensure that the size does not contain any trailing 0 words */
@@ -337,7 +400,7 @@ impl IndirectAtom {
     }
 }
 
-impl fmt::Debug for IndirectAtom {
+impl fmt::Display for IndirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x")?;
         let mut i = self.size() - 1;
@@ -447,19 +510,19 @@ impl Cell {
     }
 }
 
-impl fmt::Debug for Cell {
+impl fmt::Display for Cell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
         let mut cell = *self;
         loop {
-            write!(f, "{:?}", cell.head())?;
+            write!(f, "{}", cell.head())?;
             match cell.tail().as_cell() {
                 Ok(next_cell) => {
                     write!(f, " ")?;
                     cell = next_cell;
                 }
                 Err(_) => {
-                    write!(f, " {:?}]", cell.tail())?;
+                    write!(f, " {}]", cell.tail())?;
                     break;
                 }
             }
@@ -497,6 +560,30 @@ impl Atom {
             unsafe { IndirectAtom::new_raw(allocator, 1, &value).as_atom() }
         }
     }
+
+    // to_le_bytes and new_raw are copies.  We should be able to do this completely without copies
+    // if we integrate with ibig properly.
+    pub fn from_ubig(allocator: &mut dyn NounAllocator, big: &UBig) -> Atom {
+        let bit_size = big.bit_len();
+        let buffer = big.to_le_bytes_stack();
+        if bit_size < 64 {
+            #[rustfmt::skip]
+            let value: u64 =
+                  if bit_size == 0  { 0 } else { (buffer[0] as u64)
+                | if bit_size <= 8  { 0 } else { (buffer[1] as u64) << 8
+                | if bit_size <= 16 { 0 } else { (buffer[2] as u64) << 16
+                | if bit_size <= 24 { 0 } else { (buffer[3] as u64) << 24
+                | if bit_size <= 32 { 0 } else { (buffer[4] as u64) << 32
+                | if bit_size <= 40 { 0 } else { (buffer[5] as u64) << 40
+                | if bit_size <= 48 { 0 } else { (buffer[6] as u64) << 48
+                | if bit_size <= 56 { 0 } else { (buffer[7] as u64) << 56 } } } } } } } };
+            unsafe { DirectAtom::new_unchecked(value).as_atom() }
+        } else {
+            let byte_size = (big.bit_len() + 7) >> 3;
+            unsafe { IndirectAtom::new_raw_bytes(allocator, byte_size, buffer.as_ptr()).as_atom() }
+        }
+    }
+
     pub fn is_direct(&self) -> bool {
         unsafe { is_direct_atom(self.raw) }
     }
@@ -537,10 +624,25 @@ impl Atom {
         }
     }
 
+    pub fn as_ubig(self, stack: &mut dyn Stack) -> UBig {
+        if self.is_indirect() {
+            unsafe { self.indirect.as_ubig(stack) }
+        } else {
+            unsafe { self.direct.as_ubig(stack) }
+        }
+    }
+
     pub fn size(&self) -> usize {
         match self.as_either() {
             Either::Left(_direct) => 1,
             Either::Right(indirect) => indirect.size(),
+        }
+    }
+
+    pub fn bit_size(&self) -> usize {
+        match self.as_either() {
+            Either::Left(direct) => direct.bit_size(),
+            Either::Right(indirect) => indirect.bit_size(),
         }
     }
 
@@ -564,7 +666,7 @@ impl Atom {
     }
 }
 
-impl fmt::Debug for Atom {
+impl fmt::Display for Atom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_noun().fmt(f)
     }
@@ -639,7 +741,7 @@ impl Allocated {
     }
 }
 
-impl fmt::Debug for Allocated {
+impl fmt::Display for Allocated {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_noun().fmt(f)
     }
@@ -745,18 +847,24 @@ impl Noun {
 }
 
 impl fmt::Debug for Noun {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
+impl fmt::Display for Noun {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         unsafe {
             if self.is_direct() {
-                write!(f, "{:?}", self.direct)
+                write!(f, "{}", self.direct)
             } else if self.is_indirect() {
-                write!(f, "{:?}", self.indirect)
+                write!(f, "{}", self.indirect)
             } else if self.is_cell() {
-                write!(f, "{:?}", self.cell)
+                write!(f, "{}", self.cell)
             } else if self.allocated.forwarding_pointer().is_some() {
                 write!(
                     f,
-                    "Noun::Forwarding({:?})",
+                    "Noun::Forwarding({})",
                     self.allocated.forwarding_pointer().unwrap()
                 )
             } else {

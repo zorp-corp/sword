@@ -24,6 +24,8 @@ use std::path::PathBuf;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::write_bytes;
 
+crate::gdb!();
+
 pub fn save(stack: &mut NockStack, mut snap_path: PathBuf, event_number: u64, arvo: Noun) {
     // Find the latest valid snapshot, and write to the other file.
     let prev_snap = if let Ok((prev_snap, _, _)) = latest_snapshot(stack, snap_path.clone()) {
