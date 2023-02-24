@@ -20,7 +20,7 @@ fn chunk_to_mask(chunk: u32) -> u32 {
 struct MutStem<T: Copy> {
     bitmap: u32,
     typemap: u32,
-    buffer: [MutEntry<T>; 32]
+    buffer: [MutEntry<T>; 32],
 }
 
 union MutEntry<T: Copy> {
@@ -40,13 +40,9 @@ impl<T: Copy> MutStem<T> {
     fn entry(&self, chunk: u32) -> Option<Either<*mut MutStem<T>, Leaf<T>>> {
         if self.has_index(chunk) {
             if self.typemap & chunk_to_bit(chunk) != 0 {
-                unsafe {
-                    Some(Left(self.buffer[chunk as usize].stem))
-                }
+                unsafe { Some(Left(self.buffer[chunk as usize].stem)) }
             } else {
-                unsafe {
-                    Some(Right(self.buffer[chunk as usize].leaf))
-                }
+                unsafe { Some(Right(self.buffer[chunk as usize].leaf)) }
             }
         } else {
             None
@@ -54,7 +50,7 @@ impl<T: Copy> MutStem<T> {
     }
 }
 
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 pub struct MutHamt<T: Copy>(*mut MutStem<T>);
 
 impl<T: Copy> MutHamt<T> {
@@ -62,7 +58,7 @@ impl<T: Copy> MutHamt<T> {
         unsafe {
             let new_stem = stack.struct_alloc::<MutStem<T>>(1);
             (*new_stem).bitmap = 0;
-            (*new_stem).typemap = 0; 
+            (*new_stem).typemap = 0;
             MutHamt(new_stem)
         }
     }
@@ -75,18 +71,20 @@ impl<T: Copy> MutHamt<T> {
                 let chunk = mug & 0x1f;
                 mug = mug >> 5;
                 match (*stem).entry(chunk) {
-                    None => { break None; },
+                    None => {
+                        break None;
+                    }
                     Some(Left(next_stem)) => {
                         stem = next_stem;
-                    },
-                    Some(Right(leaf)) =>  {
+                    }
+                    Some(Right(leaf)) => {
                         for pair in leaf.to_mut_slice().iter_mut() {
                             if unifying_equality(stack, n, &mut (*pair).0) {
                                 break 'lookup Some((*pair).1);
                             }
                         }
                         break None;
-                    },
+                    }
                 }
             }
         }
@@ -110,15 +108,15 @@ impl<T: Copy> MutHamt<T> {
                             leaf: Leaf {
                                 len: 1,
                                 buffer: new_leaf_buffer,
-                            }
+                            },
                         };
                         break;
-                    },
+                    }
                     Some(Left(next_stem)) => {
                         depth += 1;
                         stem = next_stem;
                         continue;
-                    },
+                    }
                     Some(Right(leaf)) => {
                         for pair in leaf.to_mut_slice().iter_mut() {
                             if unifying_equality(stack, n, &mut (*pair).0) {
@@ -134,7 +132,7 @@ impl<T: Copy> MutHamt<T> {
                                 leaf: Leaf {
                                     len: leaf.len + 1,
                                     buffer: new_leaf_buffer,
-                                }
+                                },
                             };
                             break;
                         } else {
@@ -144,8 +142,8 @@ impl<T: Copy> MutHamt<T> {
                             let leaf_chunk = (leaf_mug >> ((depth + 1) * 5)) & 0x1f;
                             (*new_stem).bitmap = chunk_to_bit(leaf_chunk);
                             (*new_stem).typemap = 0;
-                            (*new_stem).buffer[leaf_chunk as usize] = MutEntry{ leaf: leaf};
-                            (*stem).buffer[chunk as usize] = MutEntry{ stem: new_stem };
+                            (*new_stem).buffer[leaf_chunk as usize] = MutEntry { leaf: leaf };
+                            (*stem).buffer[chunk as usize] = MutEntry { stem: new_stem };
                             (*stem).typemap = (*stem).typemap | chunk_to_bit(chunk);
                             stem = new_stem;
                             depth += 1;
@@ -159,11 +157,22 @@ impl<T: Copy> MutHamt<T> {
 }
 
 #[repr(packed)]
-#[derive(Copy, Clone)]
 struct Stem<T: Copy> {
     bitmap: u32,
     typemap: u32,
     buffer: *const Entry<T>,
+}
+
+impl<T: Copy> Copy for Stem<T> {}
+
+impl<T: Copy> Clone for Stem<T> {
+    fn clone(&self) -> Self {
+        Stem {
+            bitmap: self.bitmap,
+            typemap: self.typemap,
+            buffer: self.buffer,
+        }
+    }
 }
 
 impl<T: Copy> Stem<T> {
@@ -207,11 +216,22 @@ impl<T: Copy> Stem<T> {
         })
     }
 }
+
 #[repr(packed)]
-#[derive(Copy, Clone)]
 struct Leaf<T: Copy> {
     len: usize,
     buffer: *mut (Noun, T), // mutable for unifying equality
+}
+
+impl<T: Copy> Copy for Leaf<T> {}
+
+impl<T: Copy> Clone for Leaf<T> {
+    fn clone(&self) -> Self {
+        Leaf {
+            len: self.len,
+            buffer: self.buffer,
+        }
+    }
 }
 
 impl<T: Copy> Leaf<T> {
