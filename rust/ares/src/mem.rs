@@ -116,12 +116,8 @@ impl NockStack {
     pub fn in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
         match &self.polarity {
-            Polarity::East => {
-                ptr_u64 >= self.stack_pointer && ptr_u64 < self.frame_pointer
-            },
-            Polarity::West => {
-                ptr_u64 >= self.frame_pointer && ptr_u64 < self.stack_pointer
-            },
+            Polarity::East => ptr_u64 >= self.stack_pointer && ptr_u64 < self.frame_pointer,
+            Polarity::West => ptr_u64 >= self.frame_pointer && ptr_u64 < self.stack_pointer,
         }
     }
 
@@ -250,14 +246,16 @@ impl NockStack {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_east();
         // note that the allocation is on the west frame, and thus resembles raw_alloc_west
         let alloc = *(prev_stack_pointer_pointer);
-        *prev_stack_pointer_pointer = (*prev_stack_pointer_pointer).add(word_size_of::<T>() * count);
+        *prev_stack_pointer_pointer =
+            (*prev_stack_pointer_pointer).add(word_size_of::<T>() * count);
         alloc as *mut T
     }
 
     unsafe fn struct_alloc_in_previous_frame_west<T>(&mut self, count: usize) -> *mut T {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_west();
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
-        *prev_stack_pointer_pointer = (*prev_stack_pointer_pointer).sub(word_size_of::<T>() * count);
+        *prev_stack_pointer_pointer =
+            (*prev_stack_pointer_pointer).sub(word_size_of::<T>() * count);
         *prev_stack_pointer_pointer as *mut T
     }
 
@@ -871,11 +869,11 @@ impl Preserve for IndirectAtom {
 impl Preserve for Atom {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         match self.as_either() {
-            Left(_direct) => {},
+            Left(_direct) => {}
             Right(mut indirect) => {
                 indirect.preserve(stack);
                 *self = indirect.as_atom();
-            },
+            }
         }
     }
 }
@@ -885,10 +883,10 @@ impl Preserve for Noun {
         match stack.polarity {
             Polarity::East => {
                 stack.copy_east(self);
-            },
+            }
             Polarity::West => {
                 stack.copy_west(self);
-            },
+            }
         }
     }
 }

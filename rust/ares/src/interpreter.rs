@@ -309,8 +309,10 @@ pub fn interpret(
                 Nock11ComputeHint => {
                     let hint = *stack.local_noun_pointer(1);
                     if let Ok(hint_cell) = hint.as_cell() {
-                    let formula = *stack.local_noun_pointer(2);
-                    if let Ok(found) = match_pre_hint(stack, newt, subject, hint_cell, formula, &cache) {
+                        let formula = *stack.local_noun_pointer(2);
+                        if let Ok(found) =
+                            match_pre_hint(stack, newt, subject, hint_cell, formula, &cache)
+                        {
                             res = found;
                             stack.preserve(&mut cache);
                             stack.preserve(&mut res);
@@ -344,7 +346,8 @@ pub fn interpret(
                     stack.pop();
                 }
             };
-    }});
+        }
+    });
     res
 }
 

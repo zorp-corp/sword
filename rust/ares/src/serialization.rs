@@ -1,7 +1,7 @@
 use crate::assert_acyclic;
+use crate::hamt::MutHamt;
 use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
-use crate::hamt::MutHamt;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
 
@@ -49,7 +49,8 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                     // 11 bits - cue backreference
                     cursor += 2;
                     unsafe {
-                        let mut backref_noun = Atom::new(stack, rub_backref(&mut cursor, buffer_bitslice)).as_noun();
+                        let mut backref_noun =
+                            Atom::new(stack, rub_backref(&mut cursor, buffer_bitslice)).as_noun();
                         let reffed_noun = backref_map
                             .lookup(stack, &mut backref_noun)
                             .expect("Invalid backref in cue");
@@ -191,10 +192,10 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
                         } else {
                             jam_backref(stack, &mut state, backref);
                         }
-                    },
+                    }
                     Right(_cell) => {
                         jam_backref(stack, &mut state, backref);
-                    },
+                    }
                 }
                 unsafe {
                     stack.reclaim_in_previous_frame::<Noun>();

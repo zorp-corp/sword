@@ -183,9 +183,9 @@ impl fmt::Display for DirectAtom {
                 std::str::from_utf8_unchecked(&bytes[..n])
             })
         } else {
-        write!(f, "{}", self.0)
+            write!(f, "{}", self.0)
+        }
     }
-}
 }
 
 #[allow(non_snake_case)]

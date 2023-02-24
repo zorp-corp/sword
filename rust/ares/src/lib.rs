@@ -10,9 +10,9 @@ pub mod newt;
 pub mod noun;
 pub mod serf;
 //pub mod bytecode;
+pub mod hamt;
 pub mod serialization;
 pub mod snapshot;
-pub mod hamt;
 
 /** Introduce useful functions for debugging
  *
@@ -36,9 +36,9 @@ macro_rules! gdb {
     };
 }
 
-#[cfg(debug_assertions)]
-#[global_allocator]
-static A: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
+// #[cfg(debug_assertions)]
+// #[global_allocator]
+// static A: assert_no_alloc::AllocDisabler = assert_no_alloc::AllocDisabler;
 
 pub(crate) use gdb;
 
