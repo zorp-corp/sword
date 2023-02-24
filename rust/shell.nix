@@ -1,4 +1,16 @@
-{ sources ? import ./nix/sources.nix, pkgs ? import sources.nixpkgs {} }:
+{ sources ? import ./nix/sources.nix,
+  pkgs ? import sources.nixpkgs {
+    overlays = [ (import "${sources.fenix}/overlay.nix") ];
+  }
+}:
 pkgs.mkShell {
-  packages = with pkgs; [ rustc cargo cargo-watch rustfmt ];
+  packages = with pkgs; [
+    (fenix.stable.withComponents [
+      "cargo"
+      "rustc"
+      "rustfmt"
+      "rust-src"
+    ])
+    cargo-watch
+  ];
 }
