@@ -1,4 +1,4 @@
-name: Rust
+name: Ares
 
 on:
   push:
@@ -8,6 +8,10 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: rust/ares
 
 jobs:
   build:
