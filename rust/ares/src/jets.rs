@@ -1,65 +1,70 @@
-use crate::interpreter::raw_slot;
-use crate::mem::NockStack;
-use crate::noun::{DirectAtom, IndirectAtom, Noun};
-use ares_macros::tas;
-use either::Either::*;
+pub mod math;
 
-pub fn get_jet(jet_name: Noun) -> Result<fn(&mut NockStack, Noun) -> Noun, ()> {
+use crate::jets::math::*;
+use crate::mem::NockStack;
+use crate::noun::Noun;
+use ares_macros::tas;
+
+crate::gdb!();
+
+/// Return Err if the computation crashed or should punt to Nock
+pub type Jet = fn(&mut NockStack, Noun) -> Result<Noun, JetErr>;
+
+/// Only return a deterministic error if the Nock would have deterministically crashed.
+#[derive(Debug, PartialEq)]
+pub enum JetErr {
+    Punt,             // Retry with the raw nock
+    Deterministic,    // The Nock would have crashed
+    NonDeterministic, // Other error
+}
+
+impl From<()> for JetErr {
+    fn from(_: ()) -> Self {
+        JetErr::NonDeterministic
+    }
+}
+
+impl From<JetErr> for () {
+    fn from(_: JetErr) -> Self {}
+}
+
+pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
     match jet_name.as_direct()?.data() {
         tas!(b"dec") => Ok(jet_dec),
+        tas!(b"add") => Ok(jet_add),
+        tas!(b"sub") => Ok(jet_sub),
+        tas!(b"mul") => Ok(jet_mul),
+        tas!(b"div") => Ok(jet_div),
+        tas!(b"mod") => Ok(jet_mod),
+        tas!(b"dvr") => Ok(jet_dvr),
+        tas!(b"lth") => Ok(jet_lth),
+        tas!(b"lte") => Ok(jet_lte),
+        tas!(b"gth") => Ok(jet_gth),
+        tas!(b"gte") => Ok(jet_gte),
+        tas!(b"bex") => Ok(jet_bex),
+        tas!(b"lsh") => Ok(jet_lsh),
+        tas!(b"rsh") => Ok(jet_rsh),
+        tas!(b"con") => Ok(jet_con),
+        tas!(b"dis") => Ok(jet_dis),
+        tas!(b"mix") => Ok(jet_mix),
+        tas!(b"end") => Ok(jet_end),
+        tas!(b"cat") => Ok(jet_cat),
         tas!(b"cut") => Ok(jet_cut),
-        _ => Err(()),
-    }
-}
-
-fn jet_dec(stack: &mut NockStack, subject: Noun) -> Noun {
-    let arg = raw_slot(subject, 6);
-    if let Ok(atom) = arg.as_atom() {
-        match atom.as_either() {
-            Left(direct) => {
-                if direct.data() == 0 {
-                    panic!("Decrementing 0");
-                } else {
-                    unsafe { DirectAtom::new_unchecked(direct.data() - 1) }.as_noun()
-                }
-            }
-            Right(indirect) => {
-                let indirect_slice = indirect.as_bitslice();
-                match indirect_slice.first_one() {
-                    None => {
-                        panic!("Decrementing 0");
-                    }
-                    Some(first_one) => {
-                        let (mut new_indirect, new_slice) =
-                            unsafe { IndirectAtom::new_raw_mut_bitslice(stack, indirect.size()) };
-                        if first_one > 0 {
-                            new_slice[..first_one].fill(true);
-                        }
-                        new_slice.set(first_one, false);
-                        new_slice[first_one + 1..]
-                            .copy_from_bitslice(&indirect_slice[first_one + 1..]);
-                        let res = unsafe { new_indirect.normalize_as_atom() };
-                        res.as_noun()
-                    }
-                }
-            }
+        tas!(b"can") => Ok(jet_can),
+        tas!(b"rep") => Ok(jet_rep),
+        tas!(b"rip") => Ok(jet_rip),
+        tas!(b"met") => Ok(jet_met),
+        tas!(b"mug") => Ok(jet_mug),
+        _ => {
+            // eprintln!("Unknown jet: {:?}", jet_name);
+            Err(())
         }
-    } else {
-        panic!("Argument to dec must be atom");
     }
 }
 
-fn jet_cut(stack: &mut NockStack, subject: Noun) -> Noun {
-    let arg = raw_slot(subject, 6);
-    let bloq = raw_slot(arg, 2).as_direct().unwrap().data();
-    let start = raw_slot(arg, 12).as_direct().unwrap().data();
-    let run = raw_slot(arg, 13).as_direct().unwrap().data();
-    let atom = raw_slot(arg, 7).as_atom().unwrap();
-    let slice = atom.as_bitslice();
-    let unit = 1 << bloq;
-    let (mut new_indirect, new_slice) =
-        unsafe { IndirectAtom::new_raw_mut_bitslice(stack, ((run * unit + 63) >> 6) as usize) };
-    new_slice[..(unit * run) as usize]
-        .copy_from_bitslice(&slice[(unit * start) as usize..(unit * (start + run)) as usize]);
-    unsafe { new_indirect.normalize_as_atom().as_noun() }
+pub fn get_jet_test_mode(jet_name: Noun) -> bool {
+    match jet_name.as_direct().unwrap().data() {
+        // tas!(b"cut") => true,
+        _ => false,
+    }
 }

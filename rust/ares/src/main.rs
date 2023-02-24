@@ -15,6 +15,20 @@ use std::ptr::write_bytes;
 
 fn main() -> io::Result<()> {
     let filename = env::args().nth(1).expect("Must provide input filename");
+
+    if filename == "see gdb! definition in lib.rs about this" {
+        ares::interpreter::use_gdb();
+        ares::jets::use_gdb();
+        ares::jets::math::use_gdb();
+        ares::mem::use_gdb();
+        ares::mug::use_gdb();
+        ares::newt::use_gdb();
+        ares::noun::use_gdb();
+        ares::serf::use_gdb();
+        ares::serialization::use_gdb();
+        ares::snapshot::use_gdb();
+    }
+
     if filename == "serf" {
         return serf();
     }
@@ -38,7 +52,7 @@ fn main() -> io::Result<()> {
         .expect("Input must be jam of subject/formula pair");
     let result = interpret(&mut stack, &mut None, input_cell.head(), input_cell.tail());
     if let Ok(atom) = result.as_atom() {
-        println!("Result: {:?}", atom);
+        println!("Result: {}", atom);
     }
     let jammed_result = jam(&mut stack, result);
     let f_out = OpenOptions::new()

@@ -1,9 +1,10 @@
 ::  A trivial working pill which requires no jets
+/+  cradle
 !.
-=>  ~
 =/  core
+  =>  cradle
   !=
-  =>  ~  =>
+  =>
   |%
   +$  card  (cask)
   ++  cask  |$  [a]  (pair mark a)
@@ -45,4 +46,4 @@
     arvo  .*([arvo -.epic] [%9 2 %10 [6 %0 3] %0 2])
   ==
 --
-[%pill %baby [aeon .*(0 core) ~] ~ ~]
+[%pill %baby [aeon .*(cradle core) ~] ~ ~]
