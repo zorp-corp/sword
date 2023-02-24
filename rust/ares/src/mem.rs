@@ -585,12 +585,18 @@ impl NockStack {
         assert_acyclic!(*noun);
     }
 
+    pub fn frame_size(&self) -> usize {
+        match self.polarity {
+            Polarity::East => self.frame_pointer as usize - self.stack_pointer as usize,
+            Polarity::West => self.stack_pointer as usize - self.frame_pointer as usize,
+        }
+    }
+
     unsafe fn pop_east(&mut self) {
         self.stack_pointer = *self.previous_stack_pointer_pointer_east();
         self.frame_pointer = *self.previous_frame_pointer_pointer_east();
         self.polarity = Polarity::West;
     }
-
 
     unsafe fn pop_west(&mut self) {
         self.stack_pointer = *self.previous_stack_pointer_pointer_west();

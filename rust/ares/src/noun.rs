@@ -1,3 +1,4 @@
+use crate::mem::{word_size_of, NockStack};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either;
 use ibig::{Stack, UBig};
@@ -843,6 +844,78 @@ impl Noun {
 
     pub unsafe fn from_raw(raw: u64) -> Noun {
         Noun { raw: raw }
+    }
+
+    /** Produce the total size of a noun, in words
+     *
+     * This counts the total size, see mass_frame() to count the size in the current frame.
+     */
+    pub fn mass(self) -> usize {
+        unsafe {
+            let res = self.mass_wind(&|_| true);
+            self.mass_unwind(&|_| true);
+            res
+        }
+    }
+
+    /** Produce the size of a noun in the current frame, in words */
+    pub fn mass_frame(self, stack: &NockStack) -> usize {
+        unsafe {
+            let res = self.mass_wind(&|p| stack.in_frame(p));
+            self.mass_unwind(&|p| stack.in_frame(p));
+            res
+        }
+    }
+
+    /** Produce the total size of a noun, in words
+     *
+     * `inside` determines whether a pointer should be counted.  If it returns false, we also do
+     * not recurse into that noun if it is a cell.  See mass_frame() for an example.
+     *
+     * This "winds up" the mass calculation, which includes setting the 32nd bit of the metadata to
+     * mark nouns that have already been counted.
+     *
+     * This is unsafe because you *must* call mass_unwind() with the same `inside` function to
+     * unmark the noun.  This is exposed so that you can count several the "mass difference" of a
+     * series of nouns.  If you call this twice consecutively, the first result will be the mass of
+     * the first noun, and the second will be the mass of the second noun minus the overlap with
+     * the first noun.
+     */
+    pub unsafe fn mass_wind(self, inside: &impl Fn(*const u64) -> bool) -> usize {
+        if let Ok(allocated) = self.as_allocated() {
+            if inside(allocated.to_raw_pointer()) {
+                if allocated.get_metadata() & (1 << 32) == 0 {
+                    allocated.set_metadata(allocated.get_metadata() | (1 << 32));
+                    match allocated.as_either() {
+                        Either::Left(indirect) => indirect.size() + 2,
+                        Either::Right(cell) => {
+                            word_size_of::<CellMemory>()
+                                + cell.head().mass_wind(inside)
+                                + cell.tail().mass_wind(inside)
+                        }
+                    }
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        } else {
+            0
+        }
+    }
+
+    /** See mass_wind() */
+    pub unsafe fn mass_unwind(self, inside: &impl Fn(*const u64) -> bool) {
+        if let Ok(allocated) = self.as_allocated() {
+            if inside(allocated.to_raw_pointer()) {
+                allocated.set_metadata(allocated.get_metadata() & !(1 << 32));
+                if let Either::Right(cell) = allocated.as_either() {
+                    cell.head().mass_unwind(inside);
+                    cell.tail().mass_unwind(inside);
+                }
+            }
+        }
     }
 }
 
