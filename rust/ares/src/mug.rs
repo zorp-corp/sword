@@ -4,6 +4,8 @@ use crate::noun::{Allocated, Atom, DirectAtom, Noun};
 use either::Either::*;
 use murmur3::murmur3_32_nocopy;
 
+crate::gdb!();
+
 // Murmur3 hash an atom with a given padded length
 fn muk_u32(syd: u32, len: usize, key: Atom) -> u32 {
     match key.as_either() {
@@ -114,6 +116,9 @@ pub fn mug_u32_one(noun: Noun) -> Option<u32> {
 }
 
 pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
+    if let Some(mug) = get_mug(noun) {
+        return mug;
+    }
     assert_acyclic!(noun);
     stack.push(1);
     unsafe {
@@ -165,7 +170,7 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
         }
     }
     unsafe {
-        stack.pop_no_copy();
+        stack.pop();
         get_mug(noun).expect("Noun should have a mug once it is mugged.")
     }
 }

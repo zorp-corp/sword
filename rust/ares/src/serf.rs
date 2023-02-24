@@ -9,6 +9,8 @@ use std::fs::create_dir_all;
 use std::io;
 use std::path::PathBuf;
 
+crate::gdb!();
+
 #[allow(dead_code)]
 const LOAD_AXIS: u64 = 4;
 const PEEK_AXIS: u64 = 22;
@@ -29,7 +31,7 @@ pub fn serf() -> io::Result<()> {
     snap_path.push("chk");
     create_dir_all(&snap_path)?;
 
-    let ref mut stack = NockStack::new(8 << 10 << 10, 0);
+    let ref mut stack = NockStack::new(96 << 10 << 10, 0);
     let ref mut newt = Newt::new();
     let mut event_number;
     let mut arvo;
@@ -112,7 +114,7 @@ pub fn serf() -> io::Result<()> {
 
                 newt.work_done(stack, event_number, 0, fec);
             }
-            _ => panic!("got message with unknown tag {:?}", tag),
+            _ => panic!("got message with unknown tag {}", tag),
         };
     }
 
