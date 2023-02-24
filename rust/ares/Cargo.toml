@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [patch.crates-io]
-ibig = { git = 'https://github.com/urbit/ibig-rs' }
+ibig = { path = "../ibig-rs" }
 
 [dependencies]
 ares_macros = { path = "../ares_macros" }
