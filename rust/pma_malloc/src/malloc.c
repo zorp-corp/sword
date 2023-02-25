@@ -119,12 +119,12 @@
 /**
  * Convert pointer to index in page directory
  */
-#define PTR_TO_INDEX(foo)     ((((uint64_t)foo) - ((uint64_t)_pma_state->metadata.arena_start)) >> PMA_PAGE_SHIFT)
+#define PTR_TO_INDEX(foo)     ((((uint64_t)(foo)) - ((uint64_t)_pma_state->metadata.arena_start)) >> PMA_PAGE_SHIFT)
 
 /**
  * TODO - documentation
  */
-#define INDEX_TO_PTR(foo)     (void *)((char *)_pma_state->metadata.arena_start + (foo * PMA_PAGE_SIZE))
+#define INDEX_TO_PTR(foo)     (void *)((char *)_pma_state->metadata.arena_start + ((foo) * PMA_PAGE_SIZE))
 
 /**
  * Flags to use for all mmap operations, excluding initial metadata page mapping
@@ -621,6 +621,7 @@ pma_init(const char *path) {
 
   // First page used by dpage cache
   _pma_state->page_directory.entries[0].status = FIRST;
+  _pma_state->page_directory.entries[0].offset = meta_bytes;
 
   //
   // Setup transient state
@@ -742,11 +743,13 @@ pma_load(const char *path) {
   sprintf(filepath, "%s/%s/%s", path, PMA_DEFAULT_DIR_NAME, PMA_SNAPSHOT_FILENAME);
   snapshot_fd = open(filepath, PMA_FILE_FLAGS, PMA_FILE_PERMISSIONS);
   if (snapshot_fd == -1) LOAD_ERROR;
+  _pma_state->snapshot_fd = snapshot_fd;
 
   // Open backing file for page directory
   sprintf(filepath, "%s/%s/%s", path, PMA_DEFAULT_DIR_NAME, PMA_PAGE_DIR_FILENAME);
   page_dir_fd = open(filepath, PMA_FILE_FLAGS, PMA_FILE_PERMISSIONS);
   if (page_dir_fd == -1) LOAD_ERROR;
+  _pma_state->page_dir_fd = page_dir_fd;
 
   //
   // Verify file can be loaded
@@ -754,7 +757,7 @@ pma_load(const char *path) {
 
   // Read magic code
   err = read(snapshot_fd, (void*)(&_pma_state->metadata.magic_code), sizeof(uint64_t));
-  if ((err != -1) || (_pma_state->metadata.magic_code != PMA_MAGIC_CODE)) {
+  if ((err == -1) || (_pma_state->metadata.magic_code != PMA_MAGIC_CODE)) {
     errno = EILSEQ; // TODO: EPROTO instead?
     LOAD_ERROR;
   }
@@ -773,8 +776,8 @@ pma_load(const char *path) {
   newer_page = (Metadata*)meta_pages;
   older_page = (Metadata*)((char*)meta_pages + PMA_PAGE_SIZE);
   if (
-      (newer_page->epoch > older_page->epoch) ||
-      ((newer_page->epoch == older_page->epoch) && (newer_page->event > older_page->event))) {
+      (newer_page->epoch < older_page->epoch) ||
+      ((newer_page->epoch == older_page->epoch) && (newer_page->event < older_page->event))) {
     newer_page = older_page;
     older_page = (Metadata*)meta_pages;
   }
@@ -816,9 +819,13 @@ pma_load(const char *path) {
   // Map pages and compute free page caches
   //
 
+  // get total number of indices
+  struct stat st;
+  fstat(page_dir_fd, &st);
+  _pma_state->page_directory.size = ((st.st_size / sizeof(PageDirEntry)) - 1);
+
   index = 0;
-  while (1) {
-    struct stat   st;
+  while (index < _pma_state->page_directory.size) {
     uint64_t      count = 1;
 
     switch (_pma_state->page_directory.entries[index].status) {
@@ -910,16 +917,11 @@ pma_load(const char *path) {
         errno = EINVAL;
         LOAD_ERROR;
     }
-
-    // Get next free index
-    _pma_state->page_directory.next_index = index;
-
-    // Get total number of indices
-    fstat(page_dir_fd, &st);
-    _pma_state->page_directory.size = ((st.st_size / sizeof(PageDirEntry)) - 1);
-
-    break;
   }
+
+  // Get next free index
+  _pma_state->page_directory.next_index = index;
+
 
   //
   // Done
@@ -958,11 +960,14 @@ pma_close(uint64_t epoch, uint64_t event) {
   munmap(_pma_state->page_directory.entries, PMA_MAXIMUM_DIR_SIZE);
 
   // Unmap snapshot
+  // XX should just be end - start?
   munmap(_pma_state->metadata.arena_start, _pma_state->metadata.snapshot_size);
 
   // Close file descriptors
   close(_pma_state->page_dir_fd);
   close(_pma_state->snapshot_fd);
+
+  _pma_state = NULL;
 
   return 0;
 }
@@ -1013,30 +1018,7 @@ pma_free(void *address) {
 
   index = PTR_TO_INDEX(address);
 
-  switch (_pma_state->page_directory.entries[index].status) {
-    case UNALLOCATED:
-      // Something has definitely gone wrong if an address between arena_start
-      // and arena_end, with an index between 0 and next_free_index is
-      // unallocated
-      ERROR("address marked unallocated");
-      break;
-
-    case FREE:
-      WARNING("address already free");
-      break;
-
-    case SHARED:
-      _pma_free_bytes(address);
-      break;
-
-    case FIRST:
-      _pma_free_pages(address);
-      break;
-
-    case FOLLOW:
-      ERROR("address points to middle of multi-page allocation");
-      break;
-  }
+  _pma_free_bytes(address);
 }
 
 int
@@ -1138,7 +1120,7 @@ _pma_verify_checksum(Metadata *meta_page) {
       PMA_PAGE_SIZE);
 
   // Compare checksums
-  return (checksum == _pma_state->metadata.checksum);
+  return (checksum == meta_page->checksum);
 }
 
 int
@@ -1667,6 +1649,8 @@ _pma_get_single_dpage(void) {
   offset = _pma_get_cached_dpage();
   if (!offset) {
     // Otherwise, get a new dpage from disk
+    //
+    // XX returns 0 on failure, should assert
     offset = _pma_get_disk_dpage();
   }
 
@@ -1681,7 +1665,6 @@ _pma_get_cached_dpage(void) {
   uint64_t offset;
   uint16_t dirty  = _pma_state->metadata.dpage_cache->dirty;
   uint16_t size   = _pma_state->metadata.dpage_cache->size;
-  uint16_t head   = _pma_state->metadata.dpage_cache->head;
 
   // If the cache is empty, or there's only one page in the cache and the cache
   // hasn't been touched yet, then exit early. If the cache hasn't been touched
@@ -1700,6 +1683,7 @@ _pma_get_cached_dpage(void) {
 
   // TODO: macros for dealing with cache?
   // Pop page off queue
+  uint16_t head   = _pma_state->metadata.dpage_cache->head;
   offset = _pma_state->metadata.dpage_cache->queue[head];
   _pma_state->metadata.dpage_cache->size -= 1;
   _pma_state->metadata.dpage_cache->head = ((head + 1) % PMA_DPAGE_CACHE_SIZE);
@@ -1728,6 +1712,7 @@ _pma_copy_dpage_cache(void) {
   if (size) {
     // Use a page from the cache and record that it was used afterwards
     offset = _pma_state->metadata.dpage_cache->queue[head];
+    assert(offset != 0);
 
     _pma_copy_page(address, offset, FIRST, _pma_state->snapshot_fd);
 
@@ -1791,8 +1776,10 @@ _pma_copy_page(void *address, uint64_t offset, PageStatus status, int fd) {
   // Add previous dpage to cache
   // Note: the dpage cache should always be writeable here, either because the dpage cache is the page we just copied,
   // or because it was made writeable in advance by _pma_copy_shared_page
+  assert(_pma_state->page_directory.entries[index].offset != 0);
   _pma_state->metadata.dpage_cache->queue[tail] = _pma_state->page_directory.entries[index].offset;
   _pma_state->metadata.dpage_cache->tail = ((tail + 1) % PMA_DPAGE_CACHE_SIZE);
+  _pma_state->metadata.dpage_cache->size += 1;
 
   // Add page to dirty page list
   _pma_mark_page_dirty(index, offset, status, 1);
