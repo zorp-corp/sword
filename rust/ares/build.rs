@@ -4,5 +4,6 @@ fn main() {
     cc::Build::new()
         .file("../pma_malloc/src/malloc.c")
         .file("../pma_malloc/src/includes/checksum.c")
+        .opt_level(3)
         .compile("pma_malloc");
 }

@@ -428,8 +428,8 @@ int
 pma_init(const char *path) {
   DIR      *dir;
   char     *filepath;
-  void     *meta_pages;
-  void     *page_dir;
+  void     *meta_pages = NULL;;
+  void     *page_dir = NULL;
   uint64_t  meta_bytes;
   int       err;
   int       err_line;
@@ -691,8 +691,8 @@ init_error:
   err = errno;
   fprintf(stderr, "(L%d) Initialization error: %s\n", err_line, strerror(errno));
 
-  munmap(meta_pages, meta_bytes);
-  munmap(page_dir, PMA_INIT_DIR_SIZE);
+  if (meta_pages) munmap(meta_pages, meta_bytes);
+  if (page_dir) munmap(page_dir, PMA_INIT_DIR_SIZE);
   if (snapshot_fd) close(snapshot_fd);
   if (page_dir_fd) close(page_dir_fd);
   free((void*)filepath);
@@ -706,7 +706,7 @@ pma_load(const char *path) {
   Metadata     *older_page;
   char         *filepath;
   void         *address;
-  void         *meta_pages;
+  void         *meta_pages = NULL;
   uint64_t      index;
   uint64_t      meta_bytes;
   int           err;
@@ -853,7 +853,7 @@ pma_load(const char *path) {
           _pma_state->free_pages = free_page;
 
         } else {
-          PageRunCache *page_run = (PageRunCache *)malloc(sizeof(SinglePageCache));
+          PageRunCache *page_run = (PageRunCache *)malloc(sizeof(PageRunCache));
 
           page_run->next = _pma_state->free_page_runs;
           page_run->page = INDEX_TO_PTR(index - count);
@@ -939,7 +939,7 @@ load_error:
   err = errno;
   fprintf(stderr, "(L%d) Error loading from %s: %s\n", err_line, path, strerror(errno));
 
-  munmap(meta_pages, meta_bytes);
+  if (meta_pages) munmap(meta_pages, meta_bytes);
   munmap(_pma_state->page_directory.entries, PMA_MAXIMUM_DIR_SIZE);
   munmap(_pma_state->metadata.arena_start, ((uint64_t)_pma_state->metadata.arena_end - (uint64_t)_pma_state->metadata.arena_start));
   if (snapshot_fd) close(snapshot_fd);
@@ -997,8 +997,6 @@ pma_malloc(size_t size) {
 
 void
 pma_free(void *address) {
-  uint64_t  index;
-
   // TODO: This is legal for POSIX free, but would this ever happen for pma_free?
   if (address == NULL) return;
 
@@ -1015,8 +1013,6 @@ pma_free(void *address) {
     WARNING("address was never allocated");
     return;
   }
-
-  index = PTR_TO_INDEX(address);
 
   _pma_free_bytes(address);
 }
@@ -1210,7 +1206,7 @@ _pma_update_free_pages(uint8_t num_dirty_pages, DirtyPageEntry *dirty_pages) {
     if (dirty_pages[i].status != FREE) continue;
 
     if (dirty_pages[i].num_pages > 1) {
-      page_run = (PageRunCache *)malloc(sizeof(SinglePageCache));
+      page_run = (PageRunCache *)malloc(sizeof(PageRunCache));
       if (page_run == NULL) return -1;
 
       page_run->next = _pma_state->free_page_runs;

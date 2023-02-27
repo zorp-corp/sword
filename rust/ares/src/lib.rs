@@ -8,6 +8,7 @@ pub mod mem;
 pub mod mug;
 pub mod newt;
 pub mod noun;
+pub mod pma;
 pub mod serf;
 //pub mod bytecode;
 pub mod hamt;

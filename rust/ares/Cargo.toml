@@ -28,10 +28,6 @@ assert_no_alloc = "1.1.2"
 cc = "1.0.79"
 
 [[bin]]
-name = "cue_pill"
-path = "benches/cue_pill.rs"
-
-[[bin]]
 name = "ares"
 path = "src/main.rs"
 
