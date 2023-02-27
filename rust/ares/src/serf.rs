@@ -3,7 +3,8 @@ use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
 use crate::noun::{Noun, D, T};
-use crate::snapshot::{load, save};
+use crate::snapshot::double_jam::DoubleJam;
+use crate::snapshot::Snapshot;
 use ares_macros::tas;
 use std::fs::create_dir_all;
 use std::io;
@@ -30,13 +31,12 @@ pub fn serf() -> io::Result<()> {
     snap_path.push(".urb");
     snap_path.push("chk");
     create_dir_all(&snap_path)?;
+    let ref mut snap = DoubleJam::new(snap_path);
 
     let ref mut stack = NockStack::new(96 << 10 << 10, 0);
     let ref mut newt = Newt::new();
-    let mut event_number;
-    let mut arvo;
 
-    (event_number, arvo) = load(stack, snap_path.clone()).unwrap_or((0, D(0)));
+    let (_epoch, mut event_number, mut arvo) = snap.load(stack).unwrap_or((0, 0, D(0)));
     let mug = mug_u32(stack, arvo);
 
     newt.ripe(stack, event_number, mug as u64);
@@ -59,7 +59,7 @@ pub fn serf() -> io::Result<()> {
                     tas!(b"save") => {
                         // XX what is eve for?
                         eprintln!("save");
-                        save(stack, snap_path.clone(), event_number, arvo);
+                        snap.sync(stack, 0, event_number);
                     }
                     tas!(b"meld") => eprintln!("meld"),
                     tas!(b"pack") => eprintln!("pack"),
@@ -109,6 +109,7 @@ pub fn serf() -> io::Result<()> {
                 let res = slam(stack, newt, arvo, POKE_AXIS, ovo).as_cell().unwrap();
                 let fec = res.head();
                 arvo = res.tail();
+                snap.save(stack, arvo);
 
                 event_number += 1;
 
