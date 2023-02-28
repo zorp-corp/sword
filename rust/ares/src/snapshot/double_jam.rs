@@ -21,8 +21,7 @@ use memmap::MmapMut;
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::mem;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::ptr::copy_nonoverlapping;
 use std::ptr::write_bytes;
 
@@ -99,8 +98,19 @@ impl DoubleJam {
 }
 
 impl Snapshot for DoubleJam {
-    fn save(&mut self, _stack: &mut NockStack, noun: Noun) {
-        self.noun = noun;
+    fn load(&mut self, stack: &mut NockStack) -> io::Result<(u64, u64, Noun)> {
+        let (_num, event_number, state) = self.latest_snapshot(stack)?;
+
+        let jammed_arvo =
+            unsafe { IndirectAtom::new_raw(stack, state.size() - 1, state.data_pointer().add(1)) };
+
+        let arvo = cue(stack, jammed_arvo.as_atom());
+
+        Ok((0, event_number, arvo))
+    }
+
+    fn save(&mut self, _stack: &mut NockStack, noun: &mut Noun) {
+        self.noun = *noun;
     }
 
     fn sync(&mut self, stack: &mut NockStack, _epoch: u64, event_number: u64) {
@@ -156,16 +166,5 @@ impl Snapshot for DoubleJam {
             // macos, and fsync for some other platforms.
             f.sync_data().unwrap();
         };
-    }
-
-    fn load(&mut self, stack: &mut NockStack) -> io::Result<(u64, u64, Noun)> {
-        let (_num, event_number, state) = self.latest_snapshot(stack)?;
-
-        let jammed_arvo =
-            unsafe { IndirectAtom::new_raw(stack, state.size() - 1, state.data_pointer().add(1)) };
-
-        let arvo = cue(stack, jammed_arvo.as_atom());
-
-        Ok((0, event_number, arvo))
     }
 }

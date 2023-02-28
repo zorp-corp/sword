@@ -3,12 +3,13 @@ use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
 use crate::noun::{Noun, D, T};
-use crate::snapshot::double_jam::DoubleJam;
-use crate::snapshot::Snapshot;
+use crate::snapshot::{self, Snapshot};
 use ares_macros::tas;
 use std::fs::create_dir_all;
 use std::io;
 use std::path::PathBuf;
+use std::thread::sleep;
+use std::time;
 
 crate::gdb!();
 
@@ -24,6 +25,7 @@ const WISH_AXIS: u64 = 10;
  * u3_lord_init in vere to point at this binary and start vere like normal.
  */
 pub fn serf() -> io::Result<()> {
+    sleep(time::Duration::from_secs(0));
     let snap_path_string = std::env::args()
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
@@ -31,7 +33,9 @@ pub fn serf() -> io::Result<()> {
     snap_path.push(".urb");
     snap_path.push("chk");
     create_dir_all(&snap_path)?;
-    let ref mut snap = DoubleJam::new(snap_path);
+    // PMA is currently limited to ~650KB, use DoubleJam for anything bigger
+    // let ref mut snap = snapshot::double_jam::DoubleJam::new(snap_path);
+    let ref mut snap = snapshot::pma::Pma::new(snap_path);
 
     let ref mut stack = NockStack::new(96 << 10 << 10, 0);
     let ref mut newt = Newt::new();
@@ -102,6 +106,8 @@ pub fn serf() -> io::Result<()> {
                         break;
                     }
                 }
+
+                snap.save(stack, &mut arvo);
                 newt.play_done(stack, 0);
             }
             tas!(b"work") => {
@@ -109,7 +115,7 @@ pub fn serf() -> io::Result<()> {
                 let res = slam(stack, newt, arvo, POKE_AXIS, ovo).as_cell().unwrap();
                 let fec = res.head();
                 arvo = res.tail();
-                snap.save(stack, arvo);
+                snap.save(stack, &mut arvo);
 
                 event_number += 1;
 
