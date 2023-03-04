@@ -1,0 +1,23 @@
+on:
+  workflow_call:
+
+env:
+  URBIT_URL: 'https://urbit.org/install/linux-x86_64/latest'
+  PILL_URL: 'https://github.com/urbit/urbit/raw/master/bin/solid.pill'
+  URBIT_PIER: './pier'
+  DESK: 'sandbox'
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: 'Boot fake ship'
+        run: ./.github/scripts/hoon/boot-ship.sh
+
+      - name: 'Setup fake ship'
+        run: ./.github/scripts/hoon/setup-ship.sh
+
+      - name: 'Test fake ship'
+        run: ./.github/scripts/hoon/test-ship.sh
