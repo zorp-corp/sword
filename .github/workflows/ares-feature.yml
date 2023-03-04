@@ -1,0 +1,14 @@
+name: 'Ares: Pull request'
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ares-feature.yml'
+      - '.github/workflows/ares-shared.yml'
+      - 'rust/ares/**'
+      - 'rust/ares_macros/**'
+      - 'rust/ibig-rs/**'
+
+jobs:
+  urbit:
+    uses: ./.github/workflows/ares-shared.yml
