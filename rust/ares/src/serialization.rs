@@ -168,9 +168,9 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
     let (atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, size) };
     let mut state = JamState {
         cursor: 0,
-        size: size,
-        atom: atom,
-        slice: slice,
+        size,
+        atom,
+        slice,
     };
     stack.push(1);
     unsafe {

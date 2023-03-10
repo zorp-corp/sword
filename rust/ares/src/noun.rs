@@ -63,7 +63,7 @@ fn acyclic_noun_go(noun: Noun, seen: &mut IntMap<()>) -> bool {
     match noun.as_either_atom_cell() {
         Either::Left(_atom) => true,
         Either::Right(cell) => {
-            if let Some(_) = seen.get(cell.0) {
+            if seen.get(cell.0).is_some() {
                 false
             } else {
                 seen.insert(cell.0, ());
@@ -155,8 +155,8 @@ impl DirectAtom {
         self.0
     }
 
-    pub fn as_bitslice<'a>(&'a self) -> &'a BitSlice<u64, Lsb0> {
-        &(BitSlice::from_element(&self.0))
+    pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
+        BitSlice::from_element(&self.0)
     }
 }
 
@@ -345,16 +345,16 @@ impl IndirectAtom {
         unsafe { self.to_raw_pointer().add(2) as *const u64 }
     }
 
-    pub fn as_slice<'a>(&'a self) -> &'a [u64] {
+    pub fn as_slice(&self) -> &[u64] {
         unsafe { from_raw_parts(self.data_pointer(), self.size()) }
     }
 
-    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
+    pub fn as_bytes(&self) -> &[u8] {
         unsafe { from_raw_parts(self.data_pointer() as *const u8, self.size() << 3) }
     }
 
     /** BitSlice view on an indirect atom, with lifetime tied to reference to indirect atom. */
-    pub fn as_bitslice<'a>(&'a self) -> &'a BitSlice<u64, Lsb0> {
+    pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         BitSlice::from_slice(self.as_slice())
     }
 
@@ -617,11 +617,11 @@ impl Atom {
         }
     }
 
-    pub fn as_bitslice<'a>(&'a self) -> &'a BitSlice<u64, Lsb0> {
+    pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         if self.is_indirect() {
             unsafe { self.indirect.as_bitslice() }
         } else {
-            unsafe { &(self.direct.as_bitslice()) }
+            unsafe { self.direct.as_bitslice() }
         }
     }
 
@@ -843,7 +843,7 @@ impl Noun {
     }
 
     pub unsafe fn from_raw(raw: u64) -> Noun {
-        Noun { raw: raw }
+        Noun { raw }
     }
 
     /** Produce the total size of a noun, in words

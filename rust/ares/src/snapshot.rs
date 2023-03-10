@@ -97,7 +97,7 @@ fn latest_snapshot(
     snap_path: PathBuf,
 ) -> io::Result<(u8, u64, IndirectAtom)> {
     let res0 = load_snapshot(stack, snap_path.clone(), 0);
-    let res1 = load_snapshot(stack, snap_path.clone(), 1);
+    let res1 = load_snapshot(stack, snap_path, 1);
 
     match (res0, res1) {
         (Ok((event_number_0, state_0)), Ok((event_number_1, state_1))) => {
