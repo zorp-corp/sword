@@ -378,114 +378,119 @@
 ++  wash
   |=  [subj=sock form=*]
   ^-  boot
-  =|  ward=(map [sock *] boot)
-  =.  ward  (~(put by ward) [subj form] [%risk %toss ~])
+  =|  bare=[ward=(map [sock *] boot) dir=@ ind=@]
+  =.  ward.bare  (~(put by ward.bare) [subj form] [%risk %toss ~])
   |^
-    -:swab
+    =+  swab
+    ~&  "direct calls: {<dir>}"
+    ~&  "indirect calls: {<ind>}"
+    -<
   ++  swab
     |-
-    ^-  [boot _ward]
+    ^-  [boot _bare]
     ?>  ?=(^ form)
-    ?+  form  [[%boom ~] ward]
+    ?+  form  [[%boom ~] bare]
         ::
         [[* *] *]
-      =^  l  ward  $(form -.form)
-      =^  r  ward  $(form +.form)
-      :_  ward
+      =^  l  bare  $(form -.form)
+      =^  r  bare  $(form +.form)
+      :_  bare
       (cobb l r)
         ::
         [%0 @]
-      :_  ward
+      :_  bare
       (pull +.form subj)
         ::
         [%1 *]
-      :_  ward
+      :_  bare
       [%safe %know +.form]
         ::
         [%2 * *]
-      =^  subn  ward  $(form +<.form)
+      =^  subn  bare  $(form +<.form)
       ?:  ?=([%boom ~] subn)
-        [[%boom ~] ward]
-      =^  forn  ward  $(form +>.form)
+        [[%boom ~] bare]
+      =^  forn  bare  $(form +>.form)
       ?:  ?=([%boom ~] forn)
-        [[%boom ~] ward]
+        [[%boom ~] bare]
       ?:  ?=  [%safe %dice ~]  forn
-        [[%boom ~] ward]
+        [[%boom ~] bare]
       ?:  ?=  [%safe %flip ~]  forn
-        [[%boom ~] ward]
+        [[%boom ~] bare]
       ?:  ?=  [%risk %dice ~]  forn
-        [[%boom ~] ward]
+        [[%boom ~] bare]
       ?:  ?=  [%risk %flip ~]  forn
-        [[%boom ~] ward]
-      ?+  forn  [[%risk %toss ~] ward]
+        [[%boom ~] bare]
+      ?+  forn  [[%risk %toss ~] bare(ind .+(ind.bare))]
           ::
           [%safe %know *]
+        =.  dir.bare  .+(dir.bare)
         ?-  subn
             ::
             [%safe *]
           =/  nubs  sure.subn
           =/  norm  know.sure.forn
-          =/  mem  (~(get by ward) [nubs norm])
-          ?.  ?=(~ mem)  [u.mem ward]
-          =.  ward  (~(put by ward) [nubs norm] [%risk %toss ~])
-          =^  r  ward  $(subj nubs, form norm)
-          [r (~(put by ward) [nubs norm] r)]
+          =/  mem  (~(get by ward.bare) [nubs norm])
+          ?.  ?=(~ mem)  [u.mem bare]
+          =.  ward.bare  (~(put by ward.bare) [nubs norm] [%risk %toss ~])
+          =^  r  bare  $(subj nubs, form norm)
+          [r bare(ward (~(put by ward.bare) [nubs norm] r))]
             ::
             [%risk *]
           =/  nubs  hope.subn
           =/  norm  know.sure.forn
-          =/  mem  (~(get by ward) [nubs norm])
-          ?.  ?=(~ mem)  [u.mem ward]
-          =.  ward  (~(put by ward) [nubs norm] [%risk %toss ~])
-          =^  r  ward  $(subj nubs, form norm)
-          [(dare r) (~(put by ward) [nubs norm] (dare r))]
+          =/  mem  (~(get by ward.bare) [nubs norm])
+          ?.  ?=(~ mem)  [u.mem bare]
+          =.  ward.bare  (~(put by ward.bare) [nubs norm] [%risk %toss ~])
+          =^  r  bare  $(subj nubs, form norm)
+          [(dare r) bare(ward (~(put by ward.bare) [nubs norm] (dare r)))] :: XX fix up ward modifications
         ==
           ::
           [%risk %know *]
+        =.  dir.bare  .+(dir.bare)
         ?-  subn
             ::
             [%safe *]
           =/  nubs  sure.subn
           =/  norm  know.hope.forn
-          =/  mem  (~(get by ward) [nubs norm])
-          ?.  ?=(~ mem)  [u.mem ward]
-          =.  ward  (~(put by ward) [nubs norm] [%risk %toss ~])
-          =^  r  ward  $(subj nubs, form norm)
-          [(dare r) (~(put by ward) [nubs norm] (dare r))]
+          =/  mem  (~(get by ward.bare) [nubs norm])
+          ?.  ?=(~ mem)  [u.mem bare]
+          =.  ward.bare  (~(put by ward.bare) [nubs norm] [%risk %toss ~])
+          =^  r  bare  $(subj nubs, form norm)
+          [(dare r) bare(ward (~(put by ward.bare) [nubs norm] (dare r)))]
             ::
             [%risk *]
           =/  nubs  hope.subn
           =/  norm  know.hope.forn
-          =/  mem  (~(get by ward) [nubs norm])
-          ?.  ?=(~ mem)  [u.mem ward]
-          =.  ward  (~(put by ward) [nubs norm] [%risk %toss ~])
-          =^  r  ward  $(subj nubs, form norm)
-          [(dare r) (~(put by ward) [nubs norm] (dare r))]
+          =/  mem  (~(get by ward.bare) [nubs norm])
+          ?.  ?=(~ mem)  [u.mem bare]
+          =.  ward.bare  (~(put by ward.bare) [nubs norm] [%risk %toss ~])
+          =^  r  bare  $(subj nubs, form norm)
+          [(dare r) bare(ward (~(put by ward.bare) [nubs norm] (dare r)))]
         ==
       ==
         ::
         [%3 *]
-      =^  s  ward  $(form +.form)
-      :_  ward
+      =^  s  bare  $(form +.form)
+      :_  bare
       (ques s)
         ::
         [%4 *]
-      =^  s  ward  $(form +.form)
-      :_  ward
+      =^  s  bare  $(form +.form)
+      :_  bare
       (pile s)
         ::
         [%5 * *]
-      =^  l  ward  $(form +<.form)
-      =^  r  ward  $(form +>.form)
-      :_  ward
+      =^  l  bare  $(form +<.form)
+      =^  r  bare  $(form +>.form)
+      :_  bare
       (bopp l r)
         ::
         [%6 * * *]
-      =^  cond  ward  $(form +<.form)
-      ?+  cond  [[%boom ~] ward]
+      =^  cond  bare  $(form +<.form)
+      ?+  cond  [[%boom ~] bare]
           ::
           [%safe *]
-        ?+  sure.cond  [[%boom ~] ward]
+        ?+  sure.cond  [[%boom ~] bare]
             ::
             [%know %0]
           $(form +>-.form)
@@ -494,174 +499,182 @@
           $(form +>+.form)
             ::
             [%flip ~]
-          =^  t  ward  $(form +>-.form)
-          =^  f  ward  $(form +>+.form)
-          :_  ward
+          =^  t  bare  $(form +>-.form)
+          =^  f  bare  $(form +>+.form)
+          :_  bare
           (gnaw t f)
             ::
             [%dice ~]
-          =^  t  ward  $(form +>-.form)
-          =^  f  ward  $(form +>+.form)
-          :_  ward
+          =^  t  bare  $(form +>-.form)
+          =^  f  bare  $(form +>+.form)
+          :_  bare
           (dare (gnaw t f))
             ::
             [%toss ~]
-          =^  t  ward  $(form +>-.form)
-          =^  f  ward  $(form +>+.form)
-          :_  ward
+          =^  t  bare  $(form +>-.form)
+          =^  f  bare  $(form +>+.form)
+          :_  bare
           (dare (gnaw t f))
         ==
           ::
           [%risk *]
-        ?+  hope.cond  [[%boom ~] ward]
+        ?+  hope.cond  [[%boom ~] bare]
             ::
             [%know %0]
-          =^  t  ward  $(form +>-.form)
-          :_  ward
+          =^  t  bare  $(form +>-.form)
+          :_  bare
           (dare t)
             ::
             [%know %1]
-          =^  f  ward  $(form +>+.form)
-          :_  ward
+          =^  f  bare  $(form +>+.form)
+          :_  bare
           (dare f)
             ::
             [%flip ~]
-          =^  t  ward  $(form +>-.form)
-          =^  f  ward  $(form +>+.form)
-          :_  ward
+          =^  t  bare  $(form +>-.form)
+          =^  f  bare  $(form +>+.form)
+          :_  bare
           (dare (gnaw t f))
             ::
             [%dice ~]
-          =^  t  ward  $(form +>-.form)
-          =^  f  ward  $(form +>+.form)
-          :_  ward
+          =^  t  bare  $(form +>-.form)
+          =^  f  bare  $(form +>+.form)
+          :_  bare
           (dare (gnaw t f))
             ::
             [%toss ~]
-          =^  t  ward  $(form +>-.form)
-          =^  f  ward  $(form +>+.form)
-          :_  ward
+          =^  t  bare  $(form +>-.form)
+          =^  f  bare  $(form +>+.form)
+          :_  bare
           (dare (gnaw t f))
         ==
       ==
         ::
         [%7 * *]
-      =^  news  ward  $(form +<.form)
-      ?+  news  [[%boom ~] ward]
+      =^  news  bare  $(form +<.form)
+      ?+  news  [[%boom ~] bare]
           ::
           [%safe *]
         $(subj sure.news, form +>.form)
           ::
           [%risk *]
-        =^  r  ward  $(subj hope.news, form +>.form)
-        :_  ward
+        =^  r  bare  $(subj hope.news, form +>.form)
+        :_  bare
         (dare r)
       ==
         ::
         [%8 * *]
-      =^  news  ward  $(form +<.form)
-      ?+  news  [[%boom ~] ward]
+      =^  news  bare  $(form +<.form)
+      ?+  news  [[%boom ~] bare]
           ::
           [%safe *]
         $(subj (knit sure.news subj), form +>.form)
           ::
           [%risk *]
-        =^  r  ward  $(subj (knit hope.news subj), form +>.form)
-        :_  ward
+        =^  r  bare  $(subj (knit hope.news subj), form +>.form)
+        :_  bare
         (dare r)
       ==
         ::
         [%9 @ *]
-      =^  news  ward  $(form +>.form)
-      ?+  news  [[%boom ~] ward]
+      =^  news  bare  $(form +>.form)
+      ?+  news  [[%boom ~] bare]
           ::
           [%safe *]
         =/  newf  (pull +<.form sure.news)
-        ?+  newf  [[%boom ~] ward]
+        ?+  newf  [[%boom ~] bare]
             ::
             [%safe %know *]
+          =.  dir.bare  .+(dir.bare)
           =/  nubs  sure.news
           =/  norm  know.sure.newf
-          =/  mem  (~(get by ward) [nubs norm])
-          ?.  ?=(~ mem)  [u.mem ward]
-          =.  ward  (~(put by ward) [nubs norm] [%risk %toss ~])
-          =^  r  ward  $(subj nubs, form norm)
-          :_  (~(put by ward) [nubs norm] r)
+          =/  mem  (~(get by ward.bare) [nubs norm])
+          ?.  ?=(~ mem)  [u.mem bare]
+          =.  ward.bare  (~(put by ward.bare) [nubs norm] [%risk %toss ~])
+          =^  r  bare  $(subj nubs, form norm)
+          :_  bare(ward (~(put by ward.bare) [nubs norm] r))
           r
             ::
             [%risk %know *]
+          =.  dir.bare  .+(dir.bare)
           =/  nubs  sure.news
           =/  norm  know.hope.newf
-          =/  mem  (~(get by ward) [nubs norm])
-          ?.  ?=(~ mem)  [u.mem ward]
-          =.  ward  (~(put by ward) [nubs norm] [%risk %toss ~])
-          =^  r  ward  $(subj nubs, form norm)
-          :_  (~(put by ward) [nubs norm] (dare r))
+          =/  mem  (~(get by ward.bare) [nubs norm])
+          ?.  ?=(~ mem)  [u.mem bare]
+          =.  ward.bare  (~(put by ward.bare) [nubs norm] [%risk %toss ~])
+          =^  r  bare  $(subj nubs, form norm)
+          :_  bare(ward (~(put by ward.bare) [nubs norm] (dare r)))
           (dare r)
             ::
             [%safe *]
-          [[%risk %toss ~] ward]
+          =.  ind.bare  .+(ind.bare)
+          [[%risk %toss ~] bare]
             ::
             [%risk *]
-          [[%risk %toss ~] ward]
+          =.  ind.bare  .+(ind.bare)
+          [[%risk %toss ~] bare]
         ==
           ::
           [%risk *]
         =/  newf  (pull +<.form hope.news)
-        ?+  newf  [[%boom ~] ward]
+        ?+  newf  [[%boom ~] bare]
             ::
             [%safe %know *]
+          =.  dir.bare  .+(dir.bare)
           =/  nubs  hope.news
           =/  norm  know.sure.newf
-          =/  mem  (~(get by ward) [nubs norm])
-          ?.  ?=(~ mem)  [u.mem ward]
-          =.  ward  (~(put by ward) [nubs norm] [%risk %toss ~])
-          =^  r  ward  $(subj nubs, form norm)
-          :_  (~(put by ward) [nubs norm] (dare r))
+          =/  mem  (~(get by ward.bare) [nubs norm])
+          ?.  ?=(~ mem)  [u.mem bare]
+          =.  ward.bare  (~(put by ward.bare) [nubs norm] [%risk %toss ~])
+          =^  r  bare  $(subj nubs, form norm)
+          :_  bare(ward (~(put by ward.bare) [nubs norm] (dare r)))
           (dare r)
             ::
             [%risk %know *]
+          =.  dir.bare  .+(dir.bare)
           =/  nubs  hope.news
           =/  norm  know.hope.newf
-          =/  mem  (~(get by ward) [nubs norm])
-          ?.  ?=(~ mem)  [u.mem ward]
-          =.  ward  (~(put by ward) [nubs norm] [%risk %toss ~])
-          =^  r  ward  $(subj nubs, form norm)
-          :_  (~(put by ward) [nubs norm] (dare r))
+          =/  mem  (~(get by ward.bare) [nubs norm])
+          ?.  ?=(~ mem)  [u.mem bare]
+          =.  ward.bare  (~(put by ward.bare) [nubs norm] [%risk %toss ~])
+          =^  r  bare  $(subj nubs, form norm)
+          :_  bare(ward (~(put by ward.bare) [nubs norm] (dare r)))
           (dare r)
             ::
             [%safe *]
-          [[%risk %toss ~] ward]
+          =.  ind.bare  .+(ind.bare)
+          [[%risk %toss ~] bare]
             ::
             [%risk *]
-          [[%risk %toss ~] ward]
+          =.  ind.bare  .+(ind.bare)
+          [[%risk %toss ~] bare]
         ==
       ==
         ::
         [%10 [@ *] *]
-      =^  p  ward  $(form +<+.form)
-      =^  w  ward  $(form +>.form)
-      :_  ward
+      =^  p  bare  $(form +<+.form)
+      =^  w  bare  $(form +>.form)
+      :_  bare
       (welt +<-.form p w)
         ::
         [%11 @ *]
       $(form +>.form)
         ::
         [%11 [* *] *]
-      =^  hint  ward  $(form +<+.form)
-      ?+  hint  [[%boom ~] ward]
+      =^  hint  bare  $(form +<+.form)
+      ?+  hint  [[%boom ~] bare]
           ::
           [%safe *]
         $(form +>.form)
           ::
           [%risk *]
-        =^  r  ward  $(form +<.form)
-        :_  ward
+        =^  r  bare  $(form +<.form)
+        :_  bare
         (dare r)
       ==
         ::
         [%12 *]
-      [[%risk %toss ~] ward]
+      [[%risk %toss ~] bare]
     ==
   --
 ++  cuff
