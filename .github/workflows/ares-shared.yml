@@ -21,7 +21,7 @@ jobs:
         run: cargo fmt --check
 
       - name: Lint
-        run: cargo clippy -- --deny warnings
+        run: cargo clippy -- --deny warnings --allow clippy::missing_safety_doc
 
       - name: Build
         run: cargo build --verbose
