@@ -69,8 +69,11 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
 }
 
 pub fn get_jet_test_mode(jet_name: Noun) -> bool {
+    /*
     match jet_name.as_direct().unwrap().data() {
-        // tas!(b"cut") => true,
+        tas!(b"cut") => true,
         _ => false,
     }
+    */
+    false
 }
