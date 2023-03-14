@@ -370,7 +370,7 @@ impl IndirectAtom {
             if index == 0 || *(data.add(index)) != 0 {
                 break;
             }
-            index = index - 1;
+            index -= 1;
         }
         *(self.to_raw_pointer_mut().add(1)) = (index + 1) as u64;
         self

@@ -218,3 +218,9 @@ impl Newt {
         Some(cue(stack, atom))
     }
 }
+
+impl Default for Newt {
+    fn default() -> Self {
+        Self::new()
+    }
+}

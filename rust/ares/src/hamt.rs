@@ -428,6 +428,12 @@ impl<T: Copy> Hamt<T> {
     }
 }
 
+impl<T: Copy> Default for Hamt<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Copy + Preserve> Preserve for Hamt<T> {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if stack.in_frame(self.0.buffer) {
