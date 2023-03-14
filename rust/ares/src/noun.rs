@@ -97,6 +97,30 @@ fn is_cell(noun: u64) -> bool {
     noun & CELL_MASK == CELL_TAG
 }
 
+/** A noun-related error. */
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    /** Expected type [`Allocated`]. */
+    NotAllocated,
+    /** Expected type [`Atom`]. */
+    NotAtom,
+    /** Expected type [`Cell`]. */
+    NotCell,
+    /** Expected type [`DirectAtom`]. */
+    NotDirectAtom,
+    /** Expected type [`IndirectAtom`]. */
+    NotIndirectAtom,
+    /** The value can't be represented by the given type. */
+    NotRepresentable,
+}
+
+impl From<Error> for () {
+    fn from(_: Error) -> Self {}
+}
+
+/** A [`Result`] that returns an [`Error`] on error. */
+pub type Result<T> = std::result::Result<T, Error>;
+
 /** A direct atom.
  *
  * Direct atoms represent an atom up to and including DIRECT_MAX as a machine word.
@@ -117,9 +141,9 @@ impl DirectAtom {
     }
 
     /** Create a new direct atom, or return Err if the value is greater than DIRECT_MAX */
-    pub const fn new(value: u64) -> Result<Self, ()> {
+    pub const fn new(value: u64) -> Result<Self> {
         if value > DIRECT_MAX {
-            Err(())
+            Err(Error::NotRepresentable)
         } else {
             Ok(DirectAtom(value))
         }
@@ -593,19 +617,19 @@ impl Atom {
         unsafe { is_indirect_atom(self.raw) }
     }
 
-    pub fn as_direct(&self) -> Result<DirectAtom, ()> {
+    pub fn as_direct(&self) -> Result<DirectAtom> {
         if self.is_direct() {
             unsafe { Ok(self.direct) }
         } else {
-            Err(())
+            Err(Error::NotDirectAtom)
         }
     }
 
-    pub fn as_indirect(&self) -> Result<IndirectAtom, ()> {
+    pub fn as_indirect(&self) -> Result<IndirectAtom> {
         if self.is_indirect() {
             unsafe { Ok(self.indirect) }
         } else {
-            Err(())
+            Err(Error::NotIndirectAtom)
         }
     }
 
@@ -781,43 +805,43 @@ impl Noun {
         unsafe { is_cell(self.raw) }
     }
 
-    pub fn as_direct(&self) -> Result<DirectAtom, ()> {
+    pub fn as_direct(&self) -> Result<DirectAtom> {
         if self.is_direct() {
             unsafe { Ok(self.direct) }
         } else {
-            Err(())
+            Err(Error::NotDirectAtom)
         }
     }
 
-    pub fn as_indirect(&self) -> Result<IndirectAtom, ()> {
+    pub fn as_indirect(&self) -> Result<IndirectAtom> {
         if self.is_indirect() {
             unsafe { Ok(self.indirect) }
         } else {
-            Err(())
+            Err(Error::NotIndirectAtom)
         }
     }
 
-    pub fn as_cell(&self) -> Result<Cell, ()> {
+    pub fn as_cell(&self) -> Result<Cell> {
         if self.is_cell() {
             unsafe { Ok(self.cell) }
         } else {
-            Err(())
+            Err(Error::NotCell)
         }
     }
 
-    pub fn as_atom(&self) -> Result<Atom, ()> {
+    pub fn as_atom(&self) -> Result<Atom> {
         if self.is_atom() {
             unsafe { Ok(self.atom) }
         } else {
-            Err(())
+            Err(Error::NotAtom)
         }
     }
 
-    pub fn as_allocated(&self) -> Result<Allocated, ()> {
+    pub fn as_allocated(&self) -> Result<Allocated> {
         if self.is_allocated() {
             unsafe { Ok(self.allocated) }
         } else {
-            Err(())
+            Err(Error::NotAllocated)
         }
     }
 

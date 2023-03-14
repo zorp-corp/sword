@@ -2,7 +2,7 @@ pub mod math;
 
 use crate::jets::math::*;
 use crate::mem::NockStack;
-use crate::noun::Noun;
+use crate::noun::{self, Noun};
 use ares_macros::tas;
 
 crate::gdb!();
@@ -21,6 +21,12 @@ pub enum JetErr {
 impl From<()> for JetErr {
     fn from(_: ()) -> Self {
         JetErr::NonDeterministic
+    }
+}
+
+impl From<noun::Error> for JetErr {
+    fn from(_err: noun::Error) -> Self {
+        Self::NonDeterministic
     }
 }
 
