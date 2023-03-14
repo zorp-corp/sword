@@ -7,6 +7,7 @@ pkgs.mkShell {
   packages = with pkgs; [
     (fenix.stable.withComponents [
       "cargo"
+      "clippy"
       "rustc"
       "rustfmt"
       "rust-src"
