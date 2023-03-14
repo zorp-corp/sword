@@ -20,6 +20,9 @@ jobs:
       - name: Format
         run: cargo fmt --check
 
+      - name: Lint
+        run: cargo clippy -- --deny warnings
+
       - name: Build
         run: cargo build --verbose
 
