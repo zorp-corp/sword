@@ -469,7 +469,7 @@ impl Cell {
         &mut (*self.to_raw_pointer_mut()).head as *mut Noun
     }
 
-    pub unsafe fn tail_as_mut<'a>(mut self) -> *mut Noun {
+    pub unsafe fn tail_as_mut(mut self) -> *mut Noun {
         &mut (*self.to_raw_pointer_mut()).tail as *mut Noun
     }
 
