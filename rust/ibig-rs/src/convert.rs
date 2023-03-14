@@ -31,7 +31,7 @@ impl Default for IBig {
 
 impl UBig {
     #[inline]
-    pub fn from_le_bytes_stack(stack: &mut dyn Stack, bytes: &[u8]) -> UBig {
+    pub fn from_le_bytes_stack<S: Stack>(stack: &mut S, bytes: &[u8]) -> UBig {
         if bytes.len() <= WORD_BYTES {
             // fast path
             UBig::from_word(primitive::word_from_le_bytes_partial(bytes))
@@ -40,7 +40,7 @@ impl UBig {
         }
     }
 
-    fn from_le_bytes_large_stack(stack: &mut dyn Stack, bytes: &[u8]) -> UBig {
+    fn from_le_bytes_large_stack<S: Stack>(stack: &mut S, bytes: &[u8]) -> UBig {
         debug_assert!(bytes.len() > WORD_BYTES);
         let mut buffer = Buffer::allocate_stack(stack, (bytes.len() - 1) / WORD_BYTES + 1);
         let mut chunks = bytes.chunks_exact(WORD_BYTES);
@@ -552,7 +552,7 @@ impl TryFrom<&IBig> for UBig {
 
 impl UBig {
     #[inline]
-    pub(crate) fn from_unsigned_stack<T>(stack: &mut dyn Stack, x: T) -> UBig
+    pub(crate) fn from_unsigned_stack<S: Stack, T>(stack: &mut S, x: T) -> UBig
     where
         T: PrimitiveUnsigned,
     {

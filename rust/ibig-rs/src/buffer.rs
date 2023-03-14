@@ -21,7 +21,7 @@ use core::{
 pub(crate) struct Buffer(ManuallyDrop<Vec<Word>>);
 
 impl Buffer {
-    pub(crate) fn allocate_stack(stack: &mut dyn Stack, num_words: usize) -> Buffer {
+    pub(crate) fn allocate_stack<S: Stack>(stack: &mut S, num_words: usize) -> Buffer {
         if num_words > Buffer::MAX_CAPACITY {
             UBig::panic_number_too_large();
         }
@@ -44,7 +44,7 @@ impl Buffer {
         )))
     }
 
-    pub(crate) fn ensure_capacity_stack(&mut self, stack: &mut dyn Stack, num_words: usize) {
+    pub(crate) fn ensure_capacity_stack<S: Stack>(&mut self, stack: &mut S, num_words: usize) {
         if num_words > self.capacity() {
             self.reallocate_stack(stack, num_words);
         }
@@ -69,7 +69,7 @@ impl Buffer {
         // }
     }
 
-    fn reallocate_stack(&mut self, stack: &mut dyn Stack, num_words: usize) {
+    fn reallocate_stack<S: Stack>(&mut self, stack: &mut S, num_words: usize) {
         assert!(num_words >= self.len());
         let mut new_buffer = Buffer::allocate_stack(stack, num_words);
         new_buffer.clone_from(self);
@@ -106,7 +106,7 @@ impl Buffer {
     }
 
     #[inline]
-    pub(crate) fn push_may_reallocate_stack(&mut self, stack: &mut dyn Stack, word: Word) {
+    pub(crate) fn push_may_reallocate_stack<S: Stack>(&mut self, stack: &mut S, word: Word) {
         self.ensure_capacity_stack(stack, self.len() + 1);
         self.push(word);
     }

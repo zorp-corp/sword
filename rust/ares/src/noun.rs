@@ -144,7 +144,7 @@ impl DirectAtom {
         Atom { direct: self }
     }
 
-    pub fn as_ubig(self, _stack: &mut dyn Stack) -> UBig {
+    pub fn as_ubig<S: Stack>(self, _stack: &mut S) -> UBig {
         UBig::from(self.0)
     }
 
@@ -362,7 +362,7 @@ impl IndirectAtom {
         BitSlice::from_slice(self.as_slice())
     }
 
-    pub fn as_ubig(&self, stack: &mut dyn Stack) -> UBig {
+    pub fn as_ubig<S: Stack>(&self, stack: &mut S) -> UBig {
         UBig::from_le_bytes_stack(stack, self.as_bytes())
     }
 
@@ -629,7 +629,7 @@ impl Atom {
         }
     }
 
-    pub fn as_ubig(self, stack: &mut dyn Stack) -> UBig {
+    pub fn as_ubig<S: Stack>(self, stack: &mut S) -> UBig {
         if self.is_indirect() {
             unsafe { self.indirect.as_ubig(stack) }
         } else {

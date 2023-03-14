@@ -1279,7 +1279,7 @@ impl_div_ibig_signed!(isize);
 
 impl UBig {
     #[inline]
-    pub fn div_stack(stack: &mut dyn Stack, lhs: UBig, rhs: UBig) -> UBig {
+    pub fn div_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
         match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::div_word(word0, word1),
             (Small(_), Large(_)) => UBig::from_word(0),
@@ -1295,7 +1295,7 @@ impl UBig {
     }
 
     #[inline]
-    pub fn rem_stack(stack: &mut dyn Stack, lhs: UBig, rhs: UBig) -> UBig {
+    pub fn rem_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
         match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::rem_word(word0, word1),
             (Small(word0), Large(_)) => UBig::from_word(word0),
@@ -1311,7 +1311,7 @@ impl UBig {
     }
 
     #[inline]
-    pub fn div_rem_stack(stack: &mut dyn Stack, lhs: UBig, rhs: UBig) -> (UBig, UBig) {
+    pub fn div_rem_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> (UBig, UBig) {
         match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::div_rem_word(word0, word1),
             (Small(word0), Large(_)) => (UBig::from_word(0), UBig::from_word(word0)),
@@ -1327,14 +1327,14 @@ impl UBig {
     }
 
     /// `lhs / rhs`
-    fn div_large_stack(stack: &mut dyn Stack, mut lhs: Buffer, mut rhs: Buffer) -> UBig {
+    fn div_large_stack<S: Stack>(stack: &mut S, mut lhs: Buffer, mut rhs: Buffer) -> UBig {
         let _shift = UBig::div_rem_in_lhs_stack(stack, &mut lhs, &mut rhs);
         lhs.erase_front(rhs.len());
         lhs.into()
     }
 
     /// `lhs % rhs`
-    fn rem_large_stack(stack: &mut dyn Stack, mut lhs: Buffer, mut rhs: Buffer) -> UBig {
+    fn rem_large_stack<S: Stack>(stack: &mut S, mut lhs: Buffer, mut rhs: Buffer) -> UBig {
         let shift = UBig::div_rem_in_lhs_stack(stack, &mut lhs, &mut rhs);
         let n = rhs.len();
         rhs.copy_from_slice(&lhs[..n]);
@@ -1344,8 +1344,8 @@ impl UBig {
     }
 
     /// `(lhs / rhs, lhs % rhs)`
-    fn div_rem_large_stack(
-        stack: &mut dyn Stack,
+    fn div_rem_large_stack<S: Stack>(
+        stack: &mut S,
         mut lhs: Buffer,
         mut rhs: Buffer,
     ) -> (UBig, UBig) {
@@ -1361,7 +1361,7 @@ impl UBig {
     /// lhs = (lhs / rhs, lhs % rhs)
     ///
     /// Returns shift.
-    fn div_rem_in_lhs_stack(stack: &mut dyn Stack, lhs: &mut Buffer, rhs: &mut Buffer) -> u32 {
+    fn div_rem_in_lhs_stack<S: Stack>(stack: &mut S, lhs: &mut Buffer, rhs: &mut Buffer) -> u32 {
         let (shift, fast_div_rhs_top) = div::normalize_large(rhs);
         let lhs_carry = shift::shl_in_place(lhs, shift);
         if lhs_carry != 0 {
