@@ -5,6 +5,10 @@ use either::Either::{self, *};
 use std::ptr::{copy_nonoverlapping, null};
 use std::slice;
 
+type MutStemEntry<T> = Either<*mut MutStem<T>, Leaf<T>>;
+
+type StemEntry<T> = Either<Stem<T>, Leaf<T>>;
+
 #[inline]
 fn chunk_to_bit(chunk: u32) -> u32 {
     1u32 << chunk
@@ -37,7 +41,7 @@ impl<T: Copy> MutStem<T> {
     }
 
     #[inline]
-    fn entry(&self, chunk: u32) -> Option<Either<*mut MutStem<T>, Leaf<T>>> {
+    fn entry(&self, chunk: u32) -> Option<MutStemEntry<T>> {
         if self.has_index(chunk) {
             if self.typemap & chunk_to_bit(chunk) != 0 {
                 unsafe { Some(Left(self.buffer[chunk as usize].stem)) }
@@ -201,7 +205,7 @@ impl<T: Copy> Stem<T> {
     }
 
     #[inline]
-    fn entry(self, chunk: u32) -> Option<(Either<Stem<T>, Leaf<T>>, usize)> {
+    fn entry(self, chunk: u32) -> Option<(StemEntry<T>, usize)> {
         self.index(chunk).map(|idx| {
             (
                 unsafe {
