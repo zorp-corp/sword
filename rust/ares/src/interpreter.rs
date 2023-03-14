@@ -640,7 +640,7 @@ fn match_pre_hint(
             let jet_formula = cell.tail().as_cell()?;
             let jet_name = jet_formula.tail();
 
-            let jet = jets::get_jet(jet_name)?;
+            let jet = jets::get_jet(jet_name).ok_or(())?;
             if let Ok(mut jet_res) = jet(stack, subject) {
                 // if in test mode, check that the jet returns the same result as the raw nock
                 if jets::get_jet_test_mode(jet_name) {

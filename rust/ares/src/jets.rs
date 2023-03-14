@@ -34,36 +34,36 @@ impl From<JetErr> for () {
     fn from(_: JetErr) -> Self {}
 }
 
-pub fn get_jet(jet_name: Noun) -> Result<Jet, ()> {
-    match jet_name.as_direct()?.data() {
-        tas!(b"dec") => Ok(jet_dec),
-        tas!(b"add") => Ok(jet_add),
-        tas!(b"sub") => Ok(jet_sub),
-        tas!(b"mul") => Ok(jet_mul),
-        tas!(b"div") => Ok(jet_div),
-        tas!(b"mod") => Ok(jet_mod),
-        tas!(b"dvr") => Ok(jet_dvr),
-        tas!(b"lth") => Ok(jet_lth),
-        tas!(b"lte") => Ok(jet_lte),
-        tas!(b"gth") => Ok(jet_gth),
-        tas!(b"gte") => Ok(jet_gte),
-        tas!(b"bex") => Ok(jet_bex),
-        tas!(b"lsh") => Ok(jet_lsh),
-        tas!(b"rsh") => Ok(jet_rsh),
-        tas!(b"con") => Ok(jet_con),
-        tas!(b"dis") => Ok(jet_dis),
-        tas!(b"mix") => Ok(jet_mix),
-        tas!(b"end") => Ok(jet_end),
-        tas!(b"cat") => Ok(jet_cat),
-        tas!(b"cut") => Ok(jet_cut),
-        tas!(b"can") => Ok(jet_can),
-        tas!(b"rep") => Ok(jet_rep),
-        tas!(b"rip") => Ok(jet_rip),
-        tas!(b"met") => Ok(jet_met),
-        tas!(b"mug") => Ok(jet_mug),
+pub fn get_jet(jet_name: Noun) -> Option<Jet> {
+    match jet_name.as_direct().ok()?.data() {
+        tas!(b"dec") => Some(jet_dec),
+        tas!(b"add") => Some(jet_add),
+        tas!(b"sub") => Some(jet_sub),
+        tas!(b"mul") => Some(jet_mul),
+        tas!(b"div") => Some(jet_div),
+        tas!(b"mod") => Some(jet_mod),
+        tas!(b"dvr") => Some(jet_dvr),
+        tas!(b"lth") => Some(jet_lth),
+        tas!(b"lte") => Some(jet_lte),
+        tas!(b"gth") => Some(jet_gth),
+        tas!(b"gte") => Some(jet_gte),
+        tas!(b"bex") => Some(jet_bex),
+        tas!(b"lsh") => Some(jet_lsh),
+        tas!(b"rsh") => Some(jet_rsh),
+        tas!(b"con") => Some(jet_con),
+        tas!(b"dis") => Some(jet_dis),
+        tas!(b"mix") => Some(jet_mix),
+        tas!(b"end") => Some(jet_end),
+        tas!(b"cat") => Some(jet_cat),
+        tas!(b"cut") => Some(jet_cut),
+        tas!(b"can") => Some(jet_can),
+        tas!(b"rep") => Some(jet_rep),
+        tas!(b"rip") => Some(jet_rip),
+        tas!(b"met") => Some(jet_met),
+        tas!(b"mug") => Some(jet_mug),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
-            Err(())
+            None
         }
     }
 }
