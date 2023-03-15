@@ -9,7 +9,7 @@ pub(crate) struct MemoryAllocation {
     start: *mut u8,
 }
 
-pub trait Stack {
+pub trait Stack: Sized {
     unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64;
 }
 
@@ -24,7 +24,7 @@ pub(crate) struct Memory<'a> {
 }
 
 impl MemoryAllocation {
-    pub(crate) fn new_stack(stack: &mut dyn Stack, layout: Layout) -> MemoryAllocation {
+    pub(crate) fn new_stack<S: Stack>(stack: &mut S, layout: Layout) -> MemoryAllocation {
         let start = if layout.size() == 0 {
             // We should use layout.dangling(), but that is unstable.
             layout.align() as *mut u8

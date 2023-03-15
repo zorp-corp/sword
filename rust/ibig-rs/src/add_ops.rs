@@ -531,7 +531,7 @@ impl UBig {
     // given at least 2 words of extra capacity.  However, this supports UBigs which have already
     // been expanded through other operations.
     #[inline]
-    pub fn add_stack(stack: &mut dyn Stack, lhs: UBig, rhs: UBig) -> UBig {
+    pub fn add_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
         match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::add_word_stack(stack, word0, word1),
             (Small(word0), Large(buffer1)) => UBig::add_large_word_stack(stack, buffer1, word0),
@@ -548,7 +548,7 @@ impl UBig {
 
     /// Add two `Word`s.
     #[inline]
-    fn add_word_stack(stack: &mut dyn Stack, a: Word, b: Word) -> UBig {
+    fn add_word_stack<S: Stack>(stack: &mut S, a: Word, b: Word) -> UBig {
         let (res, overflow) = a.overflowing_add(b);
         if overflow {
             let mut buffer = Buffer::allocate_stack(stack, 2);
@@ -561,7 +561,7 @@ impl UBig {
     }
 
     /// Add a large number to a `Word`.
-    fn add_large_word_stack(stack: &mut dyn Stack, mut buffer: Buffer, rhs: Word) -> UBig {
+    fn add_large_word_stack<S: Stack>(stack: &mut S, mut buffer: Buffer, rhs: Word) -> UBig {
         debug_assert!(buffer.len() >= 2);
         if add::add_word_in_place(&mut buffer, rhs) {
             buffer.push_may_reallocate_stack(stack, 1);
@@ -570,7 +570,7 @@ impl UBig {
     }
 
     /// Add two large numbers.
-    fn add_large_stack(stack: &mut dyn Stack, mut buffer: Buffer, rhs: &[Word]) -> UBig {
+    fn add_large_stack<S: Stack>(stack: &mut S, mut buffer: Buffer, rhs: &[Word]) -> UBig {
         let n = buffer.len().min(rhs.len());
         let overflow = add::add_same_len_in_place(&mut buffer[..n], &rhs[..n]);
         if rhs.len() > n {
@@ -622,7 +622,7 @@ impl UBig {
 
     // Subtraction is always in-place
     #[inline]
-    pub fn sub_stack(_stack: &mut dyn Stack, lhs: UBig, rhs: UBig) -> UBig {
+    pub fn sub_stack<S: Stack>(_stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
         lhs - rhs
     }
 

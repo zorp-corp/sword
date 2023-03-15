@@ -300,7 +300,7 @@ impl_mul_ibig_primitive!(isize);
 
 impl UBig {
     #[inline]
-    pub fn mul_stack(stack: &mut dyn Stack, lhs: UBig, rhs: UBig) -> UBig {
+    pub fn mul_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
         match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::mul_word_stack(stack, word0, word1),
             (Small(word0), Large(buffer1)) => UBig::mul_large_word_stack(stack, buffer1, word0),
@@ -310,11 +310,11 @@ impl UBig {
     }
 
     #[inline]
-    fn mul_word_stack(stack: &mut dyn Stack, a: Word, b: Word) -> UBig {
+    fn mul_word_stack<S: Stack>(stack: &mut S, a: Word, b: Word) -> UBig {
         UBig::from_unsigned_stack(stack, extend_word(a) * extend_word(b))
     }
 
-    fn mul_large_word_stack(stack: &mut dyn Stack, mut buffer: Buffer, a: Word) -> UBig {
+    fn mul_large_word_stack<S: Stack>(stack: &mut S, mut buffer: Buffer, a: Word) -> UBig {
         match a {
             0 => UBig::from_word(0),
             1 => buffer.into(),
@@ -328,7 +328,7 @@ impl UBig {
         }
     }
 
-    pub fn mul_large_stack(stack: &mut dyn Stack, lhs: &[Word], rhs: &[Word]) -> UBig {
+    pub fn mul_large_stack<S: Stack>(stack: &mut S, lhs: &[Word], rhs: &[Word]) -> UBig {
         debug_assert!(lhs.len() >= 2 && rhs.len() >= 2);
 
         // This may be 1 too large.
