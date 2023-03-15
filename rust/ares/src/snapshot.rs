@@ -2,7 +2,6 @@ use crate::mem::NockStack;
 use crate::noun::Noun;
 
 pub mod double_jam;
-pub mod pma;
 
 crate::gdb!();
 
