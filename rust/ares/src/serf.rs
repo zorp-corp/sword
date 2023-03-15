@@ -31,8 +31,8 @@ pub fn serf() -> io::Result<()> {
     snap_path.push("chk");
     create_dir_all(&snap_path)?;
 
-    let ref mut stack = NockStack::new(96 << 10 << 10, 0);
-    let ref mut newt = Newt::new();
+    let stack = &mut NockStack::new(96 << 10 << 10, 0);
+    let newt = &mut Newt::new();
     let mut event_number;
     let mut arvo;
 
@@ -42,13 +42,7 @@ pub fn serf() -> io::Result<()> {
     newt.ripe(stack, event_number, mug as u64);
 
     // Can't use for loop because it borrows newt
-    loop {
-        let writ = if let Some(writ) = newt.next(stack) {
-            writ
-        } else {
-            break;
-        };
-
+    while let Some(writ) = newt.next(stack) {
         let tag = raw_slot(writ, 2).as_direct().unwrap();
         match tag.data() {
             tas!(b"live") => {
@@ -89,18 +83,14 @@ pub fn serf() -> io::Result<()> {
                 // event_number = raw_slot(writ, 6).as_direct().unwrap().data();
 
                 let mut lit = raw_slot(writ, 7);
-                loop {
-                    if let Ok(cell) = lit.as_cell() {
-                        if run {
-                            let ovo = cell.head();
-                            let res = slam(stack, newt, arvo, POKE_AXIS, ovo).as_cell().unwrap();
-                            arvo = res.tail();
-                        }
-                        event_number += 1;
-                        lit = cell.tail();
-                    } else {
-                        break;
+                while let Ok(cell) = lit.as_cell() {
+                    if run {
+                        let ovo = cell.head();
+                        let res = slam(stack, newt, arvo, POKE_AXIS, ovo).as_cell().unwrap();
+                        arvo = res.tail();
                     }
+                    event_number += 1;
+                    lit = cell.tail();
                 }
                 newt.play_done(stack, 0);
             }

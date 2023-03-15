@@ -98,12 +98,12 @@ impl NockStack {
             *frame_pointer.add(1) = ptr::null::<u64>() as u64;
         };
         NockStack {
-            start: start,
-            size: size,
+            start,
+            size,
             polarity: Polarity::West,
-            stack_pointer: stack_pointer,
-            frame_pointer: frame_pointer,
-            memory: memory,
+            stack_pointer,
+            frame_pointer,
+            memory,
         }
     }
 

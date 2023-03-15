@@ -82,7 +82,7 @@ impl Newt {
     fn write_noun(&mut self, stack: &mut NockStack, noun: Noun) {
         let atom = jam(stack, noun);
         let size = atom.size() << 3;
-        let mut buf = vec![0 as u8; size + 5];
+        let mut buf = vec![0u8; size + 5];
         buf[1] = size as u8;
         buf[2] = (size >> 8) as u8;
         buf[3] = (size >> 16) as u8;
@@ -192,8 +192,7 @@ impl Newt {
 
     /** Fetch next message. */
     pub fn next(&mut self, stack: &mut NockStack) -> Option<Noun> {
-        let mut header: Vec<u8> = Vec::with_capacity(5);
-        header.resize(5, 0);
+        let mut header: Vec<u8> = vec![0; 5];
         if let Err(err) = self.input.read_exact(&mut header) {
             if err.kind() == std::io::ErrorKind::UnexpectedEof {
                 return None;
@@ -217,5 +216,11 @@ impl Newt {
         };
 
         Some(cue(stack, atom))
+    }
+}
+
+impl Default for Newt {
+    fn default() -> Self {
+        Self::new()
     }
 }

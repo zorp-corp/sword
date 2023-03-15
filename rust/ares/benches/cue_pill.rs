@@ -1,7 +1,6 @@
 use ares::mem::NockStack;
 use ares::noun::{DirectAtom, IndirectAtom};
 use ares::serialization::{cue, jam};
-use memmap;
 use std::env;
 use std::fs::{File, OpenOptions};
 use std::io;
@@ -11,7 +10,7 @@ use std::time::SystemTime;
 
 fn main() -> io::Result<()> {
     let filename = env::args().nth(1).expect("Must provide input filename");
-    let output_filename = format!("{}.out", filename.clone());
+    let output_filename = format!("{}.out", filename);
     let f = File::open(filename)?;
     let in_len = f.metadata()?.len();
     let mut stack = NockStack::new(1 << 10 << 10 << 10, 0);
