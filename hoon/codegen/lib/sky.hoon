@@ -14,6 +14,7 @@
 ++  wove
   |=  kine=type
   ^-  boot
+  =|  gil=(set type)
   ?@  kine
     ?-  kine
       %noun  [%risk %toss ~]
@@ -38,7 +39,7 @@
   ::
       %fork
     =/  tins  ~(tap in p.kine)
-    ?~  tins  [%risk %toss ~]
+    ?~  tins  [%boom ~]
     =/  hypo  $(kine i.tins)
     =/  tons  t.tins
     |-
@@ -50,7 +51,9 @@
     $(kine q.kine)
   ::
       %hold
-    $(kine p.kine)
+    ?:  (~(has in gil) kine)
+      [%risk %toss ~]
+    $(gil (~(put in gil) kine), kine ~(repo ut kine))
   ==
 :: turn a seminoun into a sock
 ++  spry
@@ -81,7 +84,7 @@
 ::  than what we knew last time (intersection cannot add knowledge)
 ::  if we know the same, we stop now. We can only subtract finitely many
 ::  axes of knowledge from the tree before we know [%boom ~] or
-::  [%risk %gues ~] at which point we will learn the same thing twice
+::  [%risk %toss ~] at which point we will learn the same thing twice
 ::  and terminate
 ++  arid
   |=  [muck=boot step=(list [@ @])]
