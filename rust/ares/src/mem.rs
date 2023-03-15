@@ -23,7 +23,7 @@ fn indirect_raw_size(atom: IndirectAtom) -> usize {
 }
 
 /** Which side of the two opposing stacks are we working on? */
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum Polarity {
     /** Stack growing down from high memory */
     East,

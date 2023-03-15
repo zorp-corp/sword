@@ -25,10 +25,6 @@ ibig = "0.3.6"
 assert_no_alloc = "1.1.2"
 
 [[bin]]
-name = "cue_pill"
-path = "benches/cue_pill.rs"
-
-[[bin]]
 name = "ares"
 path = "src/main.rs"
 

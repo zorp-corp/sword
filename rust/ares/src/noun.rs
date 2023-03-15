@@ -866,6 +866,10 @@ impl Noun {
         self.raw == other.raw
     }
 
+    pub unsafe fn as_raw(&self) -> u64 {
+        self.raw
+    }
+
     pub unsafe fn from_raw(raw: u64) -> Noun {
         Noun { raw }
     }

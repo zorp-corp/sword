@@ -3,11 +3,13 @@ use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
 use crate::noun::{Noun, D, T};
-use crate::snapshot::{load, save};
+use crate::snapshot::{self, Snapshot};
 use ares_macros::tas;
 use std::fs::create_dir_all;
 use std::io;
 use std::path::PathBuf;
+use std::thread::sleep;
+use std::time;
 
 crate::gdb!();
 
@@ -23,6 +25,7 @@ const WISH_AXIS: u64 = 10;
  * u3_lord_init in vere to point at this binary and start vere like normal.
  */
 pub fn serf() -> io::Result<()> {
+    sleep(time::Duration::from_secs(0));
     let snap_path_string = std::env::args()
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
@@ -30,13 +33,12 @@ pub fn serf() -> io::Result<()> {
     snap_path.push(".urb");
     snap_path.push("chk");
     create_dir_all(&snap_path)?;
+    let snap = &mut snapshot::double_jam::DoubleJam::new(snap_path);
 
     let stack = &mut NockStack::new(96 << 10 << 10, 0);
     let newt = &mut Newt::new();
-    let mut event_number;
-    let mut arvo;
 
-    (event_number, arvo) = load(stack, snap_path.clone()).unwrap_or((0, D(0)));
+    let (_epoch, mut event_number, mut arvo) = snap.load(stack).unwrap_or((0, 0, D(0)));
     let mug = mug_u32(stack, arvo);
 
     newt.ripe(stack, event_number, mug as u64);
@@ -53,7 +55,7 @@ pub fn serf() -> io::Result<()> {
                     tas!(b"save") => {
                         // XX what is eve for?
                         eprintln!("save");
-                        save(stack, snap_path.clone(), event_number, arvo);
+                        snap.sync(stack, 0, event_number);
                     }
                     tas!(b"meld") => eprintln!("meld"),
                     tas!(b"pack") => eprintln!("pack"),
@@ -92,6 +94,8 @@ pub fn serf() -> io::Result<()> {
                     event_number += 1;
                     lit = cell.tail();
                 }
+
+                snap.save(stack, &mut arvo);
                 newt.play_done(stack, 0);
             }
             tas!(b"work") => {
@@ -99,6 +103,7 @@ pub fn serf() -> io::Result<()> {
                 let res = slam(stack, newt, arvo, POKE_AXIS, ovo).as_cell().unwrap();
                 let fec = res.head();
                 arvo = res.tail();
+                snap.save(stack, &mut arvo);
 
                 event_number += 1;
 
