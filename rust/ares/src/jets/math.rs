@@ -21,7 +21,7 @@ use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use ibig::ops::DivRem;
 use ibig::UBig;
-use std::cmp;
+use std::{cmp, convert::TryFrom};
 
 crate::gdb!();
 
@@ -136,15 +136,13 @@ pub fn jet_div(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 
     if unsafe { b.as_noun().raw_equals(D(0)) } {
         Err(Deterministic)
+    } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+        Ok(unsafe { DirectAtom::new_unchecked(a.data() / b.data()) }.as_noun())
     } else {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            Ok(unsafe { DirectAtom::new_unchecked(a.data() / b.data()) }.as_noun())
-        } else {
-            let a_big = a.as_ubig(stack);
-            let b_big = b.as_ubig(stack);
-            let res = UBig::div_stack(stack, a_big, b_big);
-            Ok(Atom::from_ubig(stack, &res).as_noun())
-        }
+        let a_big = a.as_ubig(stack);
+        let b_big = b.as_ubig(stack);
+        let res = UBig::div_stack(stack, a_big, b_big);
+        Ok(Atom::from_ubig(stack, &res).as_noun())
     }
 }
 
@@ -155,13 +153,11 @@ pub fn jet_mod(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 
     if unsafe { b.as_noun().raw_equals(D(0)) } {
         Err(Deterministic)
+    } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+        Ok(unsafe { DirectAtom::new_unchecked(a.data() % b.data()) }.as_noun())
     } else {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            Ok(unsafe { DirectAtom::new_unchecked(a.data() % b.data()) }.as_noun())
-        } else {
-            let res = a.as_ubig(stack) % b.as_ubig(stack);
-            Ok(Atom::from_ubig(stack, &res).as_noun())
-        }
+        let res = a.as_ubig(stack) % b.as_ubig(stack);
+        Ok(Atom::from_ubig(stack, &res).as_noun())
     }
 }
 
@@ -204,18 +200,14 @@ pub fn jet_lth(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         } else {
             NO
         }
+    } else if a.bit_size() < b.bit_size() {
+        YES
+    } else if a.bit_size() > b.bit_size() {
+        NO
+    } else if a.as_ubig(stack) < b.as_ubig(stack) {
+        YES
     } else {
-        if a.bit_size() < b.bit_size() {
-            YES
-        } else if a.bit_size() > b.bit_size() {
-            NO
-        } else {
-            if a.as_ubig(stack) < b.as_ubig(stack) {
-                YES
-            } else {
-                NO
-            }
-        }
+        NO
     })
 }
 
@@ -230,18 +222,14 @@ pub fn jet_lte(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         } else {
             NO
         }
+    } else if a.bit_size() < b.bit_size() {
+        YES
+    } else if a.bit_size() > b.bit_size() {
+        NO
+    } else if a.as_ubig(stack) <= b.as_ubig(stack) {
+        YES
     } else {
-        if a.bit_size() < b.bit_size() {
-            YES
-        } else if a.bit_size() > b.bit_size() {
-            NO
-        } else {
-            if a.as_ubig(stack) <= b.as_ubig(stack) {
-                YES
-            } else {
-                NO
-            }
-        }
+        NO
     })
 }
 
@@ -256,18 +244,14 @@ pub fn jet_gth(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         } else {
             NO
         }
+    } else if a.bit_size() > b.bit_size() {
+        YES
+    } else if a.bit_size() < b.bit_size() {
+        NO
+    } else if a.as_ubig(stack) > b.as_ubig(stack) {
+        YES
     } else {
-        if a.bit_size() > b.bit_size() {
-            YES
-        } else if a.bit_size() < b.bit_size() {
-            NO
-        } else {
-            if a.as_ubig(stack) > b.as_ubig(stack) {
-                YES
-            } else {
-                NO
-            }
-        }
+        NO
     })
 }
 
@@ -282,18 +266,14 @@ pub fn jet_gte(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         } else {
             NO
         }
+    } else if a.bit_size() > b.bit_size() {
+        YES
+    } else if a.bit_size() < b.bit_size() {
+        NO
+    } else if a.as_ubig(stack) >= b.as_ubig(stack) {
+        YES
     } else {
-        if a.bit_size() > b.bit_size() {
-            YES
-        } else if a.bit_size() < b.bit_size() {
-            NO
-        } else {
-            if a.as_ubig(stack) >= b.as_ubig(stack) {
-                YES
-            } else {
-                NO
-            }
-        }
+        NO
     })
 }
 
@@ -468,7 +448,7 @@ pub fn jet_can(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
     let original_list = raw_slot(arg, 3);
 
-    let mut len = 0 as usize;
+    let mut len = 0usize;
     let mut list = original_list;
     loop {
         if unsafe { list.raw_equals(D(0)) } {
@@ -477,7 +457,7 @@ pub fn jet_can(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 
         let cell = list.as_cell()?;
         let item = cell.head().as_cell()?;
-        let step = item.head().as_direct()?.data() as usize;
+        let step = usize::try_from(item.head().as_direct()?.data()).unwrap();
 
         len = len.checked_add(step).ok_or(NonDeterministic)?;
         list = cell.tail();
@@ -515,7 +495,7 @@ pub fn jet_rep(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let (bloq, step) = bite(raw_slot(arg, 2))?;
     let original_list = raw_slot(arg, 3);
 
-    let mut len = 0 as usize;
+    let mut len = 0usize;
     let mut list = original_list;
     loop {
         if unsafe { list.raw_equals(D(0)) } {
@@ -663,13 +643,11 @@ unsafe fn chop(
 pub fn met(bloq: usize, a: Atom) -> usize {
     if unsafe { a.as_noun().raw_equals(D(0)) } {
         0
+    } else if bloq < 6 {
+        (a.bit_size() + ((1 << bloq) - 1)) >> bloq
     } else {
-        if bloq < 6 {
-            (a.bit_size() + ((1 << bloq) - 1)) >> bloq
-        } else {
-            let bloq_word = bloq - 6;
-            (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
-        }
+        let bloq_word = bloq - 6;
+        (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
     }
 }
 

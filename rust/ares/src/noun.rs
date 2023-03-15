@@ -63,7 +63,7 @@ fn acyclic_noun_go(noun: Noun, seen: &mut IntMap<()>) -> bool {
     match noun.as_either_atom_cell() {
         Either::Left(_atom) => true,
         Either::Right(cell) => {
-            if let Some(_) = seen.get(cell.0) {
+            if seen.get(cell.0).is_some() {
                 false
             } else {
                 seen.insert(cell.0, ());
@@ -97,6 +97,30 @@ fn is_cell(noun: u64) -> bool {
     noun & CELL_MASK == CELL_TAG
 }
 
+/** A noun-related error. */
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    /** Expected type [`Allocated`]. */
+    NotAllocated,
+    /** Expected type [`Atom`]. */
+    NotAtom,
+    /** Expected type [`Cell`]. */
+    NotCell,
+    /** Expected type [`DirectAtom`]. */
+    NotDirectAtom,
+    /** Expected type [`IndirectAtom`]. */
+    NotIndirectAtom,
+    /** The value can't be represented by the given type. */
+    NotRepresentable,
+}
+
+impl From<Error> for () {
+    fn from(_: Error) -> Self {}
+}
+
+/** A [`Result`] that returns an [`Error`] on error. */
+pub type Result<T> = std::result::Result<T, Error>;
+
 /** A direct atom.
  *
  * Direct atoms represent an atom up to and including DIRECT_MAX as a machine word.
@@ -117,9 +141,9 @@ impl DirectAtom {
     }
 
     /** Create a new direct atom, or return Err if the value is greater than DIRECT_MAX */
-    pub const fn new(value: u64) -> Result<Self, ()> {
+    pub const fn new(value: u64) -> Result<Self> {
         if value > DIRECT_MAX {
-            Err(())
+            Err(Error::NotRepresentable)
         } else {
             Ok(DirectAtom(value))
         }
@@ -155,8 +179,8 @@ impl DirectAtom {
         self.0
     }
 
-    pub fn as_bitslice<'a>(&'a self) -> &'a BitSlice<u64, Lsb0> {
-        &(BitSlice::from_element(&self.0))
+    pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
+        BitSlice::from_element(&self.0)
     }
 }
 
@@ -345,16 +369,16 @@ impl IndirectAtom {
         unsafe { self.to_raw_pointer().add(2) as *const u64 }
     }
 
-    pub fn as_slice<'a>(&'a self) -> &'a [u64] {
+    pub fn as_slice(&self) -> &[u64] {
         unsafe { from_raw_parts(self.data_pointer(), self.size()) }
     }
 
-    pub fn as_bytes<'a>(&'a self) -> &'a [u8] {
+    pub fn as_bytes(&self) -> &[u8] {
         unsafe { from_raw_parts(self.data_pointer() as *const u8, self.size() << 3) }
     }
 
     /** BitSlice view on an indirect atom, with lifetime tied to reference to indirect atom. */
-    pub fn as_bitslice<'a>(&'a self) -> &'a BitSlice<u64, Lsb0> {
+    pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         BitSlice::from_slice(self.as_slice())
     }
 
@@ -370,7 +394,7 @@ impl IndirectAtom {
             if index == 0 || *(data.add(index)) != 0 {
                 break;
             }
-            index = index - 1;
+            index -= 1;
         }
         *(self.to_raw_pointer_mut().add(1)) = (index + 1) as u64;
         self
@@ -445,7 +469,7 @@ impl Cell {
         &mut (*self.to_raw_pointer_mut()).head as *mut Noun
     }
 
-    pub unsafe fn tail_as_mut<'a>(mut self) -> *mut Noun {
+    pub unsafe fn tail_as_mut(mut self) -> *mut Noun {
         &mut (*self.to_raw_pointer_mut()).tail as *mut Noun
     }
 
@@ -593,19 +617,19 @@ impl Atom {
         unsafe { is_indirect_atom(self.raw) }
     }
 
-    pub fn as_direct(&self) -> Result<DirectAtom, ()> {
+    pub fn as_direct(&self) -> Result<DirectAtom> {
         if self.is_direct() {
             unsafe { Ok(self.direct) }
         } else {
-            Err(())
+            Err(Error::NotDirectAtom)
         }
     }
 
-    pub fn as_indirect(&self) -> Result<IndirectAtom, ()> {
+    pub fn as_indirect(&self) -> Result<IndirectAtom> {
         if self.is_indirect() {
             unsafe { Ok(self.indirect) }
         } else {
-            Err(())
+            Err(Error::NotIndirectAtom)
         }
     }
 
@@ -617,11 +641,11 @@ impl Atom {
         }
     }
 
-    pub fn as_bitslice<'a>(&'a self) -> &'a BitSlice<u64, Lsb0> {
+    pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         if self.is_indirect() {
             unsafe { self.indirect.as_bitslice() }
         } else {
-            unsafe { &(self.direct.as_bitslice()) }
+            unsafe { self.direct.as_bitslice() }
         }
     }
 
@@ -781,43 +805,43 @@ impl Noun {
         unsafe { is_cell(self.raw) }
     }
 
-    pub fn as_direct(&self) -> Result<DirectAtom, ()> {
+    pub fn as_direct(&self) -> Result<DirectAtom> {
         if self.is_direct() {
             unsafe { Ok(self.direct) }
         } else {
-            Err(())
+            Err(Error::NotDirectAtom)
         }
     }
 
-    pub fn as_indirect(&self) -> Result<IndirectAtom, ()> {
+    pub fn as_indirect(&self) -> Result<IndirectAtom> {
         if self.is_indirect() {
             unsafe { Ok(self.indirect) }
         } else {
-            Err(())
+            Err(Error::NotIndirectAtom)
         }
     }
 
-    pub fn as_cell(&self) -> Result<Cell, ()> {
+    pub fn as_cell(&self) -> Result<Cell> {
         if self.is_cell() {
             unsafe { Ok(self.cell) }
         } else {
-            Err(())
+            Err(Error::NotCell)
         }
     }
 
-    pub fn as_atom(&self) -> Result<Atom, ()> {
+    pub fn as_atom(&self) -> Result<Atom> {
         if self.is_atom() {
             unsafe { Ok(self.atom) }
         } else {
-            Err(())
+            Err(Error::NotAtom)
         }
     }
 
-    pub fn as_allocated(&self) -> Result<Allocated, ()> {
+    pub fn as_allocated(&self) -> Result<Allocated> {
         if self.is_allocated() {
             unsafe { Ok(self.allocated) }
         } else {
-            Err(())
+            Err(Error::NotAllocated)
         }
     }
 
@@ -847,7 +871,7 @@ impl Noun {
     }
 
     pub unsafe fn from_raw(raw: u64) -> Noun {
-        Noun { raw: raw }
+        Noun { raw }
     }
 
     /** Produce the total size of a noun, in words

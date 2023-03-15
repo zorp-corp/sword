@@ -1,0 +1,16 @@
+name: 'Ares: Push to status'
+
+on:
+  push:
+    branches:
+      - status
+    paths:
+      - '.github/workflows/ares-shared.yml'
+      - '.github/workflows/ares-status.yml'
+      - 'rust/ares/**'
+      - 'rust/ares_macros/**'
+      - 'rust/ibig-rs/**'
+
+jobs:
+  urbit:
+    uses: ./.github/workflows/ares-shared.yml

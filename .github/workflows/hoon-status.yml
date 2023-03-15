@@ -1,0 +1,15 @@
+name: 'Hoon: Push to status'
+
+on:
+  push:
+    branches:
+      - status
+    paths:
+      - '.github/scripts/hoon/**.yml'
+      - '.github/workflows/hoon-shared.yml'
+      - '.github/workflows/hoon-status.yml'
+      - 'hoon/scaffolding/**'
+
+jobs:
+  urbit:
+    uses: ./.github/workflows/hoon-shared.yml

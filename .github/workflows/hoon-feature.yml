@@ -1,0 +1,13 @@
+name: 'Hoon: Pull request'
+
+on:
+  pull_request:
+    paths:
+      - '.github/scripts/hoon/**.yml'
+      - '.github/workflows/hoon-feature.yml'
+      - '.github/workflows/hoon-shared.yml'
+      - 'hoon/scaffolding/**'
+
+jobs:
+  urbit:
+    uses: ./.github/workflows/hoon-shared.yml
