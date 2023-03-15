@@ -33,7 +33,7 @@ fn main() -> io::Result<()> {
         return serf();
     }
 
-    let output_filename = format!("{}.out", filename.clone());
+    let output_filename = format!("{}.out", filename);
     let f = File::open(filename)?;
     let in_len = f.metadata()?.len();
     let mut stack = NockStack::new(8 << 10 << 10, 0);

@@ -640,7 +640,7 @@ fn match_pre_hint(
             let jet_formula = cell.tail().as_cell()?;
             let jet_name = jet_formula.tail();
 
-            let jet = jets::get_jet(jet_name)?;
+            let jet = jets::get_jet(jet_name).ok_or(())?;
             if let Ok(mut jet_res) = jet(stack, subject) {
                 // if in test mode, check that the jet returns the same result as the raw nock
                 if jets::get_jet_test_mode(jet_name) {
@@ -653,20 +653,20 @@ fn match_pre_hint(
                         return Err(());
                     }
                 }
-                return Ok(jet_res);
+                Ok(jet_res)
             } else {
                 // Print jet errors and punt to Nock
                 eprintln!("\rJet {} failed", jet_name);
-                return Err(());
+                Err(())
             }
         }
         tas!(b"memo") => {
             let formula = unsafe { *stack.local_noun_pointer(2) };
             let mut key = Cell::new(stack, subject, formula).as_noun();
             if let Some(res) = cache.lookup(stack, &mut key) {
-                return Ok(res);
+                Ok(res)
             } else {
-                return Err(());
+                Err(())
             }
         }
         _ => Err(()),
@@ -711,10 +711,8 @@ fn match_post_hinted(
             let formula = unsafe { *stack.local_noun_pointer(2) };
             let mut key = Cell::new(stack, subject, formula).as_noun();
             *cache = cache.insert(stack, &mut key, res);
-            return Ok(());
+            Ok(())
         }
-        _ => {
-            return Err(());
-        }
+        _ => Err(()),
     }
 }
