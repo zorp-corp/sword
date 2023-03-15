@@ -3,10 +3,9 @@ use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either;
 use ibig::{Stack, UBig};
 use intmap::IntMap;
-use std::{
-    fmt, ptr,
-    slice::{from_raw_parts, from_raw_parts_mut},
-};
+use std::fmt;
+use std::ptr;
+use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 crate::gdb!();
 
