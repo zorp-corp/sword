@@ -44,7 +44,7 @@
     |-
     ^-  boot
     ?~  tons  hypo
-    $(hypo (gnaw:ska ^$(kine i.tons) hypo))
+    $(hypo (gnaw:ska ^$(kine i.tons) hypo), tons t.tons)
   ::
       %hint
     $(kine q.kine)
