@@ -225,6 +225,11 @@ impl NockStack {
         }
     }
 
+    unsafe fn ptr(&mut self, addr: u64) -> *mut u64 {
+        let offset = addr - self.mem_ptr as u64;
+        self.mem_ptr.add(offset as usize) as *mut u64
+    }
+
     unsafe fn reclaim_in_previous_frame_east<T>(&mut self) {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_east();
         *prev_stack_pointer_pointer = *prev_stack_pointer_pointer - word_size_of::<T>() as u64;
@@ -293,22 +298,22 @@ impl NockStack {
 
     /** Pointer to where the previous (west) stack pointer is saved in an east frame */
     unsafe fn previous_stack_pointer_pointer_east(&mut self) -> *mut u64 {
-        self.slot_pointer_east(0) as *mut u64
+        self.slot_pointer_east(0)
     }
 
     /** Pointer to where the previous (east) stack pointer is saved in a west frame */
     unsafe fn previous_stack_pointer_pointer_west(&mut self) -> *mut u64 {
-        self.slot_pointer_west(0) as *mut u64
+        self.slot_pointer_west(0)
     }
 
     /** Pointer to where the previous (west) frame pointer is saved in an east frame */
-    unsafe fn previous_frame_pointer_pointer_east(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_east(1) as *mut *mut u64
+    unsafe fn previous_frame_pointer_pointer_east(&mut self) -> *mut u64 {
+        self.slot_pointer_east(1)
     }
 
     /** Pointer to where the previous (east) frame pointer is saved in a west frame */
-    unsafe fn previous_frame_pointer_pointer_west(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_west(1) as *mut *mut u64
+    unsafe fn previous_frame_pointer_pointer_west(&mut self) -> *mut u64 {
+        self.slot_pointer_west(1)
     }
 
     /** Bump the stack pointer for an east frame to make space for an allocation */
@@ -421,7 +426,7 @@ impl NockStack {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
                                         // Make space for the atom
-                                        let new_indirect_alloc = other_stack_pointer as *mut u64;
+                                        let new_indirect_alloc = self.ptr(other_stack_pointer);
                                         other_stack_pointer = other_stack_pointer
                                             + indirect_raw_size(indirect) as u64;
 
@@ -535,7 +540,7 @@ impl NockStack {
                                         // Make space for the atom
                                         other_stack_pointer = other_stack_pointer
                                             - indirect_raw_size(indirect) as u64;
-                                        let new_indirect_alloc = other_stack_pointer as *mut u64;
+                                        let new_indirect_alloc = self.ptr(other_stack_pointer);
 
                                         // Indirect atoms can be copied directly
                                         copy_nonoverlapping(
@@ -597,14 +602,18 @@ impl NockStack {
     }
 
     unsafe fn pop_east(&mut self) {
-        self.stack_pointer = *self.previous_stack_pointer_pointer_east() as *mut u64;
-        self.frame_pointer = *self.previous_frame_pointer_pointer_east() as *mut u64;
+        let stack_pointer = *self.previous_stack_pointer_pointer_east();
+        let frame_pointer = *self.previous_frame_pointer_pointer_east();
+        self.stack_pointer = self.ptr(stack_pointer);
+        self.frame_pointer = self.ptr(frame_pointer);
         self.polarity = Polarity::West;
     }
 
     unsafe fn pop_west(&mut self) {
-        self.stack_pointer = *self.previous_stack_pointer_pointer_west() as *mut u64;
-        self.frame_pointer = *self.previous_frame_pointer_pointer_west() as *mut u64;
+        let stack_pointer = *self.previous_stack_pointer_pointer_east();
+        let frame_pointer = *self.previous_frame_pointer_pointer_east();
+        self.stack_pointer = self.ptr(stack_pointer);
+        self.frame_pointer = self.ptr(frame_pointer);
         self.polarity = Polarity::East;
     }
 
@@ -628,8 +637,8 @@ impl NockStack {
      * the stack, not the final state.)
      */
     unsafe fn push_east(&mut self, num_locals: usize) {
-        let previous_stack_pointer: *mut u64 =
-            *self.previous_stack_pointer_pointer_east() as *mut u64;
+        let previous_stack_pointer = *self.previous_stack_pointer_pointer_east();
+        let previous_stack_pointer: *mut u64 = self.ptr(previous_stack_pointer);
         *previous_stack_pointer = self.stack_pointer as u64;
         *(previous_stack_pointer.add(1)) = self.frame_pointer as u64;
         self.stack_pointer = previous_stack_pointer.add(num_locals + 2);
@@ -643,8 +652,8 @@ impl NockStack {
      * stack, not the final state.)
      */
     unsafe fn push_west(&mut self, num_locals: usize) {
-        let previous_stack_pointer: *mut u64 =
-            *self.previous_stack_pointer_pointer_west() as *mut u64;
+        let previous_stack_pointer = *self.previous_stack_pointer_pointer_west();
+        let previous_stack_pointer: *mut u64 = self.ptr(previous_stack_pointer);
         *(previous_stack_pointer.sub(1)) = self.stack_pointer as u64;
         *(previous_stack_pointer.sub(2)) = self.frame_pointer as u64;
         self.stack_pointer = previous_stack_pointer.sub(num_locals + 2);
