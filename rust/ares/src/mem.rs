@@ -3,8 +3,7 @@ use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use either::Either::{self, Left, Right};
 use ibig::Stack;
 use libc::{c_void, memcmp};
-use memmap::MmapMut;
-use std::alloc::Layout;
+use std::alloc::{alloc, dealloc, Layout};
 use std::mem;
 use std::ptr;
 use std::ptr::copy_nonoverlapping;
@@ -80,8 +79,16 @@ pub struct NockStack {
     stack_pointer: *mut u64,
     /** Base pointer for the current stack frame. Accesses to slots are computed from this base. */
     frame_pointer: *mut u64,
-    /** MMap which must be kept alive as long as this NockStack is */
-    memory: MmapMut,
+    /** Layout (size + alignment) of the NockStack backing memory */
+    mem_layout: Layout,
+    /** Address to the backing memory */
+    mem_ptr: *mut u8,
+}
+
+impl Drop for NockStack {
+    fn drop(&mut self) {
+        unsafe { dealloc(self.mem_ptr, self.mem_layout) }
+    }
 }
 
 impl NockStack {
@@ -89,9 +96,10 @@ impl NockStack {
      * top_slots is how many slots to allocate to the top stack frame.
      */
     pub fn new(size: usize, top_slots: usize) -> NockStack {
-        let mut memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
-        let start = memory.as_ptr() as *const u64;
-        let frame_pointer = memory.as_mut_ptr() as *mut u64;
+        let mem_layout = Layout::from_size_align(size << 3, 0x1000).unwrap();
+        let mem_ptr = unsafe { alloc(mem_layout) };
+        let start = mem_ptr as *const u64;
+        let frame_pointer = mem_ptr as *mut u64;
         let stack_pointer = unsafe { frame_pointer.add(top_slots + 2) };
         unsafe {
             *frame_pointer = frame_pointer.add(size) as u64;
@@ -103,7 +111,8 @@ impl NockStack {
             polarity: Polarity::West,
             stack_pointer,
             frame_pointer,
-            memory,
+            mem_layout,
+            mem_ptr,
         }
     }
 
