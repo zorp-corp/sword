@@ -10,9 +10,9 @@ use std::ptr::copy_nonoverlapping;
 
 crate::gdb!();
 
-/** Utility function to get size in words */
+/** Utility function to get size aligned to words */
 pub const fn word_size_of<T>() -> usize {
-    (mem::size_of::<T>() + 7) >> 3
+    (mem::size_of::<T>() + 7) & !7
 }
 
 /** Utility function to compute the raw memory usage of an IndirectAtom */
@@ -155,14 +155,12 @@ impl NockStack {
 
     /** Save the stack pointer for the previous frame in a slot of an east frame */
     unsafe fn save_prev_stack_pointer_to_local_east(&mut self, local: usize) {
-        *(self.slot_pointer_east(local + 2) as *mut *mut u64) =
-            *(self.previous_stack_pointer_pointer_east())
+        *self.slot_pointer_east(local + 2) = *self.previous_stack_pointer_pointer_east()
     }
 
     /** Save the stack pointer for the previous frame in a slot of a west frame */
     unsafe fn save_prev_stack_pointer_to_local_west(&mut self, local: usize) {
-        *(self.slot_pointer_west(local + 2) as *mut *mut u64) =
-            *(self.previous_stack_pointer_pointer_west())
+        *self.slot_pointer_west(local + 2) = *self.previous_stack_pointer_pointer_west()
     }
 
     /** Save the stack pointer for the previous frame in a slot */
@@ -174,13 +172,11 @@ impl NockStack {
     }
 
     unsafe fn restore_prev_stack_pointer_from_local_east(&mut self, local: usize) {
-        *(self.previous_stack_pointer_pointer_east()) =
-            *(self.slot_pointer_east(local + 2) as *mut *mut u64);
+        *(self.previous_stack_pointer_pointer_east()) = *self.slot_pointer_east(local + 2);
     }
 
     unsafe fn restore_prev_stack_pointer_from_local_west(&mut self, local: usize) {
-        *(self.previous_stack_pointer_pointer_west()) =
-            *(self.slot_pointer_west(local + 2) as *mut *mut u64);
+        *(self.previous_stack_pointer_pointer_west()) = *self.slot_pointer_west(local + 2);
     }
 
     unsafe fn restore_prev_stack_pointer_from_local(&mut self, local: usize) {
@@ -191,13 +187,11 @@ impl NockStack {
     }
 
     unsafe fn prev_stack_pointer_equals_local_east(&mut self, local: usize) -> bool {
-        *(self.slot_pointer_east(local + 2) as *const *mut u64)
-            == *(self.previous_stack_pointer_pointer_east())
+        *self.slot_pointer_east(local + 2) == *self.previous_stack_pointer_pointer_east()
     }
 
     unsafe fn prev_stack_pointer_equals_local_west(&mut self, local: usize) -> bool {
-        *(self.slot_pointer_west(local + 2) as *const *mut u64)
-            == *(self.previous_stack_pointer_pointer_west())
+        *self.slot_pointer_west(local + 2) == *self.previous_stack_pointer_pointer_west()
     }
 
     /** Test the stack pointer for the previous frame against a slot */
@@ -211,15 +205,16 @@ impl NockStack {
     unsafe fn alloc_in_previous_frame_west<T>(&mut self) -> *mut T {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_west();
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
-        *prev_stack_pointer_pointer = (*prev_stack_pointer_pointer).sub(word_size_of::<T>());
-        *prev_stack_pointer_pointer as *mut T
+        let ret = *prev_stack_pointer_pointer - word_size_of::<T>() as u64;
+        *prev_stack_pointer_pointer = ret;
+        ret as *mut T
     }
 
     unsafe fn alloc_in_previous_frame_east<T>(&mut self) -> *mut T {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_east();
         // note that the allocation is on the west frame, and thus resembles raw_alloc_west
-        let alloc = *(prev_stack_pointer_pointer);
-        *prev_stack_pointer_pointer = (*prev_stack_pointer_pointer).add(word_size_of::<T>());
+        let alloc = *prev_stack_pointer_pointer;
+        *prev_stack_pointer_pointer = alloc + word_size_of::<T>() as u64;
         alloc as *mut T
     }
 
@@ -232,12 +227,12 @@ impl NockStack {
 
     unsafe fn reclaim_in_previous_frame_east<T>(&mut self) {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_east();
-        *prev_stack_pointer_pointer = (*prev_stack_pointer_pointer).sub(word_size_of::<T>());
+        *prev_stack_pointer_pointer = *prev_stack_pointer_pointer - word_size_of::<T>() as u64;
     }
 
     unsafe fn reclaim_in_previous_frame_west<T>(&mut self) {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_west();
-        *prev_stack_pointer_pointer = (*prev_stack_pointer_pointer).add(word_size_of::<T>());
+        *prev_stack_pointer_pointer = *prev_stack_pointer_pointer - word_size_of::<T>() as u64;
     }
 
     /** Reclaim allocated space at the end of the previous stack frame.
@@ -256,16 +251,16 @@ impl NockStack {
         // note that the allocation is on the west frame, and thus resembles raw_alloc_west
         let alloc = *(prev_stack_pointer_pointer);
         *prev_stack_pointer_pointer =
-            (*prev_stack_pointer_pointer).add(word_size_of::<T>() * count);
+            *prev_stack_pointer_pointer + (word_size_of::<T>() * count) as u64;
         alloc as *mut T
     }
 
     unsafe fn struct_alloc_in_previous_frame_west<T>(&mut self, count: usize) -> *mut T {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_west();
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
-        *prev_stack_pointer_pointer =
-            (*prev_stack_pointer_pointer).sub(word_size_of::<T>() * count);
-        *prev_stack_pointer_pointer as *mut T
+        let ret = *prev_stack_pointer_pointer - (word_size_of::<T>() * count) as u64;
+        *prev_stack_pointer_pointer = ret;
+        ret as *mut T
     }
 
     pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
@@ -277,7 +272,7 @@ impl NockStack {
 
     unsafe fn top_in_previous_frame_east<T>(&mut self) -> *mut T {
         let prev_stack_pointer_pointer = self.previous_stack_pointer_pointer_east();
-        (*prev_stack_pointer_pointer).sub(word_size_of::<T>()) as *mut T
+        (*prev_stack_pointer_pointer - word_size_of::<T>() as u64) as *mut T
     }
 
     unsafe fn top_in_previous_frame_west<T>(&mut self) -> *mut T {
@@ -297,13 +292,13 @@ impl NockStack {
     }
 
     /** Pointer to where the previous (west) stack pointer is saved in an east frame */
-    unsafe fn previous_stack_pointer_pointer_east(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_east(0) as *mut *mut u64
+    unsafe fn previous_stack_pointer_pointer_east(&mut self) -> *mut u64 {
+        self.slot_pointer_east(0) as *mut u64
     }
 
     /** Pointer to where the previous (east) stack pointer is saved in a west frame */
-    unsafe fn previous_stack_pointer_pointer_west(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_west(0) as *mut *mut u64
+    unsafe fn previous_stack_pointer_pointer_west(&mut self) -> *mut u64 {
+        self.slot_pointer_west(0) as *mut u64
     }
 
     /** Pointer to where the previous (west) frame pointer is saved in an east frame */
@@ -426,9 +421,9 @@ impl NockStack {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
                                         // Make space for the atom
-                                        let new_indirect_alloc = other_stack_pointer;
-                                        other_stack_pointer =
-                                            other_stack_pointer.add(indirect_raw_size(indirect));
+                                        let new_indirect_alloc = other_stack_pointer as *mut u64;
+                                        other_stack_pointer = other_stack_pointer
+                                            + indirect_raw_size(indirect) as u64;
 
                                         // Indirect atoms can be copied directly
                                         copy_nonoverlapping(
@@ -448,8 +443,8 @@ impl NockStack {
                                     Either::Right(mut cell) => {
                                         // Make space for the cell
                                         let new_cell_alloc = other_stack_pointer as *mut CellMemory;
-                                        other_stack_pointer =
-                                            other_stack_pointer.add(word_size_of::<CellMemory>());
+                                        other_stack_pointer = other_stack_pointer
+                                            + word_size_of::<CellMemory>() as u64;
 
                                         // Copy the cell metadata
                                         (*new_cell_alloc).metadata =
@@ -538,9 +533,9 @@ impl NockStack {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
                                         // Make space for the atom
-                                        other_stack_pointer =
-                                            other_stack_pointer.sub(indirect_raw_size(indirect));
-                                        let new_indirect_alloc = other_stack_pointer;
+                                        other_stack_pointer = other_stack_pointer
+                                            - indirect_raw_size(indirect) as u64;
+                                        let new_indirect_alloc = other_stack_pointer as *mut u64;
 
                                         // Indirect atoms can be copied directly
                                         copy_nonoverlapping(
@@ -559,8 +554,8 @@ impl NockStack {
                                     }
                                     Either::Right(mut cell) => {
                                         // Make space for the cell
-                                        other_stack_pointer =
-                                            other_stack_pointer.sub(word_size_of::<CellMemory>());
+                                        other_stack_pointer = other_stack_pointer
+                                            - word_size_of::<CellMemory>() as u64;
                                         let new_cell_alloc = other_stack_pointer as *mut CellMemory;
 
                                         // Copy the cell metadata
@@ -602,14 +597,14 @@ impl NockStack {
     }
 
     unsafe fn pop_east(&mut self) {
-        self.stack_pointer = *self.previous_stack_pointer_pointer_east();
-        self.frame_pointer = *self.previous_frame_pointer_pointer_east();
+        self.stack_pointer = *self.previous_stack_pointer_pointer_east() as *mut u64;
+        self.frame_pointer = *self.previous_frame_pointer_pointer_east() as *mut u64;
         self.polarity = Polarity::West;
     }
 
     unsafe fn pop_west(&mut self) {
-        self.stack_pointer = *self.previous_stack_pointer_pointer_west();
-        self.frame_pointer = *self.previous_frame_pointer_pointer_west();
+        self.stack_pointer = *self.previous_stack_pointer_pointer_west() as *mut u64;
+        self.frame_pointer = *self.previous_frame_pointer_pointer_west() as *mut u64;
         self.polarity = Polarity::East;
     }
 
@@ -633,7 +628,8 @@ impl NockStack {
      * the stack, not the final state.)
      */
     unsafe fn push_east(&mut self, num_locals: usize) {
-        let previous_stack_pointer: *mut u64 = *self.previous_stack_pointer_pointer_east();
+        let previous_stack_pointer: *mut u64 =
+            *self.previous_stack_pointer_pointer_east() as *mut u64;
         *previous_stack_pointer = self.stack_pointer as u64;
         *(previous_stack_pointer.add(1)) = self.frame_pointer as u64;
         self.stack_pointer = previous_stack_pointer.add(num_locals + 2);
@@ -647,7 +643,8 @@ impl NockStack {
      * stack, not the final state.)
      */
     unsafe fn push_west(&mut self, num_locals: usize) {
-        let previous_stack_pointer: *mut u64 = *self.previous_stack_pointer_pointer_west();
+        let previous_stack_pointer: *mut u64 =
+            *self.previous_stack_pointer_pointer_west() as *mut u64;
         *(previous_stack_pointer.sub(1)) = self.stack_pointer as u64;
         *(previous_stack_pointer.sub(2)) = self.frame_pointer as u64;
         self.stack_pointer = previous_stack_pointer.sub(num_locals + 2);
