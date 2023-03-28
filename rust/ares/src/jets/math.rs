@@ -651,6 +651,41 @@ pub fn met(bloq: usize, a: Atom) -> usize {
     }
 }
 
+pub fn jet_rev(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+    let arg = raw_slot(subject, 6);
+    let boz = raw_slot(arg, 2).as_atom()?.as_direct()?.data();
+
+    if boz >= 64 {
+        return Err(NonDeterministic);
+    }
+
+    let boz = boz as usize;
+
+    let len = raw_slot(arg, 6).as_atom()?.as_direct()?.data();
+
+    let dat = raw_slot(arg, 7).as_atom()?;
+
+    let bits = len << boz;
+
+    let mut output = if dat.is_direct() && bits < 64 {
+        unsafe { DirectAtom::new_unchecked(0).as_atom() }
+    } else {
+        unsafe { IndirectAtom::new_raw(stack, ((bits + 7) / 8) as usize, &0).as_atom() }
+    };
+
+    let src = dat.as_bitslice();
+    let dest = output.as_bitslice_mut();
+
+    let len = len as usize;
+    let total_len = len << boz;
+
+    for (start, end) in (0..len).map(|b| (b << boz, (b + 1) << boz)) {
+        dest[start..end].copy_from_bitslice(&src[(total_len - end)..(total_len - start)]);
+    }
+
+    Ok(output.as_noun())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1291,5 +1326,16 @@ mod tests {
         let sam = T(s, &[sam, a0, a24, a63, a96, a128]);
         let sam = T(s, &[sam, a0, a24, a63, a96, a128]);
         assert_jet(s, jet_mug, sam, D(0x7543cac7));
+    }
+
+    #[test]
+    fn test_rev() {
+        let ref mut s = init();
+        let (_a0, a24, _a63, a96, a128) = atoms(s);
+        let sam = T(s, &[D(0), D(60), a24]);
+        assert_jet(s, jet_rev, sam, D(0xc2a6e1000000000));
+        let test = 0x1234567890123u64;
+        let sam = T(s, &[D(3), D(7), D(test)]);
+        assert_jet(s, jet_rev, sam, D(test.swap_bytes() >> 8));
     }
 }
