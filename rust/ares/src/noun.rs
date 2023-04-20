@@ -183,7 +183,7 @@ impl DirectAtom {
         BitSlice::from_element(&self.0)
     }
 
-    pub fn as_bitslice_mut<'a>(&'a mut self) -> &'a mut BitSlice<u64, Lsb0> {
+    pub fn as_bitslice_mut(&mut self) -> &mut BitSlice<u64, Lsb0> {
         BitSlice::from_element_mut(&mut self.0)
     }
 }
@@ -397,7 +397,7 @@ impl IndirectAtom {
         BitSlice::from_slice(self.as_slice())
     }
 
-    pub fn as_bitslice_mut<'a>(&'a mut self) -> &'a mut BitSlice<u64, Lsb0> {
+    pub fn as_bitslice_mut(&mut self) -> &mut BitSlice<u64, Lsb0> {
         BitSlice::from_slice_mut(self.as_mut_slice())
     }
 
@@ -662,7 +662,7 @@ impl Atom {
         }
     }
 
-    pub fn as_bitslice_mut<'a>(&'a mut self) -> &'a mut BitSlice<u64, Lsb0> {
+    pub fn as_bitslice_mut(&mut self) -> &mut BitSlice<u64, Lsb0> {
         if self.is_indirect() {
             unsafe { self.indirect.as_bitslice_mut() }
         } else {

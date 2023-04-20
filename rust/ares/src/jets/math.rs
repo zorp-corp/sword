@@ -683,7 +683,7 @@ pub fn jet_rev(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
         dest[start..end].copy_from_bitslice(&src[(total_len - end)..(total_len - start)]);
     }
 
-    Ok(output.as_noun())
+    Ok(unsafe { output.normalize() }.as_noun())
 }
 
 #[cfg(test)]
