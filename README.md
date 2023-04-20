@@ -1,4 +1,4 @@
-# New Mars
+# Ares
 
 A redesigned Mars for the Urth/Mars Urbit runtime. Currently WIP.
 
