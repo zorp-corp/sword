@@ -752,10 +752,12 @@
         [":" "" ""]
         ~[leaf+(scow %tas thus) leaf+(scow %ud deep) leaf+(scow %ud hall)]
     ==
+  ::  pretty print a list of blocks by label
   ++  boss
     |=  prog=(list bile)
     ^-  tank
     [%rose [" " "" ""] `tang`(turn prog balk)]
+  ::  pretty print a block by label
   ++  balk
     |=  elbe=bile
     ^-  tank
@@ -765,6 +767,7 @@
         (pale elbe)
         [%rose [" " "" ""] (weld (turn body.lump pulp) ~[(beep bend.lump)])]
     ==
+  :: pretty print a block internal instruction
   ++  pulp
     |=  tint=pole
     ^-  tank
@@ -787,6 +790,7 @@
     |=  b=bell
     ^-  tank
     leaf+"{<(mug b)>}"
+  ::  pretty print a block-ending instruction
   ++  beep
     |=  sine=site
     ^-  tank
@@ -809,6 +813,7 @@
           %bom  ~
         ==
     ==
+  ::  pretty print a register
   ++  gist
     |=  r=@
     ^-  tank
