@@ -858,13 +858,15 @@
       %~  tap  in
       %-  ~(dif in ~(key by will))
       (~(gas in `(set bile)`~) flow)
-   :~  'entry points'
-       (pale wish)
-       (pale long)
-       'live blocks'
-       (boss flow)
-       'dead blocks'
-       (boss dead)
-    ==
+    %-  flop
+    ^-  tang
+    :~  'entry points'
+        (pale wish)
+        (pale long)
+        'live blocks'
+        (boss flow)
+        'dead blocks'
+        (boss dead)
+     ==
   -- 
 --
