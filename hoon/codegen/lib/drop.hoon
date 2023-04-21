@@ -319,7 +319,6 @@
         ?-  -.tend
             %next
           ?:  =(0 +<-.form)  bomb
-          ~|  tend
           =^  [muon=need hole=need edit=bile]  hide  (vise +<-.form tend)
           =^  plug  hide
             %=  $
@@ -833,7 +832,6 @@
       ?:  (~(has in seen) i.font.queu)  $(font.queu t.font.queu)
       =.  seen  (~(put in seen) i.font.queu)
       =.  flow  [i.font.queu flow]
-      ~|  i.font.queu
       =/  rent  (~(got by will) i.font.queu)
       ?-  bend.rent
           [%clq @ a=bile b=bile]
