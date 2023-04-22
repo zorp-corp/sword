@@ -667,6 +667,7 @@ pub fn jet_rev(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 
     let bits = len << boz;
 
+    /* 63 is the maximum number of bits for a direct atom */
     let mut output = if dat.is_direct() && bits < 64 {
         unsafe { DirectAtom::new_unchecked(0).as_atom() }
     } else {
