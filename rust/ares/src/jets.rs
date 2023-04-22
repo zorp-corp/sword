@@ -61,6 +61,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"rip") => Some(jet_rip),
         tas!(b"met") => Some(jet_met),
         tas!(b"mug") => Some(jet_mug),
+        tas!(b"rev") => Some(jet_rev),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None
