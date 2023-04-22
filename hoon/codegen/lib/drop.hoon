@@ -322,16 +322,16 @@
           =^  [muon=need hole=need edit=bile]  hide  (vise +<-.form tend)
           =^  plug  hide
             %=  $
-              form  +<+.form
-              deep  (peg deep 13)
-              hall  (peg hall 13)
+              form  +>.form
+              deep  (peg deep 7)
+              hall  (peg hall 7)
               tend  [%next muon edit]
             ==
           =^  tire  hide
             %=  $
-              form  +>.form
-              deep  (peg deep 7)
-              hall  (peg hall 7)
+              form  +<+.form
+              deep  (peg deep 13)
+              hall  (peg hall 13)
               tend  [%next hole then.plug]
             ==
           (copy what.tire what.plug then.tire)
@@ -649,6 +649,7 @@
       =^  dont  hide  (emit %dont fins %hop then.fall)
       [[want does dont] hide]
     ::  Split a need at an axis, for edits
+    ::  XX it looks like this is wrong
     ++  vise
       |=  [axe=@ wish=$>(%next goal)]
       ^-  [[need need bile] _hide]
@@ -825,7 +826,6 @@
       =|  seen=(set bile)
       =|  flow=(list bile)
       |-  ^-  _flow
-      ~&  queu
       ?~  font.queu
         ?~  back.queu  (flop flow)
         $(queu [(flop back.queu) ~])
