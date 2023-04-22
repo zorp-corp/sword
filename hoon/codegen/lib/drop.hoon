@@ -786,10 +786,18 @@
           %tul  ~[(gist +<.tint) (gist +>.tint)]
         ==
     ==
+  ::  pretty print an external label
   ++  ring
-    |=  b=bell
+    |=  bell
     ^-  tank
-    leaf+"{<(mug b)>}"
+    leaf+"{<(mug text)>}-{<(mug form)>}"
+  ++  corn
+    |=  talk=(list @)
+    ^-  tank
+    :*  %rose
+        ["," "<" ">"]
+        (turn talk gist) 
+    ==
   ::  pretty print a block-ending instruction
   ++  beep
     |=  sine=site
@@ -803,9 +811,9 @@
           %brn  ~[(gist +<.sine) (pale +>-.sine) (pale +>+.sine)]
           %hop  ~[(pale +.sine)]
           %lnk  ~[(gist +<.sine) (gist +>-.sine) (gist +>+<.sine) (pale +>+>.sine)]
-          %cal  ~[leaf+"unimpl"]
+          %cal  ~[(ring +<.sine) (corn +>-.sine) (gist +>+<.sine) (pale +>+>.sine)]
           %lnt  ~[(gist +<.sine) (gist +>.sine)]
-          %jmp  ~[leaf+"unimpl"]
+          %jmp  ~[(ring +<.sine) (corn +>.sine)]
           %spy  ~[(gist +<.sine) (gist +>-.sine) (gist +>+<.sine) (pale +>+>.sine)]  
           %hin  ~[(gist +<.sine) (pale +>.sine)]
           %hun  ~[(pale +.sine)]
