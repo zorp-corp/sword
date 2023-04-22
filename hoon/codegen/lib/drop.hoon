@@ -749,8 +749,8 @@
     |=  bile
     ^-  tank
     :*  %rose
-        [":" "" ""]
-        ~[leaf+(scow %tas thus) leaf+(scow %ud deep) leaf+(scow %ud hall)]
+        ["." "" ""]
+        ~[leaf+(scow %tas thus) leaf+(a-co:co deep) leaf+(a-co:co hall)]
     ==
   ::  pretty print a list of blocks by label
   ++  boss
@@ -817,7 +817,7 @@
   ++  gist
     |=  r=@
     ^-  tank
-    [%leaf 'r' (scow %ud r)]
+    [%leaf 'r' (a-co:co r)]
   ::  pretty print linearized code
   ++  prod
     ^-  tang
