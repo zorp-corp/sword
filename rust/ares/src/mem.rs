@@ -1,5 +1,6 @@
 use crate::assert_acyclic;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
+use crate::snapshot::pma::{pma_in_arena, pma_malloc};
 use either::Either::{self, Left, Right};
 use ibig::Stack;
 use libc::{c_void, memcmp};
@@ -582,6 +583,80 @@ impl NockStack {
             }
         }
         *self.previous_stack_pointer_pointer_west() = other_stack_pointer;
+        assert_acyclic!(*noun);
+    }
+
+    /** Copy out to the PMA
+     *
+     * See copy_east/west for inline comments
+     */
+    pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
+        assert!(self.polarity == Polarity::West);
+        let work_start = self.stack_pointer;
+        self.stack_pointer = self.stack_pointer.add(2);
+        *(self.stack_pointer.sub(2) as *mut Noun) = *noun;
+        *(self.stack_pointer.sub(1) as *mut *mut Noun) = noun as *mut Noun;
+        loop {
+            if self.stack_pointer == work_start {
+                break;
+            }
+
+            let next_noun = *(self.stack_pointer.sub(2) as *const Noun);
+            let next_dest = *(self.stack_pointer.sub(1) as *const *mut Noun);
+            self.stack_pointer = self.stack_pointer.sub(2);
+
+            match next_noun.as_either_direct_allocated() {
+                Either::Left(_direct) => {
+                    *next_dest = next_noun;
+                }
+                Either::Right(allocated) => match allocated.forwarding_pointer() {
+                    Option::Some(new_allocated) => {
+                        *next_dest = new_allocated.as_noun();
+                    }
+                    Option::None => {
+                        if pma_in_arena(allocated.to_raw_pointer()) {
+                            *next_dest = allocated.as_noun();
+                        } else {
+                            match allocated.as_either() {
+                                Either::Left(mut indirect) => {
+                                    let new_indirect_alloc =
+                                        pma_malloc(indirect_raw_size(indirect));
+
+                                    copy_nonoverlapping(
+                                        indirect.to_raw_pointer(),
+                                        new_indirect_alloc,
+                                        indirect_raw_size(indirect),
+                                    );
+
+                                    indirect.set_forwarding_pointer(new_indirect_alloc);
+
+                                    *next_dest = IndirectAtom::from_raw_pointer(new_indirect_alloc)
+                                        .as_noun();
+                                }
+                                Either::Right(mut cell) => {
+                                    let new_cell_alloc: *mut CellMemory =
+                                        pma_malloc(word_size_of::<CellMemory>());
+
+                                    (*new_cell_alloc).metadata = (*cell.to_raw_pointer()).metadata;
+
+                                    *(self.stack_pointer as *mut Noun) = cell.tail();
+                                    *(self.stack_pointer.add(1) as *mut *mut Noun) =
+                                        &mut (*new_cell_alloc).tail;
+                                    *(self.stack_pointer.add(2) as *mut Noun) = cell.head();
+                                    *(self.stack_pointer.add(3) as *mut *mut Noun) =
+                                        &mut (*new_cell_alloc).head;
+                                    self.stack_pointer = self.stack_pointer.add(4);
+
+                                    cell.set_forwarding_pointer(new_cell_alloc);
+
+                                    *next_dest = Cell::from_raw_pointer(new_cell_alloc).as_noun();
+                                }
+                            }
+                        }
+                    }
+                },
+            }
+        }
         assert_acyclic!(*noun);
     }
 

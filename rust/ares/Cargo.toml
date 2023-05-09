@@ -24,6 +24,9 @@ static_assertions = "1.1.0"
 ibig = "0.3.6"
 assert_no_alloc = "1.1.2"
 
+[build-dependencies]
+cc = "1.0.79"
+
 [[bin]]
 name = "ares"
 path = "src/main.rs"

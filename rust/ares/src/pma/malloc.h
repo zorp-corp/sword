@@ -4,12 +4,22 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 //==============================================================================
 // PROTOTYPES
 //==============================================================================
+
+/**
+ * Struct returned from pma_load()
+ */
+typedef struct _pma_root_state_t {
+  uint64_t  epoch;              // Epoch ID of the most recently processed event
+  uint64_t  event;              // ID of the most recently processed event
+  uint64_t  root;               // Root after most recent event
+} RootState;
 
 /**
  * Initialize a brand new PMA environment and event snapshot
@@ -32,7 +42,7 @@ pma_init(const char *path);
  * @return  0   success
  * @return  -1  failure; errno set to error code
  */
-int
+RootState
 pma_load(const char *path);
 
 /**
@@ -46,7 +56,7 @@ pma_load(const char *path);
  * @return  -1  failure; errno set to error code
  */
 int
-pma_close(uint64_t epoch, uint64_t event);
+pma_close(uint64_t epoch, uint64_t event, uint64_t root);
 
 /**
  * Allocate a new block of memory in the PMA
@@ -81,4 +91,10 @@ pma_free(void *address);
  * @return  -1  failure; errno set to error code
  */
 int
-pma_sync(uint64_t epoch, uint64_t event);
+pma_sync(uint64_t epoch, uint64_t event, uint64_t root);
+
+/**
+ * True if the address is in the PMA
+ */
+bool
+pma_in_arena(void *address);

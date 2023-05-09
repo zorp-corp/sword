@@ -8,7 +8,7 @@ LIB_CFLAGS := -D_GNU_SOURCE
 DEV_CFLAGS := -Wall -Wextra -Wpedantic -Wformat=2 -Wno-unused-parameter \
              -Wshadow -Wwrite-strings -Wstrict-prototypes \
              -Wold-style-definition -Wredundant-decls -Wnested-externs \
-             -Wmissing-include-dirs -Og
+             -Wmissing-include-dirs -Og -g3
 
 # Core sources
 SRC_DIR := ./
@@ -58,7 +58,7 @@ default : help
 # target: help - Display all targets in makefile
 #
 help :
-	@egrep "^# target:" makefile
+	@grep -E "^# target:" makefile
 
 # Run sanity check
 #
