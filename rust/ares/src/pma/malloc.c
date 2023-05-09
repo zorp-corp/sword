@@ -414,6 +414,19 @@ typedef struct _pma_global_state_t {
   PageRunCache     *free_page_runs;   // Cache of free multi-page runs
 } State;
 
+#define pma_state_free(state) \
+  do {                        \
+    pma_state_free (state);   \
+    state=NULL;               \
+  } while(0)
+
+inline void
+(pma_state_free)(State *state)
+{
+  if (state->metadata) free(state->metadata);
+  free(state);
+}
+
 //==============================================================================
 // FORWARD DECLARATIONS
 //==============================================================================
@@ -727,7 +740,7 @@ init_error:
   if (snapshot_fd) close(snapshot_fd);
   if (page_dir_fd) close(page_dir_fd);
   free(filepath);
-  free(_pma_state);
+  pma_state_free(_pma_state);
 
   return -1;
 }
@@ -979,7 +992,7 @@ load_error:
   if (snapshot_fd) close(snapshot_fd);
   if (page_dir_fd) close(page_dir_fd);
   free(filepath);
-  free(_pma_state);
+  pma_state_free(_pma_state);
 
   return (RootState){0};
 }
@@ -1002,10 +1015,8 @@ pma_close(uint64_t epoch, uint64_t event, uint64_t root) {
   close(_pma_state->page_dir_fd);
   close(_pma_state->snapshot_fd);
 
-  _pma_state = NULL;
-
-  // Free PMA state
-  free(_pma_state);
+  // free pma state
+  pma_state_free(_pma_state);
 
   return 0;
 }
