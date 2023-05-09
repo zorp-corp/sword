@@ -183,14 +183,14 @@
 #define PMA_FILE_FLAGS        (O_RDWR | O_CREAT)
 #define PMA_DIR_PERMISSIONS   (S_IRWXU | S_IRWXG | S_IRWXO)
 #define PMA_FILE_PERMISSIONS  (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
-#define PMA_INIT_SNAP_SIZE    1073741824
-#define PMA_INIT_DIR_SIZE     4194304
+#define PMA_INIT_SNAP_SIZE    0x40000000
+#define PMA_INIT_DIR_SIZE     0x400000
 
 /**
  * Maximum possible size of the page directory. This is how big the page
  * directory would need to be to reach all addressable virtual memory in Linux.
  */
-#define PMA_MAXIMUM_DIR_SIZE  365072220160
+#define PMA_MAXIMUM_DIR_SIZE  0x5500000000
 
 /**
  * Base address for the PMA. Lowest address not reserved by Linux.
@@ -202,7 +202,7 @@
  * This is just the default increment; the backing file is extended by the
  * smallest multiple of this value sufficient to fit the new allocation.
  */
-#define PMA_SNAP_RESIZE_INC   4294967296
+#define PMA_SNAP_RESIZE_INC   0x100000000
 
 //==============================================================================
 // HELPER MACROS
@@ -233,6 +233,12 @@
 //==============================================================================
 // TYPES
 //==============================================================================
+
+/* ;;: TODO: these struct/enum defns should just be anonymous and typedefed,
+     there's no reason to provide a tag especially one suffixed with
+     _t. Additionally, the type aliases should have a common prefix,
+     e.g. PMA_PageStatus, PMA_PageDir, etc.
+*/
 
 /**
  * Page statuses used in page directory
@@ -495,7 +501,7 @@ pma_init(const char *path) {
   meta_bytes = 2 * PMA_PAGE_SIZE;
 
   // Allocate memory for state
-  _pma_state = malloc(sizeof(State));
+  _pma_state = malloc(sizeof *_pma_state);
 
   //
   // Create backing files
@@ -611,7 +617,7 @@ pma_init(const char *path) {
   // Setup metadata
   //
 
-  _pma_state->metadata = malloc(PMA_PAGE_SIZE);
+  _pma_state->metadata = malloc(sizeof *_pma_state->metadata);
   if (!_pma_state->metadata) INIT_ERROR;
 
   // Initialize simple metadata state
@@ -772,7 +778,7 @@ pma_load(const char *path) {
   meta_bytes = 2 * PMA_PAGE_SIZE;
 
   // Allocate memory for state
-  _pma_state = malloc(sizeof(State));
+  _pma_state = malloc(sizeof *_pma_state);
 
   //
   // Create backing files
@@ -891,7 +897,7 @@ pma_load(const char *path) {
 
         // Add to appropriate free page cache
         if (count == 1) {
-          SinglePageCache *free_page = malloc(sizeof(SinglePageCache));
+          SinglePageCache *free_page = malloc(sizeof *free_page);
 
           // Add it to the single-page cache
           free_page->next = _pma_state->free_pages;
@@ -899,7 +905,7 @@ pma_load(const char *path) {
           _pma_state->free_pages = free_page;
 
         } else {
-          PageRunCache *page_run = malloc(sizeof(PageRunCache));
+          PageRunCache *page_run = malloc(sizeof *page_run);
 
           page_run->next = _pma_state->free_page_runs;
           page_run->page = INDEX_TO_PTR(index - count);
@@ -1353,7 +1359,7 @@ _pma_update_free_pages(uint8_t num_dirty_pages, DirtyPageEntry *dirty_pages) {
     if (dirty_pages[i].status != FREE) continue;
 
     if (dirty_pages[i].num_pages > 1) {
-      page_run = malloc(sizeof(PageRunCache));
+      page_run = malloc(sizeof *page_run);
       if (page_run == NULL) return -1;
 
       page_run->next = _pma_state->free_page_runs;
@@ -1362,7 +1368,7 @@ _pma_update_free_pages(uint8_t num_dirty_pages, DirtyPageEntry *dirty_pages) {
       _pma_state->free_page_runs = page_run;
 
     } else {
-      free_page = malloc(sizeof(SinglePageCache));
+      free_page = malloc(sizeof *free_page);
       if (free_page == NULL) return -1;
 
       free_page->next = _pma_state->free_pages;
