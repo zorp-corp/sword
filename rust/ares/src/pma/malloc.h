@@ -98,3 +98,15 @@ pma_sync(uint64_t epoch, uint64_t event, uint64_t root);
  */
 bool
 pma_in_arena(void *address);
+
+#if defined(__i386__) || defined(__x86_64__)
+#define bp(x) do { if(!(x)) __asm__ volatile("int $3"); } while (0)
+#elif defined(__thumb__)
+#define bp(x) do { if(!(x)) __asm__ volatile(".inst 0xde01"); } while (0)
+#elif defined(__aarch64__)
+#define bp(x) do { if(!(x)) __asm__ volatile(".inst 0xd4200000"); } while (0)
+#elif defined(__arm__)
+#define bp(x) do { if(!(x)) __asm__ volatile(".inst 0xe7f001f0"); } while (0)
+#else
+STATIC_ASSERT(0, "debugger break instruction unimplemented");
+#endif

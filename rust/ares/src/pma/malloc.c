@@ -213,17 +213,17 @@
 /**
  * Log error and return failure during new PMA bootstrap
  */
-#define INIT_ERROR    do { err_line = __LINE__; goto init_error; } while(0)
+#define INIT_ERROR    do { bp(0); err_line = __LINE__; goto init_error; } while(0)
 
 /**
  * Log error and return failure during existing PMA load
  */
-#define LOAD_ERROR    do { err_line = __LINE__; goto load_error; } while(0)
+#define LOAD_ERROR    do { bp(0); err_line = __LINE__; goto load_error; } while(0)
 
 /**
  * Log error and return failure during PMA sync
  */
-#define SYNC_ERROR    do { err_line = __LINE__; goto sync_error; } while(0)
+#define SYNC_ERROR    do { bp(0); err_line = __LINE__; goto sync_error; } while(0)
 
 /**
  * Log warning to console
@@ -420,17 +420,24 @@ typedef struct _pma_global_state_t {
   PageRunCache     *free_page_runs;   // Cache of free multi-page runs
 } State;
 
-#define pma_state_free(state) \
-  do {                        \
-    pma_state_free (state);   \
-    state=NULL;               \
-  } while(0)
+State *_pma_state = NULL;
 
-inline void
-(pma_state_free)(State *state)
+void
+pma_state_free()
 {
-  if (state->metadata) free(state->metadata);
-  free(state);
+  if (_pma_state->metadata) free(_pma_state->metadata);
+  free(_pma_state);
+  _pma_state = NULL;
+}
+
+int
+pma_state_malloc()
+{
+  if (_pma_state != NULL) return 1;
+  State *ret = calloc(1, sizeof *ret);
+  ret->metadata = calloc(1, sizeof *ret->metadata);
+  _pma_state = ret;
+  return 0;
 }
 
 //==============================================================================
@@ -463,12 +470,6 @@ int       _pma_extend_snapshot_file(uint64_t multiplier);
 void      _pma_warning(const char *p, void *a, int l);
 
 //==============================================================================
-// GLOBALS
-//==============================================================================
-
-State *_pma_state = NULL;
-
-//==============================================================================
 // PUBLIC FUNCTIONS
 //==============================================================================
 
@@ -480,7 +481,7 @@ int
 pma_init(const char *path) {
   DIR      *dir;
   char     *filepath;
-  void     *meta_pages = NULL;
+  void     *meta_pages = NULL;  /* ;;: really this need not be void *. make it Metadata[2] */
   void     *page_dir = NULL;
   uint64_t  meta_bytes;
   int       err;
@@ -488,20 +489,11 @@ pma_init(const char *path) {
   int       page_dir_fd = 0;
   int       snapshot_fd = 0;
 
-  //
-  // Set up
-  //
-
-  // Only init once
-  if (_pma_state != NULL) {
-    return 0;
-  }
-
   // Precompute metadata and page directory sizes in bytes
   meta_bytes = 2 * PMA_PAGE_SIZE;
 
   // Allocate memory for state
-  _pma_state = malloc(sizeof *_pma_state);
+  if (pma_state_malloc()) return -1;
 
   //
   // Create backing files
@@ -613,13 +605,6 @@ pma_init(const char *path) {
       0);
   if (page_dir == MAP_FAILED) INIT_ERROR;
 
-  //
-  // Setup metadata
-  //
-
-  _pma_state->metadata = malloc(sizeof *_pma_state->metadata);
-  if (!_pma_state->metadata) INIT_ERROR;
-
   // Initialize simple metadata state
   _pma_state->metadata->magic_code = PMA_MAGIC_CODE;
   _pma_state->metadata->checksum   = 0;
@@ -659,7 +644,7 @@ pma_init(const char *path) {
   if (_pma_state->metadata->dpage_cache == MAP_FAILED) INIT_ERROR;
 
   // Initialize arena end pointer
-  _pma_state->metadata->arena_end = (void*)((char*)_pma_state->metadata->arena_start + PMA_PAGE_SIZE);
+  _pma_state->metadata->arena_end = ((char*)_pma_state->metadata->arena_start + PMA_PAGE_SIZE);
 
   // Setup initial dpage cache values
   _pma_state->metadata->dpage_cache->dirty = 0;
@@ -711,16 +696,13 @@ pma_init(const char *path) {
   if (err) INIT_ERROR;
 
   // Compute checksum for metadata
-  _pma_state->metadata->checksum = crc_32(
-      (const unsigned char *)(&(_pma_state->metadata)),
-      PMA_PAGE_SIZE);
+  _pma_state->metadata->checksum = crc_32((unsigned char*)_pma_state->metadata, PMA_PAGE_SIZE);
 
   // Copy and sync metadata to both buffers
-  memcpy(
-    meta_pages,
-    (const void *)(&(_pma_state->metadata)),
-    PMA_PAGE_SIZE);
-  memcpy((Metadata*)meta_pages + 1, &_pma_state->metadata, PMA_PAGE_SIZE);
+  memset(meta_pages, 0, PMA_PAGE_SIZE);
+  memset((Metadata*)meta_pages+1, 0, PMA_PAGE_SIZE);
+  memcpy(meta_pages, _pma_state->metadata, PMA_PAGE_SIZE);
+  memcpy((Metadata*)meta_pages + 1, _pma_state->metadata, PMA_PAGE_SIZE);
   if (msync(meta_pages, meta_bytes, MS_SYNC)) INIT_ERROR;
 
   // Remove PROT_WRITE permissions from snapshot and page directory
@@ -746,7 +728,7 @@ init_error:
   if (snapshot_fd) close(snapshot_fd);
   if (page_dir_fd) close(page_dir_fd);
   free(filepath);
-  pma_state_free(_pma_state);
+  pma_state_free();
 
   return -1;
 }
@@ -765,20 +747,11 @@ pma_load(const char *path) {
   int           page_dir_fd = 0;
   int           snapshot_fd = 0;
 
-  //
-  // Set up
-  //
-
-  // Only init once
-  if (_pma_state != NULL) {
-    return (RootState){0, 0, 0};
-  }
-
   // Precompute metadata and page directory sizes in bytes
   meta_bytes = 2 * PMA_PAGE_SIZE;
 
   // Allocate memory for state
-  _pma_state = malloc(sizeof *_pma_state);
+  if (pma_state_malloc()) return (RootState){0};
 
   //
   // Create backing files
@@ -807,8 +780,8 @@ pma_load(const char *path) {
   //
 
   // Read magic code
-  err = read(snapshot_fd, &_pma_state->metadata->magic_code, sizeof(uint64_t));
-  if ((err != -1) || (_pma_state->metadata->magic_code != PMA_MAGIC_CODE)) {
+  read(snapshot_fd, &_pma_state->metadata->magic_code, sizeof(uint64_t));
+  if (_pma_state->metadata->magic_code != PMA_MAGIC_CODE) {
     errno = EILSEQ;
     LOAD_ERROR;
   }
@@ -824,8 +797,8 @@ pma_load(const char *path) {
   if (meta_pages == MAP_FAILED) LOAD_ERROR;
 
   // Determine newer metadata page
-  newer_page = (Metadata*)meta_pages;
-  older_page = (Metadata*)((char*)meta_pages + PMA_PAGE_SIZE);
+  newer_page = meta_pages;
+  older_page = newer_page+1;    /* ;;: TODO assert that both newer_page and older_page have magic number */
   if (
       (newer_page->epoch < older_page->epoch) ||
       ((newer_page->epoch == older_page->epoch) && (newer_page->event < older_page->event))) {
@@ -994,11 +967,13 @@ load_error:
 
   if (meta_pages) munmap(meta_pages, meta_bytes);
   munmap(_pma_state->page_directory.entries, PMA_MAXIMUM_DIR_SIZE);
-  munmap(_pma_state->metadata->arena_start, ((uint64_t)_pma_state->metadata->arena_end - (uint64_t)_pma_state->metadata->arena_start));
+  munmap(_pma_state->metadata->arena_start,
+         (uintptr_t)_pma_state->metadata->arena_end
+         - (uintptr_t)_pma_state->metadata->arena_start);
   if (snapshot_fd) close(snapshot_fd);
   if (page_dir_fd) close(page_dir_fd);
   free(filepath);
-  pma_state_free(_pma_state);
+  pma_state_free();
 
   return (RootState){0};
 }
@@ -1022,7 +997,7 @@ pma_close(uint64_t epoch, uint64_t event, uint64_t root) {
   close(_pma_state->snapshot_fd);
 
   // free pma state
-  pma_state_free(_pma_state);
+  pma_state_free();
 
   return 0;
 }
@@ -1144,14 +1119,13 @@ pma_sync(uint64_t epoch, uint64_t event, uint64_t root) {
   _pma_state->metadata->event = event;
   _pma_state->metadata->root = root;
   _pma_state->metadata->checksum = 0;
-  _pma_state->metadata->checksum = crc_32(
-      (const unsigned char *)(&(_pma_state->metadata)),
-      PMA_PAGE_SIZE);
+  _pma_state->metadata->checksum
+    = crc_32((unsigned char *)_pma_state->metadata, PMA_PAGE_SIZE);
 
   // Sync metadata
   bytes_out = pwrite(
       _pma_state->snapshot_fd,
-      (const void *)(_pma_state->metadata),
+      _pma_state->metadata,
       PMA_PAGE_SIZE,
       _pma_state->meta_page_offset);
   if (bytes_out != PMA_PAGE_SIZE) SYNC_ERROR;
@@ -1207,16 +1181,14 @@ _pma_verify_checksum(Metadata *meta_page) {
 
   // Copy metadata in advance of using it, since: 1) we expect the checksum to
   // be valid; 2) we need to set the value of the checksum in the metadata to 0.
-  memcpy(&_pma_state->metadata, meta_page, PMA_PAGE_SIZE);
+  memcpy(_pma_state->metadata, meta_page, PMA_PAGE_SIZE);
 
   // Since we're computing the checksum on the object which itself includes the
   // checksum, we treat the checksum as 0.
   _pma_state->metadata->checksum = 0;
 
   // Compute checksum
-  checksum = crc_32(
-      (const unsigned char *)(&(_pma_state->metadata)),
-      PMA_PAGE_SIZE);
+  checksum = crc_32((unsigned char *)_pma_state->metadata, PMA_PAGE_SIZE);
 
   // Compare checksums
   return (checksum == meta_page->checksum);
@@ -2046,7 +2018,7 @@ _pma_copy_page(void *address, uint64_t offset, PageStatus status, int fd) {
  */
 void
 _pma_mark_page_dirty(uint64_t index, uint64_t offset, PageStatus status, uint32_t num_pages) {
-  DirtyPageEntry *dirty_page = (DirtyPageEntry *)_pma_state->metadata->dirty_pages;
+  DirtyPageEntry *dirty_page = _pma_state->metadata->dirty_pages;
 
   dirty_page += _pma_state->metadata->num_dirty_pages++;
 
