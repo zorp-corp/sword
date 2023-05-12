@@ -1,6 +1,22 @@
 /-  *sock
 !:
 |%
+++  mime
+  |=  [=boot =sock]
+  ^-  ^boot
+  ?-  -.boot
+    %safe  [%safe sock]
+    %risk  [%risk sock]
+    %boom  [%boom ~]
+  ==
+++  mite
+  |=  [soot=boot =boot]
+  ^-  ^boot
+  ?-  -.soot
+    %safe  boot
+    %risk  (dare boot)
+    %boom  [%boom ~]
+  ==
 ++  trip
   |=  toob=$<(%boom boot)
   ^-  (unit *)
@@ -39,6 +55,31 @@
       ::
       [%toss ~]
     [saf axe %toss ~]
+  ==
+:: Get an axis from a sock, or return the axis at which we crashed
+++  cull
+  |=  [axe=@ =sock]
+  ^-  (each [crax=@ clap=@ croc=sock] [saul=? rock=sock])
+  ?:  =(0 axe)  [0 0 %toss ~]
+  =/  saf  1
+  |-
+  ?:  =(axe 1)
+    [%| %& sock]
+  ?+  sock  [%& saf clap sock]
+      [%know ^]
+    ?-  (cap axe)
+      %2  $(axe (mas axe), sock [%know -.know.sock], saf (peg saf 2))
+      %3  $(axe (mas axe), sock [%know +.know.sock], saf (peg saf 3))
+    ==
+  ::
+      [%bets *]
+    ?-  (cap axe)
+      %2  $(axe (mas axe), sock hed.sock, saf (peg saf 2))
+      %3  $(axe (mas axe), sock tal.sock, saf (peg saf 3))
+    ==
+  ::
+      [%toss ~]
+    [%| %| %toss ~]
   ==
 :: Get an axis from a sock
 ++  pull
@@ -87,6 +128,7 @@
     ?:  =(know.a know.b)
       [%know 0]
     [%know 1]
+  ::  XX we could discover disequality on partial knowledge
   [%flip ~]
 :: Test if we can know two boots are equal
 ++  bopp
@@ -157,6 +199,67 @@
       [%risk (knit hope.hed hope.tal)]
     ==
   ==
+:: patch a sock or return axis of crashing noun
+++  warn
+  |=  [axe=@ pat=sock hol=sock]
+  ^-  (each [crax=@ clap=@ croc=sock] [saul=? rock=sock])
+  ?:  =(0 axe) [%& 0 0 %toss ~]
+  =/  saf  1
+  =/  flag  %.y
+  =|  dust=(list [$?(%2 %3) sock])
+  |-
+  ?:  =(axe 1)
+    |-  ^-  [%| ? sock]
+    ?~  dust  [%| flag pat]
+    ?-  -.i.dust
+      %2  $(dust t.dust, pat (knit pat +.i.dust))
+      %3  $(dust t.dust, pat (knit +.i.dust pat))
+    ==
+  ?+  hol  [%& saf axe hol]
+      [%know ^]
+    ?-  (cap axe)
+        %2
+      %=  $
+        axe   (mas axe)
+        saf   (peg saf 2)
+        hol   [%know -.know.hol]
+        dust  [[%2 %know +.know.hol] dust]
+      ==
+    ::
+        %3
+      %=  $
+        axe   (mas axe)
+        saf   (peg saf 3)
+        hol   [%know +.know.hol]
+        dust  [[%3 %know -.know.hol] dust]
+      ==
+    ==
+  ::
+      [%bets *]
+    ?-  (cap axe)
+        %2
+      %=  $
+        axe   (mas axe)
+        saf   (peg saf 2)
+        hol   left.hol
+        dust  [[%2 rite.hol] dust]
+      ==
+    ::
+        %3
+      %=  $
+        axe   (mas axe)
+        saf   (peg saf 3)
+        hol   rite.hol
+        dust  [[%3 left.hol] dust]
+      ==
+    ==
+  ::
+      [%toss ~]
+    ?-  (cap axe)
+      %2  $(axe (mas axe), dust [[%2 %toss ~] dust])
+      %3  $(axe (mas axe), dust [[%3 %toss ~] dust])
+    ==
+  ==  
 :: patch a sock
 ++  darn
   |=  [axe=@ pat=sock =sock]
@@ -699,4 +802,22 @@
       [%toss ~]
     (limo [axe ~])
   ==
+:: check nest on socks i.e. b contains at least as much information as a
+++  nail
+  |=  [a=sock b=sock]
+  ^-  ?
+  ?:  ?=(%toss -.a)  %.y
+  ?:  ?=(%flip -.a)
+    ?|(?=(%flip -.b) ?=([%know %0] b) ?=([%know %1] b)) 
+  ?:  ?=(%dice -.a)
+    ?|(?=(%flip -.b) ?=(%dice -.b) ?=([%know @] -.b)
+  ?:  ?=(%bets -.a)
+    ?:  ?=([%know ^] b)
+      ?&($(a left.a, b [%know -.know.b]) $(a rite.a, b [%know +.know.b]))
+    ?:  ?=(%bets -.b)
+      ?&($(a left.a, b left.b) $(a rite.a, b rite.b))
+    %.n
+  ?:  ?=(%know -.b)
+    =(know.a know.b)
+  %.n
 --

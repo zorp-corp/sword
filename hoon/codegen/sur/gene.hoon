@@ -1,12 +1,14 @@
 /-  *sock
 |%
++|  %lin
 ::  external label
 +$  bell  [text=sock form=*]
 ::  internal label
 +$  bile  [%bile deep=@ hall=@ thus=@tas]
++$  stir  [%stir @]
 ::  ssa shape of a noun
 +$  need
-  $%  [%this sass=@ code=?]
+  $%  [%this sass=stir code=?]
       [%both left=need rite=need]
       [%none ~]
   ==
@@ -59,7 +61,19 @@
       wish=bile  :: starting label for indirect calls
       sire=@     :: input register for indirect calls
       will=(map bile blob)
+      sans=@     ::  next SSA register
   ==
 ::  code table
 +$  hill  (map bell pile)
++|  %ska
+::  register relation
++$  sage
+  $%  [%tis stir]
+      [%con stir stir]
+      [%hed stir]
+      [%tal stir]
+  ==
+::  register knowledge
++$  pose  (map stir [what=sock sire=(unit sage)])
++$  crew  (map bile pose)
 --

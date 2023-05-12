@@ -606,7 +606,7 @@
       =^  [want=need tins=(list pole) fins=(list pole)]  hide
         |^
           ^-  [[need (list pole) (list pole)] _hide]
-          ?:  ?=(%none -.that)  [[phat ~ ~] hide]
+          ?:  ?=(%none -.that)  [[phat ~ ~] hide] :: WRONG, must put other side in a register
           ?:  ?=(%none -.phat)  [[that ~ ~] hide]
           ?:  ?=(%this -.that)
             ?:  ?=(%this -.phat)
@@ -697,7 +697,7 @@
       [[muon hole flaw] hide]
     --
   =^  [wish=bile sire=$>(%this need)]  hide  (divy what.dent then.dent)
-  [then.dent what.dent wish sass.sire will.hide] 
+  [then.dent what.dent wish sass.sire will.hide sans.hide] 
   |%
   ::  emit a code block
   ++  emit
@@ -877,4 +877,37 @@
         (boss dead)
      ==
   -- 
+++  skep
+  =|  hide=[will=(map bile blob) sans=@ come=(jug bile bile) gist=(map bile pose)]
+  =<
+  |=  pile
+  ^-  [(jug bile bile) pile]
+  ~|  %unimplemented  !!
+  |%
+  ++  sear  [sans.hide hide(sans .+(sans.hide)]
+  ++  emir
+    |=  [here=bile gist=pose what=(list pole) then=site]
+    ^-  hide
+    =/  fore
+      ?-  -.then
+        %clq  ~[[+>-.then here] [+>+.then here]]
+        %eqq  ~[[+>+<.then here] [+>+>.then here]]
+        %brn  ~[[+>-.then here] [+>+.then here]]
+        %hop  [+.then here]~
+        %lnk  [+>+>.then here]~
+        %cal  [+>+>.then here]~
+        %lnt  ~
+        %jmp  ~
+        %spy  [+>+>.then here]~
+        %hin  [+>.then here]~
+        %hun  [+.then here]~
+        %don  ~
+        %bom  ~
+      ==
+    ~|  %unimplemented  ?>  %.f
+    %=    hide
+      will  (~(put by will.hide) here (flop what) then)
+      come  (~(gas ju come.hide) fore)
+    ==
+  --
 --
