@@ -1092,10 +1092,14 @@ pma_sync(uint64_t epoch, uint64_t event, uint64_t root) {
     return -1;
   }
 
-  // Clear dpage cache dirty bit and compute new size
+  // Clear dpage cache dirty bit and compute new size. This is the only place
+  // where the dpage cache active size should ever increase!
   if (dpage_cache->dirty) {
     dpage_cache->dirty = 0;
     dpage_cache->size = (dpage_cache->tail - dpage_cache->head);
+    if (dpage_cache->size > PMA_DPAGE_CACHE_SIZE) {
+      dpage_cache->size += PMA_DPAGE_CACHE_SIZE;
+    }
   }
 
   // Sync dirty pages
@@ -1268,15 +1272,12 @@ int
 _pma_write_page_status(int fd, uint64_t index, PageStatus status) {
   ssize_t bytes_out;
 
-  do {
-    bytes_out = pwrite(
-        fd,
-        (const void *)&status,
-        sizeof(PageStatus),
-        ((index * sizeof(PageDirEntry)) + sizeof(uint64_t)));
-  } while (!bytes_out);
-
-  if (bytes_out == -1) {
+  bytes_out = pwrite(
+      fd,
+      (const void *)&status,
+      sizeof(PageStatus),
+      ((index * sizeof(PageDirEntry)) + sizeof(uint64_t)));
+  if (bytes_out < 1) {
     return -1;
   }
 
@@ -1297,15 +1298,12 @@ int
 _pma_write_page_offset(int fd, uint64_t index, uint64_t offset) {
   ssize_t bytes_out;
 
-  do {
-    bytes_out = pwrite(
-        fd,
-        (const void *)&offset,
-        sizeof(uint64_t),
-        (index * sizeof(PageDirEntry)));
-  } while (!bytes_out);
-
-  if (bytes_out == -1) {
+  bytes_out = pwrite(
+      fd,
+      (const void *)&offset,
+      sizeof(uint64_t),
+      (index * sizeof(PageDirEntry)));
+  if (bytes_out < 1) {
     return -1;
   }
 
@@ -1867,7 +1865,7 @@ _pma_get_cached_dpage(void) {
   uint64_t offset;
   uint16_t dirty  = _pma_state->metadata->dpage_cache->dirty;
   uint16_t size   = _pma_state->metadata->dpage_cache->size;
-  uint16_t head   = _pma_state->metadata->dpage_cache->head;
+  uint16_t head;
 
   // If the cache is empty, or there's only one page in the cache and the cache
   // hasn't been touched yet, then exit early. If the cache hasn't been touched
@@ -1885,7 +1883,9 @@ _pma_get_cached_dpage(void) {
   }
 
   // TODO: macros for dealing with cache?
-  // Pop page off queue
+  // Pop page off queue; head can't be assigned earlier as _pma_copy_dpage_cache
+  // may also try to pop a page off of the queue
+  head   = _pma_state->metadata->dpage_cache->head;
   offset = _pma_state->metadata->dpage_cache->queue[head];
   assert(offset != 0);
   _pma_state->metadata->dpage_cache->size -= 1;
@@ -1979,8 +1979,15 @@ _pma_get_disk_dpage(void) {
 void
 _pma_copy_page(void *address, uint64_t offset, PageStatus status, int fd) {
   void     *new_address;
+  ssize_t   bytes_out;
   uint64_t  index = PTR_TO_INDEX(address);
   uint16_t  tail = _pma_state->metadata->dpage_cache->tail;
+
+  bytes_out = pwrite(fd, address, PMA_PAGE_SIZE, offset);
+  if (bytes_out != PMA_PAGE_SIZE) {
+    WARNING(strerror(errno));
+    abort();
+  }
 
   new_address = mmap(
       address,
@@ -1997,12 +2004,12 @@ _pma_copy_page(void *address, uint64_t offset, PageStatus status, int fd) {
   assert(new_address == address);
 
   // Add previous dpage to cache
-  // Note: the dpage cache should always be writeable here, either because the dpage cache is the page we just copied,
-  // or because it was made writeable in advance by _pma_copy_shared_page
+  // Note: the dpage cache should always be writeable here, either because the
+  // dpage cache is the page we just copied, or because it was made writeable in
+  // advance by _pma_copy_shared_page
   assert(_pma_state->page_directory.entries[index].offset != 0);
   _pma_state->metadata->dpage_cache->queue[tail] = _pma_state->page_directory.entries[index].offset;
   _pma_state->metadata->dpage_cache->tail = ((tail + 1) % PMA_DPAGE_CACHE_SIZE);
-  _pma_state->metadata->dpage_cache->size += 1;
 
   // Add page to dirty page list
   _pma_mark_page_dirty(index, offset, status, 1);
@@ -2049,10 +2056,8 @@ _pma_extend_snapshot_file(uint64_t multiplier) {
   // Extend snapshot file
   err = lseek(_pma_state->snapshot_fd, (_pma_state->metadata->snapshot_size - 1), SEEK_SET);
   if (err == -1) return -1;
-  do {
-    bytes = write(_pma_state->snapshot_fd, "", 1);
-  } while (!bytes);
-  if (bytes == -1) return -1;
+  bytes = write(_pma_state->snapshot_fd, "", 1);
+  if (bytes < 1) return -1;
 
   return 0;
 }

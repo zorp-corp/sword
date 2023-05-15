@@ -41,7 +41,7 @@ main(int argc, char** argv) {
   ptr_10 = pma_malloc(4096);
   ptr_11 = pma_malloc(8192);
 
-  if (pma_sync(1UL, 1UL)) {
+  if (pma_sync(1UL, 1UL, 0UL)) {
     fprintf(stderr, "sync not sane:\n");
     goto test_error;
   };
@@ -58,8 +58,8 @@ main(int argc, char** argv) {
   pma_free(ptr_10);
   pma_free(ptr_11);
 
-  if (pma_close(1UL, 2UL)) {
-    fprintf(stderr, "sync not sane:\n");
+  if (pma_close(1UL, 2UL, 0UL)) {
+    fprintf(stderr, "close not sane:\n");
     goto test_error;
   };
 
