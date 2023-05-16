@@ -33,9 +33,9 @@ pub fn serf() -> io::Result<()> {
     snap_path.push(".urb");
     snap_path.push("chk");
     create_dir_all(&snap_path)?;
-    // PMA is currently limited to ~650KB, use DoubleJam for anything bigger
-    // let ref mut snap = snapshot::double_jam::DoubleJam::new(snap_path);
-    let ref mut snap = snapshot::pma::Pma::new(snap_path);
+    // TODO: switch to Pma when ready
+    // let ref mut snap = snapshot::pma::Pma::new(snap_path);
+    let ref mut snap = snapshot::double_jam::DoubleJam::new(snap_path);
 
     let stack = &mut NockStack::new(96 << 10 << 10, 0);
     let newt = &mut Newt::new();
