@@ -481,8 +481,8 @@ int
 pma_init(const char *path) {
   DIR      *dir;
   char     *filepath;
-  void     *meta_pages = NULL;  /* ;;: really this need not be void *. make it Metadata[2] */
-  void     *page_dir = NULL;
+  Metadata *meta_pages = 0;
+  void     *page_dir = 0;
   uint64_t  meta_bytes;
   int       err;
   int       err_line;
@@ -627,8 +627,9 @@ pma_init(const char *path) {
   _pma_state->metadata->num_dirty_pages = 0;
 
   // Initialize snapshot page info
-  _pma_state->metadata->snapshot_size  = PMA_INIT_SNAP_SIZE;
-  _pma_state->metadata->next_offset    = meta_bytes;
+  _pma_state->metadata->snapshot_size = PMA_INIT_SNAP_SIZE;
+  _pma_state->metadata->next_offset = meta_bytes + PMA_PAGE_SIZE;
+
 
   // Initialize arena start pointer
   _pma_state->metadata->arena_start  = (void *)PMA_SNAPSHOT_ADDR;
@@ -663,7 +664,6 @@ pma_init(const char *path) {
   // First page used by dpage cache
   _pma_state->page_directory.entries[0].status = FIRST;
   _pma_state->page_directory.entries[0].offset = meta_bytes;
-  _pma_state->metadata->next_offset += PMA_PAGE_SIZE;
 
   //
   // Setup transient state
@@ -699,10 +699,9 @@ pma_init(const char *path) {
   _pma_state->metadata->checksum = crc_32((unsigned char*)_pma_state->metadata, PMA_PAGE_SIZE);
 
   // Copy and sync metadata to both buffers
-  memset(meta_pages, 0, PMA_PAGE_SIZE);
-  memset((Metadata*)meta_pages+1, 0, PMA_PAGE_SIZE);
-  memcpy(meta_pages, _pma_state->metadata, PMA_PAGE_SIZE);
-  memcpy((Metadata*)meta_pages + 1, _pma_state->metadata, PMA_PAGE_SIZE);
+  memset(meta_pages, 0, meta_bytes);
+  memcpy(&meta_pages[0], _pma_state->metadata, PMA_PAGE_SIZE);
+  memcpy(&meta_pages[1], _pma_state->metadata, PMA_PAGE_SIZE);
   if (msync(meta_pages, meta_bytes, MS_SYNC)) INIT_ERROR;
 
   // Remove PROT_WRITE permissions from snapshot and page directory
@@ -739,7 +738,7 @@ pma_load(const char *path) {
   Metadata     *older_page;
   char         *filepath;
   void         *address;
-  void         *meta_pages = NULL;
+  Metadata     *meta_pages = 0;
   uint64_t      index;
   uint64_t      meta_bytes;
   int           err;
@@ -797,13 +796,14 @@ pma_load(const char *path) {
   if (meta_pages == MAP_FAILED) LOAD_ERROR;
 
   // Determine newer metadata page
-  newer_page = meta_pages;
-  older_page = newer_page+1;    /* ;;: TODO assert that both newer_page and older_page have magic number */
-  if (
-      (newer_page->epoch < older_page->epoch) ||
-      ((newer_page->epoch == older_page->epoch) && (newer_page->event < older_page->event))) {
-    newer_page = older_page;
-    older_page = (Metadata*)meta_pages;
+  newer_page = &meta_pages[0];
+  older_page = &meta_pages[1];
+  assert(newer_page->magic_code == PMA_MAGIC_CODE); assert(older_page->magic_code == PMA_MAGIC_CODE);
+  if ((newer_page->epoch < older_page->epoch)
+      || ((newer_page->epoch == older_page->epoch)
+          && (newer_page->event < older_page->event))) {
+    newer_page = &meta_pages[1];
+    older_page = &meta_pages[0];
   }
 
   // Verify checksum for either page
@@ -916,7 +916,7 @@ pma_load(const char *path) {
         // While pages have FOLLOW status, scan forward
         ++index;
         while (_pma_state->page_directory.entries[index].status == FOLLOW) {
-          assert(_pma_state->page_directory.entries[index].offset == (_pma_state->page_directory.entries[index - 1].offset + PMA_PAGE_SIZE));
+          assert(_pma_state->page_directory.entries[index].offset == (_pma_state->page_directory.entries[index - 1].offset + PMA_PAGE_SIZE)); /* ;;: seems there's some bug here. All multipage allocations have their FOLLOW pages with offset of 0 */
 
           ++count;
           ++index;
