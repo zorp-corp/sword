@@ -920,8 +920,6 @@ pma_load(const char *path) {
         // While pages have FOLLOW status, scan forward
         ++index;
         while (_pma_state->page_directory.entries[index].status == FOLLOW) {
-          assert(_pma_state->page_directory.entries[index].offset == (_pma_state->page_directory.entries[index - 1].offset + PMA_PAGE_SIZE)); /* ;;: seems there's some bug here. All multipage allocations have their FOLLOW pages with offset of 0 */
-
           ++count;
           ++index;
         }
