@@ -15,11 +15,12 @@
 /**
  * Struct returned from pma_load()
  */
-typedef struct _pma_root_state_t {
+typedef struct PMARootState PMARootState;
+struct PMARootState {
   uint64_t  epoch;              // Epoch ID of the most recently processed event
   uint64_t  event;              // ID of the most recently processed event
   uint64_t  root;               // Root after most recent event
-} RootState;
+};
 
 /**
  * Initialize a brand new PMA environment and event snapshot
@@ -42,7 +43,7 @@ pma_init(const char *path);
  * @return  0   success
  * @return  -1  failure; errno set to error code
  */
-RootState
+PMARootState
 pma_load(const char *path);
 
 /**
