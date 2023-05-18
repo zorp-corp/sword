@@ -32,18 +32,18 @@ mod raw {
 
 unsafe fn pma_init<P: AsRef<Path>>(path: P) -> i32 {
     let path = CString::new(path.as_ref().to_str().unwrap()).unwrap();
-    raw::pma_init(path.as_ptr()) as i32
+    raw::pma_init(path.as_ptr())
 }
 
 unsafe fn pma_load<P: AsRef<Path>>(path: P) -> (u64, u64, Noun) {
     let path = CString::new(path.as_ref().to_str().unwrap()).unwrap();
     let rs = raw::pma_load(path.as_ptr());
-    (rs.epoch, rs.event, Noun::from_raw(rs.root as u64))
+    (rs.epoch, rs.event, Noun::from_raw(rs.root))
 }
 
 #[allow(dead_code)]
 unsafe fn pma_close(epoch: u64, event: u64, root: Noun) -> i32 {
-    raw::pma_close(epoch, event, root.as_raw()) as i32
+    raw::pma_close(epoch, event, root.as_raw())
 }
 
 /** Allocate a block of memory from the persistent memory arena.
@@ -56,11 +56,11 @@ pub fn pma_malloc<T>(size: usize) -> *mut T {
 
 #[allow(dead_code)]
 unsafe fn pma_free<T>(ptr: *mut T) -> i32 {
-    raw::pma_free(ptr as *mut c_void) as i32
+    raw::pma_free(ptr as *mut c_void)
 }
 
 unsafe fn pma_sync(epoch: u64, event: u64, root: Noun) -> i32 {
-    raw::pma_sync(epoch, event, root.as_raw()) as i32
+    raw::pma_sync(epoch, event, root.as_raw())
 }
 
 pub fn pma_in_arena<T>(ptr: *const T) -> bool {
