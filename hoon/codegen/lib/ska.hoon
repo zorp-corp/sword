@@ -1,6 +1,126 @@
 /-  *sock
 !:
 |%
+::  split a sock at an axis
+++  diet
+  |=  [axe=@ =sock]
+  ~|  %diet-miss
+  ^-  [^sock ^sock]
+  ?<  =(0 axe)
+  |-  ^-  ^sock
+  ?:  =(1 axe)
+    [[%toss ~] sock]
+  ?:  ?=(%toss -.sock)  [[%toss ~] %toss ~]
+  ?-  (cap axe)
+      %2
+    ?+  sock  !!
+        [%know ^]
+      =/  [limb=^sock tree=^sock]  $(axe (mas axe), sock [%know -.know.sock])
+      [limb (knit tree %know +.know.sock)]
+    ::
+        [%bets *]
+      =/  [limb=^sock tree=^sock]  $(axe (mas axe), sock left.sock)
+      [limb (knit tree rite.sock)
+    ==
+  ::
+      %3
+    ?+  sock  !!
+        [%know ^]
+      =/  [limb=^sock tree=^sock]  $(axe (mas axe), sock [%know +.know.sock])
+      [limb (knit [%know -.know.sock] tree)]
+    ::
+        [%bets ^]
+      =/  [limb=^sock tree=^sock]  $(axe (mas axe), sock rite.sock)
+      [limb (knit left.sock tree)]
+    ==
+  ==
+::  split a sock asserting not an atom
+++  tear
+  |=  =sock
+  ~|  %tear-atom
+  ^-  [left=sock rite=sock]
+  ?+  sock  !!
+    [%know ^]  [[%know -.know.sock] [%know +.know.sock]]
+    [%bets *] +.sock
+    [%toss ~]  [[%toss ~] %toss ~]
+  ==
+::  push down knowledge by an axis
+++  lose
+  |=  [axe=@ =sock]
+  ?<  =(0 axe)
+  |-  ^-  ^sock
+  ?:  =(1 axe)  sock
+  ?-  (cap axe)
+    %2  [%bets $(axe (mas axe)) %toss ~]
+    %3  [%bets [%toss ~] $(axe (mas axe))]
+  ==
+::  unify two socks with correctness asserted
+++  ball
+  |=  [one=sock two=sock]
+  ~|  %ball-fail
+  ?:  ?=(%toss -.one)  two
+  ?:  ?=(%toss -.two)  one
+  ?-  -.one
+      %know
+    ?-  -.two
+        %know
+      ?>  =(know.one know.two)
+      one
+    ::
+        %bets
+      ?>  ?=(^ know.one)
+      =+  $(one [%know -.know.one], two left.two)  :: check only
+      =+  $(two [%know +.know.one], two rite.two)  :: check only
+      one
+    ::
+        %flip
+      ?>  ?|(=(0 know.one) =(1 know.one))
+      one
+    ::
+        %dice
+      ?>  ?=(@ know.one)
+      one
+    ==
+  ::
+      %bets
+    ?-  -.two
+        %know
+      ?>  ?=(^ know.two)
+      =+  $(one left.one, two [%know -.know.two])  :: check only
+      =+  $(one rite.one, two [%know +.know.tow])  :: check only
+      two
+    ::
+        %bets
+      =/  left  $(one left.one, two left.two)
+      =/  rite  $(one rite.one, two rite.two)
+      (knit left rite)
+    ::
+        %flip  !!
+        %dice  !!
+    ==
+  ::
+      %flip
+    ?-  -.two
+        %know
+      ?>  ?|(=(0 know.two) =(1 know.two))
+      two
+    ::
+        %bets  !!
+        %flip  one
+        %dice  one
+    ==
+  ::
+      %dice
+    ?-  -.two
+        %know
+      ?>  ?=(@ know.two)
+      two
+    ::
+        %bets  !!
+        %flip  two
+        %dice  one
+    ==
+  ==
 ++  mime
   |=  [=boot =sock]
   ^-  ^boot
