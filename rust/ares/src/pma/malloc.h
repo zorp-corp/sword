@@ -100,6 +100,11 @@ pma_sync(uint64_t epoch, uint64_t event, uint64_t root);
 bool
 pma_in_arena(void *address);
 
+/*
+  bp(X) where X is false will raise a SIGTRAP. If the process is being run
+  inside a debugger, this can be caught and ignored. It's equivalent to a
+  breakpoint. If run without a debugger, it will dump core, like an assert
+*/
 #if defined(__i386__) || defined(__x86_64__)
 #define bp(x) do { if(!(x)) __asm__ volatile("int $3"); } while (0)
 #elif defined(__thumb__)
