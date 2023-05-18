@@ -264,7 +264,7 @@
         =^  boom  seam  melt
         =.  mire.seam  (~(put by mire.seam) boom croc.warp)
         =.  mist.seam  (~(put by mist.seam) boom [%neat crax.warp tree.aint])
-/run/current-system/sw/bin/bash: line 1: :git: command not found
+        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb boom])
         $(fore.queu t.fore.queu, back.queu (weld next back.queu))
       =.  mire.seam  (~(put by mire.seam) i.fore.queu rock.warp)
       $(fore.queu t.fore.queu, back.queu (weld next back.queu))
