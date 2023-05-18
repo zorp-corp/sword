@@ -320,6 +320,7 @@
     ==
   ==
 :: patch a sock or return axis of crashing noun
+:: XX the return type is the wrong way round
 ++  warn
   |=  [axe=@ pat=sock hol=sock]
   ^-  (each [crax=@ clap=@ croc=sock] [saul=? rock=sock])
