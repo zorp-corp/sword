@@ -120,7 +120,7 @@
  *
  * For more info, see https://www.man7.org/linux/man-pages/man2/mmap.2.html.
  */
-#if defined(U3_OS_LINUX)
+#ifdef __linux__
   #define PMA_MMAP_FLAGS        (MAP_SHARED | MAP_FIXED_NOREPLACE)
 #else
   #define PMA_MMAP_FLAGS        (MAP_SHARED | MAP_FIXED)
@@ -200,7 +200,11 @@
 /**
  * Base address for the PMA. Lowest address not reserved by Linux.
  */
-#define PMA_SNAPSHOT_ADDR     0x10000
+#ifdef __linux__
+  #define PMA_SNAPSHOT_ADDR     0x10000
+#else
+  #define PMA_SNAPSHOT_ADDR     0x28000000000
+#endif
 
 /**
  * Increment block size for resizing the snapshot backing file (4 GiB in bytes).
@@ -218,17 +222,17 @@
 /**
  * Log error and return failure during new PMA bootstrap
  */
-#define INIT_ERROR    do { bp(0); err_line = __LINE__; goto init_error; } while(0)
+#define INIT_ERROR    do { err_line = __LINE__; goto init_error; } while(0)
 
 /**
  * Log error and return failure during existing PMA load
  */
-#define LOAD_ERROR    do { bp(0); err_line = __LINE__; goto load_error; } while(0)
+#define LOAD_ERROR    do { err_line = __LINE__; goto load_error; } while(0)
 
 /**
  * Log error and return failure during PMA sync
  */
-#define SYNC_ERROR    do { bp(0); err_line = __LINE__; goto sync_error; } while(0)
+#define SYNC_ERROR    do { err_line = __LINE__; goto sync_error; } while(0)
 
 /**
  * Log warning to console
