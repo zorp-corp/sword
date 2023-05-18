@@ -10,6 +10,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -119,7 +120,11 @@
  *
  * For more info, see https://www.man7.org/linux/man-pages/man2/mmap.2.html.
  */
-#define PMA_MMAP_FLAGS        (MAP_SHARED | MAP_FIXED_NOREPLACE)
+#if defined(U3_OS_LINUX)
+  #define PMA_MMAP_FLAGS        (MAP_SHARED | MAP_FIXED_NOREPLACE)
+#else
+  #define PMA_MMAP_FLAGS        (MAP_SHARED | MAP_FIXED)
+#endif
 
 /**
  * Magic code that identifies a file as an event snapshot file
@@ -403,7 +408,7 @@ struct PMAMetadata {
   uint64_t             padding[2];      // sizeof(PMAMetadata) must be PMA_PAGE_SIZE
   PMADirtyPageEntry    dirty_pages[PMA_DIRTY_PAGE_LIMIT]; // Queue of changes not yet synced to page directory
 };
-static_assert(sizeof(PMAMetadata) == PMA_PAGE_SIZE);
+static_assert(sizeof(PMAMetadata) == PMA_PAGE_SIZE, "PMAMetadata must be a page in length");
 
 /**
  * Struct containing global data used by PMA
@@ -643,7 +648,7 @@ pma_init(const char *path) {
       _pma_state->metadata->arena_start,
       PMA_PAGE_SIZE,
       PROT_READ | PROT_WRITE,
-      MAP_SHARED | MAP_FIXED_NOREPLACE,
+      PMA_MMAP_FLAGS,
       snapshot_fd,
       meta_bytes);
   if (_pma_state->metadata->dpage_cache == MAP_FAILED) INIT_ERROR;
@@ -895,7 +900,7 @@ pma_load(const char *path) {
             INDEX_TO_PTR(index - count),
             (PMA_PAGE_SIZE * count),
             PROT_READ,
-            MAP_SHARED | MAP_FIXED_NOREPLACE,
+            PMA_MMAP_FLAGS,
             snapshot_fd,
             _pma_state->page_directory.entries[index - count].offset);
 
@@ -907,7 +912,7 @@ pma_load(const char *path) {
             INDEX_TO_PTR(index),
             PMA_PAGE_SIZE,
             PROT_READ,
-            MAP_SHARED | MAP_FIXED_NOREPLACE,
+            PMA_MMAP_FLAGS,
             snapshot_fd,
             _pma_state->page_directory.entries[index].offset);
         if (address == MAP_FAILED) LOAD_ERROR;
@@ -929,7 +934,7 @@ pma_load(const char *path) {
             INDEX_TO_PTR(index - count),
             (count * PMA_PAGE_SIZE),
             PROT_READ,
-            MAP_SHARED | MAP_FIXED_NOREPLACE,
+            PMA_MMAP_FLAGS,
             snapshot_fd,
             _pma_state->page_directory.entries[index - count].offset);
         if (address == MAP_FAILED) LOAD_ERROR;
@@ -939,7 +944,7 @@ pma_load(const char *path) {
       case FOLLOW:
         // FOLLOW pages should be passed over correctly by FIRST case
       default:
-        fprintf(stderr, "Index %lu invalid\n", index);
+        fprintf(stderr, "Index %" PRIu64 " invalid\n", index);
         errno = EINVAL;
         LOAD_ERROR;
     }
@@ -1654,7 +1659,7 @@ _pma_get_new_page(PMAPageStatus status) {
       _pma_state->metadata->arena_end,
       PMA_PAGE_SIZE,
       PROT_READ | PROT_WRITE,
-      MAP_SHARED | MAP_FIXED_NOREPLACE,
+      PMA_MMAP_FLAGS,
       _pma_state->snapshot_fd,
       offset);
   if (address == MAP_FAILED) {
@@ -1706,7 +1711,7 @@ _pma_get_new_pages(uint64_t num_pages) {
       _pma_state->metadata->arena_end,
       bytes,
       PROT_READ | PROT_WRITE,
-      MAP_SHARED | MAP_FIXED_NOREPLACE,
+      PMA_MMAP_FLAGS,
       _pma_state->snapshot_fd,
       offset);
   if (address == MAP_FAILED) {
@@ -1892,8 +1897,6 @@ _pma_get_cached_dpage(void) {
   assert(offset != 0);
   _pma_state->metadata->dpage_cache->size -= 1;
   _pma_state->metadata->dpage_cache->head = ((head + 1) % PMA_DPAGE_CACHE_SIZE);
-
-  assert(_pma_state->metadata->dpage_cache->size != -1);
 
   return offset;
 }
