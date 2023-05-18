@@ -14,7 +14,7 @@
       [%turn turn=@hail]                              :: result of an analyzed call
       [%hint fake=@hail real=@hail]                   :: crash-safety dependent
       [%scry rift=@hail past=@hail]                   :: scry
-      [%bomb mine=@hail]                              :: this crashes
+      [%bomb mine=@hail]                              :: this crashes XX START HERE needs list of hails
   ==
 ::  Nomm (Nock--)
 ::   9 is rewritten to 7+2
