@@ -144,33 +144,32 @@
   ::  crash on invalid formula
   ++  bomb
     ^-  [[nomm @hail] _seam]
-    =^  boom  seam  (game [%bomb dial])
+    =^  boom  seam  (game [%bomb (~(put in *(set @hail)) dial)])
     [[[%not 0] boom] seam]
   ::  add a constraint
   ++  gain
     |=  [ale=@hail =rain]
     ^-  _seam
     =.  mist.seam  (~(put by mist.seam) ale rain)
-    =/  next
-      =>  rain
+    =/  pens
       ?-  -
-        %neat  ~[sail]
+        %neat  ~[sail]:rain
         %mede  ~
-        %cons  ~[left rite]
-        %eats  ~[eats]
-        %meat  ~[meat]
-        %eels  ~[left rite]
-        %edit  ~[limb tree]
-        %both  ~[then else]
-        %call  ~[sail dial]
-        %turn  ~[turn]
-        %hint  ~[fake real]
-        %scry  ~[rift past]
-        %bomb  ~[mine]
+        %cons  ~[left rite]:rain
+        %eats  ~[eats]:rain
+        %meat  ~[meat]:rain
+        %eels  ~[left rite]:rain
+        %edit  ~[limb tree]:rain
+        %both  ~[then else]:rain
+        %call  ~[sail dial]:rain
+        %turn  ~[turn]:rain
+        %hint  ~[fake real]:rain
+        %scry  ~[rift past]:rain
+        %bomb  ~(tap in mine.rain)
       ==
-    =.  muck.seam  (~(gas ju muck.seam) (turn next |=(hail=@hail [hail ale])))
+    =.  muck.seam  (~(gas ju muck.seam) (turn pens |=(hail=@hail [hail ale])))
     (draw ale)
-  ++  draw
+  ++  draw ::  XX we need logic to only enqueue further variables if we changed something or this will be scarily slow
     |=  ale=@hail
     ^-  _seam
     =/  queu  [fore=~[ale] back=~]
@@ -183,7 +182,8 @@
     ?-  -.aint
         %neat
       ?:  =(0 axe.aint)
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb dial])
+        =.  mist.seam
+          (~(put by mist.seam) i.fore.queu [%bomb (~(put in *(set @hail)) dial)])
         $(fore.queu t.fore.queu, back.queu (weld next back.queu))
       =/  soup  (quiz sail.aint)
       ?.  -.soup
@@ -194,7 +194,8 @@
         =^  boom  seam  melt
         =.  mist.seam  (~(put by mist.seam) boom [%neat crax.salt sail)
         =.  mire.seam  (~(put by mire.seam) boom croc.salt)
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb boom])
+        =.  mist.seam
+          (~(put by mist.seam) i.fore.queu [%bomb (~(put in *(set @hail)) boom)])
         $(fore.queu t.fore.queu, back.queu (weld next back.queu))
       =.  seam  (~(put by mire.seam) i.foreo.queu rock.salt)
       $(fore.queu t.fore.queu, back.queu (weld next back.queu))
@@ -230,7 +231,10 @@
         $(fore.queu t.fore.queu, back.queu (weld next back.queu))
       =/  pool  (pile:ska [%safe +.food])
       ?:  ?=(%boom -.pool)
-        =.  mist.seam (~(put by mist.seam) i.fore.queu [%bomb meat.aint])
+        =.  mist.seam
+          %+  ~(put by mist.seam)
+            i.fore.queu
+          [%bomb (~(put in *(set @hail)) meat.aint)]
         $(fore.queu t.fore.queu, back.queu (weld next back.queu))
       =/  soul  ?:(?=(%safe -.pool) sure.pool hope.pool)
       =.  mire.seam  (~(put by mire.seam) i.fore.queu soul)
@@ -249,7 +253,10 @@
     ::
         %edit
       ?:  =(0 axe.aint)
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb dial])
+        =.  mist.seam
+          %+  ~(put by mist.seam)
+            i.fore.queu
+          [%bomb (~(put in *(set @hail)) dial)]
         $(fore.queu t.fore.queu, back.queu (weld next back.queu))
       =/  smol  (quiz limb.aint)
       ?.  -.smol
@@ -264,22 +271,73 @@
         =^  boom  seam  melt
         =.  mire.seam  (~(put by mire.seam) boom croc.warp)
         =.  mist.seam  (~(put by mist.seam) boom [%neat crax.warp tree.aint])
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb boom])
+        =.  mist.seam
+          %+  ~(put by mist.seam)
+            i.fore.queu
+          [%bomb (~(put in *(set @hail)) boom)]
         $(fore.queu t.fore.queu, back.queu (weld next back.queu))
       =.  mire.seam  (~(put by mire.seam) i.fore.queu rock.warp)
       $(fore.queu t.fore.queu, back.queu (weld next back.queu))
     ::
         %both
+      =/  leak  (quiz then.aint)
+      =/  reek  (quiz else.aint)
+      ?.  -.leak
+        ?.  -.reek
+          =.  mist.seam
+            (~(put by mist.seam) i.fore.queu [%bomb (~(uni in +.leak) +.reak)])
+          $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+        =.  mire.seam  (~(put by mire.seam) i.fore.queu +.reek)
+        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+      ?.  -.reek
+        =.  mire.seam  (~(put by mire.seam) i.fore.queu +.leak)
+        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+      =.  mire.seam  (~(put by mire.seam) i.fore.queu (mous:ska +.leak +.reek))
+      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+    ::  we don't know the result
+        %call
+      $(fore.queu t.fore.queu)
+    ::
+        %turn
+      =/  salt  (quiz turn.aint)
+      ?.  -.salt
+        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.salt])
+        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+      =.  mire.seam  (~(put by mire.seam) i.fore.queu +.salt)
+      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+    ::
+        %hint
+      =/  fall  (quiz fake.aint)
+      ?.  -.fall
+        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.fall])
+        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+      =/  rule  (quiz real.aint)
+      ?.  -.rule
+        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.rule])
+      =.  mire.seam  (~(put by mire.seam) i.fore.queu +.rule)
+      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+    :: we don't know the result but we can push crashing subformulae
+        %scry
+      =/  reek  (quiz rift.aint)
+      ?.  -.rekk
+        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.reek])
+        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+      =/  peek  (quiz rift.aint)
+        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.peek])
+        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
+      $(fore.queu t.fore.queu)
+    ::
+        %bomb
+      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
     ==
   ::  get hypothesis or crash
   ++  quiz
     |=  ale=@hail
-    ^-  (each sock @hail)
+    ^-  (each sock (list @hail))
     =/  rune  (~(get by mist.seam) ale)
     ?:  ?&(?=(^ rune) ?=(%bomb -.u.rune))
       [| mine.u.rune]
     [& (~(gut by mire.seam) ale [%toss ~])]
-
   ::  generate and constraint a variable
   ++  game
     |=  =rain
@@ -288,6 +346,8 @@
     [gale (gain gale rain)]
   --
 ::  check for non-recursive direct calls
+::  XX need to accumulate potential battery masks for recursive calls
+::  and apply if all recursive
 ++  club
   ::  XX  we need to rewrite call constraints to indicate recursion
   ^-  [(unit [@hail $>(%call rain)]) _seam]
@@ -360,6 +420,24 @@
         $(fore.queu t.fore.queu, back.queu [limb.aint tree.aint back.queu])
       ::
           %both
+        =/  lint  (~(get by mist.seam) then.aint)
+        =/  rind  (~(get by mist.seam) else.aint)
+        ::  this should have been propagated forward
+        ?<  ?&(?=(^ lint) ?=(%bomb -.u.lint) ?=(^ rind) ?=(%bomb -.u.rind))
+        ?:  ?&(?=(^ lint) ?=(%bomb -.u.lint))
+          =.  seam  (pact +.u.lint)
+          =.  seam  (fact else.aint cope)
+          %=  $
+            fore.queu t.fore.queu
+            back.queu [else.aint (weld ~(tap in +.u.lint) back.queu)]
+          ==
+        ?:  ?&(?=(^ rind) ?=(%bomb -.u.rind))
+          =.  seam  (pact.u.rind)
+          =.  seam  (fact then.aint cope)
+          %=  $
+            fore.queu  t.fore.queu
+            back.queu  [then.aint (weld ~(tap in +.u.rind) back.queu)]
+          ==
         =.  seam  (fact then.aint cope)
         =.  seam  (fact else.aint cope)
         $(fore.queu t.fore.queu, back.queu [then.aint else.aint back.queu])
@@ -377,12 +455,17 @@
       ::
           %scry
         $(fore.queu t.fore.queu)
-      ::  XX we shouldn't always fix this, only when a conditional
-      ::  depends on it
+      :: we only fix crashes under conditionals
           %bomb
-        =.  seam  (fact mine.aint &)
-        $(fore.queu t.fore.queu, back.queu [mine.aint back.queu])
+        $(fore.queu t.fore.queu)
       ==
+    ++  pact
+      |=  ales=(set @hail)
+      ^-  _seam
+      =/  rest  ~(tap in ales)
+      |-
+      ?~  rest  seam
+      $(rest t.rest, seam (fact i.rest &))
     ++  fact
       |=  [ale=@hail ape=cape]
       ^-  _seam
