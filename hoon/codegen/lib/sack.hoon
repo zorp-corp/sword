@@ -1,399 +1,6 @@
-/-  *sock
 /-  *noir
-/+  ska
-::  XX radically simplify socks by representing as [cape *], boots as
-::  (unit [cape *])
 =>
-::  analysis datastructures
 |%
-::  constraints
-+$  mist  (map @hail rain)
-::  reverse dependencies
-+$  muck  (jug @hail @hail)
-::  analysis results (hypotheses)
-+$  mire  (map @hail sock)
-::  formula variables
-+$  haar  (set @hail)
-::  call result variables
-+$  silt  (set @hail)
-::  mask
-+$  cape  $@(? ^)
-::  battery masks
-+$  snow  (map @hail cape)
-::  abstract stack entry
-+$  fame  (jug * @hail)
-::  compiled nomm
-+$  mitt  (map [@hail @hail] nomm)
---
-::  SACK: Subject-oriented Analysis of Constraints and Knowledge
-=|  seam=[=mist =muck =mire =haar =silt hail=@hail]
-|%
-::  sack a subject and formula
-++  raid
-  |=  [soup=sock form=*]
-  ^-  _seam
-  =|  tack=fame
-  =^  sail  seam  melt
-  =^  dial  seam  melt
-  =^  salt  seam  melt
-  =.  mire.seam  (~(gas by mire.seam) ~[[sail soup] [dial [%know form]])
-  =.  haar.seam  (~(put by haar.seam) dial)
-  =.  silt.seam  (~(put by silt.seam) salt)
-  |-  ^-  _seam
-  =.  seam  (ruse sail dial tack salt)
-  =.  seam  guns
-  =^  maam  seam  club
-  ?~  maam  seam
-  $(sail sail.u.maam, dial dial.u.maam, tack tack.u.maam, salt -.u.maam)
-::  generate nomm, constraints, and hypotheses for an arm
-++  ruse
-  |=  [sail=@hail dial=@hail tack=fame salt=@hail]
-  =/  sofa  (~(gut by mire.seam) dial)
-  ?>  ?=(%know -.sofa) :: don't call ruse on an unknown dial!
-  =/  form  know.sofa
-  =.  tack  (~(put ju tack) form sail) :: update abstract stack for any calls we make
-  |^  ^-  _seam
-    =^  [ire=nomm ale=@hail]  seam  fell 
-    =.  mitt.seam  (~(put by mitt.seam) [sail dial] ire)
-    (gain salt [%thus ale])
-  ++  fell
-    ^-  [[nomm @hail] _seam]
-    ?+  form  bomb
-        [left=^ rite=*]
-      =^  [lire=nomm lice=@hail]  seam  fell(form left.form)
-      =^  [rise=nomm rice=@hail]  seam  fell(form rite.form)
-      =^  mice  seam  (game [%cons lice rice])
-      [[[%par lire rise] mice] seam]
-    ::
-        [%0 axe=@]
-      =^  mice  seam  (game [%neat axe.form sail])
-      [[[%not axe.form] mice] seam]
-    ::
-        [%1 tis=*]
-      =^  mice  seam  (game [%mede tis.form])
-      [[[%one tis] mice] seam]
-    ::
-        [%2 sumo=* cafe=*]
-      =^  [sums=nomm seal=@hail]  seam  $(form sumo.form)
-      =^  [from=nomm fair=@hail]  seam  $(form cafe.form)
-      =^  salt  seam  (game [%call seal fair tack])
-      =.  haar.seam  (~(put in haar.seam) fair)
-      =.  silt.seam  (~(put in silt.seam) salt)
-      [[[%two sums seal from fair] salt] seam]
-    ::
-        [%3 seat=*]
-      =^  [sate=nomm sell=@hail]  seam  $(form seat.form)
-      =^  char  seam  (game [%eats sell])
-      [[[%the sate] char] seam]
-    ::
-        [%4 sink=*]
-      =^  [sunk=nomm sill=@hail]  seam  $(form sink.form)
-      =^  more  seam  (game [%meat sill])
-      [[[%for sunk] more] seam]
-    ::
-        [%5 one=* two=*]
-      =^  [lump=nomm late=@hail]  seam  $(form one.form)
-      =^  [rump=nomm rate=@hail]  seam  $(form two.form)
-      =^  bale  seam  (game [%eels late rate])
-      [[[%ivy lump rump] bale] seam]
-    ::
-        [%6 what=* then=* else=*]
-      =^  [when=nomm wait=@hail]  seam  $(form what.form)
-      =^  [thus=nomm tale=@hail]  seam  $(form then.form)
-      =^  [even=nomm fate=@hail]  seam  $(form else.form)
-      =^  cool  seam  (game [%both thus even])
-      [[[%six when thus even] cool] seam]
-    ::
-        [%7 with=* that=*]
-      =^  [wine=nomm wait=@hail]  seam  $(form with.form)
-      =^  [tile=nomm tale=@hail]  seam  $(sail wait, form that.form)
-      [[[%eve wine tile] tale] seam]
-    ::
-        [%8 whip=* that=*]
-      $(form [%7 [whip %0 1] that]
-    ::
-        [%9 fax=@ that=*]
-      $(form [%7 that %2 [%0 1] %0 fax]
-    ::
-        [%10 [axe=@ limp=*] trip=*]
-      =^  [limb=nomm late=@hail]  seam  $(form limp.form)
-      =^  [tree=nomm tale=@hail]  seam  $(form trip.form)
-      =^  diet  seam  (game [%edit axe.form late tale])
-      [[[%ten axe.form limb tree] diet] seam]
-    ::
-        [%11 tag=@ real=*]
-      =^  [rump=nomm hump=@hail]  seam  $(form real.form)
-      [[[%sip tag rump] hump] seam]
-    ::
-        [%11 [tag=@ fake=*] real=*]
-      =^  [ramp=nomm rail=@hail]  seam  $(form fake.form)
-      =^  [rump=nomm hump=@hail]  seam  $(form real.form)
-      =^  bump  seam  (game [%hint rail hump])
-      [[[%tip tag ramp rump] bump] seam]
-    ::
-        [%12 cafe=* pass=*]
-      =^  [camp=nomm cane=@hail]  seam  $(form cafe.form)
-      =^  [pump=nomm pain=@hail]  seam  $(form pass.form)
-      =^  kite  seam  (game [%scry cane pain])
-      [[[%elf camp pump] kite] seam]
-    ==
-  ++  hast
-    |=  ale=@hail
-    ^-  sock
-    (~(gut by mire.seam) ale [%toss ~])
-  ::  crash on invalid formula
-  ++  bomb
-    ^-  [[nomm @hail] _seam]
-    =^  boom  seam  (game [%bomb dial])
-    [[[%not 0] boom] seam]
-  ::  add a constraint
-  ++  gain
-    |=  [ale=@hail =rain]
-    ^-  _seam
-    =.  mist.seam  (~(put by mist.seam) ale rain)
-    =/  next
-      =>  rain
-      ?-  -
-        %neat  ~[sail]
-        %mede  ~
-        %cons  ~[left rite]
-        %eats  ~[eats]
-        %meat  ~[meat]
-        %eels  ~[left rite]
-        %edit  ~[limb tree]
-        %both  ~[then else]
-        %call  ~[sail dial]
-        %turn  ~[turn]
-        %hint  ~[fake real]
-        %scry  ~[rift past]
-        %bomb  ~[mine]
-      ==
-    =.  muck.seam  (~(gas ju muck.seam) (turn next |=(hail=@hail [hail ale])))
-    (draw ale)
-  ++  draw
-    |=  ale=@hail
-    ^-  _seam
-    =/  queu  [fore=~[ale] back=~]
-    |-  ^-  _seam
-    ?~  fore.queu
-      ?~  back.queu  seam
-      $(queu [(flop back.queu) ~])
-    =/  next  ~(tap in (~(get ju muck.seam) i.fore.queu))
-    =/  aint  (~(got by i.fore.queu) ale)
-    ?-  -.aint
-        %neat
-      ?:  =(0 axe.aint)
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb dial])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =/  soup  (quiz sail.aint)
-      ?.  -.soup
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.soup])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =/  salt  (cull axe.aint +.soup)
-      ?:  -.salt
-        =^  boom  seam  melt
-        =.  mist.seam  (~(put by mist.seam) boom [%neat crax.salt sail)
-        =.  mire.seam  (~(put by mire.seam) boom croc.salt)
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb boom])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =.  seam  (~(put by mire.seam) i.foreo.queu rock.salt)
-      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-    ::
-        %mede
-      =.  mire.seam  (~(put by mire.seam) i.fore.queu [%know that.aint])
-      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-    ::
-        %cons
-      =/  leak  (quiz left.aint)
-      ?.  -.leak
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.leak])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queue))
-      =/  reek  (quiz rite.aint)
-      ?.  -.reek
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.reek])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =.  mire.seam  (~(put by mire.seam) i.fore.queu (knit:ska +.leak +.reek))
-      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-    ::
-        %eats
-      =/  food  (quiz eats.aint)
-      ?.  -.food
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.leak])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =.  mire.seam  (~(put by mire.seam) i.fore.queu (fits:ska +.food))
-      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-    ::
-        %meat
-      =/  food  (quiz meat.aint)
-      ?.  -.food
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.food])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =/  pool  (pile:ska [%safe +.food])
-      ?:  ?=(%boom -.pool)
-        =.  mist.seam (~(put by mist.seam) i.fore.queu [%bomb meat.aint])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =/  soul  ?:(?=(%safe -.pool) sure.pool hope.pool)
-      =.  mire.seam  (~(put by mire.seam) i.fore.queu soul)
-      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-    ::
-        %eels
-      =/  leak  (quiz left.aint)
-      ?.  -.leak
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.leak])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =/  reek  (quiz rite.aint)
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.reek])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =.  mire.seam  (~(put by mire.seam) i.fore.queu (pear:ska +.leak +.reek))
-      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-    ::
-        %edit
-      ?:  =(0 axe.aint)
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb dial])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =/  smol  (quiz limb.aint)
-      ?.  -.smol
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.smol])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =/  huge  (quiz tree.aint)
-      ?.  -.huge
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb +.huge])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =/  warp  (warn axe.aint +.smol +.huge)
-      ?:  warp
-        =^  boom  seam  melt
-        =.  mire.seam  (~(put by mire.seam) boom croc.warp)
-        =.  mist.seam  (~(put by mist.seam) boom [%neat crax.warp tree.aint])
-        =.  mist.seam  (~(put by mist.seam) i.fore.queu [%bomb boom])
-        $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-      =.  mire.seam  (~(put by mire.seam) i.fore.queu rock.warp)
-      $(fore.queu t.fore.queu, back.queu (weld next back.queu))
-    ::
-        %both
-    ==
-  ::  get hypothesis or crash
-  ++  quiz
-    |=  ale=@hail
-    ^-  (each sock @hail)
-    =/  rune  (~(get by mist.seam) ale)
-    ?:  ?&(?=(^ rune) ?=(%bomb -.u.rune))
-      [| mine.u.rune]
-    [& (~(gut by mire.seam) ale [%toss ~])]
-
-  ::  generate and constraint a variable
-  ++  game
-    |=  =rain
-    ^-  [@hail _seam]
-    =^  gale  seam  melt
-    [gale (gain gale rain)]
-  --
-::  check for non-recursive direct calls
-++  club
-  ::  XX  we need to rewrite call constraints to indicate recursion
-  ^-  [(unit [@hail $>(%call rain)]) _seam]
-  =/  fore  ~(tap in silt)
-  |-  ^-  [(unit [@hail $>(%call rain)]) _seam]
-  ?~  fore  [~ seam]
-  =/  aint  (~(got by mist.seam) i.fore)
-  ?:  ?=(%turn -.aint)  $(fore t.fore) :: XX can we drop this from silt here?
-  ?>  ?=(%call -.aint) :: this should be respected by nomm generation
-  =/  sofa  (~(gut by mire.seam) dial.aint [%toss ~])
-  ?.  ?=(%know -.sofa)  $(fore t.fore) :: indirect, check the next one
-  =/  soup  (~(gut by mire.seam) sail.aint)
-  =/  bats  ~(tap in (~(get ju tack.aint) know.sofa)
-  |-  ^-  [(unit [@hail $>(call rain)]) _seam]
-  ?~  bats  [`[i.fore aint] seam] :: this one is non-recursive
-  =/  bass  (~(gut by mire.seam) i.bats [%toss ~])
-  =/  bake  (~(got by snow.seam) i.bats)
-  =/  brie  (~(app ca bake) bass)
-  ?:  (nail brie soup)
-    ^$(fore t.fore) :: recursive, check the next one
-  $(bats t.bats)
-::  locate the battery
-++  guns
-  ^-  _seam
-  =/  fore  ~(tap in haar.seam)
-  =/  fare  fore
-  |^  ^-  _seam
-    ?~  fare  fire
-    =/  hypo  (~(gut by mire.seam) i.fare [%toss ~])
-    =?  snow.seam  ?=(%know -.hypo)  (~(put by snow.seam) i.fare ~[1])
-    $(fare t.fare)
-  ++  fire
-    =/  queu=[fore=(list @hail) back=(list @hail)]  [fore ~]
-    |^  ^-  _seam
-      ?~  fore.queu
-        ?~  back.queu  seam
-        $(queu [(flop back.queu) ~])
-      =/  aint  (~(got by mist.seam) i.fore)
-      =/  cope  (~(got by snow.seam) i.fore)
-      ?-  -.aint
-          %neat
-        =.  seam  (fact sail.aint (~(pat ca cope) axe.aint))
-        $(fore.queu t.fore.queu, back.queu [sail.aint back.queu])
-      ::
-          %mede
-        $(fore.queu t.fore.queu)
-          %cons
-        =/  [l=cape r=cape]  ~(rip ca cope)
-        =.  seam  (fact left.aint l)
-        =.  seam  (fact rite.aint r)
-        $(fore.queu t.fore.queu, back.queu [left.aint rite.aint back.queu])
-      ::
-          %eats
-        =.  seam  (fact eats.aint &)
-        $(fore.queu t.fore.queu, back.queu [eats.aint back.queu])
-      ::
-          %meat
-        =.  seam  (fact meat.aint &)
-        $(fore.queu t.fore.queu, back.queu [meat.aint back.queu])
-      ::
-          %eels
-        =.  seam  (fact left.aint &)
-        =.  seam  (fact rite.aint &)
-        $(fore.queu t.fore.queu, back.queu [left.aint rite.aint back.queu])
-      ::
-          %edit
-        =/  [limb=cape tree=cape]  (~(awl ca cope) axe.aint)
-        =.  seam  (fact limb.aint limb)
-        =.  seam  (fact tree.aint tree)
-        $(fore.queu t.fore.queu, back.queu [limb.aint tree.aint back.queu])
-      ::
-          %both
-        =.  seam  (fact then.aint cope)
-        =.  seam  (fact else.aint cope)
-        $(fore.queu t.fore.queu, back.queu [then.aint else.aint back.queu])
-      ::
-          %call
-        $(fore.queu t.fore.queu)
-      ::
-          %turn
-        =.  seam  (fact turn.aint cope)
-        $(fore.queu t.fore.queu, back.queu [turn.aint back.queu])
-      ::
-          %hint
-        =.  seam  (fact real.aint cope)
-        $(fore.queu t.fore.queu, back.queu [real.aint back.queu])
-      ::
-          %scry
-        $(fore.queu t.fore.queu)
-      ::  XX we shouldn't always fix this, only when a conditional
-      ::  depends on it
-          %bomb
-        =.  seam  (fact mine.aint &)
-        $(fore.queu t.fore.queu, back.queu [mine.aint back.queu])
-      ==
-    ++  fact
-      |=  [ale=@hail ape=cape]
-      ^-  _seam
-      %=    seam
-          snow
-        ?:  (~(has by snow.seam) ale)
-          (~(jab by snow.seam) ale |=(ope=cape (~(uni ca ope) ape)))
-        (~(put by snow.seam) ale ape)
-      ==
-    --
-  --
 ::  operations on $cape
 ++  ca
   |_  one=cape
@@ -434,6 +41,22 @@
       =/  r  $(one +.one, two +.two)
       ?:(?&(?=(@ l) =(l r)) l [l r])
     ==
+  ::  does two add axes to one?
+  ++  big
+    |=  two=cape
+    ^-  ?
+    ?-  one
+        %&  |
+        %|  ?@(two two ?|($(two -.two) $(two +.two)))
+        ^
+      ?@  two  ?|($(one -.one) $(one +.one))
+      ?|($(one -.one, two -.two) $(one +.one, two +.two))
+    ==
+  ::  does one actually have any axes
+  ++  any
+    ^-  ?
+    ?@  one  one
+    ?|(any(one -.one) any(one +.one))
   ::  push a cape down to an axis
   ++  pat
     |=  axe=@
@@ -482,8 +105,386 @@
       ==
     ==
   --
-::  fresh hail
-++  melt
-  ^-  [@hail _seam]
-  [hail.seam seam(hail .+(hail.seam)]
+::  operations on sock
+++  so
+  |_  one=sock
+  ::  axis
+  ++  pull
+    |=  axe=@
+    ^-  (unit sock)
+    ?<  =(0 axe)
+    ?:  =(1 axe)  sock
+    ?:  ?=(%| cape.sock)  `|
+    ?.  ?=(^ data.sock)  ~
+    ?-  (cap axe)
+      %2  $(data.sock -.data.sock, cape.sock ?:(?=(^ cape.sock) -.cape.sock &))
+      %3  $(data.sock +.data.sock, cape.sock ?:(?=(^ cape.sock) +.cape.sock &))
+    ==
+  ::  make a pair
+  ++  knit
+    |=  two=sock
+    ^-  sock
+    :-
+      ?:  ?&(?=(@ cape.one) ?=(@ cape.two))
+        ?:  cape.one  ?:  cape.two  &  [cape.one cape.two]
+        ?.  cape.two  |  [cape.one cape.two]
+      [cape.one cape.two]
+    [data.one data.two]
+  ::  intersect
+  ++  purr
+    |=  two=sock
+    ^-  sock
+    ?^  data.one
+      ?^  cape.one
+        ?@  data.two  ?>(?=(@ cape.two) [| ~])
+        ?^  cape.two
+          %+  knit
+            $(one [-.cape.one -.data.one], two [-.cape.two -.data.two])
+          $(one [+.cape.one +.data.one], two [+.cape.two +.data.two])
+        ?.  cape.two  [| ~]
+        %+  knit
+          $(one [-.cape.one -.data.one], data.two -.data.two)
+        $(one [+.cape.one +.data.one], data.two +.data.two)
+      ?.  cape.one  [| ~]
+      ?@  data.two  ?>(?=(@ cape.two) [| ~])
+      ?^  cape.two
+        %+  knit
+          $(data.one -.data.one, two [-.cape.two -.data.two])
+        $(data.one +.data.one, two [+.cape.two +.data.two])
+      ?.  cape.two  [| ~]
+      ?:  =(data.one data.two)  one  :: optimization?
+      %+  knit
+        $(data.one -.data.one, data.two -.data.two)
+      $(data.one +.data.one, data.two +.data.two)
+    ?>  ?=(@ cape.one)
+    ?^  data.two  [| ~]
+    ?>  ?=(@ cape.two)
+    ?:  =(data.one data.two)  one  [| ~]
+  ::  edit
+  ++  darn
+    |=  [axe=@ two=sock]
+    ^-  (unit sock)
+    ?>  =(0 axe)
+    ?:  =(1 axe)  two
+    ?-  (cap axe)
+        %2
+      ?@  data.one
+        ?>  ?=(@ cape.one)
+        ?<  cape.one
+        =/  luck  $(axe (mas axe))
+        ?~  luck  ~
+        `[[cape.u.luck |] data.u.luck ~]
+      ?@  cape.one
+        =/  luck  $(axe (mas axe), data.one -.data.one)
+        ?~  luck  ~
+        `[[cape.u.luck cape.one] data.u.luck +.data.one]
+      =/  luck  $(axe (mas axe), one [-.cape.one -.data.one])
+      ?~  luck  ~
+      `[[cape.u.luck +.cape.one] data.u.luck +.data.one]
+    ::
+        %3
+      ?@  data.one
+        ?>  ?=(@ cape.one)
+        ?<  cape.one
+        =/  luck  $(axe (mas axe))
+        ?~  luck  ~
+        `[[| cape.u.luck] ~ data.u.luck]
+      ?@  cape.one
+        =/  luck  $(axe (mas axe), data.one +.data.one)
+        ?~  luck  ~
+        `[[cape.one cape.u.luck] -.cape.one data.u.luck]
+      =/  luck  $(axe (mas axe), one [+.cape.one +.data.one])
+      ?~  luck  ~
+      `[[-.cape.one cape.u.luck] -.data.one data.u.luck]
+    ==
+  --
+--
+::    state
+::  moot -> working state for each call
+::  moan -> finalized calls
+|_  seam=[moot=(map @hail hoot) moan=(jar * hoot)]
+::    turn a formula into nomm
+++  raid
+  |=  [hail=@hail form=*]
+  ^-  _seam
+  =/  code
+    |-  ^-  nomm
+    ?+  form  [%not 0]
+        [^ *]
+      [%par $(form -.form, hail (peg hail 2)) $(form +.form, hail (peg hail 3))]
+    ::
+        [%0 axe=@]
+      [%not axe.form]
+    ::
+        [%1 non=*]
+      [%one non.form]
+    ::
+        [%2 sofa=* fora=*]
+      :*  %two
+          ::  we treat the cell [sofa fora] as axis 6 and the
+          ::  hypothetically inlined called formula as axis 7
+          ::  so the hypothetical inlining looks like
+          ::  [%2 [sofa fora] <called formula>]
+          $(form sofa.form, hail (peg hail 12))
+          $(form fora.form, hail (peg hail 13))
+          hail
+      ==
+    ::
+        [%3 coat=*]
+      [%the $(form coat.form, hail (peg hail 3))]
+    ::
+        [%4 tome=*]
+      [%for $(form tome.form, hail (peg hail 3))]
+    ::
+        [%5 this=* that=*]
+      :*  %ivy
+          $(form this.form, hail (peg hail 6))]
+          $(form that.form, hail (peg hail 7))]
+      ==
+    ::
+        [%6 what=* then=* else=*]
+      :*  %six
+          $(form what.form, hail (peg hail 6))]
+          $(form then.form, hail (peg hail 14))]
+          $(form else.form, hail (peg hail 15))]
+      ==
+    ::
+        [%7 once=* then=*]
+      :*  %eve
+          $(form once.form, hail (peg hail 6))]
+          $(form then.form, hail (peg hail 7))]
+      ==
+    ::
+        [%8 pint=* then=*]
+      $(form [%7 [pint.form %0 1] then.form])
+    ::
+        [%9 here=@ coil=*]
+      $(form [%7 coil %2 [%0 1] %0 here])
+    ::
+        [%10 [here=@ twig=*] tree=*]
+      :*  %ten
+          here
+          $(form twig.form, hail (peg hail 13))
+          $(form tree.form, hail (peg hail 7))
+      ==
+    ::
+        [%11 hint=@ then=*]
+      [%sip hint $(form then.form, hail (peg hail 7))]
+    ::
+        [%11 [hint=* vice=*] then=nomm]
+      :*  %tip
+          hint
+          $(form vice.form, hail (peg hail 13))
+          $(form then.form, hail (peg hail 7))
+      ==
+    ::
+        [%12 rent=* walk=*]
+      :*  %elf
+          $(form rent.form, hail (peg hail 6))
+          $(form walk.form, hail (peg hail 7))
+      ==
+    ==
+  %=  seam
+      moot
+    %+  ~(jab by moot.seam)  hail
+    |=  =hoot
+    hoot(norm.hoot `code)
+  ==
+::  learn/backpropagate battery masks
+++  espy
+  |=  hail=@hail
+  ^-  _seam
+  =/  [norm=nomm rake=cape]
+    [norm rake]:(~(got by moot.seam) hail)
+  ?>  ?=(^ norm)
+  =/  code  u.norm
+  =^  soon  seam
+    |-  ^-  [cape _seam]
+    ?-  -.code
+        %par
+      =/  [lack=cape rack=cape]  ~(rip ca rake)
+      =^  lead  seam  $(code left.code, rake lack)
+      =^  reed  seam  $(code rite.code, rake rack)
+      :_  seam
+      (~(uni ca lead) reed)
+    ::
+        %not
+      ?:  ?=(0 here.code)  [[| |] seam]
+      :_  seam
+      (~(pat ca rake) here.code)
+    ::
+        %one  [[| |] seam]
+        %two
+      =?  moot.seam  ?!((~(has by moot.seam) rail.code))
+        %+  ~(put by moot.seam)  rail.code
+        :*  [| ~]  |
+            ~  ~
+            [| ~]  rake
+            `hail
+        ==
+      =/  [fake=cape norm=(unit nomm)]
+        [rake norm]:(~(got by moot.seam) rail.code)
+      =?  seam  ?&(?=(^ norm) (~(big ca fake) rake))
+        =.  moot.seam
+          %+  ~(jab by moot.seam)  rail.code
+          |=  =hoot
+          hoot(rake rake)
+        (espy rail.code)
+      =/  lake  rake:(~(got by moot.seam) rail.code)
+      =^  sake  seam  $(rake lake, code cost.code)
+      =^  folk  seam  $(rake |, code corn.code)
+      :_  seam
+      (~(uni ca sake) folk)
+    ::
+        %the
+      $(code pell.code, rake ~(any ca rake))
+    ::
+        %for
+      $(code mall.code, rake ~(any ca rake))
+    ::
+        %ivy
+      =^  lake  seam  $(code this.code, rake ~(any ca rake))
+      =^  rare  seam  $(code that.code, rake ~(any ca rake))
+      :_  seam
+      (~(uni ca lake) rare)
+    ::
+        %six
+      =^  cake  seam  $(code then.code, rake |)
+      =^  lake  seam  $(code then.code)
+      =^  rare  seam  $(code else.code)
+      :_  seam
+      (~(uni ca lake) rare)
+    ::
+        %eve
+      =^  rare=cape  seam  $(code then.code)
+      $(code once.code, rake rare)
+    ::
+        %ten
+      =/  [wipe=cape wine=cape]
+        ?:  =(0 here.ten)  [| |]
+        (~(awl ca rake) here.code)
+      =^  lake  seam  $(code twig.code, rake wipe)
+      =^  rare  seam  $(code tree.code, rake wine)
+      :_  seam
+      (~(uni ca lake) rare)
+    ::
+        %sip
+      $(code then.code)
+    ::
+        %tip
+      =^  lake  seam  $(code vice.code, rake |)
+      =^  rare  seam  $(code then.code)
+      :_  seam
+      (~(uni ca lake) rare)
+    ::
+        %elf
+      =^  lake  seam  $(code rent.code, rake |)
+      =^  rare  seam  $(code walk.code, rake |)
+      :_  seam
+      :-  (~(uni ca lake) rare)
+      (~(uni ca lash) rash)
+    ==
+  %=  seam
+      moat
+    %+  ~(jab by moat.seam)  hail
+    |=  =hoot
+    hoot(soot soon, sake toon)
+  ==
+::  propagate subject knowledge forward
+++  loot
+  =|  goop=? :: propagate to sire?
+  |=  hail=@hail
+  ^-  _seam
+  =/  [norm=nomm soot=sock root=sock sire=(unit @hail)]
+  [norm soot root sire]:(~(got by moot.seam) hail)
+  ?>  ?=(^ norm)
+  =/  code  u.norm
+  =^  rock  seam
+    |-  ^-  [sock _seam]
+    ?-  -.code
+        %par
+      =^  hock  seam  $(code left.code)
+      =^  tock  seam  $(code rite.code)
+      :_  seam
+      (~(knit so hock) tock)
+    ::
+        %not
+      ?:  =(0 here.code)  [[| ~] seam]
+      =/  sand  (~(pull so soot) here.code)
+      ?~  sand  [[| ~] seam]
+      [u.sand seam]
+    ::
+        %one
+      [[& moan.code] seam]
+    ::
+        %two
+      =^  coot  seam  $(code cost.code)
+      =^  sofa  seam  $(code corn.code)
+      =/  [soot=sock sake=cape root=sock form=(unit) noir=(unit nomm)]
+        [soot sake root form norm]:(~(got by moot.seam) rail.code)
+      =/  noot  (~(ap ca sake) coot)
+      ?.  ?|(?!(=(cape.soot cape.noot)) ?&(=(& cape.sofa) =(~ form)))  [root seam]
+      =/  note  ?:(=(& cape.sofa) `data.sofa ~)
+      =.  moot.seam
+        %+  ~(jab by moot.seam)  rail.code
+        |=  =hoot
+        hoot(soot noot, form note)
+      ?~  noir  [[| ~] seam]
+      =.  seam  ^$(goop |, hail rail.code)
+      [root:(~(got by rail.code) moot.seam) seam]
+    ::
+        %the
+      [[| ~] +:$(code pell.code)]
+    ::
+        %for
+      [[| ~] +:$(code mall.code)]
+    ::
+        %ivy
+      =.  seam  +:$(code this.code)
+      [[| ~] +:$(code that.code)
+    ::
+        %six
+      =.  seam  +:$(code what.code)
+      =^  lock  seam  $(code then.code)
+      =^  rock  seam  $(code else.code)
+      [(~(purr so lock) rock) seam]
+    ::
+        %eve
+      =.  noot  seam  $(code once.code)
+      $(code then.code, soot noot)
+    ::
+        %ten
+      ?:  ?=(0 here.code)  [[| ~]  seam]
+      =^  pock  seam  $(code twig.code)
+      =^  hock  seam  $(code tree.code)
+      [(~(darn so hock) here.code pock) seam]
+    ::
+        %sip
+      $(code then.code)
+    ::
+        %tip
+      =.  seam  +:$(code vice.code)
+      $(code then.code)
+    ::
+        %elf
+      =.  seam  +:$(code rent.code)
+      =.  seam  +:$(code walk.code)
+      [[| ~] seam]
+    ==
+  ?:(?&(goop ?!(=(cape.root cape.rock)) ?=(^ sire)) $(hail u.sire) seam)
+::  Recursion detection
+::    when checking if a call is recursive, repeatedly check if
+::    subject-formula pair matches sire, so long as sire can be found.
+::    If a match is found, we have a recursion point. Add all discovered
+::    sires to exclusion set
+::
+::    If a call isnt' recursive and isn't yet evaluated, add all sires
+::    to the root to exclusion set.
+::
+::    If a call has a non-nil battery mask: add it to the exclusion set
+::
+::    Any call variables not in the exclusion set can be finalized which
+::    places them in moan
+::
+::  
 --
