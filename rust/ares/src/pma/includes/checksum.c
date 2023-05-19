@@ -51,7 +51,6 @@ static uint32_t    crc_tab32[256];
  * a byte string that is passed to the function together with a parameter
  * indicating the length.
  */
-
 uint32_t crc_32( const unsigned char *input_str, size_t num_bytes ) {
 
   uint32_t crc;

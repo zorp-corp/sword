@@ -4,12 +4,23 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 //==============================================================================
 // PROTOTYPES
 //==============================================================================
+
+/**
+ * Struct returned from pma_load()
+ */
+typedef struct PMARootState PMARootState;
+struct PMARootState {
+  uint64_t  epoch;              // Epoch ID of the most recently processed event
+  uint64_t  event;              // ID of the most recently processed event
+  uint64_t  root;               // Root after most recent event
+};
 
 /**
  * Initialize a brand new PMA environment and event snapshot
@@ -32,7 +43,7 @@ pma_init(const char *path);
  * @return  0   success
  * @return  -1  failure; errno set to error code
  */
-int
+PMARootState
 pma_load(const char *path);
 
 /**
@@ -46,7 +57,7 @@ pma_load(const char *path);
  * @return  -1  failure; errno set to error code
  */
 int
-pma_close(uint64_t epoch, uint64_t event);
+pma_close(uint64_t epoch, uint64_t event, uint64_t root);
 
 /**
  * Allocate a new block of memory in the PMA
@@ -81,4 +92,27 @@ pma_free(void *address);
  * @return  -1  failure; errno set to error code
  */
 int
-pma_sync(uint64_t epoch, uint64_t event);
+pma_sync(uint64_t epoch, uint64_t event, uint64_t root);
+
+/**
+ * True if the address is in the PMA
+ */
+bool
+pma_in_arena(void *address);
+
+/*
+  bp(X) where X is false will raise a SIGTRAP. If the process is being run
+  inside a debugger, this can be caught and ignored. It's equivalent to a
+  breakpoint. If run without a debugger, it will dump core, like an assert
+*/
+#if defined(__i386__) || defined(__x86_64__)
+#define bp(x) do { if(!(x)) __asm__ volatile("int $3"); } while (0)
+#elif defined(__thumb__)
+#define bp(x) do { if(!(x)) __asm__ volatile(".inst 0xde01"); } while (0)
+#elif defined(__aarch64__)
+#define bp(x) do { if(!(x)) __asm__ volatile(".inst 0xd4200000"); } while (0)
+#elif defined(__arm__)
+#define bp(x) do { if(!(x)) __asm__ volatile(".inst 0xe7f001f0"); } while (0)
+#else
+STATIC_ASSERT(0, "debugger break instruction unimplemented");
+#endif
