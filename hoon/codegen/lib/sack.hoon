@@ -3,6 +3,10 @@
 /+  ska
 ::  XX radically simplify socks by representing as [cape *], boots as
 ::  (unit [cape *])
+::  XX need to detect when an arm has no recursion outside itself and
+::  finalize it so we can reuse it
+::  XX need to only continue in +draw when we have actually changed mist
+::  or mire
 =>
 ::  analysis datastructures
 |%
@@ -12,6 +16,8 @@
 +$  muck  (jug @hail @hail)
 ::  analysis results (hypotheses)
 +$  mire  (map @hail sock)
+::  nomm code table
++$  mitt (map [@hail @hail] nomm)
 ::  formula variables
 +$  haar  (set @hail)
 ::  call result variables
@@ -26,12 +32,12 @@
 +$  mitt  (map [@hail @hail] nomm)
 --
 ::  SACK: Subject-oriented Analysis of Constraints and Knowledge
-=|  seam=[=mist =muck =mire =haar =silt hail=@hail]
+=|  seam=[=mist =muck =mire =mitt =haar =silt hail=@hail]
 |%
 ::  sack a subject and formula
 ++  raid
   |=  [soup=sock form=*]
-  ^-  _seam
+  ^-  [tart=[@hail @hail] =mitt =mire]
   =|  tack=fame
   =^  sail  seam  melt
   =^  dial  seam  melt
@@ -39,12 +45,25 @@
   =.  mire.seam  (~(gas by mire.seam) ~[[sail soup] [dial [%know form]])
   =.  haar.seam  (~(put by haar.seam) dial)
   =.  silt.seam  (~(put by silt.seam) salt)
-  |-  ^-  _seam
+  |-  ^-  [tart=[@hail @hail] =mitt =mire]
   =.  seam  (ruse sail dial tack salt)
   =.  seam  guns
   =^  maam  seam  club
-  ?~  maam  seam
-  $(sail sail.u.maam, dial dial.u.maam, tack tack.u.maam, salt -.u.maam)
+  ?:  ?=(^ maam)
+    $(sail sail.u.maam, dial dial.u.maam, tack tack.u.maam, salt -.u.maam)
+  =|  more=mire
+  =/  loot  ~(tap in ~(key by mitt.seam))
+  |-  ^-  [tart=[@hail @hail] =mitt =mire]
+  ?~  loot  [[sail dial] mitt.seam more]
+  =.  more
+    %+  ~(put by more)  -.i.loot
+    %-  ~(app ca (~(got by snow.seam) -.i.loot))
+    (~(gut by mire.seam) -.i.loot [%toss ~])
+  =.  more
+    %+  ~(put by more)  +.i.loot
+    %-  ~(app ca (~(got by snow.seam) +.i.loot)) 
+    (~(gut by mire.seam) +.i.loot [%toss ~])
+  $(more t.more)
 ::  generate nomm, constraints, and hypotheses for an arm
 ++  ruse
   |=  [sail=@hail dial=@hail tack=fame salt=@hail]
@@ -346,14 +365,15 @@
     [gale (gain gale rain)]
   --
 ::  check for non-recursive direct calls
-::  XX need to accumulate potential battery masks for recursive calls
 ::  and apply if all recursive
 ++  club
-  ::  XX  we need to rewrite call constraints to indicate recursion
   ^-  [(unit [@hail $>(%call rain)]) _seam]
   =/  fore  ~(tap in silt)
+  =|  mack  (list [@hail cape])
   |-  ^-  [(unit [@hail $>(%call rain)]) _seam]
-  ?~  fore  [~ seam]
+  ?~  fore
+    =.  snow.seam  (~(gas by snow.seam) mack)
+    [~ seam]
   =/  aint  (~(got by mist.seam) i.fore)
   ?:  ?=(%turn -.aint)  $(fore t.fore) :: XX can we drop this from silt here?
   ?>  ?=(%call -.aint) :: this should be respected by nomm generation
@@ -367,6 +387,7 @@
   =/  bake  (~(got by snow.seam) i.bats)
   =/  brie  (~(app ca bake) bass)
   ?:  (nail brie soup)
+    =.  mack  [[sail.aint bake] mack]
     ^$(fore t.fore) :: recursive, check the next one
   $(bats t.bats)
 ::  locate the battery
