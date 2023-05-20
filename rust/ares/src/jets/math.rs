@@ -741,7 +741,7 @@ mod tests {
 
     #[allow(non_snake_case)]
     fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
-        Atom::from_ubig(stack, &ubig).as_noun()
+        Atom::from_ubig(stack, ubig).as_noun()
     }
 
     fn assert_noun_eq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
