@@ -14,13 +14,18 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # Makes it easier to determine why CI might differ from local linter/build
+      #
+      - name: Version
+        run: rustc --version
+
       - name: Format
         run: cargo fmt --check
 
       # See clippy linter docs: https://github.com/rust-lang/rust-clippy
       #
-      # First linter is set to fail for all warnings, then ignored warnings  explicitly
-      # are explicitly listed
+      # First linter is set to fail for all warnings, then ignored warnings are
+      # explicitly listed
       #
       - name: Lint
         run: |
