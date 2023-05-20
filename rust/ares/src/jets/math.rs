@@ -1332,7 +1332,7 @@ mod tests {
     #[test]
     fn test_rev() {
         let ref mut s = init();
-        let (_a0, a24, _a63, a96, a128) = atoms(s);
+        let (_a0, a24, _a63, _a96, _a128) = atoms(s);
         let sam = T(s, &[D(0), D(60), a24]);
         assert_jet(s, jet_rev, sam, D(0xc2a6e1000000000));
         let test = 0x1234567890123u64;
