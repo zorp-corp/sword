@@ -17,8 +17,18 @@ jobs:
       - name: Format
         run: cargo fmt --check
 
+      # See clippy linter docs: https://github.com/rust-lang/rust-clippy
+      #
+      # First linter is set to fail for all warnings, then ignored warnings  explicitly
+      # are explicitly listed
+      #
       - name: Lint
-        run: cargo clippy -- --deny warnings --allow clippy::missing_safety_doc
+        run: |
+          cargo clippy \
+            --all-targets \
+            --no-deps \
+            -- -D warnings \
+            -A clippy::missing_safety_doc
 
       - name: Build
         run: cargo build --verbose
