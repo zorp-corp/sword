@@ -792,8 +792,9 @@ pma_load(const char *path) {
   //
 
   // Read magic code
-  read(snapshot_fd, &_pma_state->metadata->magic_code, sizeof(uint64_t));
-  if (_pma_state->metadata->magic_code != PMA_MAGIC_CODE) {
+  if (-1 == read(snapshot_fd, &_pma_state->metadata->magic_code, sizeof(uint64_t))) {
+    LOAD_ERROR;
+  } else if (_pma_state->metadata->magic_code != PMA_MAGIC_CODE) {
     errno = EILSEQ;
     LOAD_ERROR;
   }
