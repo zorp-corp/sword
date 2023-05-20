@@ -123,7 +123,7 @@ mod tests {
 
         unsafe {
             pma_init(path);
-            let ref mut stack = NockStack::new(8 << 10 << 10, 0);
+            let stack = &mut NockStack::new(8 << 10 << 10, 0);
             let root = IndirectAtom::new_raw(stack, 1, &0xffff_ffff_ffff_ffff).as_noun();
             let eight = pma_malloc(8) as *mut u64;
             *eight = 0xdeadbeef;
