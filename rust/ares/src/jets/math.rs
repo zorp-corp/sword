@@ -741,7 +741,7 @@ mod tests {
 
     #[allow(non_snake_case)]
     fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
-        Atom::from_ubig(stack, &ubig).as_noun()
+        Atom::from_ubig(stack, ubig).as_noun()
     }
 
     fn assert_noun_eq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
@@ -817,7 +817,7 @@ mod tests {
 
     #[test]
     fn test_met() {
-        let ref mut s = init();
+        let s = &mut init();
         let a = atom_128(s).as_atom().unwrap();
         assert_eq!(met(0, a), 128);
         assert_eq!(met(1, a), 64);
@@ -842,7 +842,7 @@ mod tests {
 
     #[test]
     fn test_dec() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, _a24, a63, _a96, a128) = atoms(s);
         assert_jet_ubig(s, jet_dec, a128, ubig!(0xdeadbeef12345678fedcba987654320f));
         assert_jet(s, jet_dec, a63, D(0x7ffffffffffffffe));
@@ -851,7 +851,7 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_math_jet(
             s,
             jet_add,
@@ -869,7 +869,7 @@ mod tests {
 
     #[test]
     fn test_sub() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_math_jet(
             s,
             jet_sub,
@@ -889,7 +889,7 @@ mod tests {
 
     #[test]
     fn test_mul() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_math_jet(
             s,
             jet_mul,
@@ -913,7 +913,7 @@ mod tests {
 
     #[test]
     fn test_div() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_math_jet(s, jet_div, &[atom_128, atom_96], ubig!(0xe349f8f0));
         assert_math_jet(s, jet_div, &[atom_96, atom_63], ubig!(0x1f59d6018));
         assert_math_jet(s, jet_div, &[atom_63, atom_96], ubig!(0));
@@ -935,7 +935,7 @@ mod tests {
 
     #[test]
     fn test_mod() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_math_jet(
             s,
             jet_mod,
@@ -954,7 +954,7 @@ mod tests {
 
     #[test]
     fn test_dvr() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, a63, a96, a128) = atoms(s);
         let a264 = atom_264(s);
         let a528 = atom_528(s);
@@ -999,7 +999,7 @@ mod tests {
 
     #[test]
     fn test_lth() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_math_jet_noun(s, jet_lth, &[atom_128, atom_96], NO);
         assert_math_jet_noun(s, jet_lth, &[atom_96, atom_63], NO);
         assert_math_jet_noun(s, jet_lth, &[atom_63, atom_96], YES);
@@ -1012,7 +1012,7 @@ mod tests {
 
     #[test]
     fn test_lte() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_math_jet_noun(s, jet_lte, &[atom_128, atom_96], NO);
         assert_math_jet_noun(s, jet_lte, &[atom_96, atom_63], NO);
         assert_math_jet_noun(s, jet_lte, &[atom_63, atom_96], YES);
@@ -1025,7 +1025,7 @@ mod tests {
 
     #[test]
     fn test_gth() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_math_jet_noun(s, jet_gth, &[atom_128, atom_96], YES);
         assert_math_jet_noun(s, jet_gth, &[atom_96, atom_63], YES);
         assert_math_jet_noun(s, jet_gth, &[atom_63, atom_96], NO);
@@ -1038,7 +1038,7 @@ mod tests {
 
     #[test]
     fn test_gte() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_math_jet_noun(s, jet_gte, &[atom_128, atom_96], YES);
         assert_math_jet_noun(s, jet_gte, &[atom_96, atom_63], YES);
         assert_math_jet_noun(s, jet_gte, &[atom_63, atom_96], NO);
@@ -1051,7 +1051,7 @@ mod tests {
 
     #[test]
     fn test_bex() {
-        let ref mut s = init();
+        let s = &mut init();
         assert_jet(s, jet_bex, D(0), D(1));
         assert_jet(s, jet_bex, D(5), D(32));
         assert_jet(s, jet_bex, D(62), D(0x4000000000000000));
@@ -1065,7 +1065,7 @@ mod tests {
 
     #[test]
     fn test_lsh() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, _a63, a96, a128) = atoms(s);
         let sam = T(s, &[a0, a24]);
         assert_jet(s, jet_lsh, sam, D(0x10eca86));
@@ -1095,7 +1095,7 @@ mod tests {
 
     #[test]
     fn test_rsh() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, _a63, a96, a128) = atoms(s);
         let sam = T(s, &[a0, a24]);
         assert_jet(s, jet_rsh, sam, D(0x43b2a1));
@@ -1120,7 +1120,7 @@ mod tests {
 
     #[test]
     fn test_con() {
-        let ref mut s = init();
+        let s = &mut init();
         let (_a0, _a24, a63, _a96, a128) = atoms(s);
         assert_math_jet(s, jet_con, &[atom_0, atom_0], ubig!(0));
         assert_math_jet(
@@ -1142,7 +1142,7 @@ mod tests {
 
     #[test]
     fn test_dis() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, _a63, _a96, _a128) = atoms(s);
         assert_math_jet(s, jet_dis, &[atom_0, atom_0], ubig!(0));
         assert_math_jet(s, jet_dis, &[atom_24, atom_96], ubig!(0x22442));
@@ -1159,7 +1159,7 @@ mod tests {
 
     #[test]
     fn test_mix() {
-        let ref mut s = init();
+        let s = &mut init();
         let (_a0, _a24, _a63, _a96, a128) = atoms(s);
         assert_math_jet(s, jet_mix, &[atom_0, atom_0], ubig!(0));
         assert_math_jet(
@@ -1181,7 +1181,7 @@ mod tests {
 
     #[test]
     fn test_end() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, _a63, a96, a128) = atoms(s);
         let sam = T(s, &[a0, a24]);
         assert_jet(s, jet_end, sam, D(0x1));
@@ -1203,7 +1203,7 @@ mod tests {
 
     #[test]
     fn test_cat() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, a63, _a96, a128) = atoms(s);
         let sam = T(s, &[a0, a0, a0]);
         assert_jet(s, jet_cat, sam, D(0));
@@ -1223,7 +1223,7 @@ mod tests {
 
     #[test]
     fn test_cut() {
-        let ref mut s = init();
+        let s = &mut init();
         let (_a0, a24, _a63, a96, a128) = atoms(s);
         let run = T(s, &[D(0), D(5)]);
         let sam = T(s, &[D(0), run, a24]);
@@ -1242,7 +1242,7 @@ mod tests {
 
     #[test]
     fn test_can() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, a63, a96, a128) = atoms(s);
         let sam = T(s, &[D(0), D(0)]);
         assert_jet(s, jet_can, sam, D(0));
@@ -1261,7 +1261,7 @@ mod tests {
 
     #[test]
     fn test_rep() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, a63, a96, a128) = atoms(s);
         let sam = T(s, &[D(0), D(0)]);
         assert_jet(s, jet_rep, sam, D(0));
@@ -1273,7 +1273,7 @@ mod tests {
 
     #[test]
     fn test_rip() {
-        let ref mut s = init();
+        let s = &mut init();
         let (_a0, _a24, _a63, _a96, a128) = atoms(s);
         let sam = T(s, &[D(0), D(0)]);
         assert_jet(s, jet_rip, sam, D(0));
@@ -1296,7 +1296,7 @@ mod tests {
 
     #[test]
     fn test_jet_met() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, _a63, _a96, a128) = atoms(s);
         let sam = T(s, &[a0, a0]);
         assert_jet(s, jet_met, sam, D(0));
@@ -1310,7 +1310,7 @@ mod tests {
 
     #[test]
     fn test_mug() {
-        let ref mut s = init();
+        let s = &mut init();
         let (a0, a24, a63, a96, a128) = atoms(s);
         assert_jet(s, jet_mug, a0, D(0x79ff04e8));
         assert_jet(s, jet_mug, a24, D(0x69d59d90));
@@ -1331,8 +1331,8 @@ mod tests {
 
     #[test]
     fn test_rev() {
-        let ref mut s = init();
-        let (_a0, a24, _a63, a96, a128) = atoms(s);
+        let s = &mut init();
+        let (_a0, a24, _a63, _a96, _a128) = atoms(s);
         let sam = T(s, &[D(0), D(60), a24]);
         assert_jet(s, jet_rev, sam, D(0xc2a6e1000000000));
         let test = 0x1234567890123u64;

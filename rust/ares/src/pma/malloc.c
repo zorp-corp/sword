@@ -246,7 +246,6 @@
 /**
  * Page statuses used in page directory
  */
-typedef enum PMAPageStatus PMAPageStatus;
 enum PMAPageStatus {
   UNALLOCATED,
   FREE,
@@ -254,6 +253,7 @@ enum PMAPageStatus {
   FIRST,
   FOLLOW
 };
+typedef enum PMAPageStatus PMAPageStatus;
 
 /**
  * Directory entry for a page in virtual memory
@@ -436,7 +436,7 @@ struct PMAState {
 PMAState *_pma_state = NULL;
 
 void
-pma_state_free()
+pma_state_free(void)
 {
   if (_pma_state->metadata) free(_pma_state->metadata);
   free(_pma_state);
@@ -444,7 +444,7 @@ pma_state_free()
 }
 
 int
-pma_state_malloc()
+pma_state_malloc(void)
 {
   if (_pma_state != NULL) return 1;
   PMAState *ret = calloc(1, sizeof *ret);
@@ -792,8 +792,9 @@ pma_load(const char *path) {
   //
 
   // Read magic code
-  read(snapshot_fd, &_pma_state->metadata->magic_code, sizeof(uint64_t));
-  if (_pma_state->metadata->magic_code != PMA_MAGIC_CODE) {
+  if (-1 == read(snapshot_fd, &_pma_state->metadata->magic_code, sizeof(uint64_t))) {
+    LOAD_ERROR;
+  } else if (_pma_state->metadata->magic_code != PMA_MAGIC_CODE) {
     errno = EILSEQ;
     LOAD_ERROR;
   }
@@ -1138,6 +1139,12 @@ pma_sync(uint64_t epoch, uint64_t event, uint64_t root) {
     = crc_32((unsigned char *)_pma_state->metadata, PMA_PAGE_SIZE);
 
   // Sync metadata
+  // 
+  // Note:  It's a long-standing Unix convention that while both write and
+  //        pwrite return the number of bytes written, when operating on a file
+  //        (as opposed to a pipe or socket) it is assumed that the entire
+  //        buffer will be written. If this isn't the case, an error has
+  //        occurred.
   bytes_out = pwrite(
       _pma_state->snapshot_fd,
       _pma_state->metadata,
@@ -1604,7 +1611,7 @@ _pma_get_cached_pages(uint64_t num_pages) {
     // If run larger than necessary by two pages...
     if (valid_page_run->length > (num_pages + 1)) {
       // Reduce it
-      valid_page_run->page += (num_pages * PMA_PAGE_SIZE);
+      valid_page_run->page = (uint8_t*)valid_page_run->page + (num_pages * PMA_PAGE_SIZE);
       valid_page_run->length -= num_pages;
 
     // Otherwise...
@@ -1675,7 +1682,7 @@ _pma_get_new_page(PMAPageStatus status) {
   assert(address == _pma_state->metadata->arena_end);
 
   // Record PMA expansion
-  _pma_state->metadata->arena_end += PMA_PAGE_SIZE;
+  _pma_state->metadata->arena_end = (uint8_t*)_pma_state->metadata->arena_end + PMA_PAGE_SIZE;
 
   // Add page to dirty list
   _pma_mark_page_dirty(PTR_TO_INDEX(address), offset, status, 1);
@@ -1728,7 +1735,7 @@ _pma_get_new_pages(uint64_t num_pages) {
 
   // Update offset of next open dpage
   _pma_state->metadata->next_offset += bytes;
-  _pma_state->metadata->arena_end += bytes;
+  _pma_state->metadata->arena_end = (uint8_t*)_pma_state->metadata->arena_end + bytes;
 
   // Add allocated pages to dirty list
   _pma_mark_page_dirty(PTR_TO_INDEX(address), offset, FIRST, num_pages);
