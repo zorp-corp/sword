@@ -1139,6 +1139,12 @@ pma_sync(uint64_t epoch, uint64_t event, uint64_t root) {
     = crc_32((unsigned char *)_pma_state->metadata, PMA_PAGE_SIZE);
 
   // Sync metadata
+  // 
+  // Note:  It's a long-standing Unix convention that while both write and
+  //        pwrite return the number of bytes written, when operating on a file
+  //        (as opposed to a pipe or socket) it is assumed that the entire
+  //        buffer will be written. If this isn't the case, an error has
+  //        occurred.
   bytes_out = pwrite(
       _pma_state->snapshot_fd,
       _pma_state->metadata,
