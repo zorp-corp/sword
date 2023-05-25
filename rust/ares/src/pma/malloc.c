@@ -436,7 +436,7 @@ struct PMAState {
 PMAState *_pma_state = NULL;
 
 void
-pma_state_free()
+pma_state_free(void)
 {
   if (_pma_state->metadata) free(_pma_state->metadata);
   free(_pma_state);
@@ -444,7 +444,7 @@ pma_state_free()
 }
 
 int
-pma_state_malloc()
+pma_state_malloc(void)
 {
   if (_pma_state != NULL) return 1;
   PMAState *ret = calloc(1, sizeof *ret);
