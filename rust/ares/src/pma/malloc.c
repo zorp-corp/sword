@@ -246,7 +246,6 @@
 /**
  * Page statuses used in page directory
  */
-typedef enum PMAPageStatus PMAPageStatus;
 enum PMAPageStatus {
   UNALLOCATED,
   FREE,
@@ -254,6 +253,7 @@ enum PMAPageStatus {
   FIRST,
   FOLLOW
 };
+typedef enum PMAPageStatus PMAPageStatus;
 
 /**
  * Directory entry for a page in virtual memory
