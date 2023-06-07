@@ -55,7 +55,7 @@
   ::  does one actually have any axes
   ++  any
     ^-  ?
-    ?@  one  onehttps://kencove.com/fence/Flood+Gate+Controller_detail_MEL.php
+    ?@  one  one
     ?|(any(one -.one) any(one +.one))
   ::  push a cape down to an axis
   ++  pat
