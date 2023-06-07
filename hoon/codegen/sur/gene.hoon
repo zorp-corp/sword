@@ -1,16 +1,17 @@
-/-  *sock
+/-  noir
 |%
 +|  %lin
 ::  external label
-+$  bell  [text=sock form=*]
++$  bell  [text=sock:noir form=*]
 ::  internal label
-+$  bile  [%bile axe=@ thus=@tas =bell]
++$  bile  [%bile axe=@ thus=@tas bell]
 ::  ssa shape of a noun
 +$  need
-  $%  [%this sass=@stir code=?]
+  $%  [%this sass=@stir]
       [%both left=need rite=need]
       [%none ~]
   ==
++$  next  $>(%next goal)
 ::  destination
 +$  goal
   $%  [%pick zero=bile once=bile]
@@ -21,15 +22,17 @@
 +$  pole
   $%  [%imm * @stir]            :: Write a noun to an SSA value
       [%mov @stir @stir]        :: Copy an SSA value
+      [%phi (list @stir) @stir] :: Choose whichever SSA value is defined
       [%inc @stir @stir]        :: Define second SSA register as increment of first
-      [%unc @stir @stir]        :: Define a second SSA register as increment of first, without checking atomicity
       [%con @stir @stir @stir]  :: Construct a cell, first SSA head, second SSA tail, third SSA result
       [%hed @stir @stir]        :: Take the head of first SSA and place in second.
                                 ::  Crash if first SSA not a cell
-      [%hud @stir @stir]        :: Take the head of the first SSA, known to be a cell
       [%tal @stir @stir]        :: Take tail head of first SSA and place in second.
                                 ::  Crash if first SSA not a cell
-      [%tul @stir @stir]        :: Take the tail of the first SSA, known to be a cell
+  ==
++$  pool
+  $%  [%hed @stir]
+      [%tal @stir]
   ==
 ::  instructions ending a block
 +$  site
