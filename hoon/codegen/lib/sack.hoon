@@ -1,17 +1,6 @@
 /-  *noir
 =>
 |%
-::  sock to cape
-++  soak
-  |=  =sock
-  ^-  cape
-  ?-  -.sock
-    %know  %.y
-    %bets  [$(sock left.sock) $(sock rite.sock)]
-    %dice  %.n  :: XX should unknown-atom constraints crash?
-    %flip  %.n
-    %toss  %.n
-  ==
 ::  operations on $cape
 ++  ca
   |_  one=cape
