@@ -108,13 +108,27 @@
 ::  operations on sock
 ++  so
   |_  one=sock
+  ::  nesting
+  ++  huge
+    |=  two=sock
+    ^-  ?
+    ?@  data.one
+      ?>  ?=(@ cape.one)
+      ?.  cape.one  &
+      ?&(?=(@ cape.two) cape.two =(data.one data.two))
+    ?@  data.two  ?>(?=(@ cape.two) |)
+    =/  [lope=cape rope=cape]  ?:(?=(^ cape.one) cape.one [cape.one cape.one])
+    =/  [loop=cape roop=cape]  ?:(?=(^ cape.two) cape.two [cape.two cape.two])
+    ?&  $(one [lope -.data.one], two [loop -.data.two])
+        $(one [rope -.data.one], two [roop -.data.two])
+    ==
   ::  axis
   ++  pull
     |=  axe=@
     ^-  (unit sock)
     ?<  =(0 axe)
     ?:  =(1 axe)  sock
-    ?:  ?=(%| cape.sock)  `|
+    ?:  ?=(%| cape.sock)  `[| ~]
     ?.  ?=(^ data.sock)  ~
     ?-  (cap axe)
       %2  $(data.sock -.data.sock, cape.sock ?:(?=(^ cape.sock) -.cape.sock &))
@@ -202,7 +216,13 @@
 ::    state
 ::  moot -> working state for each call
 ::  moan -> finalized calls
-|_  seam=[moot=(map @hail hoot) moan=(jar * hoot)]
+::  mite -> calls not yet analyzed
+::
+::  XX start here -> when analyzing a call check moan first to
+::  short-circuit
+::  -> figure out global entry point identifiers and ways to get the
+::  call DB back into moan on future codegen invocations
+|_  seam=[moot=(map @hail hoot) moan=(jar * hoot) mite=(set @hail)]
 ::    turn a formula into nomm
 ++  raid
   |=  [hail=@hail form=*]
@@ -251,7 +271,7 @@
     ::
         [%7 once=* then=*]
       :*  %eve
-          $(form once.form, hail (peg hail 6))]
+          $(form once.form, hailflank (peg hail 6))]
           $(form then.form, hail (peg hail 7))]
       ==
     ::
@@ -422,13 +442,14 @@
       =^  sofa  seam  $(code corn.code)
       =/  [soot=sock sake=cape root=sock form=(unit) noir=(unit nomm)]
         [soot sake root form norm]:(~(got by moot.seam) rail.code)
-      =/  noot  (~(ap ca sake) coot)
-      ?.  ?|(?!(=(cape.soot cape.noot)) ?&(=(& cape.sofa) =(~ form)))  [root seam]
+      ?.  ?|(?!(=(cape.soot cape.coot)) ?&(=(& cape.sofa) =(~ form)))
+        [root seam]
       =/  note  ?:(=(& cape.sofa) `data.sofa ~)
+      =?  mite.seam  ?&(?=(^ note) ?=(~ form))  (~(put in mite.seam) rail.code)
       =.  moot.seam
         %+  ~(jab by moot.seam)  rail.code
         |=  =hoot
-        hoot(soot noot, form note)
+        hoot(soot coot, form note)
       ?~  noir  [[| ~] seam]
       =.  seam  ^$(goop |, hail rail.code)
       [root:(~(got by rail.code) moot.seam) seam]
@@ -471,7 +492,12 @@
       =.  seam  +:$(code walk.code)
       [[| ~] seam]
     ==
-  ?:(?&(goop ?!(=(cape.root cape.rock)) ?=(^ sire)) $(hail u.sire) seam)
+  =/  rook  (~(app ca rake) root)
+  =.  moot.seam
+    %+  ~(jab by moot.seam)  hail
+    |=  =hoot
+    hoot(rock rook)
+  ?:(?&(goop ?!(=(cape.rook cape.rock)) ?=(^ sire)) $(hail u.sire) seam)
 ::  Recursion detection
 ::    when checking if a call is recursive, repeatedly check if
 ::    subject-formula pair matches sire, so long as sire can be found.
@@ -486,5 +512,39 @@
 ::    Any call variables not in the exclusion set can be finalized which
 ::    places them in moan
 ::
-::  
+++  ruin
+  ^-  [(list @hail) _seam]
+  =/  mile  ~(tap in mite.seam)
+  =|  work=(list @hail)
+  =|  slag=(set @hail)
+  =|  flux=(set @hail)
+  |-  ^-  [(list @hail) _seam]
+  ?^  mile
+    =/  mill  i.mile
+    =/  mail  sire:(~(got by moot.seam) i.mile)
+    =/  [soot=sock form=(unit)]  [soot form]:(~(got by moot.seam) mill)
+    =|  sirs=(list @hail)  
+    |-  ^-  [(list @hail) _seam]
+    ?~  mail
+      ^$(mile t.mile, work [i.mile work], slag (~(gas in slag) [mill sirs])
+    =.  mill  u.mail
+    =^  [suit=sock soju=cape firm=*]  mail
+      [[soot sake form] sire]:(~(got by moot.seam) mill)
+    ?:  ?&(=(form firm) (~(huge so (~(app ca soju) suit)) soot))
+      ^$(mile t.mile, slag (~(gas in slag) sirs), flux (~(put in flux) mill))
+    $(sirs [mill sirs])
+  =.  mite.seam  (~(dif in mite.seam) (~(gas in *(set @hail)) work)
+  =/  done  ~(gas in (~(dif in flux) slag))
+  |-  ^-  [(list @hail) _seam]
+  ?~  done  [work seam]
+  =/  hood  (~(got by moot.seam) i.done)
+  ?^  rake.hood  $(done t.done) :: skip because cell output mask
+  ?:  rake.hood  $(done t.done) :: skip because & output mask
+  ::  this is OK because we disallow finalizing anything with battery
+  ::  dependencies on its output
+  =.  soot.hood  (~(app ca sake.hood) soot.hood)
+  =.  moot.seam  (~(put by moot.seam) i.done hood)
+  ?>  ?=(^ form.hood)
+  =.  moan.seam  (~(put ja moan.seam) u.form.hood hood)
+  $(done t.done)
 --
