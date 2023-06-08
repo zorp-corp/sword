@@ -678,6 +678,22 @@ impl Atom {
         }
     }
 
+    pub fn direct(&self) -> Option<DirectAtom> {
+        if self.is_direct() {
+            unsafe { Some(self.direct) }
+        } else {
+            None
+        }
+    }
+
+    pub fn indirect(&self) -> Option<IndirectAtom> {
+        if self.is_indirect() {
+            unsafe { Some(self.indirect) }
+        } else {
+            None
+        }
+    }
+
     pub fn size(&self) -> usize {
         match self.as_either() {
             Either::Left(_direct) => 1,
@@ -879,6 +895,46 @@ impl Noun {
             unsafe { Either::Left(self.direct) }
         } else {
             unsafe { Either::Right(self.allocated) }
+        }
+    }
+
+    pub fn atom(&self) -> Option<Atom> {
+        if self.is_atom() {
+            unsafe { Some(self.atom) }
+        } else {
+            None
+        }
+    }
+
+    pub fn cell(&self) -> Option<Cell> {
+        if self.is_cell() {
+            unsafe { Some(self.cell) }
+        } else {
+            None
+        }
+    }
+
+    pub fn direct(&self) -> Option<DirectAtom> {
+        if self.is_direct() {
+            unsafe { Some(self.direct) }
+        } else {
+            None
+        }
+    }
+
+    pub fn indirect(&self) -> Option<IndirectAtom> {
+        if self.is_indirect() {
+            unsafe { Some(self.indirect) }
+        } else {
+            None
+        }
+    }
+
+    pub fn allocated(&self) -> Option<Allocated> {
+        if self.is_allocated() {
+            unsafe { Some(self.allocated) }
+        } else {
+            None
         }
     }
 

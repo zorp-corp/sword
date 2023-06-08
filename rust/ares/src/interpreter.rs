@@ -318,28 +318,27 @@ pub fn interpret(
                     }
                 }
                 Nock11ComputeHint => {
-                    let hint = *stack.local_noun_pointer(1);
-                    if let Ok(hint_cell) = hint.as_cell() {
-                        let formula = *stack.local_noun_pointer(2);
-                        if let Ok(found) =
-                            match_pre_hint(stack, newt, subject, hint_cell, formula, &cache)
-                        {
-                            res = found;
+                    let hint = (*stack.local_noun_pointer(1))
+                        .as_cell()
+                        .expect("IMPOSSIBLE: tried to compute a dynamic hint but hint is an atom");
+                    let formula = *stack.local_noun_pointer(2);
 
-                            stack.preserve(&mut cache);
-                            stack.preserve(&mut res);
-                            stack.frame_pop();
-                        } else {
-                            *(stack.local_noun_pointer(0)) = work_to_noun(Nock11ComputeResult);
-                            push_formula(stack, hint_cell.tail());
-                        }
+                    if let Some(found) =
+                        match_hint_pre_hint(stack, newt, subject, hint, formula, &cache)
+                    {
+                        res = found;
+                        stack.preserve(&mut cache);
+                        stack.preserve(&mut res);
+                        stack.frame_pop();
                     } else {
-                        panic!("IMPOSSIBLE: tried to compute a dynamic hint but hint is an atom");
+                        *(stack.local_noun_pointer(0)) = work_to_noun(Nock11ComputeResult);
+                        push_formula(stack, hint.tail());
                     }
                 }
                 Nock11ComputeResult => {
                     let hint = *stack.local_noun_pointer(1);
-                    if let Ok(found) = match_post_hint(stack, newt, subject, hint, res) {
+
+                    if let Some(found) = match_hint_pre_nock(stack, newt, subject, hint, res) {
                         res = found;
 
                         stack.preserve(&mut cache);
@@ -353,7 +352,11 @@ pub fn interpret(
                 }
                 Nock11Done => {
                     let hint = *stack.local_noun_pointer(1);
-                    let _ = match_post_hinted(stack, subject, hint, res, &mut cache);
+
+                    if let Some(found) = match_hint_post_nock(stack, subject, hint, res, &mut cache)
+                    {
+                        res = found;
+                    }
 
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
@@ -638,23 +641,24 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
     }
 }
 
-/** Match hints which apply before the formula is evaluated */
-fn match_pre_hint(
+/** Match dynamic hints before the hint formula is evaluated */
+fn match_hint_pre_hint(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,
     subject: Noun,
-    cell: Cell,
+    hint: Cell,
     formula: Noun,
     cache: &Hamt<Noun>,
-) -> Result<Noun, ()> {
-    let direct = cell.head().as_direct()?;
-    match direct.data() {
+) -> Option<Noun> {
+    let tag = hint.head().direct()?;
+
+    match tag.data() {
         // %sham hints are scaffolding until we have a real jet dashboard
         tas!(b"sham") => {
-            let jet_formula = cell.tail().as_cell()?;
+            let jet_formula = hint.tail().cell()?;
             let jet_name = jet_formula.tail();
 
-            let jet = jets::get_jet(jet_name).ok_or(())?;
+            let jet = jets::get_jet(jet_name)?;
             if let Ok(mut jet_res) = jet(stack, subject) {
                 // if in test mode, check that the jet returns the same result as the raw nock
                 if jets::get_jet_test_mode(jet_name) {
@@ -664,69 +668,73 @@ fn match_pre_hint(
                             "\rJet {} failed, raw: {}, jetted: {}",
                             jet_name, nock_res, jet_res
                         );
-                        return Err(());
+                        return None;
                     }
                 }
-                Ok(jet_res)
+                Some(jet_res)
             } else {
                 // Print jet errors and punt to Nock
-                eprintln!("\rJet {} failed", jet_name);
-                Err(())
+                eprintln!("\rJet {} failed: ", jet_name);
+                None
             }
         }
         tas!(b"memo") => {
             let formula = unsafe { *stack.local_noun_pointer(2) };
             let mut key = Cell::new(stack, subject, formula).as_noun();
-            if let Some(res) = cache.lookup(stack, &mut key) {
-                Ok(res)
-            } else {
-                Err(())
-            }
+            cache.lookup(stack, &mut key)
         }
-        _ => Err(()),
+        _ => None,
     }
 }
 
-/** Match static hints and dynamic hints after they're evaluated */
-fn match_post_hint(
+/** Match static and dynamic hints before the nock formula is evaluated */
+fn match_hint_pre_nock(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,
     _subject: Noun,
     hint: Noun,
     res: Noun,
-) -> Result<Noun, ()> {
-    let direct = hint.as_cell()?.head().as_direct()?;
-    match direct.data() {
+) -> Option<Noun> {
+    let tag = hint
+        .as_either_atom_cell()
+        .either(|a| a.direct(), |c| c.head().direct())?;
+
+    match tag.data() {
         tas!(b"slog") => {
-            let slog_cell = res.as_cell()?;
-            let pri = slog_cell.head().as_direct()?.data();
+            let slog_cell = res.cell()?;
+            let pri = slog_cell.head().direct()?.data();
             let tank = slog_cell.tail();
             if let Some(not) = newt {
                 not.slog(stack, pri, tank);
             } else {
-                println!("slog: {} {}", pri, tank);
+                println!("raw slog: {} {}", pri, tank);
             }
-            Err(())
+
+            None
         }
-        _ => Err(()),
+        _ => None,
     }
 }
 
-fn match_post_hinted(
+/** Match static and dynamic hints after the nock formula is evaluated */
+fn match_hint_post_nock(
     stack: &mut NockStack,
     subject: Noun,
     hint: Noun,
     res: Noun,
     cache: &mut Hamt<Noun>,
-) -> Result<(), ()> {
-    let direct = hint.as_cell()?.head().as_direct()?;
-    match direct.data() {
+) -> Option<Noun> {
+    let tag = hint
+        .as_either_atom_cell()
+        .either(|a| a.direct(), |c| c.head().direct())?;
+
+    match tag.data() {
         tas!(b"memo") => {
             let formula = unsafe { *stack.local_noun_pointer(2) };
             let mut key = Cell::new(stack, subject, formula).as_noun();
             *cache = cache.insert(stack, &mut key, res);
-            Ok(())
+            None
         }
-        _ => Err(()),
+        _ => None,
     }
 }
