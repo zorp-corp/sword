@@ -217,16 +217,15 @@
 ::  moot -> working state for each call
 ::  moan -> finalized calls
 ::  mite -> calls not yet analyzed
-::
-::  XX start here -> when analyzing a call check moan first to
-::  short-circuit
-::  -> figure out global entry point identifiers and ways to get the
-::  call DB back into moan on future codegen invocations
-|_  seam=[moot=(map @hail hoot) moan=(jar * hoot) mite=(set @hail)]
+=|  seam=[moot=(map @hail hoot) moan=(jar * hone) mite=(set @hail)]
+|%
 ::    turn a formula into nomm
 ++  raid
-  |=  [hail=@hail form=*]
+  |=  [hail=@hail]
   ^-  _seam
+  =/  firm  form:(~(got by moot.seam) hail)
+  ?>  ?=(^ firm)
+  =/  form  u.firm
   =/  code
     |-  ^-  nomm
     ?+  form  [%not 0]
@@ -342,17 +341,22 @@
             [| ~]  rake
             `hail
         ==
-      =/  [fake=cape norm=(unit nomm)]
-        [rake norm]:(~(got by moot.seam) rail.code)
+      =/  [soot=sock fake=cape form=(unit) norm=(unit nomm)]
+        [soot rake firm norm]:(~(got by moot.seam) rail.code)
+      =/  mole=(list hone)  ?~(firm ~ (~(get ja moan.seam) firm))
+      |-  ^-  [cape _seam]
+      ?^  mole
+        ?:  (~(huge so soot.i.mole) soot)  [cape.soot.i.mole seam]
+        $(mole t.mole)
       =?  seam  ?&(?=(^ norm) (~(big ca fake) rake))
         =.  moot.seam
           %+  ~(jab by moot.seam)  rail.code
           |=  =hoot
           hoot(rake rake)
         (espy rail.code)
-      =/  lake  rake:(~(got by moot.seam) rail.code)
-      =^  sake  seam  $(rake lake, code cost.code)
-      =^  folk  seam  $(rake |, code corn.code)
+      =/  lake  sake:(~(got by moot.seam) rail.code)
+      =^  sake  seam  ^$(rake lake, code cost.code)
+      =^  folk  seam  ^$(rake |, code corn.code)
       :_  seam
       (~(uni ca sake) folk)
     ::
@@ -440,6 +444,14 @@
         %two
       =^  coot  seam  $(code cost.code)
       =^  sofa  seam  $(code corn.code)
+      =/  roan=(unit sock)
+        ?:  =(& cape.sofa)
+          =/  =huns  (~(get ja moan.seam) data.sofa)
+          |-
+          ?~  huns  ~
+          ?:  (~(huge so soot.i.huns) coot)  `root.i.huns
+          $(huns t.huns)
+      ?^  roan  [u.roan seam]
       =/  [soot=sock sake=cape root=sock form=(unit) noir=(unit nomm)]
         [soot sake root form norm]:(~(got by moot.seam) rail.code)
       ?.  ?|(?!(=(cape.soot cape.coot)) ?&(=(& cape.sofa) =(~ form)))
@@ -510,41 +522,145 @@
 ::    If a call has a non-nil battery mask: add it to the exclusion set
 ::
 ::    Any call variables not in the exclusion set can be finalized which
-::    places them in moan
+::    places them and their callees in moan
 ::
 ++  ruin
   ^-  [(list @hail) _seam]
   =/  mile  ~(tap in mite.seam)
-  =|  work=(list @hail)
-  =|  slag=(set @hail)
-  =|  flux=(set @hail)
+  =|  work=(list @hail) :: non-recursive direct calls
+  =|  slag=(set @hail) :: excluded as finalization roots
+  =|  flux=(set @hail) :: possible finalization roots
+  =|  kids=(jug @hail @hail) :: immediate callees
+  =|  loop=(map @hail @hail) :: recursive call targets
   |-  ^-  [(list @hail) _seam]
   ?^  mile
     =/  mill  i.mile
-    =/  mail  sire:(~(got by moot.seam) i.mile)
-    =/  [soot=sock form=(unit)]  [soot form]:(~(got by moot.seam) mill)
-    =|  sirs=(list @hail)  
+    =/  [mail=(unit hail) soot=sock form=(unit)]
+      [sire soot form]:(~(got by moot.seam) mill)
+    =/  mole  (~(get ja moan.seam) form)
+    |-  ^-  [(list @hail) _seam]
+    ?^  mole
+      ?:  (~(huge so soot.i.mole) soot)  ^$(mile t.mile)
+      $(mole t.mole)
+    =|  sirs=(list @hail)
     |-  ^-  [(list @hail) _seam]
     ?~  mail
       ^$(mile t.mile, work [i.mile work], slag (~(gas in slag) [mill sirs])
+    =.  kids  (~(put ju kids) u.mail mill)
     =.  mill  u.mail
     =^  [suit=sock soju=cape firm=*]  mail
       [[soot sake form] sire]:(~(got by moot.seam) mill)
     ?:  ?&(=(form firm) (~(huge so (~(app ca soju) suit)) soot))
-      ^$(mile t.mile, slag (~(gas in slag) sirs), flux (~(put in flux) mill))
+      %=  ^$  :: found a recursive direct call
+        mile  t.mile
+        slag  (~(gas in slag) sirs)
+        flux  (~(put in flux) mill)
+        loop  (~(put by loop) i.mile mill)
+      ==
     $(sirs [mill sirs])
   =.  mite.seam  (~(dif in mite.seam) (~(gas in *(set @hail)) work)
-  =/  done  ~(gas in (~(dif in flux) slag))
+  =/  done  [~(tap in (~(dif in flux) slag)) ~]
+  =|  enod  (list (list @hail))
   |-  ^-  [(list @hail) _seam]
-  ?~  done  [work seam]
+  ?~  done
+    ?~  enod  [work seam]
+    $(done i.enod, enod t.enod)
   =/  hood  (~(got by moot.seam) i.done)
   ?^  rake.hood  $(done t.done) :: skip because cell output mask
   ?:  rake.hood  $(done t.done) :: skip because & output mask
+  ?:  (~(has by loop) i.done) $(done t.done)   :: skip because recursive
   ::  this is OK because we disallow finalizing anything with battery
   ::  dependencies on its output
   =.  soot.hood  (~(app ca sake.hood) soot.hood)
   =.  moot.seam  (~(put by moot.seam) i.done hood)
   ?>  ?=(^ form.hood)
-  =.  moan.seam  (~(put ja moan.seam) u.form.hood hood)
-  $(done t.done)
+  ?>  ?=(^ norm.hood)
+  =.  moan.seam  
+    ~(put ja moan.seam) u.form.hood
+    [soot.hood (food u.norm.hood pool) root.hood]
+  =/  next  ~(tap in (~(get ju kids) i.done))
+  ?~  next
+    $(done t.done)
+  $(done t.done, enod [next enod])
+::  pick out food to nomm
+++  cook
+  |=  [norm=nomm pool=(map @hail @hail)]
+  ^-  food
+  =|  ices  (map @hail [=sock form=*])
+  =/  fore=(list nomm)  ~[norm]
+  |-  ^-  food
+  ?~  fore  [norm ices]
+  ?-  -.i.fore
+      %par
+    $(fore [rite.i.fore left.i.fore t.fore])
+  ::
+      %not
+    $(fore t.fore)
+  ::
+      %one
+    $(fore t.fore)
+  ::
+      %two
+    =/  roil  (~(gut by pool) rail.i.norm rail.i.norm) 
+    =/  =hoot  (~(get by moot.seam) roil)
+    ?~  hoot
+      $(fore [corn.i.fore cost.i.fore t.fore])
+    ?~  form.u.hoot
+      $(fore [corn.i.fore cost.i.fore t.fore])
+    =.  ices  
+      %+  ~(put by ices) rail.i.norm
+      [soot u.form]:hoot
+    $(fore [corn.i.fore cost.i.fore t.fore])
+  ::
+      %the
+    $(fore [pell.i.fore t.fore])
+  ::
+      %for
+    $(fore [mall.i.fore t.fore])
+  ::
+      %ivy
+    $(fore [this.i.fore that.i.fore t.fore])
+  ::
+      %six
+    $(fore [what.i.fore then.i.fore else.i.fore t.fore])
+  ::
+      %eve
+    $(fore [once.i.fore then.i.fore t.fore])
+  ::
+      %ten
+    $(fore [twig.i.fore tree.i.fore t.fore])
+  ::
+      %sip
+    $(fore [then.i.fore t.fore])
+  ::
+      %tip
+    $(fore [vice.i.fore then.i.fore t.fore])
+  ::
+      %elf
+    $(fore [rent.i.fore walk.i.fore t.fore])
+  ==
+::  analyze a subject and formula
+++  rout
+  |=  [soot=sock form=*]
+  ^-  _seam  1
+  =.  moot.seam
+    %+  ~(put by moot.seam)
+    :*  soot  |
+      `form  ~
+      [| ~]  |  ~
+    ==
+  =/  work=(list @hail)  ~[1]
+  |-  ^-  _seam  :: driver loop
+  =/  cork  work
+  |-  ^-  _seam  :: nomm translation loop
+  ?^  cork  $(cork t.cork, seam (raid i.cork))
+  =.  cork  work
+  |-  ^-  _seam  :: battery mask loop
+  ?^  cork  $(cork t.cork, seam (espy i.cork))
+  =.  cork  work
+  |-  ^-  _seam  :: subject knowledge loop
+  ?^  cork  $(cork t.cork, seam (loot i.cork))
+  =^  work  seam  ruin
+  ?~  work  seam
+  ^^^$
 --

@@ -7,7 +7,7 @@
 ::      sock
 ::    describes knowledge of a noun
 +$  sock  [=cape data=*]
-::    call table entry
+::    in-progress call table entry
 ::
 ::  soot: subject knowledge
 ::  sake: subject battery mask
@@ -20,6 +20,11 @@
       form=(unit *)  norm=(unit nomm)
       root=sock rake=cape
       sire=(unit @hail)
+  ==
+::    call table entry
++$  hone
+  $:  soot=sock  norm=food
+      root=sock
   ==
 ::    Nomm (Nock--)
 ::
@@ -41,4 +46,6 @@
       [%tip hint=@ vice=nomm then=nomm]     :: Nock 11 (dynamic)
       [%elf rent=nomm walk=nomm]            :: "Nock 12"
   ==
++$  food
+  [=nomm ices=(map @hail [=sock form=*])]
 --
