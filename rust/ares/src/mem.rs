@@ -60,6 +60,12 @@ pub struct NockStack {
 }
 
 impl NockStack {
+    /**  Initialization
+     * The initial frame is a west frame. When the stack is initialized, a number of slots is given.
+     * We add two extra slots to store the “previous” frame pointer and allocation pointer. For the
+     * initial frame, the previous allocation pointer is set to the beginning (low boundary) of the
+     * arena, and the previous frame pointer is set to NULL. */
+
     /** Size is in 64 bit words.
      * top_slots is how many slots to allocate to the top stack frame.
      */
@@ -136,10 +142,10 @@ impl NockStack {
     }
 
     //TODO the following functions (save_prev_alloc_pointer_to_local_east through
-    // prev_alloc_pointer_equals_local) are adapted from the stack_pointer version,
-    // but im not totally certain yet that they are needed. im pretty sure they
-    // are but we'll wait and see if we run into them later on.
-    //
+    // prev_alloc_pointer_equals_local) have the same semantics as the old
+    // stack_pointer version, but I'm holding off on seeing what they need to look like
+    // until I get to a function that uses them.
+
     /** Save the alloc pointer for the previous frame in a slot of an east frame */
     unsafe fn save_prev_alloc_pointer_to_local_east(&mut self, local: usize) {
         *(self.slot_pointer_east(local + RESERVED) as *mut *mut u64) =
