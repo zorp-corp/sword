@@ -194,4 +194,32 @@ impl NockStack {
         }
     }
 
+    /**  Allocation
+     * In a west frame, the allocation pointer is higher than the frame pointer, and so the allocation
+     * size is subtracted from the allocation pointer, and then the allocation pointer is returned as
+     * the pointer to the newly allocated memory.
+     *
+     * In an east frame, the allocation pointer is lower than the frame pointer, and so the allocation
+     * pointer is saved in a temporary, then the allocation size added to it, and finally the original
+     * allocation pointer is returned as the pointer to the newly allocated memory. */
+    //TODO: not feeling super confident the next 2 functions are correct. I was rewriting
+    // alloc_in_previous_frame*.
+
+    unsafe fn alloc_typed_west<T>(&mut self) -> *mut T {
+        self.alloc_pointer = self.alloc_pointer.sub(word_size_of::<T>());
+        self.alloc_pointer as *mut T  //TODO should this be *self.alloc_pointer?
+    }
+
+    unsafe fn alloc_typed_east<T>(&mut self) -> *mut T {
+        let prev_alloc_pointer = self.alloc_pointer;
+        self.alloc_pointer = self.alloc_pointer.add(word_size_of::<T>);
+        prev_alloc_pointer as *mut T  //TODO should this be *prev_alloc_pointer?
+    }
+
+    pub unsafe fn alloc_typed<T>(&mut self) -> *mut T {
+        match &self.polarity {
+            Polarity::East => self.alloc_typed_east(),
+            Polarity::West => self.alloc_typed_west(),
+        }
+    }
 }
