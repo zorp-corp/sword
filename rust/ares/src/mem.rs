@@ -81,4 +81,9 @@ impl NockStack {
             memory,
         }
     }
+
+    /** Size **in 64-bit words** of this NockStack */
+    pub fn size(&self) -> usize {
+        self.size
+    }
 }
