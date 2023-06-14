@@ -86,4 +86,29 @@ impl NockStack {
     pub fn size(&self) -> usize {
         self.size
     }
+
+    //TODO what makes something "in frame" with a split frame? here we're
+    //taking in a pointer. i think something is "in frame" if the pointer
+    // points to the allocation arena for this frame. so i need to check
+    // that the pointer is between the current allocation pointer and
+    // the previous stack pointer.
+    //
+    // on the other hand, not every address between the alloc_pointer and
+    // previous frame_pointer is a valid address for an allocated object.
+    // i believe the FP-relative slots store the addresses of the allocated
+    // objects for that frame. but they could also point to more senior
+    // memory outside of that frame. so maybe i first check that the pointer
+    // is in range, then check to see if that is a legitimate pointer or
+    // if its pointing to the middle of an allocated object
+    #[inline]
+    pub unsafe fn in_frame<T>(&self, ptr: *const T) -> bool {
+        let ptr_u64 = ptr as *const u64;
+        match &self.polarity {
+            //TODO: previous_frame_pointer_pointer() is going to be null for the first frame so this won't work for that case
+            Polarity::West => ptr_u64 >= self.alloc_pointer && ptr_u64 <= *self.previous_frame_pointer_pointer_west()
+                && todo!(), //TODO check that this isnt pointing to the middle of an allocated object
+            Polarity::East => ptr_u64 <= self.alloc_pointer && ptr_u64 >= *self.previous_frame_pointer_pointer_east()
+                && todo!(), //TODO check that this isnt pointing to the middle of an allocated object
+        }
+    }
 }
