@@ -134,4 +134,58 @@ impl NockStack {
     pub unsafe fn local_noun_pointer(&mut self, local: usize) -> *mut Noun {
         self.slot_pointer(local + RESERVED) as *mut Noun
     }
+
+    //TODO the following functions (save_prev_alloc_pointer_to_local_east through
+    // prev_alloc_pointer_equals_local) are adapted from the stack_pointer version,
+    // but im not totally certain yet that they are needed. im pretty sure they
+    // are but we'll wait and see if we run into them later on.
+    //
+    /** Save the alloc pointer for the previous frame in a slot of an east frame */
+    unsafe fn save_prev_alloc_pointer_to_local_east(&mut self, local: usize) {
+        *(self.slot_pointer_east(local + RESERVED) as *mut *mut u64) =
+            *(self.previous_alloc_pointer_pointer_east())
+    }
+
+    /** Save the alloc pointer for the previous frame in a slot of a west frame */
+    unsafe fn save_prev_alloc_pointer_to_local_west(&mut self, local: usize) {
+        *(self.slot_pointer_west(local + RESERVED) as *mut *mut u64) =
+            *(self.previous_alloc_pointer_pointer_west())
+    }
+
+    /** Save the alloc pointer for the previous frame in a slot */
+    pub unsafe fn save_prev_alloc_pointer_to_local(&mut self, local: usize) {
+        match &self.polarity {
+            Polarity::East => self.save_prev_alloc_pointer_to_local_east(local),
+            Polarity::West => self.save_prev_alloc_pointer_to_local_west(local),
+        }
+    }
+
+    unsafe fn restore_prev_alloc_pointer_from_local_east(&mut self, local: usize) {
+        *(self.previous_alloc_pointer_pointer_east()) =
+            *(self.slot_pointer_east(local + RESERVED) as *mut *mut u64);
+    }
+
+    unsafe fn restore_prev_alloc_pointer_from_local_west(&mut self, local: usize) {
+        *(self.previous_alloc_pointer_pointer_west()) =
+            *(self.slot_pointer_west(local + RESERVED) as *mut *mut u64);
+    }
+
+    unsafe fn prev_alloc_pointer_equals_local_east(&mut self, local: usize) -> bool {
+        *(self.slot_pointer_east(local + RESERVED) as *const *mut u64)
+            == *(self.previous_alloc_pointer_pointer_east())
+    }
+
+    unsafe fn prev_alloc_pointer_equals_local_west(&mut self, local: usize) -> bool {
+        *(self.slot_pointer_west(local + RESERVED) as *const *mut u64)
+            == *(self.previous_alloc_pointer_pointer_west())
+    }
+
+    /** Test the alloc pointer for the previous frame against a slot */
+    pub unsafe fn prev_alloc_pointer_equals_local(&mut self, local: usize) -> bool {
+        match &self.polarity {
+            Polarity::East => self.prev_alloc_pointer_equals_local_east(local),
+            Polarity::West => self.prev_alloc_pointer_equals_local_west(local),
+        }
+    }
+
 }
