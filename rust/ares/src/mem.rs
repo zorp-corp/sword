@@ -111,4 +111,27 @@ impl NockStack {
                 && todo!(), //TODO check that this isnt pointing to the middle of an allocated object
         }
     }
+
+    /** Mutable pointer to a slot in a stack frame: east stack */
+    unsafe fn slot_pointer_east(&mut self, slot: usize) -> *mut u64 {
+        self.frame_pointer.sub(slot + 1)
+    }
+
+    /** Mutable pointer to a slot in a stack frame: west stack */
+    unsafe fn slot_pointer_west(&mut self, slot: usize) -> *mut u64 {
+        self.frame_pointer.add(slot)
+    }
+
+    /** Mutable pointer to a slot in a stack frame */
+    unsafe fn slot_pointer(&mut self, slot: usize) -> *mut u64 {
+        match &self.polarity {
+            Polarity::East => self.slot_pointer_east(slot),
+            Polarity::West => self.slot_pointer_west(slot),
+        }
+    }
+
+    /** Pointer to a local slot typed as Noun */
+    pub unsafe fn local_noun_pointer(&mut self, local: usize) -> *mut Noun {
+        self.slot_pointer(local + RESERVED) as *mut Noun
+    }
 }
