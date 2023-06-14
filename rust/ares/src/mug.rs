@@ -2,15 +2,15 @@ use crate::assert_acyclic;
 use crate::mem::*;
 use crate::noun::{Allocated, Atom, DirectAtom, Noun};
 use either::Either::*;
-use murmur3::murmur3_32_nocopy;
+use murmur3::murmur3_32_of_slice;
 
 crate::gdb!();
 
 // Murmur3 hash an atom with a given padded length
 fn muk_u32(syd: u32, len: usize, key: Atom) -> u32 {
     match key.as_either() {
-        Left(direct) => murmur3_32_nocopy(&direct.data().to_le_bytes()[0..len], syd),
-        Right(indirect) => murmur3_32_nocopy(&indirect.as_bytes()[..len], syd),
+        Left(direct) => murmur3_32_of_slice(&direct.data().to_le_bytes()[0..len], syd),
+        Right(indirect) => murmur3_32_of_slice(&indirect.as_bytes()[..len], syd),
     }
 }
 
@@ -120,46 +120,44 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
         return mug;
     }
     assert_acyclic!(noun);
-    stack.push(1);
     unsafe {
-        stack.save_prev_stack_pointer_to_local(0);
-        *(stack.alloc_in_previous_frame()) = noun;
+        *(stack.push()) = noun;
     }
     loop {
-        if unsafe { stack.prev_stack_pointer_equals_local(0) } {
+        if stack.stack_is_empty() {
             break;
         } else {
-            let noun: Noun = unsafe { *(stack.top_in_previous_frame()) };
+            let noun: Noun = unsafe { *(stack.top()) };
             match noun.as_either_direct_allocated() {
                 Left(_direct) => {
                     unsafe {
-                        stack.reclaim_in_previous_frame::<Noun>();
+                        stack.pop::<Noun>();
                     }
                     continue;
                 } // no point in calculating a direct mug here as we wont cache it
                 Right(allocated) => match allocated.get_cached_mug() {
                     Some(_mug) => {
                         unsafe {
-                            stack.reclaim_in_previous_frame::<Noun>();
+                            stack.pop::<Noun>();
                         }
                         continue;
                     }
                     None => match allocated.as_either() {
                         Left(indirect) => unsafe {
                             set_mug(allocated, calc_atom_mug_u32(indirect.as_atom()));
-                            stack.reclaim_in_previous_frame::<Noun>();
+                            stack.pop::<Noun>();
                             continue;
                         },
                         Right(cell) => unsafe {
                             match (get_mug(cell.head()), get_mug(cell.tail())) {
                                 (Some(head_mug), Some(tail_mug)) => {
                                     set_mug(allocated, calc_cell_mug_u32(head_mug, tail_mug));
-                                    stack.reclaim_in_previous_frame::<Noun>();
+                                    stack.pop::<Noun>();
                                     continue;
                                 }
                                 _ => {
-                                    *(stack.alloc_in_previous_frame()) = cell.tail();
-                                    *(stack.alloc_in_previous_frame()) = cell.head();
+                                    *(stack.push()) = cell.tail();
+                                    *(stack.push()) = cell.head();
                                     continue;
                                 }
                             }
@@ -169,10 +167,7 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
             }
         }
     }
-    unsafe {
-        stack.pop();
-        get_mug(noun).expect("Noun should have a mug once it is mugged.")
-    }
+    get_mug(noun).expect("Noun should have a mug once it is mugged.")
 }
 
 pub fn mug(stack: &mut NockStack, noun: Noun) -> DirectAtom {

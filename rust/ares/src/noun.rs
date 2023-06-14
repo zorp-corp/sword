@@ -910,8 +910,8 @@ impl Noun {
     /** Produce the size of a noun in the current frame, in words */
     pub fn mass_frame(self, stack: &NockStack) -> usize {
         unsafe {
-            let res = self.mass_wind(&|p| stack.in_frame(p));
-            self.mass_unwind(&|p| stack.in_frame(p));
+            let res = self.mass_wind(&|p| stack.is_in_frame(p));
+            self.mass_unwind(&|p| stack.is_in_frame(p));
             res
         }
     }

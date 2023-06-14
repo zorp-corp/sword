@@ -363,7 +363,7 @@ dependencies = [
 [[package]]
 name = "murmur3"
 version = "0.5.2"
-source = "git+https://github.com/tloncorp/murmur3?branch=eamsden/non_copying#dde46823a87f358eee5a928c27e2731f9a53d616"
+source = "git+https://github.com/tloncorp/murmur3?rev=7878a0f#7878a0fbecf465720891b625f1a1fc3e19b6a960"
 
 [[package]]
 name = "num-derive"
