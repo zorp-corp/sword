@@ -122,13 +122,11 @@ impl NockStack {
     #[inline]
     pub unsafe fn in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
-
-        if self.is_west() {
-            ptr_u64 >= self.alloc_pointer && ptr_u64 <= *self.previous_frame_pointer_pointer_west()
-                && todo!() //TODO check that this isnt pointing to the middle of an allocated object
-        } else {
-            ptr_u64 <= self.alloc_pointer && ptr_u64 >= *self.previous_frame_pointer_pointer_east()
-                && todo!() //TODO check that this isnt pointing to the middle of an allocated object
+        match self.is_west() {
+            true  => ptr_u64 >= self.alloc_pointer && ptr_u64 <= *self.previous_frame_pointer_pointer_west()
+                && todo!(), //TODO check that this isnt pointing to the middle of an allocated object
+            false => ptr_u64 <= self.alloc_pointer && ptr_u64 >= *self.previous_frame_pointer_pointer_east()
+                && todo!(), //TODO check that this isnt pointing to the middle of an allocated object
         }
     }
 
@@ -144,10 +142,9 @@ impl NockStack {
 
     /** Mutable pointer to a slot in a stack frame */
     unsafe fn slot_pointer(&mut self, slot: usize) -> *mut u64 {
-        if self.is_west() {
-            self.slot_pointer_west(slot)
-        } else {
-            self.slot_pointer_east(slot)
+        match self.is_west() {
+            true  => self.slot_pointer_west(slot),
+            false => self.slot_pointer_east(slot),
         }
     }
 
@@ -175,10 +172,9 @@ impl NockStack {
 
     /** Save the alloc pointer for the previous frame in a slot */
     pub unsafe fn save_prev_alloc_pointer_to_local(&mut self, local: usize) {
-        if self.is_west() {
-            self.save_prev_alloc_pointer_to_local_west(local)
-        } else {
-            self.save_prev_alloc_pointer_to_local_east(local)
+        match self.is_west() {
+            true  => self.save_prev_alloc_pointer_to_local_west(local),
+            false => self.save_prev_alloc_pointer_to_local_east(local),
         }
     }
 
@@ -204,10 +200,9 @@ impl NockStack {
 
     /** Test the alloc pointer for the previous frame against a slot */
     pub unsafe fn prev_alloc_pointer_equals_local(&mut self, local: usize) -> bool {
-        if self.is_west() {
-            self.prev_alloc_pointer_equals_local_west(local)
-        } else {
-            self.prev_alloc_pointer_equals_local_east(local)
+        match self.is_west() {
+            true  => self.prev_alloc_pointer_equals_local_west(local),
+            false => self.prev_alloc_pointer_equals_local_east(local),
         }
     }
 
@@ -234,10 +229,9 @@ impl NockStack {
     }
 
     pub unsafe fn alloc_typed<T>(&mut self) -> *mut T {
-        if self.is_west() {
-            self.alloc_typed_west()
-        } else {
-            self.alloc_typed_east()
+        match self.is_west() {
+            true  => self.alloc_typed_west(),
+            false => self.alloc_typed_east(),
         }
     }
 }
