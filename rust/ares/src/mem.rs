@@ -257,6 +257,21 @@ impl NockStack {
         todo!()
     }
 
+    /**  Copying and Popping
+     * Prior to any copying step, the saved frame and allocation pointers must
+     * be moved out of the frame. A two-word allocation is made to hold the saved
+     * frame and allocation pointers. After this they will be accessed by reference
+     * to the allocation pointer, so no more allocations must be made between now
+     * and restoration.
+     *
+     * Copying can then proceed by updating the saved allocation pointer for each
+     * copied object. This will almost immediately clobber the frame, so return by
+     * writing to a slot in the previous frame or in a register is necessary.
+     *
+     * Finally, the frame and allocation pointers are restored from the saved
+     * location.
+     */
+
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         todo!()
     }
