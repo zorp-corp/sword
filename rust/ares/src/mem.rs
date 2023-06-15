@@ -232,6 +232,26 @@ impl NockStack {
         }
     }
 
+    /** Pointer to where the previous (west) alloc pointer is saved in an east frame */
+    unsafe fn prev_alloc_pointer_pointer_east(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_east(ALLOC) as *mut *mut u64
+    }
+
+    /** Pointer to where the previous (east) alloc pointer is saved in an west frame */
+    unsafe fn prev_alloc_pointer_pointer_west(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_west(ALLOC) as *mut *mut u64
+    }
+
+    /** Pointer to where the previous (west) frame pointer is saved in an east frame */
+    unsafe fn prev_frame_pointer_pointer_east(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_east(FRAME) as *mut *mut u64
+    }
+
+    /** Pointer to where the previous (east) frame pointer is saved in an west frame */
+    unsafe fn prev_frame_pointer_pointer_west(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_west(FRAME) as *mut *mut u64
+    }
+
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         todo!()
     }
