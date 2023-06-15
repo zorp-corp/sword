@@ -265,6 +265,28 @@ impl NockStack {
         alloc
     }
 
+    /** Allocate space for an indirect pointer in a west frame */
+    unsafe fn indirect_alloc_west(&mut self, words: usize) -> *mut u64 {
+        //TODO I believe the `+ 2` here is for the pointer and the size? not the
+        // same `+ 2` used by RESERVED
+        self.raw_alloc_west(words + 2)
+    }
+
+    /** Allocate space for an indirect pointer in an east frame */
+    unsafe fn indirect_alloc_east(&mut self, words: usize) -> *mut u64 {
+        //TODO I believe the `+ 2` here is for the pointer and the size? not the
+        // same `+ 2` used by RESERVED
+        self.raw_alloc_east(words + 2)
+    }
+
+    /** Allocate space for an indirect pointer in a stack frame */
+    unsafe fn indirect_alloc(&mut self, words: usize) -> *mut u64 {
+        match self.is_west() {
+            true  => self.indirect_alloc_west(words),
+            false => self.indirect_alloc_east(words),
+        }
+    }
+
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         todo!()
     }
