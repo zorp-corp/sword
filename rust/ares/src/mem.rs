@@ -30,15 +30,6 @@ fn indirect_raw_size(atom: IndirectAtom) -> usize {
     atom.size() + 2
 }
 
-/** Which side of the two opposing stacks are we working on? */
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum Polarity {
-    /** Stack growing down from high memory */
-    East,
-    /** Stack growing up from low memory */
-    West,
-}
-
 /** A stack for Nock computation, which supports stack allocation and delimited copying collection
  * for returned nouns
  */
@@ -49,8 +40,6 @@ pub struct NockStack {
     start: *const u64,
     /** The size of the memory region */
     size: usize,
-    /** Which side of the stack is the active stack frame on? */
-    polarity: Polarity,
     /** Base pointer for the current stack frame. Accesses to slots are computed from this base. */
     frame_pointer: *mut u64,
     /** Alloc pointer for the current stack frame. */
@@ -72,6 +61,7 @@ impl NockStack {
     pub fn new(size: usize, top_slots: usize) -> NockStack {
         let mut memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
         let start = memory.as_ptr() as *const u64;
+        // Here, frame_pointer < alloc_pointer, so the initial frame is West
         let frame_pointer = memory.as_mut_ptr() as *mut u64;
         let alloc_pointer = unsafe { frame_pointer.add(size) };
         unsafe {
@@ -81,10 +71,33 @@ impl NockStack {
         NockStack {
             start,
             size,
-            polarity: Polarity::West,
             frame_pointer,
             alloc_pointer,
             memory,
+        }
+    }
+
+    /** Checks if the current stack frame has West polarity */
+    #[inline]
+    fn is_west(&self) -> bool {
+        if self.frame_pointer < self.alloc_pointer {
+            true
+        } else if self.frame_pointer > self.alloc_pointer {
+            false
+        } else {
+            panic!("frame_pointer == alloc_pointer");
+        }
+    }
+
+    /** Checks if the current stack frame has East polarity */
+    #[inline]
+    fn is_east(&self) -> bool {
+        if self.frame_pointer > self.alloc_pointer {
+            true
+        } else if self.frame_pointer < self.alloc_pointer {
+            false
+        } else {
+            panic!("frame_pointer == alloc_pointer");
         }
     }
 
@@ -109,12 +122,13 @@ impl NockStack {
     #[inline]
     pub unsafe fn in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
-        match &self.polarity {
-            //TODO: previous_frame_pointer_pointer() is going to be null for the first frame so this won't work for that case
-            Polarity::West => ptr_u64 >= self.alloc_pointer && ptr_u64 <= *self.previous_frame_pointer_pointer_west()
-                && todo!(), //TODO check that this isnt pointing to the middle of an allocated object
-            Polarity::East => ptr_u64 <= self.alloc_pointer && ptr_u64 >= *self.previous_frame_pointer_pointer_east()
-                && todo!(), //TODO check that this isnt pointing to the middle of an allocated object
+
+        if self.is_west() {
+            ptr_u64 >= self.alloc_pointer && ptr_u64 <= *self.previous_frame_pointer_pointer_west()
+                && todo!() //TODO check that this isnt pointing to the middle of an allocated object
+        } else {
+            ptr_u64 <= self.alloc_pointer && ptr_u64 >= *self.previous_frame_pointer_pointer_east()
+                && todo!() //TODO check that this isnt pointing to the middle of an allocated object
         }
     }
 
@@ -130,9 +144,10 @@ impl NockStack {
 
     /** Mutable pointer to a slot in a stack frame */
     unsafe fn slot_pointer(&mut self, slot: usize) -> *mut u64 {
-        match &self.polarity {
-            Polarity::East => self.slot_pointer_east(slot),
-            Polarity::West => self.slot_pointer_west(slot),
+        if self.is_west() {
+            self.slot_pointer_west(slot)
+        } else {
+            self.slot_pointer_east(slot)
         }
     }
 
@@ -160,9 +175,10 @@ impl NockStack {
 
     /** Save the alloc pointer for the previous frame in a slot */
     pub unsafe fn save_prev_alloc_pointer_to_local(&mut self, local: usize) {
-        match &self.polarity {
-            Polarity::East => self.save_prev_alloc_pointer_to_local_east(local),
-            Polarity::West => self.save_prev_alloc_pointer_to_local_west(local),
+        if self.is_west() {
+            self.save_prev_alloc_pointer_to_local_west(local)
+        } else {
+            self.save_prev_alloc_pointer_to_local_east(local)
         }
     }
 
@@ -188,9 +204,10 @@ impl NockStack {
 
     /** Test the alloc pointer for the previous frame against a slot */
     pub unsafe fn prev_alloc_pointer_equals_local(&mut self, local: usize) -> bool {
-        match &self.polarity {
-            Polarity::East => self.prev_alloc_pointer_equals_local_east(local),
-            Polarity::West => self.prev_alloc_pointer_equals_local_west(local),
+        if self.is_west() {
+            self.prev_alloc_pointer_equals_local_west(local)
+        } else {
+            self.prev_alloc_pointer_equals_local_east(local)
         }
     }
 
@@ -217,9 +234,10 @@ impl NockStack {
     }
 
     pub unsafe fn alloc_typed<T>(&mut self) -> *mut T {
-        match &self.polarity {
-            Polarity::East => self.alloc_typed_east(),
-            Polarity::West => self.alloc_typed_west(),
+        if self.is_west() {
+            self.alloc_typed_west()
+        } else {
+            self.alloc_typed_east()
         }
     }
 }
