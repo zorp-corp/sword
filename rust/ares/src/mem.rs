@@ -340,6 +340,14 @@ impl NockStack {
     }
 }
 
+unsafe fn senior_pointer_first<T>(
+    stack: &NockStack,
+    a: *const T,
+    b: *const T
+) -> (*const T, *const T) {
+    todo!()
+}
+
 impl NounAllocator for NockStack {
     unsafe fn alloc_indirect(&mut self, words: usize) -> *mut u64 {
         self.indirect_alloc(words)
@@ -364,6 +372,18 @@ impl Preserve for IndirectAtom {
 
 impl Preserve for Atom {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        todo!()
+    }
+}
+
+impl Preserve for Noun {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        todo!()
+    }
+}
+
+impl Stack for NockStack {
+    unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64 {
         todo!()
     }
 }
