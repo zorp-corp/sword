@@ -305,11 +305,20 @@ impl NockStack {
         }
     }
 
+    /** Allocate space for an alloc::Layout in a stack frame */
+    unsafe fn layout_alloc(&mut self, layout: Layout) -> *mut u64 {
+        todo!()
+    }
+
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         todo!()
     }
 
     unsafe fn copy_west(&mut self, noun: &mut Noun) {
+        todo!()
+    }
+
+    pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
         todo!()
     }
 
@@ -325,6 +334,33 @@ impl NockStack {
         match self.is_west() {
             true  => self.pop_west(),
             false => self.pop_east(),
+        }
+    }
+
+
+    /** Push a frame onto the east stack with 0 or more local variable slots.
+     *
+     * (The method is `push_west` because the naming convention refers to the beginning state of the
+     * stack, not the final state.)
+     */
+    unsafe fn push_west(&mut self, num_locals: usize) {
+        todo!()
+    }
+
+    /** Push a frame onto the west stack with 0 or more local variable slots.
+     *
+     * (The method is `push_east` because the naming convention refers to the beginning state of
+     * the stack, not the final state.)
+     */
+    unsafe fn push_east(&mut self, num_locals: usize) {
+        todo!()
+    }
+
+    /** Push a frame onto the stack with 0 or more local variable slots. */
+    pub unsafe fn push(&mut self, num_locals: usize) {
+        match self.is_west() {
+            true  => self.push_west(num_locals),
+            false => self.push_east(num_locals),
         }
     }
 
