@@ -340,6 +340,16 @@ impl NockStack {
     }
 }
 
+impl NounAllocator for NockStack {
+    unsafe fn alloc_indirect(&mut self, words: usize) -> *mut u64 {
+        self.indirect_alloc(words)
+    }
+
+    unsafe fn alloc_cell(&mut self) -> *mut CellMemory {
+        self.struct_alloc::<CellMemory>(1)
+    }
+}
+
 /// Immutable, acyclic objects which may be copied up the stack
 pub trait Preserve {
     /// Ensure an object will not be invalidated by popping the NockStack
