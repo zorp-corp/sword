@@ -216,24 +216,64 @@ impl NockStack {
      * In an east frame, the allocation pointer is lower than the frame pointer, and so the allocation
      * pointer is saved in a temporary, then the allocation size added to it, and finally the original
      * allocation pointer is returned as the pointer to the newly allocated memory. */
-    //TODO: not feeling super confident the next 2 functions are correct. I was rewriting
-    // alloc_in_previous_frame*.
 
-    unsafe fn alloc_typed_west<T>(&mut self) -> *mut T {
-        self.alloc_pointer = self.alloc_pointer.sub(word_size_of::<T>());
-        self.alloc_pointer as *mut T  //TODO should this be *self.alloc_pointer?
+    unsafe fn struct_alloc_in_prev_frame_east<T>(&mut self, count: usize) -> *mut T {
+        todo!()
     }
 
-    unsafe fn alloc_typed_east<T>(&mut self) -> *mut T {
-        let prev_alloc_pointer = self.alloc_pointer;
-        self.alloc_pointer = self.alloc_pointer.add(word_size_of::<T>);
-        prev_alloc_pointer as *mut T  //TODO should this be *prev_alloc_pointer?
+    unsafe fn struct_alloc_in_prev_frame_west<T>(&mut self, count: usize) -> *mut T {
+        todo!()
     }
 
-    pub unsafe fn alloc_typed<T>(&mut self) -> *mut T {
+    pub unsafe fn struct_alloc_in_prev_frame<T>(&mut self, count: usize) -> *mut T {
         match self.is_west() {
-            true  => self.alloc_typed_west(),
-            false => self.alloc_typed_east(),
+            true  => self.struct_alloc_in_prev_frame_west(count),
+            false => self.struct_alloc_in_prev_frame_east(count),
         }
+    }
+
+    unsafe fn copy_east(&mut self, noun: &mut Noun) {
+        todo!()
+    }
+
+    unsafe fn copy_west(&mut self, noun: &mut Noun) {
+        todo!()
+    }
+
+    unsafe fn pop_east(&mut self) {
+        todo!()
+    }
+
+    unsafe fn pop_west(&mut self) {
+        todo!()
+    }
+
+    pub unsafe fn pop(&mut self) {
+        match self.is_west() {
+            true  => self.pop_west(),
+            false => self.pop_east(),
+        }
+    }
+
+    pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
+        todo!()
+    }
+}
+
+/// Immutable, acyclic objects which may be copied up the stack
+pub trait Preserve {
+    /// Ensure an object will not be invalidated by popping the NockStack
+    unsafe fn preserve(&mut self, stack: &mut NockStack);
+}
+
+impl Preserve for IndirectAtom {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        todo!()
+    }
+}
+
+impl Preserve for Atom {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        todo!()
     }
 }
