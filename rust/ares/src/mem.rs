@@ -337,6 +337,9 @@ impl NockStack {
         }
     }
 
+    pub unsafe fn preserve<T: Preserve>(&mut self, x: &mut T) {
+        x.preserve(self)
+    }
 
     /** Push a frame onto the east stack with 0 or more local variable slots.
      *
