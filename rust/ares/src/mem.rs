@@ -287,6 +287,24 @@ impl NockStack {
         }
     }
 
+    /** Allocate space for a struct in a west frame */
+    unsafe fn struct_alloc_west<T>(&mut self, count: usize) -> *mut T {
+        self.raw_alloc_west(word_size_of::<T>() * count) as *mut T
+    }
+
+    /** Allocate space for a struct in an east frame */
+    unsafe fn struct_alloc_east<T>(&mut self, count: usize) -> *mut T {
+        self.raw_alloc_east(word_size_of::<T>() * count) as *mut T
+    }
+
+    /** Allocate space for a struct in a stack frame */
+    pub unsafe fn struct_alloc<T>(&mut self, count: usize) -> *mut T {
+        match self.is_west() {
+            true  => self.struct_alloc_west::<T>(count),
+            false => self.struct_alloc_east::<T>(count),
+        }
+    }
+
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         todo!()
     }
