@@ -175,59 +175,6 @@ impl NockStack {
         self.slot_pointer_west(FRAME) as *mut *mut u64
     }
 
-    //TODO the following functions (save_prev_alloc_pointer_to_local_east through
-    // prev_alloc_pointer_equals_local) have the same semantics as the old
-    // stack_pointer version, but I'm holding off on seeing what they need to look like
-    // until I get to a function that uses them.
-
-    /** Save the alloc pointer for the previous frame in a slot of an east frame */
-    unsafe fn save_prev_alloc_pointer_to_local_east(&mut self, local: usize) {
-        *(self.slot_pointer_east(local + RESERVED) as *mut *mut u64) =
-            *(self.prev_alloc_pointer_pointer_east())
-    }
-
-    /** Save the alloc pointer for the previous frame in a slot of a west frame */
-    unsafe fn save_prev_alloc_pointer_to_local_west(&mut self, local: usize) {
-        *(self.slot_pointer_west(local + RESERVED) as *mut *mut u64) =
-            *(self.prev_alloc_pointer_pointer_west())
-    }
-
-    /** Save the alloc pointer for the previous frame in a slot */
-    pub unsafe fn save_prev_alloc_pointer_to_local(&mut self, local: usize) {
-        match self.is_west() {
-            true  => self.save_prev_alloc_pointer_to_local_west(local),
-            false => self.save_prev_alloc_pointer_to_local_east(local),
-        }
-    }
-
-    unsafe fn restore_prev_alloc_pointer_from_local_east(&mut self, local: usize) {
-        *(self.prev_alloc_pointer_pointer_east()) =
-            *(self.slot_pointer_east(local + RESERVED) as *mut *mut u64);
-    }
-
-    unsafe fn restore_prev_alloc_pointer_from_local_west(&mut self, local: usize) {
-        *(self.prev_alloc_pointer_pointer_west()) =
-            *(self.slot_pointer_west(local + RESERVED) as *mut *mut u64);
-    }
-
-    unsafe fn prev_alloc_pointer_equals_local_east(&mut self, local: usize) -> bool {
-        *(self.slot_pointer_east(local + RESERVED) as *const *mut u64)
-            == *(self.prev_alloc_pointer_pointer_east())
-    }
-
-    unsafe fn prev_alloc_pointer_equals_local_west(&mut self, local: usize) -> bool {
-        *(self.slot_pointer_west(local + RESERVED) as *const *mut u64)
-            == *(self.prev_alloc_pointer_pointer_west())
-    }
-
-    /** Test the alloc pointer for the previous frame against a slot */
-    pub unsafe fn prev_alloc_pointer_equals_local(&mut self, local: usize) -> bool {
-        match self.is_west() {
-            true  => self.prev_alloc_pointer_equals_local_west(local),
-            false => self.prev_alloc_pointer_equals_local_east(local),
-        }
-    }
-
     /**  Allocation
      * In a west frame, the allocation pointer is higher than the frame pointer, and so the allocation
      * size is subtracted from the allocation pointer, and then the allocation pointer is returned as
