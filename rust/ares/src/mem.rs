@@ -341,6 +341,13 @@ impl NockStack {
         x.preserve(self)
     }
 
+    /**   Pushing
+     * When pushing, we swap the allocation and frame pointers, then add (when pushing a west frame
+     * onto an east frame) or subtract (when pushing an east frame onto a west frame) the appropriate
+     * number of slots (plus two for previous pointers) to the frame pointer. We then store the
+     * original pointers into the appropriate slots in the frame
+     */
+
     /** Push a frame onto the east stack with 0 or more local variable slots.
      *
      * (The method is `push_west` because the naming convention refers to the beginning state of the
