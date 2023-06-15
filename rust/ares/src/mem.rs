@@ -354,7 +354,14 @@ impl NockStack {
      * stack, not the final state.)
      */
     unsafe fn push_west(&mut self, num_locals: usize) {
-        todo!()
+        let current_frame_pointer = self.frame_pointer;
+        let current_alloc_pointer = self.alloc_pointer;
+        self.alloc_pointer = current_frame_pointer;
+        self.frame_pointer = current_alloc_pointer.sub(num_locals + RESERVED);
+        //TODO should I use slot_pointer() here? I think doing so might be confusing since this
+        // is happening in the middle of pushing a new frame.
+        *(self.frame_pointer.sub(1)) = current_frame_pointer as u64;
+        *(self.frame_pointer.sub(2)) = current_alloc_pointer as u64;
     }
 
     /** Push a frame onto the west stack with 0 or more local variable slots.
@@ -363,7 +370,14 @@ impl NockStack {
      * the stack, not the final state.)
      */
     unsafe fn push_east(&mut self, num_locals: usize) {
-        todo!()
+        let current_frame_pointer = self.frame_pointer;
+        let current_alloc_pointer = self.alloc_pointer;
+        self.alloc_pointer = current_frame_pointer;
+        self.frame_pointer = current_alloc_pointer.add(num_locals + RESERVED);
+        //TODO should I use slot_pointer() here? I think doing so might be confusing since this
+        // is happening in the middle of pushing a new frame
+        *self.frame_pointer = current_frame_pointer as u64;
+        *(self.frame_pointer.add(1)) = current_alloc_pointer as u64;
     }
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
