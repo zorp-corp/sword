@@ -252,6 +252,19 @@ impl NockStack {
         self.slot_pointer_west(FRAME) as *mut *mut u64
     }
 
+    /** Bump the alloc pointer for a west frame to make space for an allocation */
+    unsafe fn raw_alloc_west(&mut self, words: usize) -> *mut u64 {
+        self.alloc_pointer = self.alloc_pointer.sub(words);
+        self.alloc_pointer
+    }
+
+    /** Bump the alloc pointer for an east frame to make space for an allocation */
+    unsafe fn raw_alloc_east(&mut self, words: usize) -> *mut u64 {
+        let alloc = self.alloc_pointer;
+        self.alloc_pointer = self.alloc_pointer.add(words);
+        alloc
+    }
+
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         todo!()
     }
