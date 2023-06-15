@@ -155,6 +155,26 @@ impl NockStack {
         self.slot_pointer(local + RESERVED) as *mut Noun
     }
 
+    /** Pointer to where the previous (west) alloc pointer is saved in an east frame */
+    unsafe fn prev_alloc_pointer_pointer_east(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_east(ALLOC) as *mut *mut u64
+    }
+
+    /** Pointer to where the previous (east) alloc pointer is saved in an west frame */
+    unsafe fn prev_alloc_pointer_pointer_west(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_west(ALLOC) as *mut *mut u64
+    }
+
+    /** Pointer to where the previous (west) frame pointer is saved in an east frame */
+    unsafe fn prev_frame_pointer_pointer_east(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_east(FRAME) as *mut *mut u64
+    }
+
+    /** Pointer to where the previous (east) frame pointer is saved in an west frame */
+    unsafe fn prev_frame_pointer_pointer_west(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_west(FRAME) as *mut *mut u64
+    }
+
     //TODO the following functions (save_prev_alloc_pointer_to_local_east through
     // prev_alloc_pointer_equals_local) have the same semantics as the old
     // stack_pointer version, but I'm holding off on seeing what they need to look like
@@ -230,26 +250,6 @@ impl NockStack {
             true  => self.struct_alloc_in_prev_frame_west(count),
             false => self.struct_alloc_in_prev_frame_east(count),
         }
-    }
-
-    /** Pointer to where the previous (west) alloc pointer is saved in an east frame */
-    unsafe fn prev_alloc_pointer_pointer_east(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_east(ALLOC) as *mut *mut u64
-    }
-
-    /** Pointer to where the previous (east) alloc pointer is saved in an west frame */
-    unsafe fn prev_alloc_pointer_pointer_west(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_west(ALLOC) as *mut *mut u64
-    }
-
-    /** Pointer to where the previous (west) frame pointer is saved in an east frame */
-    unsafe fn prev_frame_pointer_pointer_east(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_east(FRAME) as *mut *mut u64
-    }
-
-    /** Pointer to where the previous (east) frame pointer is saved in an west frame */
-    unsafe fn prev_frame_pointer_pointer_west(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_west(FRAME) as *mut *mut u64
     }
 
     /** Bump the alloc pointer for a west frame to make space for an allocation */
