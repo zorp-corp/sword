@@ -394,13 +394,23 @@ impl Preserve for IndirectAtom {
 
 impl Preserve for Atom {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        todo!()
+        match self.as_either() {
+            Left(_direct) => {}
+            Right(mut indirect) => {
+                indirect.preserve(stack);
+                *self = indirect.as_atom();
+            }
+        }
     }
 }
 
 impl Preserve for Noun {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        todo!()
+        if stack.is_west() {
+            stack.copy_west(self);
+        } else {
+            stack.copy_east(self);
+        }
     }
 }
 
