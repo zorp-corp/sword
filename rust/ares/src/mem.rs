@@ -356,10 +356,10 @@ impl NockStack {
             self.push_east(num_locals)
         }
     }
+}
 
-    pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
-        todo!()
-    }
+pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
+    todo!()
 }
 
 unsafe fn senior_pointer_first<T>(
