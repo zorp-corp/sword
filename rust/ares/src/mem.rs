@@ -186,6 +186,22 @@ impl NockStack {
      * pointer is saved in a temporary, then the allocation size added to it, and finally the original
      * allocation pointer is returned as the pointer to the newly allocated memory. */
 
+    unsafe fn alloc_in_prev_frame_west<T>(&mut self) -> *mut T {
+        todo!()
+    }
+
+    unsafe fn alloc_in_prev_frame_east<T>(&mut self) -> *mut T {
+        todo!()
+    }
+
+    pub unsafe fn alloc_in_prev_frame<T>(&mut self) -> *mut T {
+        if self.is_west() {
+            self.alloc_in_prev_frame_west()
+        } else {
+            self.alloc_in_prev_frame_east()
+        }
+    }
+
     unsafe fn struct_alloc_in_prev_frame_east<T>(&mut self, count: usize) -> *mut T {
         todo!()
     }
@@ -198,6 +214,7 @@ impl NockStack {
         if self.is_west() {
             self.struct_alloc_in_prev_frame_west(count)
         } else {
+
             self.struct_alloc_in_prev_frame_east(count)
         }
     }
@@ -371,6 +388,8 @@ unsafe fn senior_pointer_first<T>(
 }
 
 impl NounAllocator for NockStack {
+    //TODO a fn called alloc_indirect that just calls one called indirect_alloc
+    // seems a little confusing but i don't have a better idea yet
     unsafe fn alloc_indirect(&mut self, words: usize) -> *mut u64 {
         self.indirect_alloc(words)
     }
