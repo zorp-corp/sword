@@ -122,13 +122,14 @@ impl NockStack {
     #[inline]
     pub unsafe fn in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
-        match self.is_west() {
-            true  => ptr_u64 >= self.alloc_pointer
+        if self.is_west() {
+            ptr_u64 >= self.alloc_pointer
                 && ptr_u64 <= *self.prev_frame_pointer_pointer_west()
-                && todo!(), //TODO check that this isnt pointing to the middle of an allocated object
-            false => ptr_u64 <= self.alloc_pointer
+                && todo!() //TODO check that this isnt pointing to the middle of an allocated object
+        } else {
+            ptr_u64 <= self.alloc_pointer
                 && ptr_u64 >= *self.prev_frame_pointer_pointer_east()
-                && todo!(), //TODO check that this isnt pointing to the middle of an allocated object
+                && todo!() //TODO check that this isnt pointing to the middle of an allocated object
         }
     }
 
@@ -144,9 +145,10 @@ impl NockStack {
 
     /** Mutable pointer to a slot in a stack frame */
     unsafe fn slot_pointer(&mut self, slot: usize) -> *mut u64 {
-        match self.is_west() {
-            true  => self.slot_pointer_west(slot),
-            false => self.slot_pointer_east(slot),
+        if self.is_west() {
+            self.slot_pointer_west(slot)
+        } else {
+            self.slot_pointer_east(slot)
         }
     }
 
@@ -193,9 +195,10 @@ impl NockStack {
     }
 
     pub unsafe fn struct_alloc_in_prev_frame<T>(&mut self, count: usize) -> *mut T {
-        match self.is_west() {
-            true  => self.struct_alloc_in_prev_frame_west(count),
-            false => self.struct_alloc_in_prev_frame_east(count),
+        if self.is_west() {
+            self.struct_alloc_in_prev_frame_west(count)
+        } else {
+            self.struct_alloc_in_prev_frame_east(count)
         }
     }
 
@@ -228,9 +231,10 @@ impl NockStack {
 
     /** Allocate space for an indirect pointer in a stack frame */
     unsafe fn indirect_alloc(&mut self, words: usize) -> *mut u64 {
-        match self.is_west() {
-            true  => self.indirect_alloc_west(words),
-            false => self.indirect_alloc_east(words),
+        if self.is_west() {
+            self.indirect_alloc_west(words)
+        } else {
+            self.indirect_alloc_east(words)
         }
     }
 
@@ -246,9 +250,10 @@ impl NockStack {
 
     /** Allocate space for a struct in a stack frame */
     pub unsafe fn struct_alloc<T>(&mut self, count: usize) -> *mut T {
-        match self.is_west() {
-            true  => self.struct_alloc_west::<T>(count),
-            false => self.struct_alloc_east::<T>(count),
+        if self.is_west() {
+            self.struct_alloc_west::<T>(count)
+        } else {
+            self.struct_alloc_east::<T>(count)
         }
     }
 
@@ -293,9 +298,10 @@ impl NockStack {
     }
 
     pub unsafe fn pop(&mut self) {
-        match self.is_west() {
-            true  => self.pop_west(),
-            false => self.pop_east(),
+        if self.is_west() {
+            self.pop_west()
+        } else {
+            self.pop_east()
         }
     }
 
@@ -344,9 +350,10 @@ impl NockStack {
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
     pub unsafe fn push(&mut self, num_locals: usize) {
-        match self.is_west() {
-            true  => self.push_west(num_locals),
-            false => self.push_east(num_locals),
+        if self.is_west() {
+            self.push_west(num_locals)
+        } else {
+            self.push_east(num_locals)
         }
     }
 
