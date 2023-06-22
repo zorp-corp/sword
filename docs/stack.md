@@ -33,6 +33,8 @@ When an indirect atom is copied from one stack frame to another, its size is rep
 forwarding pointer. When a cell is copied from one stack frame to another, its
 head is replaced with a forwarding pointer.
 
+The tag for a forwarding pointer is 111.
+
 ## Memory Layout
 
 Computation proceeds in a memory arena, using two stacks growing towards each other from opposite ends.
