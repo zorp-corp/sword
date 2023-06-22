@@ -77,12 +77,14 @@ pub fn interpret(
     formula: Noun,
 ) -> Noun {
     let mut res = unsafe { DirectAtom::new_unchecked(0).as_atom().as_noun() };
-    stack.frame_push(1);
     let mut cache = Hamt::<Noun>::new();
+
+    stack.frame_push(1);
     unsafe {
         *(stack.local_noun_pointer(0)) = work_to_noun(Done);
     }
     push_formula(stack, formula);
+    
     assert_no_alloc(|| unsafe {
         loop {
             match noun_to_work(*(stack.local_noun_pointer(0))) {
@@ -709,11 +711,15 @@ fn match_hint_pre_nock(
             } else {
                 println!("raw slog: {} {}", pri, tank);
             }
-
-            None
         }
-        _ => None,
+        tas!(b"spot") => {
+            let trace = Cell::new(stack, tag.as_noun(), res).as_noun();
+            stack.trace_push(trace);
+        }
+        _ => {}
     }
+
+    None
 }
 
 /** Match static and dynamic hints after the nock formula is evaluated */
@@ -733,8 +739,13 @@ fn match_hint_post_nock(
             let formula = unsafe { *stack.local_noun_pointer(2) };
             let mut key = Cell::new(stack, subject, formula).as_noun();
             *cache = cache.insert(stack, &mut key, res);
-            None
         }
-        _ => None,
+        tas!(b"spot") => {
+            // In the future, we should only do this if 11 is not in tail position
+            stack.trace_pop();
+        }
+        _ => {}
     }
+
+    None
 }
