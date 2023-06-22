@@ -11,25 +11,27 @@ By treating a 0 MSB as the tag for a direct atom, we can compute directly with d
 | MSBs | Noun                  |
 |------|-----------------------|
 | 0    | Direct Atom           |
-| 10   | Cell Pointer          |
-| 110  | Indirect Atom Pointer |
+| 10   | Indirect Atom Pointer |
+| 110  | Cell Pointer          |
 
 
 A direct atom is an atom which fits in a machine word, less one bit for the tag. It is stored directly.
 
-An indirect atom is an atom which is too big to be a direct atom.
-It is thus represented as a tagged pointer.
-The memory referenced is at least 64-bit aligned.
-The first 64 bits are the size of the atom in bytes.
-This is followed by that number of bytes containing the atom in little-endian order.
+An indirect atom is an atom which is too big to be a direct atom. It is thus represented as a tagged
+pointer. The memory referenced is 64-bit aligned. The first 64 bits are metadata, followed by the 
+size in 64-bit words, then the actual value of the atom, whose number of words
+is equal to the size in little-endian order. The metadata field is primarily used for
+the mug. The first three bits of the size are reserved for a possible forwarding pointer tag.
 
-A cell is represented as a tagged pointer.
-The memory referenced is adjacent machine words.
-The machine word at the pointer is the noun representation of the head (left side/first) of the cell.
-The machine word directly following (higher in memory) is the noun representation of the tail (right side/second) of the cell.
+A cell is represented as a tagged pointer. The memory referenced is adjacent machine words.
+The machine word at the pointer is metadata. The machine word directly following (higher in memory)
+is the noun representation of the head, followed by the noun representation of the tail. The metadata
+field is primarily used for the mug.
 
 During collection the memory for indirect atoms and cells may be rewritten to indicate a _forwarding pointer_.
-This is discussed further in the "Memory Layout" section.
+When an indirect atom is copied from one stack frame to another, its size is replaced with a
+forwarding pointer. When a cell is copied from one stack frame to another, its
+head is replaced with a forwarding pointer.
 
 ## Memory Layout
 
