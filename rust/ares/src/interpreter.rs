@@ -84,7 +84,7 @@ pub fn interpret(
         *(stack.local_noun_pointer(0)) = work_to_noun(Done);
     }
     push_formula(stack, formula);
-    
+
     assert_no_alloc(|| unsafe {
         loop {
             match noun_to_work(*(stack.local_noun_pointer(0))) {
@@ -712,7 +712,7 @@ fn match_hint_pre_nock(
                 println!("raw slog: {} {}", pri, tank);
             }
         }
-        tas!(b"spot") => {
+        tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
             let trace = Cell::new(stack, tag.as_noun(), res).as_noun();
             stack.trace_push(trace);
         }
@@ -740,7 +740,7 @@ fn match_hint_post_nock(
             let mut key = Cell::new(stack, subject, formula).as_noun();
             *cache = cache.insert(stack, &mut key, res);
         }
-        tas!(b"spot") => {
+        tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
             // In the future, we should only do this if 11 is not in tail position
             stack.trace_pop();
         }
