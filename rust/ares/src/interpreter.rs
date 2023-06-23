@@ -87,6 +87,7 @@ pub fn interpret(
         loop {
             match noun_to_work(*(stack.local_noun_pointer(0))) {
                 Done => {
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -106,6 +107,7 @@ pub fn interpret(
                 NockCellCons => {
                     let head = *stack.local_noun_pointer(1);
                     res = Cell::new(stack, head, res).as_noun();
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -113,6 +115,7 @@ pub fn interpret(
                 Nock0Axis => {
                     if let Ok(atom) = (*(stack.local_noun_pointer(1))).as_atom() {
                         res = slot(subject, atom.as_bitslice());
+                        stack.pre_copy();
                         stack.preserve(&mut cache);
                         stack.preserve(&mut res);
                         stack.pop();
@@ -122,6 +125,7 @@ pub fn interpret(
                 }
                 Nock1Constant => {
                     res = *(stack.local_noun_pointer(1));
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -145,6 +149,7 @@ pub fn interpret(
                 }
                 Nock2RestoreSubject => {
                     subject = *(stack.local_noun_pointer(2));
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -160,6 +165,7 @@ pub fn interpret(
                     } else {
                         DirectAtom::new_unchecked(1).as_atom().as_noun()
                     };
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -172,6 +178,7 @@ pub fn interpret(
                 Nock4Increment => {
                     if let Ok(atom) = res.as_atom() {
                         res = inc(stack, atom).as_noun();
+                        stack.pre_copy();
                         stack.preserve(&mut cache);
                         stack.preserve(&mut res);
                         stack.pop();
@@ -197,6 +204,7 @@ pub fn interpret(
                     } else {
                         DirectAtom::new_unchecked(1).as_atom().as_noun()
                     };
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -223,6 +231,7 @@ pub fn interpret(
                     }
                 }
                 Nock6Done => {
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -241,6 +250,7 @@ pub fn interpret(
                 }
                 Nock7RestoreSubject => {
                     subject = *(stack.local_noun_pointer(1));
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -259,6 +269,7 @@ pub fn interpret(
                 }
                 Nock8RestoreSubject => {
                     subject = *(stack.local_noun_pointer(1));
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -280,6 +291,7 @@ pub fn interpret(
                 }
                 Nock9RestoreSubject => {
                     subject = *(stack.local_noun_pointer(2));
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
@@ -299,6 +311,7 @@ pub fn interpret(
                     if let Ok(edit_axis) = (*stack.local_noun_pointer(1)).as_atom() {
                         let tree = *stack.local_noun_pointer(3);
                         res = edit(stack, edit_axis.as_bitslice(), res, tree);
+                        stack.pre_copy();
                         stack.preserve(&mut cache);
                         stack.preserve(&mut res);
                         stack.pop();
@@ -314,6 +327,7 @@ pub fn interpret(
                             match_pre_hint(stack, newt, subject, hint_cell, formula, &cache)
                         {
                             res = found;
+                            stack.pre_copy();
                             stack.preserve(&mut cache);
                             stack.preserve(&mut res);
                             stack.pop();
@@ -329,6 +343,7 @@ pub fn interpret(
                     let hint = *stack.local_noun_pointer(1);
                     if let Ok(found) = match_post_hint(stack, newt, subject, hint, res) {
                         res = found;
+                        stack.pre_copy();
                         stack.preserve(&mut cache);
                         stack.preserve(&mut res);
                         stack.pop();
@@ -341,6 +356,7 @@ pub fn interpret(
                 Nock11Done => {
                     let hint = *stack.local_noun_pointer(1);
                     let _ = match_post_hinted(stack, subject, hint, res, &mut cache);
+                    stack.pre_copy();
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();

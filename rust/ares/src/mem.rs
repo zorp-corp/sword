@@ -214,7 +214,6 @@ impl NockStack {
         if self.is_west() {
             self.struct_alloc_in_prev_frame_west(count)
         } else {
-
             self.struct_alloc_in_prev_frame_east(count)
         }
     }
@@ -294,11 +293,36 @@ impl NockStack {
      * location.
      */
 
+    /** Before copying allocations from child to parent frame, we need to save the reserved pointers. */
+    unsafe fn pre_copy_east(&mut self) {
+        *(self.alloc_pointer.sub(1)) = *(self.prev_frame_pointer_pointer_east()) as u64;
+        *(self.alloc_pointer.sub(2)) = *(self.prev_alloc_pointer_pointer_east()) as u64;
+    }
+
+    /** Before copying allocations from child to parent frame, we need to save the reserved pointers. */
+    unsafe fn pre_copy_west(&mut self) {
+        *(self.alloc_pointer) = *(self.prev_frame_pointer_pointer_west()) as u64;
+        *(self.alloc_pointer.add(1)) = *(self.prev_frame_pointer_pointer_west()) as u64;
+    }
+
+    pub unsafe fn pre_copy(&mut self) {
+        if self.is_west() {
+            self.pre_copy_west()
+        } else {
+            self.pre_copy_east()
+        }
+    }
+
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
+        let noun_ptr = noun as *mut Noun;
+
         todo!()
     }
 
+
     unsafe fn copy_west(&mut self, noun: &mut Noun) {
+        let noun_ptr = noun as *mut Noun;
+
         todo!()
     }
 
