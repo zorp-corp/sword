@@ -313,6 +313,12 @@ impl NockStack {
         }
     }
 
+    pub unsafe fn restore_frame(&mut self) {
+        //TODO set frame and alloc pointer to what was saved in pre_copy
+        //TODO this should probably just be part of pop(), or at least called during pop()
+        todo!()
+    }
+
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         let noun_ptr = noun as *mut Noun;
 
