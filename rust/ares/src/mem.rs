@@ -325,11 +325,142 @@ impl NockStack {
         todo!()
     }
 
+    /**  Lightweight stacks
+      A lightweight stack for traversing nouns can be implemented by initializing a slot in the frame
+      to the frame pointer. This slot can then be incremented by word (to push on west or pop on east)
+      or decremented by word (to pop on west or push on east), since the frame is adjacent to free memory.
+      Stack nullity can be tested by comparing the slot to the frame pointer.
+
+
+      if the lightweight stack is occupying slots adjacent to the frame, couldn't it be overwritten when
+      copying a noun from a child frame to a parent frame? here's a quick graphic illustrating what
+      i mean, hope it makes sense:
+
+
+      key: --- senior memory
+            |  boundaries of stack frame (prev frame and prev alloc pointers)
+            x  frame-pointer relative slots
+            F  frame pointer
+            o  free memory
+            A  allocation pointer
+            y  allocations
+            L  lightweight noun traversal stack
+
+
+      ----|xxFoooooooooAyyyyyyy|----  initial state
+      ----|xxFLooooooooAyyyyyyy|----  noun traversal stack initialized
+      ----|yyFLooooooooAyyyyyyy|----  noun copying to previous stack frame in progress
+      ----|yyyyyyooooooAyyyyyyy|----  noun is so big it overwrites the lightweight stack
+
+    This is an attempt to implement this with the lightweight stack next to the frame_pointer anyways,
+    but maybe it needs to be done next to the allocations of the current frame instead.
+    */
 
     unsafe fn copy_west(&mut self, noun: &mut Noun) {
-        let noun_ptr = noun as *mut Noun;
+        let noun_ptr = noun as *mut Noun; // coerce &mut into *mut
 
-        todo!()
+        // lightweight stack starts at the edge of the frame
+        let work_start = self.frame_pointer;
+        // location to which allocations are made
+        let mut other_alloc_pointer = *(self.alloc_pointer.sub(2)) as *mut u64; // from pre_copy_west
+        // used for determining whether an allocation is in the current frame
+        let other_frame_pointer = *(self.alloc_pointer.sub(1)) as *const u64; // from pre_copy_west
+        // add two slots to the frame for the lightweight stack
+        self.frame_pointer = self.frame_pointer.add(2);
+        // set the first new slot to the noun to be copied
+        *(self.frame_pointer.sub(2) as *mut Noun) = *noun;
+        // set the second new slot a pointer to the noun being copied. this is the destination pointer, which will change when we copy
+        *(self.frame_pointer.sub(1) as *mut *mut Noun) = noun_ptr;
+
+        loop {
+            if self.frame_pointer == work_start {
+                break;
+            }
+
+            // Pop a noun to copy from the stack
+            let next_noun = *(self.frame_pointer.sub(2) as *const Noun);
+            let next_dest = *(self.frame_pointer.sub(1) as *const *mut Noun);
+            self.frame_pointer = self.frame_pointer.sub(2);
+
+            // If it's a direct atom, just write it to the destination.
+            // Otherwise, we have allocations to make
+            match next_noun.as_either_direct_allocated() {
+                Either::Left(_direct) => {
+                    *next_dest = next_noun;
+                }
+                Either::Right(allocated) => {
+                    // If it's an allocated noun with a forwarding pointer, just write the
+                    // noun resulting from the forwarding pointer to the destination
+                    //
+                    // Otherwise, we have to allocate space for and copy the allocated noun
+                    match allocated.forwarding_pointer() {
+                        Option::Some(new_allocated) => {
+                            // The next destination is set to the new location of the atom
+                            *next_dest = new_allocated.as_noun();
+                        }
+                        Option::None => {
+                            if (allocated.to_raw_pointer() as *const u64) < other_frame_pointer
+                                && (allocated.to_raw_pointer() as *const u64) >= self.alloc_pointer
+                            {
+                                match allocated.as_either() {
+                                    Either::Left(mut indirect) => {
+                                        // Make space for an indirect atom
+                                        let new_indirect_alloc = other_alloc_pointer;
+                                        other_alloc_pointer =
+                                            other_alloc_pointer.add(indirect_raw_size(indirect));
+
+                                        // Indirect atoms can be copied directly
+                                        copy_nonoverlapping(
+                                            indirect.to_raw_pointer(),
+                                            new_indirect_alloc,
+                                            indirect_raw_size(indirect),
+                                        );
+
+                                        // Set a forwarding pointer so we don't create duplicates from other
+                                        // references
+                                        indirect.set_forwarding_pointer(new_indirect_alloc);
+
+                                        *next_dest =
+                                            IndirectAtom::from_raw_pointer(new_indirect_alloc)
+                                                .as_noun();
+                                    }
+                                    Either::Right(mut cell) => {
+                                        // Make space for the cell
+                                        let new_cell_alloc = other_alloc_pointer as *mut CellMemory;
+                                        other_alloc_pointer =
+                                            other_alloc_pointer.add(word_size_of::<CellMemory>());
+
+                                        // Copy the cell metadata
+                                        (*new_cell_alloc).metadata =
+                                            (*cell.to_raw_pointer()).metadata;
+
+                                        // Push the tail and the head to the work stack
+                                        *(self.frame_pointer as *mut Noun) = cell.tail();
+                                        *(self.frame_pointer.add(1) as *mut *mut Noun) =
+                                            &mut (*new_cell_alloc).tail;
+                                        *(self.frame_pointer.add(2) as *mut Noun) = cell.head();
+                                        *(self.frame_pointer.add(3) as *mut *mut Noun) =
+                                            &mut (*new_cell_alloc).head;
+
+                                        self.frame_pointer = self.frame_pointer.add(4);
+
+                                        // Set the forwarding pointer
+                                        cell.set_forwarding_pointer(new_cell_alloc);
+
+                                        *next_dest =
+                                            Cell::from_raw_pointer(new_cell_alloc).as_noun();
+                                    }
+                                }
+                            } else {
+                                *next_dest = allocated.as_noun();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        *(self.alloc_pointer.sub(2)) = other_alloc_pointer as u64;
+        assert_acyclic!(*noun);
     }
 
     pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
