@@ -295,14 +295,14 @@ impl NockStack {
 
     /** Before copying allocations from child to parent frame, we need to save the reserved pointers. */
     unsafe fn pre_copy_east(&mut self) {
-        *(self.alloc_pointer.sub(1)) = *(self.prev_frame_pointer_pointer_east()) as u64;
-        *(self.alloc_pointer.sub(2)) = *(self.prev_alloc_pointer_pointer_east()) as u64;
+        *(self.alloc_pointer) = *(self.prev_frame_pointer_pointer_east()) as u64;
+        *(self.alloc_pointer.add(1)) = *(self.prev_alloc_pointer_pointer_east()) as u64;
     }
 
     /** Before copying allocations from child to parent frame, we need to save the reserved pointers. */
     unsafe fn pre_copy_west(&mut self) {
-        *(self.alloc_pointer) = *(self.prev_frame_pointer_pointer_west()) as u64;
-        *(self.alloc_pointer.add(1)) = *(self.prev_frame_pointer_pointer_west()) as u64;
+        *(self.alloc_pointer.sub(1)) = *(self.prev_frame_pointer_pointer_west()) as u64;
+        *(self.alloc_pointer.sub(2)) = *(self.prev_alloc_pointer_pointer_west()) as u64;
     }
 
     pub unsafe fn pre_copy(&mut self) {
