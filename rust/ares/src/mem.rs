@@ -13,11 +13,12 @@ use std::ptr::copy_nonoverlapping;
 crate::gdb!();
 
 /** Number of reserved slots for alloc_pointer and frame_pointer in each frame */
-pub const RESERVED: usize = 2;
+pub const RESERVED: usize = 3;
 
 /** Word offsets for alloc and frame pointers  */
 pub const FRAME: usize = 0;
-pub const ALLOC: usize = 1;
+pub const STACK: usize = 1;
+pub const ALLOC: usize = 2;
 
 /**  Utility function to get size in words */
 pub const fn word_size_of<T>() -> usize {
@@ -42,6 +43,8 @@ pub struct NockStack {
     size: usize,
     /** Base pointer for the current stack frame. Accesses to slots are computed from this base. */
     frame_pointer: *mut u64,
+    /** Stack pointer for the current stack frame. */
+    stack_pointer: *mut u64,
     /** Alloc pointer for the current stack frame. */
     alloc_pointer: *mut u64,
     /** MMap which must be kept alive as long as this NockStack is */
@@ -63,15 +66,18 @@ impl NockStack {
         let start = memory.as_ptr() as *const u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
         let frame_pointer = memory.as_mut_ptr() as *mut u64;
+        let stack_pointer = unsafe { frame_pointer.add(top_slots + RESERVED) };
         let alloc_pointer = unsafe { frame_pointer.add(size) };
         unsafe {
-            *frame_pointer = ptr::null::<u64>() as u64;  // "frame pointer" from "previous" frame
-            *frame_pointer.add(ALLOC) = start as u64;    // "alloc pointer" from "previous" frame
+            *frame_pointer = ptr::null::<u64>() as u64;            // "frame pointer" from "previous" frame
+            *frame_pointer.add(STACK) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame TODO is this right?
+            *frame_pointer.add(ALLOC) = start as u64;              // "alloc pointer" from "previous" frame
         };
         NockStack {
             start,
             size,
             frame_pointer,
+            stack_pointer,
             alloc_pointer,
             memory,
         }
@@ -175,6 +181,16 @@ impl NockStack {
     /** Pointer to where the previous (east) frame pointer is saved in an west frame */
     unsafe fn prev_frame_pointer_pointer_west(&mut self) -> *mut *mut u64 {
         self.slot_pointer_west(FRAME) as *mut *mut u64
+    }
+
+    /** Pointer to where the previous (west) stack pointer is saved in an east frame */
+    unsafe fn prev_stack_pointer_pointer_east(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_east(STACK) as *mut *mut u64
+    }
+
+    /** Pointer to where the previous (east) stack pointer is saved in an west frame */
+    unsafe fn prev_stack_pointer_pointer_west(&mut self) -> *mut *mut u64 {
+        self.slot_pointer_west(STACK) as *mut *mut u64
     }
 
     /**  Allocation
@@ -296,13 +312,15 @@ impl NockStack {
     /** Before copying allocations from child to parent frame, we need to save the reserved pointers. */
     unsafe fn pre_copy_east(&mut self) {
         *(self.alloc_pointer) = *(self.prev_frame_pointer_pointer_east()) as u64;
-        *(self.alloc_pointer.add(1)) = *(self.prev_alloc_pointer_pointer_east()) as u64;
+        *(self.alloc_pointer.add(1)) = *(self.prev_stack_pointer_pointer_east()) as u64;
+        *(self.alloc_pointer.add(2)) = *(self.prev_alloc_pointer_pointer_east()) as u64;
     }
 
     /** Before copying allocations from child to parent frame, we need to save the reserved pointers. */
     unsafe fn pre_copy_west(&mut self) {
         *(self.alloc_pointer.sub(1)) = *(self.prev_frame_pointer_pointer_west()) as u64;
-        *(self.alloc_pointer.sub(2)) = *(self.prev_alloc_pointer_pointer_west()) as u64;
+        *(self.alloc_pointer.sub(2)) = *(self.prev_stack_pointer_pointer_west()) as u64;
+        *(self.alloc_pointer.sub(3)) = *(self.prev_alloc_pointer_pointer_west()) as u64;
     }
 
     pub unsafe fn pre_copy(&mut self) {
@@ -501,13 +519,19 @@ impl NockStack {
      */
     unsafe fn push_west(&mut self, num_locals: usize) {
         let current_frame_pointer = self.frame_pointer;
+        let current_stack_pointer = self.stack_pointer;
         let current_alloc_pointer = self.alloc_pointer;
-        self.alloc_pointer = current_frame_pointer;
-        self.frame_pointer = current_alloc_pointer.sub(num_locals + RESERVED);
-        //TODO should I use slot_pointer() here? I think doing so might be confusing since this
-        // is happening in the middle of pushing a new frame.
+
+        self.alloc_pointer = current_stack_pointer;
+        self.stack_pointer = current_alloc_pointer;
+        self.frame_pointer = self.stack_pointer;
+
         *(self.frame_pointer.sub(1)) = current_frame_pointer as u64;
-        *(self.frame_pointer.sub(2)) = current_alloc_pointer as u64;
+        *(self.frame_pointer.sub(2)) = current_stack_pointer as u64;
+        *(self.frame_pointer.sub(3)) = current_alloc_pointer as u64;
+
+        self.frame_pointer = self.frame_pointer.sub(num_locals + RESERVED);
+        self.stack_pointer = self.stack_pointer.sub(num_locals + RESERVED);
     }
 
     /** Push a frame onto the west stack with 0 or more local variable slots.
@@ -517,13 +541,19 @@ impl NockStack {
      */
     unsafe fn push_east(&mut self, num_locals: usize) {
         let current_frame_pointer = self.frame_pointer;
+        let current_stack_pointer = self.stack_pointer;
         let current_alloc_pointer = self.alloc_pointer;
-        self.alloc_pointer = current_frame_pointer;
-        self.frame_pointer = current_alloc_pointer.add(num_locals + RESERVED);
-        //TODO should I use slot_pointer() here? I think doing so might be confusing since this
-        // is happening in the middle of pushing a new frame
-        *self.frame_pointer = current_frame_pointer as u64;
-        *(self.frame_pointer.add(1)) = current_alloc_pointer as u64;
+
+        self.alloc_pointer = current_stack_pointer;
+        self.stack_pointer = current_alloc_pointer;
+        self.frame_pointer = self.stack_pointer;
+
+        *(self.frame_pointer) = current_frame_pointer as u64;
+        *(self.frame_pointer.add(1)) = current_stack_pointer as u64;
+        *(self.frame_pointer.add(2)) = current_alloc_pointer as u64;
+
+        self.frame_pointer = self.frame_pointer.sub(num_locals + RESERVED);
+        self.stack_pointer = self.stack_pointer.sub(num_locals + RESERVED);
     }
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
@@ -532,6 +562,25 @@ impl NockStack {
             self.push_west(num_locals)
         } else {
             self.push_east(num_locals)
+        }
+    }
+
+    /** Push onto the lightweight stack in a west frame, moving the stack_pointer */
+    unsafe fn lightweight_push_west(&mut self) {
+        todo!()
+    }
+
+    /** Push onto the lightweight stack in an east frame, moving the stack_pointer */
+    unsafe fn lightweight_push_east(&mut self) {
+        todo!()
+    }
+
+    /** Push onto the lightweight stack, moving the stack_pointer */
+    unsafe fn lightweight_push(&mut self) {
+        if self.is_west() {
+            self.lightweight_push_west()
+        } else {
+            self.lightweight_push_east()
         }
     }
 }
