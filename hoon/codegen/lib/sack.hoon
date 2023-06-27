@@ -6,7 +6,6 @@
 ::  mite -> calls not yet analyzed
 |_  moan=(jar * hone)
 ::  analyze a subject and formula
-::  XX todo rewrite for stateful core
 ++  rout
   |=  [soot=sock form=*]
   ^-  _moan
@@ -178,10 +177,10 @@
         (~(uni ca sake) folk)
       ::
           %the
-        $(code pell.code, rake ~(any ca rake))
+        $(code pell.code, rake ~(any ca rake))  :: XX rake should just be %|
       ::
           %for
-        $(code mall.code, rake ~(any ca rake))
+        $(code mall.code, rake ~(any ca rake))  :: XX rake should just be %|
       ::
           %ivy
         =^  lake  moot  $(code this.code, rake ~(any ca rake))
@@ -190,7 +189,7 @@
         (~(uni ca lake) rare)
       ::
           %six
-        =^  cake  moot  $(code then.code, rake |)
+        =^  cake  moot  $(code what.code, rake |)
         =^  lake  moot  $(code then.code)
         =^  rare  moot  $(code else.code)
         :_  moot
@@ -281,7 +280,7 @@
           $(soda [[%& what.code] [%& then.code] [%& else.code] [%| six] t.soda])
         ::
             %eve
-          $(soda [[%& once.code] [%| %eve] [%& then.code] [%| vee] t.soda])
+          $(soda [[%& once.code] [%| %eve] [%& then.code] [%| %vee] t.soda])
         ::
             %ten
           ?:  =(0 here.code)  $(soda t.soda, salt [[| ~] salt])
@@ -416,8 +415,8 @@
     ?^  mile
       =/  mill  i.mile
       =/  [mail=(unit hail) soot=sock form=(unit)]
-        [sire soot form]:(~(got by mootm) mill)
-      =/  mole  (~(get ja moanm) form)
+        [sire soot form]:(~(got by moot) mill)
+      =/  mole  (~(get ja moan) form)
       |-  ^-  [(list @hail) _this]
       ?^  mole
         ?:  (~(huge so soot.i.mole) soot)  ^$(mile t.mile)
@@ -457,7 +456,7 @@
     ?>  ?=(^ norm.hood)
     =.  moan  
       %+  ~(put ja moan) u.form.hood
-      [soot.hood (food u.norm.hood pool) root.hood]
+      [soot.hood (cook u.norm.hood pool) root.hood]
     =/  next  ~(tap in (~(get ju kids) i.done))
     ?~  next
       $(done t.done)
