@@ -620,7 +620,7 @@
       %3  [%both [%none ~] $(here (mas axe))]
     ==
   --
-::  generate register relation maps and re-registerize calls
+::  re-registerize calls
 ++  cure
   |=  [pill=pile late=(set @bile)]
   ^-  pile
@@ -929,7 +929,7 @@
             %bom  ~
           ==
         ~(has in done)
-      $(fore t.fore, back [i.fore back])
+      $(fore t.fore)
     =.  done  (~(put in done) i.fore)
     =/  uses  
       %+  ~(gas in (~(get ju used) i.fore))
@@ -940,7 +940,7 @@
         %hop  ~
         %lnk  ~[+<.bend.bulb +>-.bend.bulb]
         %cal  +>-.bend.bulb
-        %lnt  ~[+<.bend.bulb]
+        %lnt  ~[+<.bend.bulb] :: XX should be two
         %jmp  +>.bend.bulb
         %spy  ~[+<.bend.bulb +>-.bend.bulb]
         %hin  ~[+<.bend.bulb]
@@ -995,7 +995,7 @@
       =.  used
         (~(gas in used) (turn ~(tap in uses) |=(u=@stir [i.fore stir])))
       =.  will  (~(put by will) i.fore [body bend.bulb])
-      ^$(fore t.fore)
+      ^$(fore t.fore, back [i.next back])
     =.  back  (weld next back)
     |-  ^-  (jug bile @stir)
     ?^  next
