@@ -1,12 +1,5 @@
+/-  *sock
 |%
-::    mask
-::
-::  describes which axes of a noun are known
-::  but does not include the noun
-+$  cape  $@(? [cape cape])
-::      sock
-::    describes knowledge of a noun
-+$  sock  [=cape data=*]
 ::    in-progress call table entry
 ::
 ::  soot: subject knowledge
@@ -45,6 +38,12 @@
       [%sip hint=@ then=nomm]               :: Nock 11 (static)
       [%tip hint=@ vice=nomm then=nomm]     :: Nock 11 (dynamic)
       [%elf rent=nomm walk=nomm]            :: "Nock 12"
+  ==
++$  toms
+  $@  $?(%par %wot %the %for %ivy %six %eve %vee %elf %wot)
+  $%  [%two rail=@hail]
+      [%ten here=@]
+      [%tip hint=@]
   ==
 +$  food
   [=nomm ices=(map @hail [=sock form=*])]
