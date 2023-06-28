@@ -160,6 +160,24 @@ impl NockStack {
         }
     }
 
+    /** Mutable pointer into a slot in free space east of allocation pointer */
+    unsafe fn free_slot_east(&mut self, slot: usize) -> *mut u64 {
+        self.alloc_pointer.add(slot)
+    }
+
+    /** Mutable pointer into a slot in free space west of allocation pointer */
+    unsafe fn free_slot_west(&mut self, slot: usize) -> *mut u64 {
+        self.alloc_pointer.sub(slot + 1)
+    }
+
+    unsafe fn free_slot(&mut self, slot: usize) -> *mut u64 {
+        if self.is_west() {
+            self.free_slot_west(slot)
+        } else {
+            self.free_slot_east(slot)
+        }
+    }
+
     /** Pointer to a local slot typed as Noun */
     pub unsafe fn local_noun_pointer(&mut self, local: usize) -> *mut Noun {
         self.slot_pointer(local + RESERVED) as *mut Noun
@@ -494,11 +512,11 @@ impl NockStack {
         x.preserve(self)
     }
 
-    /**   Pushing
-     * When pushing, we swap the allocation and frame pointers, then add (when pushing a west frame
-     * onto an east frame) or subtract (when pushing an east frame onto a west frame) the appropriate
-     * number of slots (plus two for previous pointers) to the frame pointer. We then store the
-     * original pointers into the appropriate slots in the frame
+    /**  Pushing
+     *  When pushing, we swap the stack and alloc pointers, set the frame pointer to be the stack
+     *  pointer, move both frame and stack pointer by number of locals (eastward for west frames,
+     *  westward for east frame), and then save the old stack/frame/alloc pointers in slots
+     *  adjacent to the frame pointer.
      */
 
     /** Push a frame onto the east stack with 0 or more local variable slots.
