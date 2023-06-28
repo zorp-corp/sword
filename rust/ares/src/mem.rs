@@ -86,6 +86,8 @@ impl NockStack {
     }
 
     /** Checks if the current stack frame has West polarity */
+    //TODO the interpreter won't know when this invariant is violated unless
+    // stack_pointer == alloc_pointer, for that we should implement a guard page
     #[inline]
     fn is_west(&self) -> bool {
         if self.stack_pointer < self.alloc_pointer {
@@ -366,8 +368,7 @@ impl NockStack {
     }
 
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
-        let noun_ptr = noun as *mut Noun;
-
+        //TODO will do once we decide copy_west() is correct
         todo!()
     }
 
