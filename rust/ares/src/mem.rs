@@ -232,6 +232,24 @@ impl NockStack {
      * pointer is saved in a temporary, then the allocation size added to it, and finally the original
      * allocation pointer is returned as the pointer to the newly allocated memory. */
 
+    pub unsafe fn save_alloc_pointer_to_stack(&mut self) {
+        if self.is_west() {
+            self.save_alloc_pointer_to_stack_west()
+        } else {
+            self.save_alloc_pointer_to_stack_east()
+        }
+    }
+
+    unsafe fn save_alloc_pointer_to_stack_west(&mut self) {
+        *(self.stack_pointer) = self.alloc_pointer as u64;
+        self.stack_push(1);
+    }
+
+    unsafe fn save_alloc_pointer_to_stack_east(&mut self) {
+        self.stack_push(1);
+        *(self.stack_pointer) = self.alloc_pointer as u64;
+    }
+
     unsafe fn alloc_in_prev_frame_west<T>(&mut self) -> *mut T {
         todo!()
     }
@@ -317,6 +335,22 @@ impl NockStack {
         } else {
             self.struct_alloc_east::<T>(count)
         }
+    }
+
+    unsafe fn stack_top<T>(&mut self) -> *mut T {
+        if self.is_west() {
+            self.stack_top_west()
+        } else {
+            self.stack_top_east()
+        }
+    }
+
+    unsafe fn stack_top_west<T>(&mut self) -> *mut T {
+        self.stack_pointer.sub(word_size_of::<T>()) as *mut T
+    }
+
+    unsafe fn stack_top_east<T>(&mut self) -> *mut T {
+        self.stack_pointer as *mut T
     }
 
     /** Allocate space for an alloc::Layout in a stack frame */
@@ -574,27 +608,125 @@ impl NockStack {
     }
 
     /** Push onto the lightweight stack in a west frame, moving the stack_pointer */
-    unsafe fn lightweight_push_west(&mut self) {
-        todo!()
+    unsafe fn stack_push_west(&mut self, num_slots: usize) {
+        self.stack_pointer = self.stack_pointer.add(num_slots);
     }
 
     /** Push onto the lightweight stack in an east frame, moving the stack_pointer */
-    unsafe fn lightweight_push_east(&mut self) {
-        todo!()
+    unsafe fn stack_push_east(&mut self, num_slots: usize) {
+        self.stack_pointer = self.stack_pointer.sub(num_slots);
     }
 
     /** Push onto the lightweight stack, moving the stack_pointer */
-    unsafe fn lightweight_push(&mut self) {
+    pub unsafe fn stack_push(&mut self, num_slots: usize) {
         if self.is_west() {
-            self.lightweight_push_west()
+            self.stack_push_west(num_slots);
         } else {
-            self.lightweight_push_east()
-        }
+            self.stack_push_east(num_slots);
+        };
     }
 }
 
 pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
-    todo!()
+    // If the nouns are already word-equal we have nothing to do
+    if (*a).raw_equals(*b) {
+        return true;
+    };
+    // If the nouns have cached mugs which are unequal we have nothing to do
+    if let (Ok(a_alloc), Ok(b_alloc)) = ((*a).as_allocated(), (*b).as_allocated()) {
+        if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug()) {
+            if a_mug != b_mug {
+                return false;
+            };
+        };
+    };
+    stack.stack_push(1);
+    stack.save_alloc_pointer_to_stack();
+    *(stack.struct_alloc::<(*mut Noun, *mut Noun)>(1)) = (a, b);
+    loop {
+        if todo!("break condition something to do with allocation pointer") {
+            break;
+        };
+        let (x, y): (*mut Noun, *mut Noun) = *(stack.stack_top());
+        if (*x).raw_equals(*y) {
+            todo!("reclaim space allocated for x and y");
+            continue;
+        };
+        if let (Ok(x_alloc), Ok(y_alloc)) = (
+            // equal direct atoms return true for raw_equals()
+            (*x).as_allocated(),
+            (*y).as_allocated(),
+        ) {
+            if let (Some(x_mug), Some(y_mug)) = (x_alloc.get_cached_mug(), y_alloc.get_cached_mug()) {
+                if x_mug != y_mug {
+                    break; // short-circuit, the mugs differ therefore the nouns much differ
+                }
+            };
+            match (x_alloc.as_either(), y_alloc.as_either()) {
+                (Left(x_indirect), Left(y_indirect)) => {
+                    let x_as_ptr = x_indirect.to_raw_pointer();
+                    let y_as_ptr = y_indirect.to_raw_pointer();
+                    if x_indirect.size() == y_indirect.size()
+                        && memcmp(
+                            x_indirect.data_pointer() as *const c_void,
+                            y_indirect.data_pointer() as *const c_void,
+                            x_indirect.size() << 3,
+                        ) == 0
+                    {
+                        let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
+                        // unify
+                        if x_as_ptr == junior {
+                            *x = *y;
+                        } else {
+                            *y = *x;
+                        }
+                        todo!("reclaim allocated memory");
+                        continue;
+                    } else {
+                        break;
+                    }
+                },
+                (Right(x_cell), Right(y_cell)) => {
+                    let x_as_ptr = x_cell.to_raw_pointer();
+                    let y_as_ptr = y_cell.to_raw_pointer();
+                    if x_cell.head().raw_equals(y_cell.head())
+                        && x_cell.tail().raw_equals(y_cell.tail())
+                    {
+                        let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
+                        if x_as_ptr == junior {
+                            *x = *y;
+                        } else {
+                            *y = *x;
+                        }
+                        todo!("reclaim allocated memory");
+                        continue;
+                    } else {
+                        /* THIS ISN'T AN INFINITE LOOP
+                        * If we discover a disequality in either side, we will
+                        * short-circuit the entire loop and reset the work stack.
+                        *
+                        * If both sides are equal, then we will discover pointer
+                        * equality when we return and unify the cell.
+                        */
+                        *(stack.struct_alloc::<(*mut Noun, *mut Noun)>(1))
+                            = (x_cell.tail_as_mut(), y_cell.tail_as_mut());
+                        *(stack.struct_alloc::<(*mut Noun, *mut Noun)>(1))
+                            = (x_cell.head_as_mut(), y_cell.head_as_mut());
+                        continue;
+                    }
+                },
+                (_, _) => {
+                    break; // cells don't unify with atoms
+                },
+            }
+        }
+    }
+
+    //TODO restore allocation pointer?
+    assert_acyclic!(*a);
+    assert_acyclic!(*b);
+
+    (*a).raw_equals(*b)
 }
 
 unsafe fn senior_pointer_first<T>(
