@@ -232,53 +232,38 @@ impl NockStack {
      * pointer is saved in a temporary, then the allocation size added to it, and finally the original
      * allocation pointer is returned as the pointer to the newly allocated memory. */
 
-    pub unsafe fn save_alloc_pointer_to_stack(&mut self) {
+    //TODO unsure if ptr should be *mut T instead of *mut u64
+    pub unsafe fn save_pointer_to_stack(&mut self, ptr: *mut u64) {
         if self.is_west() {
-            self.save_alloc_pointer_to_stack_west()
+            self.save_pointer_to_stack_west(ptr)
         } else {
-            self.save_alloc_pointer_to_stack_east()
+            self.save_pointer_to_stack_east(ptr)
         }
     }
 
-    unsafe fn save_alloc_pointer_to_stack_west(&mut self) {
-        *(self.stack_pointer) = self.alloc_pointer as u64;
+    unsafe fn save_pointer_to_stack_west(&mut self, ptr: *mut u64) {
+        *(self.stack_pointer) = ptr as u64;
         self.stack_push(1);
     }
 
-    unsafe fn save_alloc_pointer_to_stack_east(&mut self) {
+    unsafe fn save_pointer_to_stack_east(&mut self, ptr: *mut u64) {
         self.stack_push(1);
-        *(self.stack_pointer) = self.alloc_pointer as u64;
+        *(self.stack_pointer) = ptr as u64;
     }
 
-    unsafe fn alloc_in_prev_frame_west<T>(&mut self) -> *mut T {
-        todo!()
+    unsafe fn reclaim_alloc_west<T>(&mut self) {
+        self.alloc_pointer = self.alloc_pointer.add(word_size_of::<T>());
     }
 
-    unsafe fn alloc_in_prev_frame_east<T>(&mut self) -> *mut T {
-        todo!()
+    unsafe fn reclaim_alloc_east<T>(&mut self) {
+        self.alloc_pointer = self.alloc_pointer.sub(word_size_of::<T>());
     }
 
-    pub unsafe fn alloc_in_prev_frame<T>(&mut self) -> *mut T {
+    pub unsafe fn reclaim_alloc<T>(&mut self) {
         if self.is_west() {
-            self.alloc_in_prev_frame_west()
+            self.reclaim_alloc_west::<T>()
         } else {
-            self.alloc_in_prev_frame_east()
-        }
-    }
-
-    unsafe fn struct_alloc_in_prev_frame_east<T>(&mut self, count: usize) -> *mut T {
-        todo!()
-    }
-
-    unsafe fn struct_alloc_in_prev_frame_west<T>(&mut self, count: usize) -> *mut T {
-        todo!()
-    }
-
-    pub unsafe fn struct_alloc_in_prev_frame<T>(&mut self, count: usize) -> *mut T {
-        if self.is_west() {
-            self.struct_alloc_in_prev_frame_west(count)
-        } else {
-            self.struct_alloc_in_prev_frame_east(count)
+            self.reclaim_alloc_east::<T>()
         }
     }
 
@@ -297,15 +282,11 @@ impl NockStack {
 
     /** Allocate space for an indirect pointer in a west frame */
     unsafe fn indirect_alloc_west(&mut self, words: usize) -> *mut u64 {
-        //TODO I believe the `+ 2` here is for the pointer and the size? not the
-        // same `+ 2` used by RESERVED
         self.raw_alloc_west(words + 2)
     }
 
     /** Allocate space for an indirect pointer in an east frame */
     unsafe fn indirect_alloc_east(&mut self, words: usize) -> *mut u64 {
-        //TODO I believe the `+ 2` here is for the pointer and the size? not the
-        // same `+ 2` used by RESERVED
         self.raw_alloc_east(words + 2)
     }
 
@@ -335,22 +316,6 @@ impl NockStack {
         } else {
             self.struct_alloc_east::<T>(count)
         }
-    }
-
-    unsafe fn stack_top<T>(&mut self) -> *mut T {
-        if self.is_west() {
-            self.stack_top_west()
-        } else {
-            self.stack_top_east()
-        }
-    }
-
-    unsafe fn stack_top_west<T>(&mut self) -> *mut T {
-        self.stack_pointer.sub(word_size_of::<T>()) as *mut T
-    }
-
-    unsafe fn stack_top_east<T>(&mut self) -> *mut T {
-        self.stack_pointer as *mut T
     }
 
     /** Allocate space for an alloc::Layout in a stack frame */
@@ -625,6 +590,26 @@ impl NockStack {
             self.stack_push_east(num_slots);
         };
     }
+
+    unsafe fn stack_top<T>(&mut self) -> *mut T {
+        if self.is_west() {
+            self.stack_top_west()
+        } else {
+            self.stack_top_east()
+        }
+    }
+
+    unsafe fn stack_top_west<T>(&mut self) -> *mut T {
+        self.stack_pointer.sub(word_size_of::<T>()) as *mut T
+    }
+
+    unsafe fn stack_top_east<T>(&mut self) -> *mut T {
+        self.stack_pointer as *mut T
+    }
+
+    pub fn stack_is_empty(&self) -> bool {
+        self.stack_pointer == self.frame_pointer
+    }
 }
 
 pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
@@ -640,16 +625,19 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             };
         };
     };
-    stack.stack_push(1);
-    stack.save_alloc_pointer_to_stack();
-    *(stack.struct_alloc::<(*mut Noun, *mut Noun)>(1)) = (a, b);
+    let start_alloc_pointer = stack.alloc_pointer;
+    //TODO im pretty confused about what the pointers on the stack should be declared as here - should
+    // they be *mut u64, *mut (*mut Noun, *mut Noun), something else?
+    let work_start = stack.struct_alloc::<(*mut Noun, *mut Noun)>(1);
+    stack.save_pointer_to_stack(work_start as *mut u64);
+    *(work_start as *mut (*mut Noun, *mut Noun)) = (a, b); // TODO no idea if this is right
     loop {
-        if todo!("break condition something to do with allocation pointer") {
+        if stack.stack_is_empty() {
             break;
         };
         let (x, y): (*mut Noun, *mut Noun) = *(stack.stack_top());
         if (*x).raw_equals(*y) {
-            todo!("reclaim space allocated for x and y");
+            stack.reclaim_alloc::<(*mut Noun, *mut Noun)>();
             continue;
         };
         if let (Ok(x_alloc), Ok(y_alloc)) = (
@@ -659,7 +647,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         ) {
             if let (Some(x_mug), Some(y_mug)) = (x_alloc.get_cached_mug(), y_alloc.get_cached_mug()) {
                 if x_mug != y_mug {
-                    break; // short-circuit, the mugs differ therefore the nouns much differ
+                    break; // short-circuit, the mugs differ therefore the nouns must differ
                 }
             };
             match (x_alloc.as_either(), y_alloc.as_either()) {
@@ -680,7 +668,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         } else {
                             *y = *x;
                         }
-                        todo!("reclaim allocated memory");
+                        stack.reclaim_alloc::<(*mut Noun, *mut Noun)>();
                         continue;
                     } else {
                         break;
@@ -698,7 +686,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         } else {
                             *y = *x;
                         }
-                        todo!("reclaim allocated memory");
+                        stack.reclaim_alloc::<(*mut Noun, *mut Noun)>();
                         continue;
                     } else {
                         /* THIS ISN'T AN INFINITE LOOP
@@ -708,10 +696,12 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         * If both sides are equal, then we will discover pointer
                         * equality when we return and unify the cell.
                         */
-                        *(stack.struct_alloc::<(*mut Noun, *mut Noun)>(1))
-                            = (x_cell.tail_as_mut(), y_cell.tail_as_mut());
-                        *(stack.struct_alloc::<(*mut Noun, *mut Noun)>(1))
-                            = (x_cell.head_as_mut(), y_cell.head_as_mut());
+                        let tail_ptr = stack.struct_alloc::<(*mut Noun, *mut Noun)>(1);
+                        *tail_ptr = (x_cell.tail_as_mut(), y_cell.tail_as_mut());
+                        stack.save_pointer_to_stack(tail_ptr as *mut u64); //TODO don't know if ptr type is right
+                        let head_ptr = stack.struct_alloc::<(*mut Noun, *mut Noun)>(1);
+                        *head_ptr = (x_cell.head_as_mut(), y_cell.head_as_mut());
+                        stack.save_pointer_to_stack(head_ptr as *mut u64); //TODO don't know if ptr type is right
                         continue;
                     }
                 },
@@ -722,7 +712,10 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         }
     }
 
-    //TODO restore allocation pointer?
+    //TODO I think the way we reclaim space, this should maybe be an assert?
+    //assert!(stack.alloc_pointer == start_alloc_pointer)
+    stack.alloc_pointer = start_alloc_pointer;
+
     assert_acyclic!(*a);
     assert_acyclic!(*b);
 
