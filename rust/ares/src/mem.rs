@@ -318,6 +318,33 @@ impl NockStack {
         }
     }
 
+    unsafe fn struct_alloc_in_previous_frame_west<T>(&mut self, count: usize) -> *mut T {
+        // This is only called when using preserve(), at which point pre_copy() has been
+        // called, at which point we need to be looking for the saved pointers next
+        // to from-space instead of next to frame_pointer
+        // note that the allocation is on the east frame, and thus resembles raw_alloc_east
+        let alloc = *self.free_slot(ALLOC);
+        *self.free_slot(ALLOC) = *self.free_slot(ALLOC).add(word_size_of::<T>() * count);
+        alloc as *mut T
+    }
+
+    unsafe fn struct_alloc_in_previous_frame_east<T>(&mut self, count: usize) -> *mut T {
+        // This is only called when using preserve(), at which point pre_copy() has been
+        // called, at which point we need to be looking for the saved pointers next
+        // to from-space instead of next to frame_pointer
+        // note that the allocation is on the west frame, and thus resembles raw_alloc_west
+        *self.free_slot(ALLOC) = *self.free_slot(ALLOC).sub(word_size_of::<T>() * count);
+        *self.free_slot(ALLOC) as *mut T
+    }
+
+    pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
+        if self.is_west() {
+            self.struct_alloc_in_previous_frame_west(count)
+        } else {
+            self.struct_alloc_in_previous_frame_east(count)
+        }
+    }
+
     /** Allocate space for an alloc::Layout in a stack frame */
     unsafe fn layout_alloc(&mut self, layout: Layout) -> *mut u64 {
         todo!()
@@ -358,12 +385,6 @@ impl NockStack {
         } else {
             self.pre_copy_east()
         }
-    }
-
-    pub unsafe fn restore_frame(&mut self) {
-        //TODO set frame and alloc pointer to what was saved in pre_copy
-        //TODO this should probably just be part of pop(), or at least called during pop()
-        todo!()
     }
 
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
@@ -801,7 +822,10 @@ pub trait Preserve {
 
 impl Preserve for IndirectAtom {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        todo!()
+        let size = indirect_raw_size(*self);
+        let buf = stack.struct_alloc_in_previous_frame::<u64>(size);
+        copy_nonoverlapping(self.to_raw_pointer(), buf, size);
+        *self = IndirectAtom::from_raw_pointer(buf);
     }
 }
 
