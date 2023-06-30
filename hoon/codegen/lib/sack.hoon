@@ -9,15 +9,15 @@
 ++  rout
   |=  [soot=sock form=*]
   ^-  _moan
-  =|  moot=(map @hail hoot)
+  =|  moot=(map @hail toot)
   =|  mite=(set @hail)
   =.  moot
-    %+  ~(put by moot)  1
+    %+  ~(put by moot)  `@hail`1
     :*  soot  |
       `form  ~
       [| ~]  |  ~
     ==
-  =/  work=(list @hail)  ~[1]
+  =/  work=(list @hail)  ~[`@hail`1]
   =/  cork  work
   |^  ^-  _moan  :: driver loop
     =>  raid
@@ -31,11 +31,11 @@
   ::    turn a formula into nomm
   ++  raid
     =/  cork  work
-    |-  hail=@hail
+    |-
     ^-  _this
     ?~  cork  this
     =/  hail  i.cork
-    =/  firm  form:(~(got by moot.seam) hail)
+    =/  firm  form:(~(got by moot) hail)
     ?>  ?=(^ firm)
     =/  form  u.firm
     =/  code
@@ -69,42 +69,42 @@
       ::
           [%5 this=* that=*]
         :*  %ivy
-            $(form this.form, hail (peg hail 6))]
-            $(form that.form, hail (peg hail 7))]
+            $(form this.form, hail (peg hail 6))
+            $(form that.form, hail (peg hail 7))
         ==
       ::
           [%6 what=* then=* else=*]
         :*  %six
-            $(form what.form, hail (peg hail 6))]
-            $(form then.form, hail (peg hail 14))]
-            $(form else.form, hail (peg hail 15))]
+            $(form what.form, hail (peg hail 6))
+            $(form then.form, hail (peg hail 14))
+            $(form else.form, hail (peg hail 15))
         ==
       ::
           [%7 once=* then=*]
         :*  %eve
-            $(form once.form, hailflank (peg hail 6))]
-            $(form then.form, hail (peg hail 7))]
+            $(form once.form, hail (peg hail 6))
+            $(form then.form, hail (peg hail 7))
         ==
       ::
           [%8 pint=* then=*]
         $(form [%7 [pint.form %0 1] then.form])
       ::
           [%9 here=@ coil=*]
-        $(form [%7 coil %2 [%0 1] %0 here])
+        $(form [%7 coil.form %2 [%0 1] %0 here.form])
       ::
           [%10 [here=@ twig=*] tree=*]
         :*  %ten
-            here
+            here.form
             $(form twig.form, hail (peg hail 13))
             $(form tree.form, hail (peg hail 7))
         ==
       ::
           [%11 hint=@ then=*]
-        [%sip hint $(form then.form, hail (peg hail 7))]
+        [%sip hint.form $(form then.form, hail (peg hail 7))]
       ::
           [%11 [hint=* vice=*] then=nomm]
         :*  %tip
-            hint
+            hint.form
             $(form vice.form, hail (peg hail 13))
             $(form then.form, hail (peg hail 7))
         ==
@@ -118,8 +118,8 @@
     %=  $
         moot
       %+  ~(jab by moot)  hail
-      |=  =hoot
-      hoot(norm.hoot `code)
+      |=  =toot
+      toot(norm.toot `code)
     ::
         cork  t.cork
     ==
@@ -167,8 +167,8 @@
         =?  moot  ?&(?=(^ norm) (~(big ca fake) rake))
           =.  moot
             %+  ~(jab by moot)  rail.code
-            |=  =hoot
-            hoot(rake rake)
+            |=  =toot
+            toot(rake rake)
           moot:(espy rail.code)
         =/  lake  sake:(~(got by moot) rail.code)
         =^  sake  moot  ^$(rake lake, code cost.code)
@@ -227,8 +227,8 @@
     %=  $
         moot
       %+  ~(jab by moot)  hail
-      |=  =hoot
-      hoot(sake soon)
+      |=  =toot
+      toot(sake soon)
     ::
       cork  t.cork
     ==
@@ -242,9 +242,9 @@
     [norm soot root sire]:(~(got by moot.seam) hail)
     ?>  ?=(^ norm)
     =/  code  u.norm
-    =|  soda  (list (each nomm toms)) ~[[%& code] [%| %wot &]]
+    =/  soda=(list (each nomm toms))  ~[[%& code] [%| %wot &]]
     =/  silt=(list sock)  ~[soot]
-    =|  salt  (list sock)
+    =|  salt=(list sock)
     =/  halt=(list @hail)  ~[hail]
     |-  ^-  [sock _seam]
     ?^  soda
@@ -265,7 +265,7 @@
           $(soda t.soda, salt [[& moan.code] salt])
         ::
             %two
-          $(soda [[%& cost.code] [%& corn.code] [%| [%two rail.code] t.soda])
+          $(soda [[%& cost.code] [%& corn.code] [%| %two rail.code] t.soda])
         ::
             %the
           $(soda [[%& pell.code] [%| %the] t.soda])
@@ -274,7 +274,7 @@
           $(soda [[%& mall.code] [%| %for] t.soda])
         ::
             %ivy
-          $(soda [[%& this.code] [%& that.code] [%| %ivy] t.soda)
+          $(soda [[%& this.code] [%& that.code] [%| %ivy] t.soda])
         ::
             %six
           $(soda [[%& what.code] [%& then.code] [%& else.code] [%| six] t.soda])
@@ -284,7 +284,7 @@
         ::
             %ten
           ?:  =(0 here.code)  $(soda t.soda, salt [[| ~] salt])
-          $(soda [[%& twig.code] [%& tree.code] [%| [%ten here.code] t.soda])
+          $(soda [[%& twig.code] [%& tree.code] [%| %ten here.code] t.soda])
         ::
             %sip
           $(soda [[%& then.code] t.soda])
@@ -293,7 +293,7 @@
           $(soda [[%& vice.code] [%& then.code] [%| %tip hint.code] t.soda])
         ::
             %elf
-          $(soda [[%& rent.code] [%& walk.code] [%| %elf]
+          $(soda [[%& rent.code] [%& walk.code] [%| %elf] t.soda])
         ==
       ?-  p.i.soda
           %par
@@ -337,19 +337,20 @@
         ?>  ?=(^ halt)
         ?>  ?=(^ salt)
         ?>  ?=(^ silt)
+        =.  moot
+          (~(jab by moot) i.halt |=(=toot toot(soot i.salt)))
         =/  rook  (~(app ca rake) root)
         =/  soap  (~(app ca rake) i.salt)
-        =.  moot
-          (~(jab by moot) i.halt  |=(=hoot hoot(soot rock i.salt)))
-        ?:  ?&(=(~ t.soda)  ?!(=(cape.rook cape.soap)) ?=(^ sire))
+        ?:  ?&(=(~ t.soda) ?!(=(cape.rook cape.soap)) ?=(^ sire))
           =/  pate  (~(got by moot) u.sire)
           %=  $
-            soda ~[norm.pate]
-            silt ~[soot.pate]
-            salt ~
-            halt ~[u.sire]
-            root root.pate
-            sire sire.pate
+            soda  ~[norm.pate]
+            silt  ~[soot.pate]
+            salt  ~
+            halt  ~[u.sire]
+            root  root.pate
+            sire  sire.pate
+          ==
         $(soda t.soda, halt t.halt)
       ::
           [%two *]
@@ -359,7 +360,7 @@
           ?:  =(& cape.i.salt) :: equality because cape can be a cell
             =/  huns  (~(get ja moan.seam) data.i.salt)
             |-  ?~  huns  ~
-            ?:  (~(huge so soot.i.huns) coot) `root.i.huns)
+            ?:  (~(huge so soot.i.huns) coot)  `root.i.huns
             $(huns t.huns)
           ~
         ?^  roan  $(soda t.soda, salt [u.roan t.t.salt])
@@ -370,12 +371,12 @@
         =/  note  ?:(=(& cape.p.i.salt) `data.p.i.salt ~)
         =?  mite  ?&(?=(^ note) ?=(~ form))  (~(put in mite.seam) rail.p.i.soda)
         =.  moot
-          (~(jab by moot) rail.p.i.soda |=(=hoot hoot(soot coot, form note)))
+          (~(jab by moot) rail.p.i.soda |=(=toot toot(soot coot, form note)))
         ?~  noir  $(soda t.soda, salt [[| ~] t.t.salt])
         %=  $
-          soda [[%& noir] [%| wot |] t.soda]
-          halt [rail.p.i.salt halt]
-          salt t.t.salt
+          soda  [[%& noir] [%| wot |] t.soda]
+          halt  [rail.p.i.salt halt]
+          salt  t.t.salt
         ==
       ::
           [%ten *]
@@ -386,7 +387,7 @@
           [%tip *]
         ?>  ?=(^ salt)
         ?>  ?=(^ t.salt)
-        $(soda t.soda, salt [i.salt t.t.salt]
+        $(soda t.soda, salt [i.salt t.t.salt])
       ==
     $(cork t.cork)
   ::  Recursion detection
@@ -424,7 +425,7 @@
       =|  sirs=(list @hail)
       |-  ^-  [(list @hail) _this]
       ?~  mail
-        ^$(mile t.mile, work [i.mile work], slag (~(gas in slag) [mill sirs])
+        ^$(mile t.mile, work [i.mile work], slag (~(gas in slag) [mill sirs]))
       =.  kids  (~(put ju kids) u.mail mill)
       =.  mill  u.mail
       =^  [suit=sock soju=cape firm=*]  mail
@@ -437,9 +438,9 @@
           loop  (~(put by loop) i.mile mill)
         ==
       $(sirs [mill sirs])
-    =.  mite  (~(dif in mite) (~(gas in *(set @hail)) work)
+    =.  mite  (~(dif in mite) (~(gas in *(set @hail)) work))
     =/  done  [~(tap in (~(dif in flux) slag)) ~]
-    =|  enod  (list (list @hail))
+    =|  enod=(list (list @hail))
     |-  ^-  [(list @hail) _this]
     ?~  done
       ?~  enod  this
@@ -447,7 +448,7 @@
     =/  hood  (~(got by moot) i.done)
     ?^  rake.hood  $(done t.done) :: skip because cell output mask
     ?:  rake.hood  $(done t.done) :: skip because & output mask
-    ?:  (~(has by loop) i.done) $(done t.done)   :: skip because recursive
+    ?:  (~(has by loop) i.done)  $(done t.done)  :: skip because recursive
     ::  this is OK because we disallow finalizing anything with battery
     ::  dependencies on its output
     =.  soot.hood  (~(app ca sake.hood) soot.hood)
@@ -455,8 +456,8 @@
     ?>  ?=(^ form.hood)
     ?>  ?=(^ norm.hood)
     =.  moan  
-      %+  ~(put ja moan) u.form.hood
-      [soot.hood (cook u.norm.hood pool) root.hood]
+      %+  ~(put ja moan)  u.form.hood
+      [soot.hood (cook u.norm.hood loop) root.hood]
     =/  next  ~(tap in (~(get ju kids) i.done))
     ?~  next
       $(done t.done)
@@ -465,7 +466,7 @@
   ++  cook
     |=  [norm=nomm pool=(map @hail @hail)]
     ^-  food
-    =|  ices  (map @hail [=sock form=*])
+    =|  ices=(map @hail [=sock form=*])
     =/  fore=(list nomm)  ~[norm]
     |-  ^-  food
     ?~  fore  [norm ices]
@@ -481,14 +482,14 @@
     ::
         %two
       =/  roil  (~(gut by pool) rail.i.norm rail.i.norm) 
-      =/  =hoot  (~(get by moot) roil)
-      ?~  hoot
+      =/  =toot  (~(get by moot) roil)
+      ?~  toot
         $(fore [corn.i.fore cost.i.fore t.fore])
-      ?~  form.u.hoot
+      ?~  form.u.toot
         $(fore [corn.i.fore cost.i.fore t.fore])
       =.  ices  
-        %+  ~(put by ices) rail.i.norm
-        [soot u.form]:hoot
+        %+  ~(put by ices)  rail.i.norm
+        [soot u.form]:toot
       $(fore [corn.i.fore cost.i.fore t.fore])
     ::
         %the

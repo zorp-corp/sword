@@ -940,7 +940,7 @@
         %hop  ~
         %lnk  ~[+<.bend.bulb +>-.bend.bulb]
         %cal  +>-.bend.bulb
-        %lnt  ~[+<.bend.bulb] :: XX should be two
+        %lnt  ~[+<.bend.bulb +>.bend.bulb]
         %jmp  +>.bend.bulb
         %spy  ~[+<.bend.bulb +>-.bend.bulb]
         %hin  ~[+<.bend.bulb]

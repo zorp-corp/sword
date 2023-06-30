@@ -3,27 +3,28 @@
 ::  operations on $cape
 ++  ca
   |_  one=cape
+  ::  intersect two capes
+  ++  int
+    |=  two=cape
+    ^-  cape
+    ?-  one
+        %|  %|
+        %&  two
+        ^
+      ?-  two
+          %|  %|
+          %&  one
+          ^
+        =/  l   $(one -.one, two -.two)
+        =/  r   $(one +.one, two +.two)
+        ?:(?&(?=(@ l) =(l r)) l [l r])
+      ==
+    ==
+  ::  apply a cape as a mask to a sock
   ++  app
     |=  know=sock
     ^-  sock
-    ?-  one
-        %|  [%toss ~]
-        %&  know
-        ^
-      ?+  -.sock  !!
-          %know
-        ?>  ?=(^ know.sock)
-        %+  knit:ska
-          $(one -.one, know [%know -.know.sock])
-        $(one +.one, know [%know +.know.sock])
-      ::
-          %bets
-        (knit:ska $(one -.one, know left.know) $(one +.one, know rite.know))
-      ::
-          %toss
-        [%toss ~]
-      ==
-    ==
+    know(cape (int cape.know))
   ::  unify two capes
   ++  uni
     |=  two=cape
@@ -33,12 +34,13 @@
         %&  one
         ^
       ?-  two
-        %|  one
-        %&  two
-        ^
-      =/  l  $(one -.one, two -.two)
-      =/  r  $(one +.one, two +.two)
-      ?:(?&(?=(@ l) =(l r)) l [l r])
+          %|  one
+          %&  two
+          ^ 
+        =/  l  $(one -.one, two -.two)
+        =/  r  $(one +.one, two +.two)
+        ?:(?&(?=(@ l) =(l r)) l [l r])
+      ==
     ==
   ::  does two add axes to one?
   ++  big
@@ -73,12 +75,13 @@
       %|  [| |]
       %&  [& &]
       ^   one
+    ==
   ::  poke a hole in a cape
   ++  awl
     |=  axe=@
     ?<  =(0 axe)
     |-  ^-  [cape cape]
-    ?:  ?=(%| one) [| |]
+    ?:  ?=(%| one)  [| |]
     ?:  =(1 axe)  [one |]
     ?-  (cap axe)
         %2
@@ -107,6 +110,18 @@
 ::  operations on sock
 ++  so
   |_  one=sock
+  ::  normalize, throwing away unknown axes in data
+  ++  norm
+    |-  ^-  sock
+    ?-  cape.one
+        %|  [%| ~]
+        %&  one
+        ^
+      ?>  ?=(^ data.one)
+      =/  l  $(cape.one -.cape.one, data.one -.data.one)
+      =/  r  $(cape.one +.cape.one, data.one +.data.one)
+      [[cape.l cape.r] data.l data.r]
+    ==
   ::  nesting
   ++  huge
     |=  two=sock
@@ -125,13 +140,13 @@
   ++  pull
     |=  axe=@
     ^-  (unit sock)
-    ?<  =(0 axe)
-    ?:  =(1 axe)  sock
-    ?:  ?=(%| cape.sock)  `[| ~]
-    ?.  ?=(^ data.sock)  ~
+    ?:  =(0 axe)  ~
+    ?:  =(1 axe)  `one
+    ?:  ?=(%| cape.one)  `[| ~]
+    ?.  ?=(^ data.one)  ~
     ?-  (cap axe)
-      %2  $(data.sock -.data.sock, cape.sock ?:(?=(^ cape.sock) -.cape.sock &))
-      %3  $(data.sock +.data.sock, cape.sock ?:(?=(^ cape.sock) +.cape.sock &))
+      %2  $(data.one -.data.one, cape.one ?:(?=(^ cape.one) -.cape.one &))
+      %3  $(data.one +.data.one, cape.one ?:(?=(^ cape.one) +.cape.one &))
     ==
   ::  make a pair
   ++  knit
@@ -151,22 +166,22 @@
       ?^  cape.one
         ?@  data.two  ?>(?=(@ cape.two) [| ~])
         ?^  cape.two
-          %+  knit
+          %-  %~  knit  so
             $(one [-.cape.one -.data.one], two [-.cape.two -.data.two])
           $(one [+.cape.one +.data.one], two [+.cape.two +.data.two])
         ?.  cape.two  [| ~]
-        %+  knit
+        %-  %~  knit  so
           $(one [-.cape.one -.data.one], data.two -.data.two)
         $(one [+.cape.one +.data.one], data.two +.data.two)
       ?.  cape.one  [| ~]
       ?@  data.two  ?>(?=(@ cape.two) [| ~])
       ?^  cape.two
-        %+  knit
+        %-  %~  knit  so 
           $(data.one -.data.one, two [-.cape.two -.data.two])
         $(data.one +.data.one, two [+.cape.two +.data.two])
       ?.  cape.two  [| ~]
       ?:  =(data.one data.two)  one  :: optimization?
-      %+  knit
+      %-  %~  knit  so
         $(data.one -.data.one, data.two -.data.two)
       $(data.one +.data.one, data.two +.data.two)
     ?>  ?=(@ cape.one)
@@ -178,7 +193,7 @@
     |=  [axe=@ two=sock]
     ^-  (unit sock)
     ?>  =(0 axe)
-    ?:  =(1 axe)  two
+    ?:  =(1 axe)  `two
     ?-  (cap axe)
         %2
       ?@  data.one
