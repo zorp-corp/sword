@@ -102,7 +102,7 @@
           [%11 hint=@ then=*]
         [%sip hint.form $(form then.form, hail (peg hail 7))]
       ::
-          [%11 [hint=* vice=*] then=nomm]
+          [%11 [hint=@ vice=*] then=*]
         :*  %tip
             hint.form
             $(form vice.form, hail (peg hail 13))
@@ -119,7 +119,7 @@
         moot
       %+  ~(jab by moot)  hail
       |=  =toot
-      toot(norm.toot `code)
+      toot(norm `code)
     ::
         cork  t.cork
     ==
@@ -405,8 +405,8 @@
   ::    places them and their callees in moan
   ::
   ++  ruin
-    ^-  [(list @hail) _seam]
-    =/  mile  ~(tap in mite)
+    ^-  _this
+    =/  mile=(list @hail)  ~(tap in mite)
     =.  work  *(list @hail) :: non-recursive direct calls
     =|  slag=(set @hail) :: excluded as finalization roots
     =|  flux=(set @hail) :: possible finalization roots
@@ -415,17 +415,21 @@
     |-  ^-  _this
     ?^  mile
       =/  mill  i.mile
-      =/  [mail=(unit hail) soot=sock form=(unit)]
+      =/  [mail=(unit @hail) soot=sock form=(unit)]
         [sire soot form]:(~(got by moot) mill)
       =/  mole  (~(get ja moan) form)
-      |-  ^-  [(list @hail) _this]
+      |-  ^-  _this
       ?^  mole
         ?:  (~(huge so soot.i.mole) soot)  ^$(mile t.mile)
         $(mole t.mole)
       =|  sirs=(list @hail)
-      |-  ^-  [(list @hail) _this]
+      |-  ^-  _this
       ?~  mail
-        ^$(mile t.mile, work [i.mile work], slag (~(gas in slag) [mill sirs]))
+        %=  ^$
+          mile  t.mile
+          work  [i.mile work]
+          slag  (~(gas in slag) [mill sirs])
+        ==
       =.  kids  (~(put ju kids) u.mail mill)
       =.  mill  u.mail
       =^  [suit=sock soju=cape firm=*]  mail
@@ -439,9 +443,9 @@
         ==
       $(sirs [mill sirs])
     =.  mite  (~(dif in mite) (~(gas in *(set @hail)) work))
-    =/  done  [~(tap in (~(dif in flux) slag)) ~]
+    =/  done  ~(tap in (~(dif in flux) slag))
     =|  enod=(list (list @hail))
-    |-  ^-  [(list @hail) _this]
+    |-  ^-  _this
     ?~  done
       ?~  enod  this
       $(done i.enod, enod t.enod)
@@ -456,7 +460,7 @@
     ?>  ?=(^ form.hood)
     ?>  ?=(^ norm.hood)
     =.  moan  
-      %+  ~(put ja moan)  u.form.hood
+      %+  ~(add ja moan)  u.form.hood
       [soot.hood (cook u.norm.hood loop) root.hood]
     =/  next  ~(tap in (~(get ju kids) i.done))
     ?~  next
