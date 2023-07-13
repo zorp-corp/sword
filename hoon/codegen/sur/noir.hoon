@@ -15,10 +15,7 @@
       sire=(unit @hail)
   ==
 ::    call table entry
-+$  hone
-  $:  soot=sock  norm=food
-      root=sock
-  ==
++$  hone  [soot=sock norm=food root=sock]
 ::    Nomm (Nock--)
 ::
 ::  9 is rewritten to 7+2

@@ -43,6 +43,7 @@
       ==
     ==
   ::  does two add axes to one?
+  ::  XX make big and huge consistent
   ++  big
     |=  two=cape
     ^-  ?
@@ -145,8 +146,8 @@
     ?:  ?=(%| cape.one)  `[| ~]
     ?.  ?=(^ data.one)  ~
     ?-  (cap axe)
-      %2  $(data.one -.data.one, cape.one ?:(?=(^ cape.one) -.cape.one &))
-      %3  $(data.one +.data.one, cape.one ?:(?=(^ cape.one) +.cape.one &))
+      %2  $(data.one -.data.one, cape.one ?:(?=(^ cape.one) -.cape.one &), axe (mas axe))
+      %3  $(data.one +.data.one, cape.one ?:(?=(^ cape.one) +.cape.one &), axe (mas axe))
     ==
   ::  make a pair
   ++  knit
@@ -192,13 +193,13 @@
   ++  darn
     |=  [axe=@ two=sock]
     ^-  (unit sock)
-    ?>  =(0 axe)
+    ?:  =(0 axe)  ~
     ?:  =(1 axe)  `two
     ?-  (cap axe)
         %2
       ?@  data.one
         ?>  ?=(@ cape.one)
-        ?<  cape.one
+        ?:  cape.one  ~
         =/  luck  $(axe (mas axe))
         ?~  luck  ~
         `[[cape.u.luck |] data.u.luck ~]
@@ -213,14 +214,14 @@
         %3
       ?@  data.one
         ?>  ?=(@ cape.one)
-        ?<  cape.one
+        ?:  cape.one  ~
         =/  luck  $(axe (mas axe))
         ?~  luck  ~
         `[[| cape.u.luck] ~ data.u.luck]
       ?@  cape.one
         =/  luck  $(axe (mas axe), data.one +.data.one)
         ?~  luck  ~
-        `[[cape.one cape.u.luck] -.cape.one data.u.luck]
+        `[[cape.one cape.u.luck] -.data.one data.u.luck]
       =/  luck  $(axe (mas axe), one [+.cape.one +.data.one])
       ?~  luck  ~
       `[[-.cape.one cape.u.luck] -.data.one data.u.luck]
