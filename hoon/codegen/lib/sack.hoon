@@ -240,12 +240,11 @@
         $(soda [[%& left.cone] [%& rite.cone] [%| %par] t.soda])
       ::
           %not
-        ~&  here+here.cone
         ?:  =(0 here.cone)  $(soda t.soda, salt [[| ~] salt])
         ?>  ?=(^ silt)
         =/  sand  (~(pull so i.silt) here.cone)
-        ?~  sand  ~&  %crash-not  $(soda t.soda, salt [[| ~] salt])
-        ~&  %found  $(soda t.soda, salt [u.sand salt])
+        ?~  sand  $(soda t.soda, salt [[| ~] salt])
+        $(soda t.soda, salt [u.sand salt])
       ::
           %one
         $(soda t.soda, salt [[& moan.cone] salt])
@@ -358,13 +357,10 @@
             `root.i.huns
           $(huns t.huns)
         ~
-      ?^  roan  ~&  %already  $(soda t.soda, salt [u.roan t.t.salt])
+      ?^  roan  $(soda t.soda, salt [u.roan t.t.salt])
       ?.  ?|(?!(=(cape.soot cape.i.t.salt)) ?&(=(& cape.i.salt) =(~ form)))
-        ~&  %bored
         $(soda t.soda, salt [root t.t.salt])
       =/  note  ?:(=(& cape.i.salt) `data.i.salt ~)
-      ~&  note+note
-      ~&  rail+rail.kant
       =?  mite  ?&(?=(^ note) =(~ form))  (~(put in mite) rail.kant)
       =.  moot
         (~(jab by moot) rail.kant |=(=toot toot(soot i.t.salt, form note)))
@@ -425,9 +421,6 @@
       =/  [suit=sock soju=cape firm=(unit) mire=(unit @hail) ruck=cape]
         [soot sake form sire rake]:(~(got by moot) mill)
       ?>  ?=(^ firm)
-      ~&  formfirm+=(u.form u.firm)
-      ~&  hugeso+(~(huge so (~(app ca soju) suit)) soot)
-      ~&  bigca+!(~(big ca ruck) rack)
       ?:  ?&  =(u.form u.firm)
               (~(huge so (~(app ca soju) suit)) soot)
               !(~(big ca ruck) rack)
@@ -440,11 +433,9 @@
         ==
       $(sirs [mill sirs], mail mire)
     =.  mite  (~(dif in mite) (~(gas in *(set @hail)) work))
-    ~&  flux+~(tap in flux)
     =/  done  ~(tap in (~(dif in flux) slag))
     =|  enod=(list (list @hail))
     |-  ^-  _this
-    ~&  done+done
     ?~  done
       ?~  enod  this
       $(done i.enod, enod t.enod)
