@@ -33,7 +33,6 @@
   ::  apply a cape as a mask to a sock
   ++  app
     |=  know=sock
-    %-  sop
     |-  ^-  sock
     ?-  one
         %|  [%| ~]
@@ -146,7 +145,6 @@
         $(cape.one +.cape.one, data.one +.data.one)
     ==
   ++  norm
-    %-  sap
     |-  ^-  sock
     ?-  cape.one
         %|  [%| ~]
@@ -174,7 +172,6 @@
   ::  axis
   ++  pull
     |=  axe=@
-    %-  (lift sap)
     ^-  (unit sock)
     ?:  =(0 axe)  ~
     |-  ^-  (unit sock)
@@ -188,7 +185,6 @@
   ::  make a pair
   ++  knit
     |=  two=sock
-    %-  sap
     ^-  sock
     :-
       ?:  ?&(?=(@ cape.one) ?=(@ cape.two))
@@ -199,7 +195,6 @@
   ::  intersect
   ++  purr
     |=  two=sock
-    %-  sap
     |-  ^-  sock
     ?^  data.one
       ?@  data.two  ?>(?=(@ cape.two) [| ~])
@@ -230,7 +225,6 @@
   ++  darn
     |=  [axe=@ two=sock]
     ^-  (unit sock)
-    %-  (lift sap)
     ?:  =(0 axe)  ~
     |-  ^-  (unit sock)
     ?:  =(1 axe)  `two

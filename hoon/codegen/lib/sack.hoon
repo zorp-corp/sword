@@ -14,16 +14,10 @@
   =/  work=(list @hail)  ~[`@hail`1]
   =/  mite  (~(put in *(set @hail)) `@hail`1)
   |^  ^-  _moan
-    ~&  ['wyt moot' ~(wyt by moot)]
-    ~&  'raid'
     =>  raid
-    ~&  'espy'
     =>  espy
-    ~&  'loot'
     =>  loot
-    ~&  'ruin'
     =>  ruin
-    ~&  'loop'
     ?~(work moan $)
   ++  this  .
   ++  raid
@@ -443,8 +437,8 @@
     =/  hood  (~(got by moot) i.done)
     :: safe to apply masks because we only use things from moan if
     :: output battery mask and input sock match
-    =.  soot.hood  (~(app ca sake.hood) soot.hood)
-    =.  root.hood  (~(app ca rake.hood) root.hood)
+    =.  soot.hood  ~(norm so (~(app ca sake.hood) soot.hood))
+    =.  root.hood  ~(norm so (~(app ca rake.hood) root.hood))
     =.  moot  (~(put by moot) i.done hood)
     ?>  ?=(^ form.hood)
     ?>  ?=(^ norm.hood)
