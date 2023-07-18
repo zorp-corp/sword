@@ -122,44 +122,44 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
     assert_acyclic!(noun);
     stack.push(1);
     unsafe {
-        stack.save_prev_stack_pointer_to_local(0);
-        *(stack.alloc_in_previous_frame()) = noun;
+        stack.save_stack_pointer_to_local(0);
+        *(stack.lightweight_push()) = noun;
     }
     loop {
-        if unsafe { stack.prev_stack_pointer_equals_local(0) } {
+        if unsafe { stack.stack_pointer_equals_local(0) } {
             break;
         } else {
-            let noun: Noun = unsafe { *(stack.top_in_previous_frame()) };
+            let noun: Noun = unsafe { *(stack.stack_top()) };
             match noun.as_either_direct_allocated() {
                 Left(_direct) => {
                     unsafe {
-                        stack.reclaim_in_previous_frame::<Noun>();
+                        stack.stack_pop::<Noun>();
                     }
                     continue;
                 } // no point in calculating a direct mug here as we wont cache it
                 Right(allocated) => match allocated.get_cached_mug() {
                     Some(_mug) => {
                         unsafe {
-                            stack.reclaim_in_previous_frame::<Noun>();
+                            stack.stack_pop::<Noun>();
                         }
                         continue;
                     }
                     None => match allocated.as_either() {
                         Left(indirect) => unsafe {
                             set_mug(allocated, calc_atom_mug_u32(indirect.as_atom()));
-                            stack.reclaim_in_previous_frame::<Noun>();
+                            stack.stack_pop::<Noun>();
                             continue;
                         },
                         Right(cell) => unsafe {
                             match (get_mug(cell.head()), get_mug(cell.tail())) {
                                 (Some(head_mug), Some(tail_mug)) => {
                                     set_mug(allocated, calc_cell_mug_u32(head_mug, tail_mug));
-                                    stack.reclaim_in_previous_frame::<Noun>();
+                                    stack.stack_pop::<Noun>();
                                     continue;
                                 }
                                 _ => {
-                                    *(stack.alloc_in_previous_frame()) = cell.tail();
-                                    *(stack.alloc_in_previous_frame()) = cell.head();
+                                    *(stack.lightweight_push()) = cell.tail();
+                                    *(stack.lightweight_push()) = cell.head();
                                     continue;
                                 }
                             }
@@ -170,6 +170,7 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
         }
     }
     unsafe {
+        stack.pre_copy();
         stack.pop();
         get_mug(noun).expect("Noun should have a mug once it is mugged.")
     }

@@ -54,26 +54,26 @@ pub struct NockStack {
 impl NockStack {
     /**  Initialization
      * The initial frame is a west frame. When the stack is initialized, a number of slots is given.
-     * We add two extra slots to store the “previous” frame pointer and allocation pointer. For the
+     * We add three extra slots to store the “previous” frame, stack, and allocation pointer. For the
      * initial frame, the previous allocation pointer is set to the beginning (low boundary) of the
-     * arena, and the previous frame pointer is set to NULL. */
+     * arena, the previous frame pointer is set to NULL, and the previous stack pointer is set to XX */
 
     /** Size is in 64 bit words.
      * top_slots is how many slots to allocate to the top stack frame.
      */
     pub fn new(size: usize, top_slots: usize) -> NockStack {
+        //TODO memory doesn't have to be mut as written, but it was before split stack. not sure what
+        // it was accomplishing.
         let mut memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
         let start = memory.as_ptr() as *const u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
-        //TODO frame_pointer was given in terms of memory.as_mut_ptr() - does that matter if we're casting to *mut u64 anyways?
-        // I think not - you can cast a const raw pointer as a mut raw pointer just fine
         let frame_pointer = unsafe { start.add(top_slots + RESERVED) } as *mut u64;
         let stack_pointer = frame_pointer;
         let alloc_pointer = unsafe { start.add(size) } as *mut u64;
         unsafe {
             *frame_pointer = ptr::null::<u64>() as u64;            // "frame pointer" from "previous" frame
-            *frame_pointer.add(STACK) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame TODO is this right?
-            *frame_pointer.add(ALLOC) = start as u64;              // "alloc pointer" from "previous" frame
+            *frame_pointer.sub(STACK) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame TODO is this right?
+            *frame_pointer.sub(ALLOC) = start as u64;              // "alloc pointer" from "previous" frame
         };
         NockStack {
             start,
@@ -89,22 +89,10 @@ impl NockStack {
     //TODO the interpreter won't know when this invariant is violated unless
     // stack_pointer == alloc_pointer, for that we should implement a guard page
     #[inline]
-    fn is_west(&self) -> bool {
+    pub fn is_west(&self) -> bool {
         if self.stack_pointer < self.alloc_pointer {
             true
         } else if self.stack_pointer > self.alloc_pointer {
-            false
-        } else {
-            panic!("stack_pointer == alloc_pointer");
-        }
-    }
-
-    /** Checks if the current stack frame has East polarity */
-    #[inline]
-    fn is_east(&self) -> bool {
-        if self.stack_pointer > self.alloc_pointer {
-            true
-        } else if self.stack_pointer < self.alloc_pointer {
             false
         } else {
             panic!("stack_pointer == alloc_pointer");
@@ -116,45 +104,50 @@ impl NockStack {
         self.size
     }
 
-    //TODO what makes something "in frame" with a split frame? here we're
-    //taking in a pointer. i think something is "in frame" if the pointer
-    // points to the allocation arena for this frame. so i need to check
-    // that the pointer is between the current allocation pointer and
-    // the previous stack pointer.
-    //
-    // on the other hand, not every address between the alloc_pointer and
-    // previous frame_pointer is a valid address for an allocated object.
-    // i believe the FP-relative slots store the addresses of the allocated
-    // objects for that frame. but they could also point to more senior
-    // memory outside of that frame. so maybe i first check that the pointer
-    // is in range, then check to see if that is a legitimate pointer or
-    // if its pointing to the middle of an allocated object
     #[inline]
     pub unsafe fn in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
         if self.is_west() {
+            let prev = *self.prev_stack_pointer_pointer_west();
             ptr_u64 >= self.alloc_pointer
-                && ptr_u64 <= *self.prev_stack_pointer_pointer_west()
-                //TODO check that this isnt pointing to the middle of an allocated object?
+                && ptr_u64 < prev
         } else {
-            ptr_u64 <= self.alloc_pointer
-                && ptr_u64 >= *self.prev_stack_pointer_pointer_east()
-                //TODO check that this isnt pointing to the middle of an allocated object?
+            let prev = *self.prev_stack_pointer_pointer_east();
+            ptr_u64 < self.alloc_pointer
+                && ptr_u64 >= prev
+        }
+    }
+
+    //TODO this is in_frame after pre_copy() has been called
+    #[inline]
+    pub unsafe fn in_frame2<T>(&mut self, ptr: *const T) -> bool {
+        let ptr_u64 = ptr as u64;
+        if self.is_west() {
+            let prev = *self.free_slot_west(STACK) as u64;
+            ptr_u64 >= self.alloc_pointer as u64
+                && ptr_u64 < prev
+        } else {
+            let prev = *self.free_slot_east(STACK);
+            ptr_u64 < self.alloc_pointer as u64
+                && ptr_u64 >= prev as u64
         }
     }
 
     /** Mutable pointer to a slot in a stack frame: east stack */
-    unsafe fn slot_pointer_east(&mut self, slot: usize) -> *mut u64 {
+    unsafe fn slot_pointer_east(&self, slot: usize) -> *mut u64 {
         self.frame_pointer.add(slot)
     }
 
     /** Mutable pointer to a slot in a stack frame: west stack */
-    unsafe fn slot_pointer_west(&mut self, slot: usize) -> *mut u64 {
+    unsafe fn slot_pointer_west(&self, slot: usize) -> *mut u64 {
         self.frame_pointer.sub(slot + 1)
     }
 
     /** Mutable pointer to a slot in a stack frame */
-    unsafe fn slot_pointer(&mut self, slot: usize) -> *mut u64 {
+    //TODO should this be public? maybe we should make sure
+    // that the only public interface to the RESERVED slots is via
+    // previous_x_pointer_pointer.
+    pub unsafe fn slot_pointer(&mut self, slot: usize) -> *mut u64 {
         if self.is_west() {
             self.slot_pointer_west(slot)
         } else {
@@ -185,37 +178,17 @@ impl NockStack {
         self.slot_pointer(local + RESERVED) as *mut Noun
     }
 
-    /** Pointer to where the previous (west) alloc pointer is saved in an east frame */
-    unsafe fn prev_alloc_pointer_pointer_east(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_east(ALLOC) as *mut *mut u64
-    }
-
-    /** Pointer to where the previous (east) alloc pointer is saved in an west frame */
-    unsafe fn prev_alloc_pointer_pointer_west(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_west(ALLOC) as *mut *mut u64
-    }
-
-    /** Pointer to where the previous (west) frame pointer is saved in an east frame */
-    unsafe fn prev_frame_pointer_pointer_east(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_east(FRAME) as *mut *mut u64
-    }
-
-    /** Pointer to where the previous (east) frame pointer is saved in an west frame */
-    unsafe fn prev_frame_pointer_pointer_west(&mut self) -> *mut *mut u64 {
-        self.slot_pointer_west(FRAME) as *mut *mut u64
-    }
-
     /** Pointer to where the previous (west) stack pointer is saved in an east frame */
-    unsafe fn prev_stack_pointer_pointer_east(&mut self) -> *mut *mut u64 {
+    unsafe fn prev_stack_pointer_pointer_east(&self) -> *mut *mut u64 {
         self.slot_pointer_east(STACK) as *mut *mut u64
     }
 
     /** Pointer to where the previous (east) stack pointer is saved in an west frame */
-    unsafe fn prev_stack_pointer_pointer_west(&mut self) -> *mut *mut u64 {
+    unsafe fn prev_stack_pointer_pointer_west(&self) -> *mut *mut u64 {
         self.slot_pointer_west(STACK) as *mut *mut u64
     }
 
-    unsafe fn prev_stack_pointer_pointer(&mut self) -> *mut *mut u64 {
+    unsafe fn prev_stack_pointer_pointer(&self) -> *mut *mut u64 {
         if self.is_west() {
             self.prev_stack_pointer_pointer_west()
         } else {
@@ -232,23 +205,111 @@ impl NockStack {
      * pointer is saved in a temporary, then the allocation size added to it, and finally the original
      * allocation pointer is returned as the pointer to the newly allocated memory. */
 
-    //TODO unsure if ptr should be *mut T instead of *mut u64
-    pub unsafe fn save_pointer_to_stack(&mut self, ptr: *mut u64) {
+    pub unsafe fn lightweight_push<T>(&mut self) -> *mut T {
         if self.is_west() {
-            self.save_pointer_to_stack_west(ptr)
+            self.lightweight_push_west()
         } else {
-            self.save_pointer_to_stack_east(ptr)
+            self.lightweight_push_east()
         }
     }
 
-    unsafe fn save_pointer_to_stack_west(&mut self, ptr: *mut u64) {
-        *(self.stack_pointer) = ptr as u64;
-        self.stack_push(1);
+    unsafe fn lightweight_push_west<T>(&mut self) -> *mut T {
+        let alloc = self.stack_pointer;
+        self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
+        alloc as *mut T
     }
 
-    unsafe fn save_pointer_to_stack_east(&mut self, ptr: *mut u64) {
-        self.stack_push(1);
-        *(self.stack_pointer) = ptr as u64;
+    unsafe fn lightweight_push_east<T>(&mut self) -> *mut T {
+        self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
+        self.stack_pointer as *mut T
+    }
+
+    pub unsafe fn save_alloc_pointer_to_local(&mut self, local: usize) {
+        if self.is_west() {
+            self.save_alloc_pointer_to_local_west(local);
+        } else {
+            self.save_alloc_pointer_to_local_east(local);
+        }
+    }
+
+    unsafe fn save_alloc_pointer_to_local_west(&mut self, local: usize) {
+        *(self.slot_pointer_west(local + RESERVED)) =
+            self.alloc_pointer as u64;
+    }
+
+    unsafe fn save_alloc_pointer_to_local_east(&mut self, local: usize) {
+        *(self.slot_pointer_east(local + RESERVED)) =
+            self.alloc_pointer as u64;
+    }
+
+    pub unsafe fn save_stack_pointer_to_local(&mut self, local: usize) {
+        if self.is_west() {
+            self.save_stack_pointer_to_local_west(local);
+        } else {
+            self.save_stack_pointer_to_local_east(local);
+        }
+    }
+
+    unsafe fn save_stack_pointer_to_local_west(&mut self, local: usize) {
+        *(self.slot_pointer_west(local + RESERVED)) =
+            self.stack_pointer as u64;
+    }
+
+    unsafe fn save_stack_pointer_to_local_east(&mut self, local: usize) {
+        *(self.slot_pointer_east(local + RESERVED)) =
+            self.stack_pointer as u64;
+    }
+
+    unsafe fn restore_stack_pointer_from_local_west(&mut self, local: usize) {
+        self.stack_pointer = *(self.slot_pointer_west(local + RESERVED) as *const *mut u64)
+    }
+
+    unsafe fn restore_stack_pointer_from_local_east(&mut self, local: usize) {
+        self.stack_pointer = *(self.slot_pointer_east(local + RESERVED) as *const *mut u64)
+    }
+
+    unsafe fn restore_stack_pointer_from_local(&mut self, local: usize) {
+        if self.is_west() {
+            self.restore_stack_pointer_from_local_west(local)
+        } else {
+            self.restore_stack_pointer_from_local_east(local)
+        }
+    }
+
+    pub unsafe fn alloc_pointer_equals_local(&mut self, local: usize) -> bool {
+        if self.is_west() {
+            self.alloc_pointer_equals_local_west(local)
+        } else {
+            self.alloc_pointer_equals_local_east(local)
+        }
+    }
+
+    unsafe fn alloc_pointer_equals_local_west(&mut self, local: usize) -> bool {
+        *(self.slot_pointer_west(local + RESERVED) as *const *mut u64)
+            == self.alloc_pointer
+    }
+
+    unsafe fn alloc_pointer_equals_local_east(&mut self, local: usize) -> bool {
+        *(self.slot_pointer_east(local + RESERVED) as *const *mut u64)
+            == self.alloc_pointer
+    }
+
+    pub unsafe fn stack_pointer_equals_local(&mut self, local: usize) -> bool {
+        if self.is_west() {
+            self.stack_pointer_equals_local_west(local)
+        } else {
+            self.stack_pointer_equals_local_east(local)
+        }
+    }
+
+    unsafe fn stack_pointer_equals_local_west(&mut self, local: usize) -> bool {
+        *(self.slot_pointer_west(local + RESERVED) as *const *mut u64)
+            == self.stack_pointer
+    }
+
+    unsafe fn stack_pointer_equals_local_east(&mut self, local: usize) -> bool {
+        *(self.slot_pointer_east(local + RESERVED) as *const *mut u64)
+            == self.stack_pointer
     }
 
     unsafe fn reclaim_alloc_west<T>(&mut self) {
@@ -347,7 +408,12 @@ impl NockStack {
 
     /** Allocate space for an alloc::Layout in a stack frame */
     unsafe fn layout_alloc(&mut self, layout: Layout) -> *mut u64 {
-        todo!()
+        assert!(layout.align() <= 64, "layout alignment must be <= 64");
+        if self.is_west() {
+            self.raw_alloc_west((layout.size() + 7) >> 3)
+        } else {
+            self.raw_alloc_east((layout.size() + 7) >> 3)
+        }
     }
 
     /**  Copying and Popping
@@ -368,15 +434,15 @@ impl NockStack {
     /** Before copying allocations from child to parent frame, we need to save the reserved pointers
      * in the free space adjacent to the allocation arena. */
     unsafe fn pre_copy_east(&mut self) {
-        *(self.free_slot(FRAME)) = *(self.prev_frame_pointer_pointer_east()) as u64;
-        *(self.free_slot(STACK)) = *(self.prev_stack_pointer_pointer_east()) as u64;
-        *(self.free_slot(ALLOC)) = *(self.prev_alloc_pointer_pointer_east()) as u64;
+        *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
+        *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
+        *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
     }
 
     unsafe fn pre_copy_west(&mut self) {
-        *(self.free_slot(FRAME)) = *(self.prev_frame_pointer_pointer_west()) as u64;
-        *(self.free_slot(STACK)) = *(self.prev_stack_pointer_pointer_west()) as u64;
-        *(self.free_slot(ALLOC)) = *(self.prev_alloc_pointer_pointer_west()) as u64;
+        *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
+        *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
+        *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
     }
 
     pub unsafe fn pre_copy(&mut self) {
@@ -388,8 +454,118 @@ impl NockStack {
     }
 
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
-        //TODO will do once we decide copy_west() is correct
-        todo!()
+        let noun_ptr = noun as *mut Noun;
+
+        // lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy
+
+        // TODO we no longer need stack_pointer once we're at the copying phase, so since its already used
+        // as a lightweight stack traversal pointer and we need another such pointer here, we move it from
+        // marking the high edge of low memory to the low edge of high memory to make a new lightweight stack
+        // used to traversing the nouns to be copied. we could use a whole new pointer for this - I'm not
+        // sure which would be less confusing but it will be easy to change if this ends up looking bad.
+        self.stack_pointer = self.alloc_pointer.add(RESERVED);
+        let work_start = self.stack_pointer;
+        // location to which allocations are made
+        let mut other_alloc_pointer = *(self.free_slot(ALLOC)) as *mut u64;
+        // used for determining whether an allocation is in the current frame. we can't use in_frame() since
+        // the usual location for the previous stack pointer may have been overwritten by a previous copy step
+        let other_stack_pointer = *(self.free_slot(STACK)) as *const u64;
+        // add two slots to the lightweight stack
+        self.stack_pointer = self.stack_pointer.add(2);
+        // set the first new slot to the noun to be copied
+        *(self.stack_pointer.sub(2) as *mut Noun) = *noun;
+        // set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
+        *(self.stack_pointer.sub(1) as *mut *mut Noun) = noun_ptr;
+
+        loop {
+            if self.stack_pointer == work_start {
+                break;
+            }
+
+            // Pop a noun to copy from the stack
+            let next_noun = *(self.stack_pointer.sub(2) as *const Noun);
+            let next_dest = *(self.stack_pointer.sub(1) as *const *mut Noun);
+            self.stack_pointer = self.stack_pointer.sub(2);
+
+            // If it's a direct atom, just write it to the destination.
+            // Otherwise, we have allocations to make.
+            match next_noun.as_either_direct_allocated() {
+                Either::Left(_direct) => {
+                    *next_dest = next_noun;
+                }
+                Either::Right(allocated) => {
+                    // If it's an allocated noun with a forwarding pointer, just write the
+                    // noun resulting from the forwarding pointer to the destination
+                    //
+                    // Otherwise, we have to allocate space for and copy the allocated noun
+                    match allocated.forwarding_pointer() {
+                        Option::Some(new_allocated) => {
+                            *next_dest = new_allocated.as_noun();
+                        }
+                        Option::None => {
+                            // Check to see if its allocated within this frame
+                            if (allocated.to_raw_pointer() as *const u64) < self.alloc_pointer
+                                && (allocated.to_raw_pointer() as *const u64) >= other_stack_pointer
+                            {
+                                match allocated.as_either() {
+                                    Either::Left(mut indirect) => {
+                                        // Make space for the atom
+                                        other_alloc_pointer =
+                                            other_alloc_pointer.sub(indirect_raw_size(indirect));
+                                        let new_indirect_alloc = other_alloc_pointer;
+
+                                        // Indirect atoms can be copied directly
+                                        copy_nonoverlapping(
+                                            indirect.to_raw_pointer(),
+                                            new_indirect_alloc,
+                                            indirect_raw_size(indirect),
+                                        );
+
+                                        // Set a forwarding pointer so we don't create duplicates from other
+                                        // references
+                                        indirect.set_forwarding_pointer(new_indirect_alloc);
+
+                                        *next_dest =
+                                            IndirectAtom::from_raw_pointer(new_indirect_alloc)
+                                                .as_noun();
+                                    }
+                                    Either::Right(mut cell) => {
+                                        // Make space for the cell
+                                        other_alloc_pointer =
+                                            other_alloc_pointer.sub(word_size_of::<CellMemory>());
+                                        let new_cell_alloc = other_alloc_pointer as *mut CellMemory;
+
+                                        // Copy the cell metadata
+                                        (*new_cell_alloc).metadata =
+                                            (*cell.to_raw_pointer()).metadata;
+
+                                        // Push the tail and the head to the work stack
+                                        *(self.stack_pointer as *mut Noun) = cell.tail();
+                                        *(self.stack_pointer.add(1) as *mut *mut Noun) =
+                                            &mut (*new_cell_alloc).tail;
+                                        *(self.stack_pointer.add(2) as *mut Noun) = cell.head();
+                                        *(self.stack_pointer.add(3) as *mut *mut Noun) =
+                                            &mut (*new_cell_alloc).head;
+                                        self.stack_pointer = self.stack_pointer.add(4);
+
+                                        // Set the forwarding pointer
+                                        cell.set_forwarding_pointer(new_cell_alloc);
+
+                                        *next_dest =
+                                            Cell::from_raw_pointer(new_cell_alloc).as_noun();
+                                    }
+                                }
+                            } else {
+                                *next_dest = allocated.as_noun(); // Don't copy references outside the current frame
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Set saved previous allocation pointer its new value after this allocation
+        *(self.free_slot(ALLOC)) = other_alloc_pointer as u64;
+        assert_acyclic!(*noun);
     }
 
     unsafe fn copy_west(&mut self, noun: &mut Noun) {
@@ -402,7 +578,7 @@ impl NockStack {
         // marking the high edge of low memory to the low edge of high memory to make a new lightweight stack
         // used to traversing the nouns to be copied. we could use a whole new pointer for this - I'm not
         // sure which would be less confusing but it will be easy to change if this ends up looking bad.
-        self.stack_pointer = self.alloc_pointer.sub(4);
+        self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
         let work_start = self.stack_pointer;
         // location to which allocations are made
         let mut other_alloc_pointer = *(self.free_slot(ALLOC)) as *mut u64;
@@ -507,20 +683,95 @@ impl NockStack {
         assert_acyclic!(*noun);
     }
 
+    //TODO double check this
     pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
-        todo!()
+        assert!(self.is_west());
+        self.stack_pointer = self.alloc_pointer.sub(2);
+        let work_start = self.stack_pointer;
+        *(self.stack_pointer as *mut Noun) = *noun;
+        *(self.stack_pointer.add(1) as *mut *mut Noun) = noun as *mut Noun;
+        loop {
+            if self.stack_pointer == work_start {
+                break;
+            }
+
+            let next_noun = *(self.stack_pointer as *const Noun);
+            let next_dest = *(self.stack_pointer.add(1) as *const *mut Noun);
+            self.stack_pointer = self.stack_pointer.add(2);
+
+            match next_noun.as_either_direct_allocated() {
+                Either::Left(_direct) => {
+                    *next_dest = next_noun;
+                },
+                Either::Right(allocated) => {
+                    match allocated.forwarding_pointer() {
+                        Option::Some(new_allocated) => {
+                            *next_dest = new_allocated.as_noun();
+                        }
+                        Option::None => {
+                            if pma_in_arena(allocated.to_raw_pointer()) {
+                                *next_dest = allocated.as_noun();
+                            } else {
+                                match allocated.as_either() {
+                                    Either::Left(mut indirect) => {
+                                        let new_indirect_alloc =
+                                            pma_malloc(indirect_raw_size(indirect));
+
+                                        copy_nonoverlapping(
+                                            indirect.to_raw_pointer(),
+                                            new_indirect_alloc,
+                                            indirect_raw_size(indirect),
+                                        );
+
+                                        indirect.set_forwarding_pointer(new_indirect_alloc);
+
+                                        *next_dest =
+                                            IndirectAtom::from_raw_pointer(new_indirect_alloc)
+                                                .as_noun();
+                                    }
+                                    Either::Right(mut cell) => {
+                                        let new_cell_alloc: *mut CellMemory =
+                                            pma_malloc(word_size_of::<CellMemory>());
+
+                                        (*new_cell_alloc).metadata =
+                                            (*cell.to_raw_pointer()).metadata;
+
+                                        self.stack_pointer = self.stack_pointer.sub(4);
+                                        *(self.stack_pointer as *mut Noun) = cell.tail();
+                                        *(self.stack_pointer.add(1) as *mut *mut Noun) =
+                                            &mut (*new_cell_alloc).tail;
+                                        *(self.stack_pointer.add(2) as *mut Noun) = cell.head();
+                                        *(self.stack_pointer.add(3) as *mut *mut Noun) =
+                                            &mut (*new_cell_alloc).head;
+
+                                        cell.set_forwarding_pointer(new_cell_alloc);
+
+                                        *next_dest =
+                                            Cell::from_raw_pointer(new_cell_alloc).as_noun();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+            }
+        }
+        assert_acyclic!(*noun);
     }
 
+    /** We restore from the free_slots instead of the FP-relative slots since they are destroyed by
+     * copy_west/copy_east
+     */
     unsafe fn pop_east(&mut self) {
-        self.frame_pointer = self.free_slot_east(FRAME);
-        self.stack_pointer = self.free_slot_east(STACK);
-        self.alloc_pointer = self.free_slot_east(ALLOC);
+        self.frame_pointer = *(self.free_slot_east(FRAME) as *const *mut u64);
+        self.stack_pointer = *(self.free_slot_east(STACK) as *const *mut u64);
+        self.alloc_pointer = *(self.free_slot_east(ALLOC) as *const *mut u64);
     }
 
     unsafe fn pop_west(&mut self) {
-        self.frame_pointer = self.free_slot_west(FRAME);
-        self.stack_pointer = self.free_slot_west(STACK);
-        self.alloc_pointer = self.free_slot_west(ALLOC);
+        self.frame_pointer = *(self.free_slot_west(FRAME) as *const *mut u64);
+        self.stack_pointer = *(self.free_slot_west(STACK) as *const *mut u64);
+        self.alloc_pointer = *(self.free_slot_west(ALLOC) as *const *mut u64);
     }
 
     pub unsafe fn pop(&mut self) {
@@ -547,6 +798,7 @@ impl NockStack {
      * (The method is `push_west` because the naming convention refers to the beginning state of the
      * stack, not the final state.)
      */
+
     unsafe fn push_west(&mut self, num_locals: usize) {
         let current_frame_pointer = self.frame_pointer;
         let current_stack_pointer = self.stack_pointer;
@@ -585,34 +837,52 @@ impl NockStack {
     }
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
-    pub unsafe fn push(&mut self, num_locals: usize) {
-        if self.is_west() {
-            self.push_west(num_locals)
-        } else {
-            self.push_east(num_locals)
+    pub fn push(&mut self, num_locals: usize) {
+        unsafe {
+            if self.is_west() {
+                self.push_west(num_locals)
+            } else {
+                self.push_east(num_locals)
+            }
         }
     }
 
     /** Push onto the lightweight stack in a west frame, moving the stack_pointer */
-    unsafe fn stack_push_west(&mut self, num_slots: usize) {
-        self.stack_pointer = self.stack_pointer.add(num_slots);
+    unsafe fn stack_push_west<T>(&mut self) {
+        self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
     }
 
     /** Push onto the lightweight stack in an east frame, moving the stack_pointer */
-    unsafe fn stack_push_east(&mut self, num_slots: usize) {
-        self.stack_pointer = self.stack_pointer.sub(num_slots);
+    unsafe fn stack_push_east<T>(&mut self) {
+        self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
     }
 
     /** Push onto the lightweight stack, moving the stack_pointer */
-    pub unsafe fn stack_push(&mut self, num_slots: usize) {
+    pub unsafe fn stack_push<T>(&mut self) {
         if self.is_west() {
-            self.stack_push_west(num_slots);
+            self.stack_push_west::<T>();
         } else {
-            self.stack_push_east(num_slots);
+            self.stack_push_east::<T>();
         };
     }
 
-    unsafe fn stack_top<T>(&mut self) -> *mut T {
+    unsafe fn stack_pop_west<T>(&mut self) {
+        self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
+    }
+
+    unsafe fn stack_pop_east<T>(&mut self) {
+        self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
+    }
+
+    pub unsafe fn stack_pop<T>(&mut self) {
+        if self.is_west() {
+            self.stack_pop_west::<T>();
+        } else {
+            self.stack_pop_east::<T>();
+        };
+    }
+
+    pub unsafe fn stack_top<T>(&mut self) -> *mut T {
         if self.is_west() {
             self.stack_top_west()
         } else {
@@ -634,11 +904,34 @@ impl NockStack {
 }
 
 pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
+    /* This version of unifying equality is not like that of vere.
+     * Vere does a tree comparison (accelerated by pointer equality and short-circuited by mug
+     * equality) and then unifies the nouns at the top level if they are equal.
+     *
+     * Here we recursively attempt to unify nouns. Pointer-equal nouns are already unified.
+     * Disequal mugs again short-circuit the unification and equality check.
+     *
+     * Since we expect atoms to be normalized, direct and indirect atoms do not unify with each
+     * other. For direct atoms, no unification is possible as there is no pointer involved in their
+     * representation. Equality is simply direct equality on the word representation. Indirect
+     * atoms require equality first of the size and then of the memory buffers' contents.
+     *
+     * Cell equality is tested (after mug and pointer equality) by attempting to unify the heads and tails,
+     * respectively, of cells, and then re-testing. If unification succeeds then the heads and
+     * tails will be pointer-wise equal and the cell itself can be unified. A failed unification of
+     * the head or the tail will already short-circuit the unification/equality test, so we will
+     * not return to re-test the pointer equality.
+     *
+     * When actually mutating references for unification, we must be careful to respect seniority.
+     * A reference to a more junior noun should always be replaced with a reference to a more
+     * senior noun, *never vice versa*, to avoid introducing references from more senior frames
+     * into more junior frames, which would result in incorrect operation of the copier.
+     */
     // If the nouns are already word-equal we have nothing to do
     if (*a).raw_equals(*b) {
         return true;
     };
-    // If the nouns have cached mugs which are unequal we have nothing to do
+    // If the nouns have cached mugs which are disequal we have nothing to do
     if let (Ok(a_alloc), Ok(b_alloc)) = ((*a).as_allocated(), (*b).as_allocated()) {
         if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug()) {
             if a_mug != b_mug {
@@ -646,19 +939,16 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             };
         };
     };
-    let start_alloc_pointer = stack.alloc_pointer;
-    //TODO im pretty confused about what the pointers on the stack should be declared as here - should
-    // they be *mut u64, *mut (*mut Noun, *mut Noun), something else?
-    let work_start = stack.struct_alloc::<(*mut Noun, *mut Noun)>(1);
-    stack.save_pointer_to_stack(work_start as *mut u64);
-    *(work_start as *mut (*mut Noun, *mut Noun)) = (a, b); // TODO no idea if this is right
+    stack.push(1);
+    stack.save_stack_pointer_to_local(0);
+    *(stack.lightweight_push::<(*mut Noun, *mut Noun)>()) = (a, b);
     loop {
-        if stack.stack_is_empty() {
+        if stack.stack_pointer_equals_local(0) {
             break;
         };
         let (x, y): (*mut Noun, *mut Noun) = *(stack.stack_top());
         if (*x).raw_equals(*y) {
-            stack.reclaim_alloc::<(*mut Noun, *mut Noun)>();
+            stack.stack_pop::<(*mut Noun, *mut Noun)>();
             continue;
         };
         if let (Ok(x_alloc), Ok(y_alloc)) = (
@@ -666,7 +956,8 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             (*x).as_allocated(),
             (*y).as_allocated(),
         ) {
-            if let (Some(x_mug), Some(y_mug)) = (x_alloc.get_cached_mug(), y_alloc.get_cached_mug()) {
+            if let (Some(x_mug), Some(y_mug)) = (x_alloc.get_cached_mug(), y_alloc.get_cached_mug())
+            {
                 if x_mug != y_mug {
                     break; // short-circuit, the mugs differ therefore the nouns must differ
                 }
@@ -689,12 +980,12 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         } else {
                             *y = *x;
                         }
-                        stack.reclaim_alloc::<(*mut Noun, *mut Noun)>();
+                        stack.stack_pop::<(*mut Noun, *mut Noun)>();
                         continue;
                     } else {
                         break;
                     }
-                },
+                }
                 (Right(x_cell), Right(y_cell)) => {
                     let x_as_ptr = x_cell.to_raw_pointer();
                     let y_as_ptr = y_cell.to_raw_pointer();
@@ -707,41 +998,43 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         } else {
                             *y = *x;
                         }
-                        stack.reclaim_alloc::<(*mut Noun, *mut Noun)>();
+                        stack.stack_pop::<(*mut Noun, *mut Noun)>();
                         continue;
                     } else {
                         /* THIS ISN'T AN INFINITE LOOP
-                        * If we discover a disequality in either side, we will
-                        * short-circuit the entire loop and reset the work stack.
-                        *
-                        * If both sides are equal, then we will discover pointer
-                        * equality when we return and unify the cell.
-                        */
-                        let tail_ptr = stack.struct_alloc::<(*mut Noun, *mut Noun)>(1);
-                        *tail_ptr = (x_cell.tail_as_mut(), y_cell.tail_as_mut());
-                        stack.save_pointer_to_stack(tail_ptr as *mut u64); //TODO don't know if ptr type is right
-                        let head_ptr = stack.struct_alloc::<(*mut Noun, *mut Noun)>(1);
-                        *head_ptr = (x_cell.head_as_mut(), y_cell.head_as_mut());
-                        stack.save_pointer_to_stack(head_ptr as *mut u64); //TODO don't know if ptr type is right
+                         * If we discover a disequality in either side, we will
+                         * short-circuit the entire loop and reset the work stack.
+                         *
+                         * If both sides are equal, then we will discover pointer
+                         * equality when we return and unify the cell.
+                         */
+                        *(stack.lightweight_push::<(*mut Noun, *mut Noun)>()) =
+                            (x_cell.tail_as_mut(), y_cell.tail_as_mut());
+                        *(stack.lightweight_push::<(*mut Noun, *mut Noun)>()) =
+                            (x_cell.head_as_mut(), y_cell.head_as_mut());
                         continue;
                     }
-                },
+                }
                 (_, _) => {
                     break; // cells don't unify with atoms
-                },
+                }
             }
+        } else {
+            break; // direct atom not raw equal, so short circuit
         }
     }
-
-    //TODO I think the way we reclaim space, this should maybe be an assert?
-    //assert!(stack.alloc_pointer == start_alloc_pointer)
-    stack.alloc_pointer = start_alloc_pointer;
-
+    //TODO this is probably unneeded
+    stack.restore_stack_pointer_from_local(0);
+    stack.pre_copy();
+    stack.pop();
     assert_acyclic!(*a);
     assert_acyclic!(*b);
-
     (*a).raw_equals(*b)
 }
+
+// pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
+//     false
+// }
 
 unsafe fn senior_pointer_first<T>(
     stack: &NockStack,
@@ -751,7 +1044,7 @@ unsafe fn senior_pointer_first<T>(
     let mut frame_pointer = stack.frame_pointer as *const u64;
     let mut stack_pointer = stack.stack_pointer as *const u64;
     let mut alloc_pointer = stack.alloc_pointer as *const u64;
-    let mut prev_stack_pointer = *(stack.prev_stack_pointer_pointer()) as *const u64;
+    let prev_stack_pointer = *(stack.prev_stack_pointer_pointer()) as *const u64;
 
     let (mut high_pointer, mut low_pointer) = if stack.is_west() { (
         prev_stack_pointer as *const T,
@@ -781,14 +1074,14 @@ unsafe fn senior_pointer_first<T>(
                    if stack_pointer < alloc_pointer {
                        high_pointer = *(frame_pointer.sub(ALLOC + 1)) as *const T; // previous allocation pointer
                        // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
-                       low_pointer = *(frame_pointer.sub(FRAME + 1)).add(STACK) as *const T;
+                       low_pointer = *((*(frame_pointer.sub(FRAME + 1)) as *const u64).add(STACK)) as *const T;
                        stack_pointer = *(frame_pointer.sub(STACK + 1)) as *const u64;
                        alloc_pointer = *(frame_pointer.sub(ALLOC + 1)) as *const u64;
                        frame_pointer = *(frame_pointer.sub(FRAME + 1)) as *const u64;
                        continue;
                    } else if stack_pointer > alloc_pointer {
                        // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
-                       high_pointer = *(frame_pointer.add(FRAME)).add(STACK) as *const T;
+                       high_pointer = *((*(frame_pointer.add(FRAME)) as *const u64).sub(STACK + 1)) as *const T;
                        low_pointer = *(frame_pointer.add(ALLOC)) as *const T; // previous allocation pointer
                        stack_pointer = *(frame_pointer.add(STACK)) as *const u64;
                        alloc_pointer = *(frame_pointer.add(ALLOC)) as *const u64;
@@ -853,6 +1146,6 @@ impl Preserve for Noun {
 
 impl Stack for NockStack {
     unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64 {
-        todo!()
+        self.layout_alloc(layout)
     }
 }
