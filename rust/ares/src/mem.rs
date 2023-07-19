@@ -746,7 +746,8 @@ impl NockStack {
 
     /** Push onto the lightweight stack, moving the stack_pointer */
     pub unsafe fn stack_push<T>(&mut self) -> *mut T {
-        if self.is_west() {
+        if self.is_west() && self.pc == false ||
+           !self.is_west() && self.pc == true {
             self.stack_push_west::<T>()
         } else {
             self.stack_push_east::<T>()
@@ -762,7 +763,8 @@ impl NockStack {
     }
 
     pub unsafe fn stack_pop<T>(&mut self) {
-        if self.is_west() {
+        if self.is_west() && self.pc == false ||
+           !self.is_west() && self.pc == true {
             self.stack_pop_west::<T>();
         } else {
             self.stack_pop_east::<T>();
@@ -770,7 +772,8 @@ impl NockStack {
     }
 
     pub unsafe fn stack_top<T>(&mut self) -> *mut T {
-        if self.is_west() {
+        if self.is_west() && self.pc == false ||
+           !self.is_west() && self.pc == true {
             self.stack_top_west()
         } else {
             self.stack_top_east()
