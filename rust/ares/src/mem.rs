@@ -49,6 +49,8 @@ pub struct NockStack {
     alloc_pointer: *mut u64,
     /** MMap which must be kept alive as long as this NockStack is */
     memory: MmapMut,
+    /** Whether or not pre_copy() has been called on the current stack frame. */
+    pc: bool,
 }
 
 impl NockStack {
@@ -82,6 +84,7 @@ impl NockStack {
             stack_pointer,
             alloc_pointer,
             memory,
+            pc: false,
         }
     }
 
@@ -342,9 +345,12 @@ impl NockStack {
 
     /** Copies reserved pointers to free space adjacent to the allocation arena. */
     pub unsafe fn pre_copy(&mut self) {
-        *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
-        *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
-        *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
+        if self.pc == false {
+            *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
+            *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
+            *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
+            self.pc = true;
+        };
     }
 
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
@@ -638,12 +644,14 @@ impl NockStack {
         self.frame_pointer = *(self.free_slot_east(FRAME) as *const *mut u64);
         self.stack_pointer = *(self.free_slot_east(STACK) as *const *mut u64);
         self.alloc_pointer = *(self.free_slot_east(ALLOC) as *const *mut u64);
+        self.pc = false;
     }
 
     unsafe fn pop_west(&mut self) {
         self.frame_pointer = *(self.free_slot_west(FRAME) as *const *mut u64);
         self.stack_pointer = *(self.free_slot_west(STACK) as *const *mut u64);
         self.alloc_pointer = *(self.free_slot_west(ALLOC) as *const *mut u64);
+        self.pc = false;
     }
 
     pub unsafe fn pop(&mut self) {
@@ -685,6 +693,8 @@ impl NockStack {
         *(self.slot_pointer(FRAME)) = current_frame_pointer as u64;
         *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
         *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
+
+        self.pc = false;
     }
 
     /** Push a frame onto the west stack with 0 or more local variable slots.
@@ -706,6 +716,8 @@ impl NockStack {
         *(self.slot_pointer(FRAME)) = current_frame_pointer as u64;
         *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
         *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
+
+        self.pc = false;
     }
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
