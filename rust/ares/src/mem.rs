@@ -205,25 +205,6 @@ impl NockStack {
      * pointer is saved in a temporary, then the allocation size added to it, and finally the original
      * allocation pointer is returned as the pointer to the newly allocated memory. */
 
-    pub unsafe fn lightweight_push<T>(&mut self) -> *mut T {
-        if self.is_west() {
-            self.lightweight_push_west()
-        } else {
-            self.lightweight_push_east()
-        }
-    }
-
-    unsafe fn lightweight_push_west<T>(&mut self) -> *mut T {
-        let alloc = self.stack_pointer;
-        self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
-        alloc as *mut T
-    }
-
-    unsafe fn lightweight_push_east<T>(&mut self) -> *mut T {
-        self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
-        self.stack_pointer as *mut T
-    }
-
     pub unsafe fn save_alloc_pointer_to_local(&mut self, local: usize) {
         if self.is_west() {
             self.save_alloc_pointer_to_local_west(local);
@@ -571,13 +552,6 @@ impl NockStack {
     unsafe fn copy_west(&mut self, noun: &mut Noun) {
         let noun_ptr = noun as *mut Noun;
 
-        // lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy
-
-        // TODO we no longer need stack_pointer once we're at the copying phase, so since its already used
-        // as a lightweight stack traversal pointer and we need another such pointer here, we move it from
-        // marking the high edge of low memory to the low edge of high memory to make a new lightweight stack
-        // used to traversing the nouns to be copied. we could use a whole new pointer for this - I'm not
-        // sure which would be less confusing but it will be easy to change if this ends up looking bad.
         self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
         let work_start = self.stack_pointer;
         // location to which allocations are made
@@ -848,22 +822,25 @@ impl NockStack {
     }
 
     /** Push onto the lightweight stack in a west frame, moving the stack_pointer */
-    unsafe fn stack_push_west<T>(&mut self) {
+    unsafe fn stack_push_west<T>(&mut self) -> *mut T {
+        let alloc = self.stack_pointer;
         self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
+        alloc as *mut T
     }
 
     /** Push onto the lightweight stack in an east frame, moving the stack_pointer */
-    unsafe fn stack_push_east<T>(&mut self) {
+    unsafe fn stack_push_east<T>(&mut self) -> *mut T {
         self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
+        self.stack_pointer as *mut T
     }
 
     /** Push onto the lightweight stack, moving the stack_pointer */
-    pub unsafe fn stack_push<T>(&mut self) {
+    pub unsafe fn stack_push<T>(&mut self) -> *mut T {
         if self.is_west() {
-            self.stack_push_west::<T>();
+            self.stack_push_west::<T>()
         } else {
-            self.stack_push_east::<T>();
-        };
+            self.stack_push_east::<T>()
+        }
     }
 
     unsafe fn stack_pop_west<T>(&mut self) {
@@ -941,7 +918,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
     };
     stack.push(1);
     stack.save_stack_pointer_to_local(0);
-    *(stack.lightweight_push::<(*mut Noun, *mut Noun)>()) = (a, b);
+    *(stack.stack_push::<(*mut Noun, *mut Noun)>()) = (a, b);
     loop {
         if stack.stack_pointer_equals_local(0) {
             break;
@@ -1008,9 +985,9 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                          * If both sides are equal, then we will discover pointer
                          * equality when we return and unify the cell.
                          */
-                        *(stack.lightweight_push::<(*mut Noun, *mut Noun)>()) =
+                        *(stack.stack_push::<(*mut Noun, *mut Noun)>()) =
                             (x_cell.tail_as_mut(), y_cell.tail_as_mut());
-                        *(stack.lightweight_push::<(*mut Noun, *mut Noun)>()) =
+                        *(stack.stack_push::<(*mut Noun, *mut Noun)>()) =
                             (x_cell.head_as_mut(), y_cell.head_as_mut());
                         continue;
                     }

@@ -123,7 +123,7 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
     stack.push(1);
     unsafe {
         stack.save_stack_pointer_to_local(0);
-        *(stack.lightweight_push()) = noun;
+        *(stack.stack_push()) = noun;
     }
     loop {
         if unsafe { stack.stack_pointer_equals_local(0) } {
@@ -158,8 +158,8 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
                                     continue;
                                 }
                                 _ => {
-                                    *(stack.lightweight_push()) = cell.tail();
-                                    *(stack.lightweight_push()) = cell.head();
+                                    *(stack.stack_push()) = cell.tail();
+                                    *(stack.stack_push()) = cell.head();
                                     continue;
                                 }
                             }

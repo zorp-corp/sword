@@ -30,7 +30,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     stack.push(2);
     unsafe {
         stack.save_stack_pointer_to_local(0);
-        *(stack.lightweight_push::<*mut Noun>()) = stack.local_noun_pointer(1);
+        *(stack.stack_push::<*mut Noun>()) = stack.local_noun_pointer(1);
     };
     loop {
         if unsafe { stack.stack_pointer_equals_local(0) } {
@@ -78,8 +78,8 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                             DirectAtom::new_unchecked(0xEDBEEF).as_atom().as_noun();
                         (*cell_mem_ptr).head =
                             DirectAtom::new_unchecked(0xDEBEEF).as_atom().as_noun();
-                        *(stack.lightweight_push()) = &mut (*cell_mem_ptr).tail;
-                        *(stack.lightweight_push()) = &mut (*cell_mem_ptr).head;
+                        *(stack.stack_push()) = &mut (*cell_mem_ptr).tail;
+                        *(stack.stack_push()) = &mut (*cell_mem_ptr).head;
                     }
                     continue;
                 }
@@ -174,7 +174,7 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
     stack.push(1);
     unsafe {
         stack.save_stack_pointer_to_local(0);
-        *(stack.lightweight_push::<Noun>()) = noun;
+        *(stack.stack_push::<Noun>()) = noun;
     };
     'jam: loop {
         if unsafe { stack.stack_pointer_equals_local(0) } {
@@ -214,8 +214,8 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
                     jam_cell(stack, &mut state);
                     unsafe {
                         stack.stack_pop::<Noun>();
-                        *(stack.lightweight_push::<Noun>()) = cell.tail();
-                        *(stack.lightweight_push::<Noun>()) = cell.head();
+                        *(stack.stack_push::<Noun>()) = cell.tail();
+                        *(stack.stack_push::<Noun>()) = cell.head();
                     };
                     continue;
                 }
