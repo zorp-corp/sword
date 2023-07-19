@@ -147,10 +147,7 @@ impl NockStack {
     }
 
     /** Mutable pointer to a slot in a stack frame */
-    //TODO should this be public? maybe we should make sure
-    // that the only public interface to the RESERVED slots is via
-    // previous_x_pointer_pointer.
-    pub unsafe fn slot_pointer(&mut self, slot: usize) -> *mut u64 {
+    unsafe fn slot_pointer(&mut self, slot: usize) -> *mut u64 {
         if self.is_west() {
             self.slot_pointer_west(slot)
         } else {
