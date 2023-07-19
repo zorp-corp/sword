@@ -104,6 +104,8 @@ impl NockStack {
         self.size
     }
 
+    /** Check to see if an allocation is in frame before pre_copy()
+     * has been called. */
     #[inline]
     pub unsafe fn in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
@@ -113,12 +115,13 @@ impl NockStack {
                 && ptr_u64 < prev
         } else {
             let prev = *self.prev_stack_pointer_pointer_east();
-            ptr_u64 < self.alloc_pointer
-                && ptr_u64 >= prev
+            ptr_u64 >= prev
+                && ptr_u64 < self.alloc_pointer
         }
     }
 
-    //TODO this is in_frame after pre_copy() has been called
+    /** Check to see if an allocation is in frame after pre_copy()
+     * has been called but before pop(). */
     #[inline]
     pub unsafe fn in_frame2<T>(&mut self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as u64;
@@ -485,8 +488,7 @@ impl NockStack {
                         }
                         Option::None => {
                             // Check to see if its allocated within this frame
-                            if (allocated.to_raw_pointer() as *const u64) < self.alloc_pointer
-                                && (allocated.to_raw_pointer() as *const u64) >= other_stack_pointer
+                            if self.in_frame2(allocated.to_raw_pointer())
                             {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
@@ -593,8 +595,7 @@ impl NockStack {
                         }
                         Option::None => {
                             // Check to see if its allocated within this frame
-                            if (allocated.to_raw_pointer() as *const u64) >= self.alloc_pointer
-                                && (allocated.to_raw_pointer() as *const u64) < other_stack_pointer
+                            if self.in_frame2(allocated.to_raw_pointer())
                             {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
