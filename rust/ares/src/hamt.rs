@@ -438,24 +438,13 @@ impl<T: Copy> Default for Hamt<T> {
     }
 }
 
-//TODO
-// two problems: we make an allocation after pre_copy was called. this would
-// overwrite the pointers saved by pre_copy. we also overwrite the ordinary
-// pointers by allocating in the previous frame.
-//
-// second: in_frame uses prev_stack_pointer_pointer(). this won't work after
-// we've made an allocation in the previous frame.
-//
-// solution? maybe be more like copy_west/east. so make a ligthweight stack
-// at the edge of what comes after pre_copy. and maybe have a separate
-// in_frame called after pre_copy has be called?
 impl<T: Copy + Preserve> Preserve for Hamt<T> {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if stack.in_frame2(self.0.buffer) {
             let dest_buffer = stack.struct_alloc_in_previous_frame(self.0.size());
             copy_nonoverlapping(self.0.buffer, dest_buffer, self.0.size());
             self.0.buffer = dest_buffer;
-            let traversal_stack = stack.struct_alloc::<(Stem<T>, u32)>(6);
+            let traversal_stack = stack.free_alloc::<(Stem<T>, u32)>(6);
             let mut traversal_depth = 1;
             *traversal_stack = (self.0, 0);
             'preserve: loop {

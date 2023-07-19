@@ -34,6 +34,7 @@ fn indirect_raw_size(atom: IndirectAtom) -> usize {
 /** A stack for Nock computation, which supports stack allocation and delimited copying collection
  * for returned nouns
  */
+//TODO add in a boolean for whether pre_copy() has been called for this stack frame yet or not
 #[allow(dead_code)] // We need the memory field to keep our memory from being unmapped
 pub struct NockStack {
     /** The base pointer */
@@ -172,6 +173,33 @@ impl NockStack {
         }
     }
 
+    unsafe fn free_alloc_east<T>(&mut self, _count: usize) -> *mut T {
+        self.alloc_pointer.add(RESERVED) as *mut T
+    }
+
+    unsafe fn free_alloc_west<T>(&mut self, count: usize) -> *mut T {
+        self.alloc_pointer.sub(RESERVED + 1)
+                          .sub(word_size_of::<T>() * count) as *mut T
+    }
+
+    /** This allocates space past the reserved slots stored for pointers
+     * past the allocation arena, for the purpose of allocating after
+     * pre_copy() has been called. Pretty ugly stuff.
+     *
+     * TODO Possibly what we actually want is to use a pre_copy flag
+     * that just moves the lightweight stack to the free space next
+     * to the allocation arena and reserved pointers, and the programmer
+     * can just keep using the lightweight stack without thinking about
+     * this headache.
+     */
+    pub unsafe fn free_alloc<T>(&mut self, count: usize) -> *mut T {
+        if self.is_west() {
+            self.free_alloc_west(count)
+        } else {
+            self.free_alloc_east(count)
+        }
+    }
+
     /** Pointer to a local slot typed as Noun */
     pub unsafe fn local_noun_pointer(&mut self, local: usize) -> *mut Noun {
         self.slot_pointer(local + RESERVED) as *mut Noun
@@ -187,6 +215,11 @@ impl NockStack {
         self.slot_pointer_west(STACK) as *mut *mut u64
     }
 
+    //TODO it might make sense to make this the preferred way to access the previous frame's
+    // pointers. however, because those pointers move after pre_copy() has been called, we
+    // would need a way for NockStack to remember when pre_copy() has been called. Maybe we
+    // should introduce a bool into its state? can't think of another way off the top of my
+    // head.
     unsafe fn prev_stack_pointer_pointer(&self) -> *mut *mut u64 {
         if self.is_west() {
             self.prev_stack_pointer_pointer_west()
@@ -875,10 +908,6 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
     assert_acyclic!(*b);
     (*a).raw_equals(*b)
 }
-
-// pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
-//     false
-// }
 
 unsafe fn senior_pointer_first<T>(
     stack: &NockStack,
