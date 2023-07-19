@@ -241,22 +241,6 @@ impl NockStack {
             self.stack_pointer as u64;
     }
 
-    unsafe fn restore_stack_pointer_from_local_west(&mut self, local: usize) {
-        self.stack_pointer = *(self.slot_pointer_west(local + RESERVED) as *const *mut u64)
-    }
-
-    unsafe fn restore_stack_pointer_from_local_east(&mut self, local: usize) {
-        self.stack_pointer = *(self.slot_pointer_east(local + RESERVED) as *const *mut u64)
-    }
-
-    unsafe fn restore_stack_pointer_from_local(&mut self, local: usize) {
-        if self.is_west() {
-            self.restore_stack_pointer_from_local_west(local)
-        } else {
-            self.restore_stack_pointer_from_local_east(local)
-        }
-    }
-
     pub unsafe fn alloc_pointer_equals_local(&mut self, local: usize) -> bool {
         if self.is_west() {
             self.alloc_pointer_equals_local_west(local)
@@ -845,6 +829,11 @@ impl NockStack {
         self.stack_pointer as *mut T
     }
 
+    /** Checks to see if the lightweight stack is empty. Note that this doesn't work
+     * when the stack pointer has been moved to be close to the allocation arena, such
+     * as in copy_west(). */
+    //TODO maybe that's a sign that i shouldn't use the stack pointer for the lightweight
+    // stack there?
     pub fn stack_is_empty(&self) -> bool {
         self.stack_pointer == self.frame_pointer
     }
@@ -886,11 +875,10 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             };
         };
     };
-    stack.push(1);
-    stack.save_stack_pointer_to_local(0);
+    stack.push(0);
     *(stack.stack_push::<(*mut Noun, *mut Noun)>()) = (a, b);
     loop {
-        if stack.stack_pointer_equals_local(0) {
+        if stack.stack_is_empty() {
             break;
         };
         let (x, y): (*mut Noun, *mut Noun) = *(stack.stack_top());
@@ -970,8 +958,6 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             break; // direct atom not raw equal, so short circuit
         }
     }
-    //TODO this is probably unneeded
-    stack.restore_stack_pointer_from_local(0);
     stack.pre_copy();
     stack.pop();
     assert_acyclic!(*a);

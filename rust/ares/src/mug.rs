@@ -120,13 +120,10 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
         return mug;
     }
     assert_acyclic!(noun);
-    stack.push(1);
-    unsafe {
-        stack.save_stack_pointer_to_local(0);
-        *(stack.stack_push()) = noun;
-    }
+    stack.push(0);
+    unsafe { *(stack.stack_push()) = noun; }
     loop {
-        if unsafe { stack.stack_pointer_equals_local(0) } {
+        if stack.stack_is_empty() {
             break;
         } else {
             let noun: Noun = unsafe { *(stack.stack_top()) };

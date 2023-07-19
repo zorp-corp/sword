@@ -27,14 +27,13 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     let buffer_bitslice = buffer.as_bitslice();
     let mut cursor: usize = 0;
     let backref_map = MutHamt::<Noun>::new(stack);
-    stack.push(2);
+    stack.push(1);
     unsafe {
-        stack.save_stack_pointer_to_local(0);
-        *(stack.stack_push::<*mut Noun>()) = stack.local_noun_pointer(1);
+        *(stack.stack_push::<*mut Noun>()) = stack.local_noun_pointer(0);
     };
     loop {
-        if unsafe { stack.stack_pointer_equals_local(0) } {
-            let mut result = unsafe { *stack.local_noun_pointer(1) };
+        if stack.stack_is_empty() {
+            let mut result = unsafe { *stack.local_noun_pointer(0) };
             assert_acyclic!(result);
             unsafe {
                 stack.pre_copy();
@@ -171,13 +170,10 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
         atom,
         slice,
     };
-    stack.push(1);
-    unsafe {
-        stack.save_stack_pointer_to_local(0);
-        *(stack.stack_push::<Noun>()) = noun;
-    };
+    stack.push(0);
+    unsafe { *(stack.stack_push::<Noun>()) = noun; };
     'jam: loop {
-        if unsafe { stack.stack_pointer_equals_local(0) } {
+        if stack.stack_is_empty() {
             break;
         } else {
             let mut noun = unsafe { *(stack.stack_top::<Noun>()) };
