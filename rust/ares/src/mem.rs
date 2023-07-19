@@ -412,50 +412,25 @@ impl NockStack {
      * location.
      */
 
-    /** Before copying allocations from child to parent frame, we need to save the reserved pointers
-     * in the free space adjacent to the allocation arena. */
-    unsafe fn pre_copy_east(&mut self) {
-        *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
-        *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
-        *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
-    }
-
-    unsafe fn pre_copy_west(&mut self) {
-        *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
-        *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
-        *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
-    }
-
+    /** Copies reserved pointers to free space adjacent to the allocation arena. */
     pub unsafe fn pre_copy(&mut self) {
-        if self.is_west() {
-            self.pre_copy_west()
-        } else {
-            self.pre_copy_east()
-        }
+        *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
+        *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
+        *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
     }
 
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         let noun_ptr = noun as *mut Noun;
-
-        // lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy
-
-        // TODO we no longer need stack_pointer once we're at the copying phase, so since its already used
-        // as a lightweight stack traversal pointer and we need another such pointer here, we move it from
-        // marking the high edge of low memory to the low edge of high memory to make a new lightweight stack
-        // used to traversing the nouns to be copied. we could use a whole new pointer for this - I'm not
-        // sure which would be less confusing but it will be easy to change if this ends up looking bad.
+        // Lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy()
         self.stack_pointer = self.alloc_pointer.add(RESERVED);
         let work_start = self.stack_pointer;
-        // location to which allocations are made
+        // Location to which allocations are made
         let mut other_alloc_pointer = *(self.free_slot(ALLOC)) as *mut u64;
-        // used for determining whether an allocation is in the current frame. we can't use in_frame() since
-        // the usual location for the previous stack pointer may have been overwritten by a previous copy step
-        let other_stack_pointer = *(self.free_slot(STACK)) as *const u64;
-        // add two slots to the lightweight stack
+        // Add two slots to the lightweight stack
         self.stack_pointer = self.stack_pointer.add(2);
-        // set the first new slot to the noun to be copied
+        // Set the first new slot to the noun to be copied
         *(self.stack_pointer.sub(2) as *mut Noun) = *noun;
-        // set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
+        // Set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
         *(self.stack_pointer.sub(1) as *mut *mut Noun) = noun_ptr;
 
         loop {
@@ -550,19 +525,16 @@ impl NockStack {
 
     unsafe fn copy_west(&mut self, noun: &mut Noun) {
         let noun_ptr = noun as *mut Noun;
-
+        // Lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy()
         self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
         let work_start = self.stack_pointer;
-        // location to which allocations are made
+        // Location to which allocations are made
         let mut other_alloc_pointer = *(self.free_slot(ALLOC)) as *mut u64;
-        // used for determining whether an allocation is in the current frame. we can't use in_frame() since
-        // the usual location for the previous stack pointer may have been overwritten by a previous copy step
-        let other_stack_pointer = *(self.free_slot(STACK)) as *const u64;
-        // add two slots to the lightweight stack
+        // Add two slots to the lightweight stack
         self.stack_pointer = self.stack_pointer.sub(2);
-        // set the first new slot to the noun to be copied
+        // Set the first new slot to the noun to be copied
         *(self.stack_pointer as *mut Noun) = *noun;
-        // set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
+        // Set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
         *(self.stack_pointer.add(1) as *mut *mut Noun) = noun_ptr;
 
         loop {
