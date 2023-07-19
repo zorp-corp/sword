@@ -357,25 +357,24 @@ impl NockStack {
         let noun_ptr = noun as *mut Noun;
         // Lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy()
         self.stack_pointer = self.alloc_pointer.add(RESERVED);
-        let work_start = self.stack_pointer;
         // Location to which allocations are made
         let mut other_alloc_pointer = *(self.free_slot(ALLOC)) as *mut u64;
         // Add two slots to the lightweight stack
-        self.stack_pointer = self.stack_pointer.add(2);
         // Set the first new slot to the noun to be copied
-        *(self.stack_pointer.sub(2) as *mut Noun) = *noun;
+        *(self.stack_push::<Noun>()) = *noun;
         // Set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
-        *(self.stack_pointer.sub(1) as *mut *mut Noun) = noun_ptr;
+        *(self.stack_push::<*mut Noun>()) = noun_ptr;
 
         loop {
-            if self.stack_pointer == work_start {
+            if self.stack_is_empty() {
                 break;
             }
 
             // Pop a noun to copy from the stack
-            let next_noun = *(self.stack_pointer.sub(2) as *const Noun);
-            let next_dest = *(self.stack_pointer.sub(1) as *const *mut Noun);
-            self.stack_pointer = self.stack_pointer.sub(2);
+            let next_dest = *(self.stack_top::<*mut Noun>());
+            self.stack_pop::<*mut Noun>();
+            let next_noun = *(self.stack_top::<Noun>());
+            self.stack_pop::<Noun>();
 
             // If it's a direct atom, just write it to the destination.
             // Otherwise, we have allocations to make.
@@ -429,13 +428,10 @@ impl NockStack {
                                             (*cell.to_raw_pointer()).metadata;
 
                                         // Push the tail and the head to the work stack
-                                        *(self.stack_pointer as *mut Noun) = cell.tail();
-                                        *(self.stack_pointer.add(1) as *mut *mut Noun) =
-                                            &mut (*new_cell_alloc).tail;
-                                        *(self.stack_pointer.add(2) as *mut Noun) = cell.head();
-                                        *(self.stack_pointer.add(3) as *mut *mut Noun) =
-                                            &mut (*new_cell_alloc).head;
-                                        self.stack_pointer = self.stack_pointer.add(4);
+                                        *(self.stack_push::<Noun>()) = cell.tail();
+                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
+                                        *(self.stack_push::<Noun>()) = cell.head();
+                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
 
                                         // Set the forwarding pointer
                                         cell.set_forwarding_pointer(new_cell_alloc);
@@ -461,25 +457,23 @@ impl NockStack {
         let noun_ptr = noun as *mut Noun;
         // Lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy()
         self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
-        let work_start = self.stack_pointer;
         // Location to which allocations are made
         let mut other_alloc_pointer = *(self.free_slot(ALLOC)) as *mut u64;
         // Add two slots to the lightweight stack
-        self.stack_pointer = self.stack_pointer.sub(2);
         // Set the first new slot to the noun to be copied
-        *(self.stack_pointer as *mut Noun) = *noun;
+        *(self.stack_push::<Noun>()) = *noun;
         // Set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
-        *(self.stack_pointer.add(1) as *mut *mut Noun) = noun_ptr;
-
+        *(self.stack_push::<*mut Noun>()) = noun_ptr;
         loop {
-            if self.stack_pointer == work_start {
+            if self.stack_is_empty() {
                 break;
             }
 
             // Pop a noun to copy from the stack
-            let next_noun = *(self.stack_pointer as *const Noun);
-            let next_dest = *(self.stack_pointer.add(1) as *const *mut Noun);
-            self.stack_pointer = self.stack_pointer.add(2);
+            let next_dest = *(self.stack_top::<*mut Noun>());
+            self.stack_pop::<*mut Noun>();
+            let next_noun = *(self.stack_top::<Noun>());
+            self.stack_pop::<Noun>();
 
             // If it's a direct atom, just write it to the destination.
             // Otherwise, we have allocations to make.
@@ -533,13 +527,10 @@ impl NockStack {
                                             (*cell.to_raw_pointer()).metadata;
 
                                         // Push the tail and the head to the work stack
-                                        self.stack_pointer = self.stack_pointer.sub(4);
-                                        *(self.stack_pointer as *mut Noun) = cell.tail();
-                                        *(self.stack_pointer.add(1) as *mut *mut Noun) =
-                                            &mut (*new_cell_alloc).tail;
-                                        *(self.stack_pointer.add(2) as *mut Noun) = cell.head();
-                                        *(self.stack_pointer.add(3) as *mut *mut Noun) =
-                                            &mut (*new_cell_alloc).head;
+                                        *(self.stack_push::<Noun>()) = cell.tail();
+                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
+                                        *(self.stack_push::<Noun>()) = cell.head();
+                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
 
                                         // Set the forwarding pointer
                                         cell.set_forwarding_pointer(new_cell_alloc);
@@ -794,7 +785,15 @@ impl NockStack {
     //TODO maybe that's a sign that i shouldn't use the stack pointer for the lightweight
     // stack there?
     pub fn stack_is_empty(&self) -> bool {
-        self.stack_pointer == self.frame_pointer
+        if self.pc == false {
+            self.stack_pointer == self.frame_pointer
+        } else {
+            if self.is_west() {
+                unsafe { self.stack_pointer == self.alloc_pointer.sub(RESERVED + 1) }
+            } else {
+                unsafe { self.stack_pointer == self.alloc_pointer.add(RESERVED) }
+            }
+        }
     }
 }
 
