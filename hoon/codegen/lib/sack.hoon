@@ -13,6 +13,7 @@
     ==
   =/  work=(list @hail)  ~[`@hail`1]
   =/  mite  (~(put in *(set @hail)) `@hail`1)
+  =|  kids=(jug @hail @hail)
   |^  ^-  _moan
     =>  raid
     =>  espy
@@ -384,7 +385,6 @@
     =.  work  ~  :: non-recursive direct calls
     =|  slag=(set @hail) :: excluded as finalization roots
     =|  flux=(set @hail) :: possible finalization roots
-    =|  kids=(jug @hail @hail) :: immediate callees
     =|  loop=(map @hail @hail) :: recursive call targets
     |-  ^-  _this
     ?^  mile
@@ -427,14 +427,15 @@
         ==
       $(sirs [mill sirs], mail mire)
     =.  mite  (~(dif in mite) (~(gas in *(set @hail)) work))
+    
     =/  done  ~(tap in (~(dif in flux) slag))
     =|  enod=(list (list @hail))
     |-  ^-  _this
     ?~  done
       ?~  enod  this
       $(done i.enod, enod t.enod)
-    ?:  (~(has by loop) i.done)  $(done t.done) :: recursive
     =/  hood  (~(got by moot) i.done)
+    ?:  (~(has by loop) i.done)  $(done t.done) :: recursive
     :: safe to apply masks because we only use things from moan if
     :: output battery mask and input sock match
     =.  soot.hood  ~(norm so (~(app ca sake.hood) soot.hood))
@@ -465,6 +466,7 @@
       =/  roil  (~(gut by pool) rail.i.fore rail.i.fore)
       =/  foot  (~(get by moot) roil)
       ?>  ?=(^ foot)
+      ~?  ?=(~ form.u.foot)  indirect+rail.i.fore
       =?  ices  ?=(^ form.u.foot)
         %+  ~(put by ices)  rail.i.fore
         [soot u.form]:u.foot
