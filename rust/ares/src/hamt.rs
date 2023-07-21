@@ -444,6 +444,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
             let dest_buffer = stack.struct_alloc_in_previous_frame(self.0.size());
             copy_nonoverlapping(self.0.buffer, dest_buffer, self.0.size());
             self.0.buffer = dest_buffer;
+            //TODO Am unsure if I should be using the lightweight stack here instead
             let traversal_stack = stack.free_alloc::<(Stem<T>, u32)>(6);
             let mut traversal_depth = 1;
             *traversal_stack = (self.0, 0);

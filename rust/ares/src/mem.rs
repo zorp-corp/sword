@@ -34,7 +34,6 @@ fn indirect_raw_size(atom: IndirectAtom) -> usize {
 /** A stack for Nock computation, which supports stack allocation and delimited copying collection
  * for returned nouns
  */
-//TODO add in a boolean for whether pre_copy() has been called for this stack frame yet or not
 #[allow(dead_code)] // We need the memory field to keep our memory from being unmapped
 pub struct NockStack {
     /** The base pointer */
@@ -534,7 +533,6 @@ impl NockStack {
         assert_acyclic!(*noun);
     }
 
-    //TODO double check this
     pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
         assert!(self.is_west());
         let noun_ptr = noun as *mut Noun;
@@ -762,8 +760,6 @@ impl NockStack {
     /** Checks to see if the lightweight stack is empty. Note that this doesn't work
      * when the stack pointer has been moved to be close to the allocation arena, such
      * as in copy_west(). */
-    //TODO maybe that's a sign that i shouldn't use the stack pointer for the lightweight
-    // stack there?
     pub fn stack_is_empty(&self) -> bool {
         if self.pc == false {
             self.stack_pointer == self.frame_pointer
@@ -963,8 +959,6 @@ unsafe fn senior_pointer_first<T>(
 }
 
 impl NounAllocator for NockStack {
-    //TODO a fn called alloc_indirect that just calls one called indirect_alloc
-    // seems a little confusing but i don't have a better idea yet
     unsafe fn alloc_indirect(&mut self, words: usize) -> *mut u64 {
         self.indirect_alloc(words)
     }
