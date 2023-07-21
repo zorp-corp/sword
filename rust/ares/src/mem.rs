@@ -535,18 +535,19 @@ impl NockStack {
     //TODO double check this
     pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
         assert!(self.is_west());
-        self.stack_pointer = self.alloc_pointer.sub(2);
-        let work_start = self.stack_pointer;
-        *(self.stack_pointer as *mut Noun) = *noun;
-        *(self.stack_pointer.add(1) as *mut *mut Noun) = noun as *mut Noun;
+        let noun_ptr = noun as *mut Noun;
+        self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
+        *(self.stack_push::<Noun>()) = *noun;
+        *(self.stack_push::<*mut Noun>()) = noun_ptr;
         loop {
-            if self.stack_pointer == work_start {
+            if self.stack_is_empty() {
                 break;
             }
 
-            let next_noun = *(self.stack_pointer as *const Noun);
-            let next_dest = *(self.stack_pointer.add(1) as *const *mut Noun);
-            self.stack_pointer = self.stack_pointer.add(2);
+            let next_dest = *(self.stack_top::<*mut Noun>());
+            self.stack_pop::<*mut Noun>();
+            let next_noun = *(self.stack_top::<Noun>());
+            self.stack_pop::<Noun>();
 
             match next_noun.as_either_direct_allocated() {
                 Either::Left(_direct) => {
@@ -585,13 +586,10 @@ impl NockStack {
                                         (*new_cell_alloc).metadata =
                                             (*cell.to_raw_pointer()).metadata;
 
-                                        self.stack_pointer = self.stack_pointer.sub(4);
-                                        *(self.stack_pointer as *mut Noun) = cell.tail();
-                                        *(self.stack_pointer.add(1) as *mut *mut Noun) =
-                                            &mut (*new_cell_alloc).tail;
-                                        *(self.stack_pointer.add(2) as *mut Noun) = cell.head();
-                                        *(self.stack_pointer.add(3) as *mut *mut Noun) =
-                                            &mut (*new_cell_alloc).head;
+                                        *(self.stack_push::<Noun>()) = cell.tail();
+                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
+                                        *(self.stack_push::<Noun>()) = cell.head();
+                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
 
                                         cell.set_forwarding_pointer(new_cell_alloc);
 
