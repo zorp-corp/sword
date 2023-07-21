@@ -107,35 +107,18 @@ impl NockStack {
         self.size
     }
 
-    /** Check to see if an allocation is in frame before pre_copy()
-     * has been called. */
+    /** Check to see if an allocation is in frame */
     #[inline]
     pub unsafe fn in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
         if self.is_west() {
-            let prev = *self.prev_stack_pointer_pointer_west();
+            let prev = *self.prev_stack_pointer_pointer();
             ptr_u64 >= self.alloc_pointer
                 && ptr_u64 < prev
         } else {
-            let prev = *self.prev_stack_pointer_pointer_east();
+            let prev = *self.prev_stack_pointer_pointer();
             ptr_u64 >= prev
                 && ptr_u64 < self.alloc_pointer
-        }
-    }
-
-    /** Check to see if an allocation is in frame after pre_copy()
-     * has been called but before pop(). */
-    #[inline]
-    pub unsafe fn in_frame2<T>(&mut self, ptr: *const T) -> bool {
-        let ptr_u64 = ptr as u64;
-        if self.is_west() {
-            let prev = *self.free_slot_west(STACK) as u64;
-            ptr_u64 >= self.alloc_pointer as u64
-                && ptr_u64 < prev
-        } else {
-            let prev = *self.free_slot_east(STACK);
-            ptr_u64 < self.alloc_pointer as u64
-                && ptr_u64 >= prev as u64
         }
     }
 
@@ -150,7 +133,7 @@ impl NockStack {
     }
 
     /** Mutable pointer to a slot in a stack frame */
-    unsafe fn slot_pointer(&mut self, slot: usize) -> *mut u64 {
+    unsafe fn slot_pointer(&self, slot: usize) -> *mut u64 {
         if self.is_west() {
             self.slot_pointer_west(slot)
         } else {
@@ -159,16 +142,16 @@ impl NockStack {
     }
 
     /** Mutable pointer into a slot in free space east of allocation pointer */
-    unsafe fn free_slot_east(&mut self, slot: usize) -> *mut u64 {
+    unsafe fn free_slot_east(&self, slot: usize) -> *mut u64 {
         self.alloc_pointer.add(slot)
     }
 
     /** Mutable pointer into a slot in free space west of allocation pointer */
-    unsafe fn free_slot_west(&mut self, slot: usize) -> *mut u64 {
+    unsafe fn free_slot_west(&self, slot: usize) -> *mut u64 {
         self.alloc_pointer.sub(slot + 1)
     }
 
-    unsafe fn free_slot(&mut self, slot: usize) -> *mut u64 {
+    unsafe fn free_slot(&self, slot: usize) -> *mut u64 {
         if self.is_west() {
             self.free_slot_west(slot)
         } else {
@@ -187,13 +170,7 @@ impl NockStack {
 
     /** This allocates space past the reserved slots stored for pointers
      * past the allocation arena, for the purpose of allocating after
-     * pre_copy() has been called. Pretty ugly stuff.
-     *
-     * TODO Possibly what we actually want is to use a pre_copy flag
-     * that just moves the lightweight stack to the free space next
-     * to the allocation arena and reserved pointers, and the programmer
-     * can just keep using the lightweight stack without thinking about
-     * this headache.
+     * pre_copy() has been called.
      */
     pub unsafe fn free_alloc<T>(&mut self, count: usize) -> *mut T {
         if self.is_west() {
@@ -210,19 +187,22 @@ impl NockStack {
 
     /** Pointer to where the previous (west) stack pointer is saved in an east frame */
     unsafe fn prev_stack_pointer_pointer_east(&self) -> *mut *mut u64 {
-        self.slot_pointer_east(STACK) as *mut *mut u64
+        if self.pc == false {
+            self.slot_pointer_east(STACK) as *mut *mut u64
+        } else {
+            self.free_slot(STACK) as *mut *mut u64
+        }
     }
 
     /** Pointer to where the previous (east) stack pointer is saved in an west frame */
     unsafe fn prev_stack_pointer_pointer_west(&self) -> *mut *mut u64 {
-        self.slot_pointer_west(STACK) as *mut *mut u64
+        if self.pc == false {
+            self.slot_pointer_west(STACK) as *mut *mut u64
+        } else {
+            self.free_slot(STACK) as *mut *mut u64
+        }
     }
 
-    //TODO it might make sense to make this the preferred way to access the previous frame's
-    // pointers. however, because those pointers move after pre_copy() has been called, we
-    // would need a way for NockStack to remember when pre_copy() has been called. Maybe we
-    // should introduce a bool into its state? can't think of another way off the top of my
-    // head.
     unsafe fn prev_stack_pointer_pointer(&self) -> *mut *mut u64 {
         if self.is_west() {
             self.prev_stack_pointer_pointer_west()
@@ -393,7 +373,7 @@ impl NockStack {
                         }
                         Option::None => {
                             // Check to see if its allocated within this frame
-                            if self.in_frame2(allocated.to_raw_pointer())
+                            if self.in_frame(allocated.to_raw_pointer())
                             {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
@@ -492,7 +472,7 @@ impl NockStack {
                         }
                         Option::None => {
                             // Check to see if its allocated within this frame
-                            if self.in_frame2(allocated.to_raw_pointer())
+                            if self.in_frame(allocated.to_raw_pointer())
                             {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
