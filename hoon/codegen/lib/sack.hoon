@@ -341,18 +341,30 @@
       ?>  ?=(^ t.salt)
       =/  [soot=sock sake=cape root=sock form=(unit) noir=(unit nomm) rack=cape]
         [soot sake root form norm rake]:(~(got by moot) rail.kant)
-      =/  roan=(unit sock)
+      =/  roan=(unit hone)
         ?:  =(& cape.i.salt) :: equality because a cape can be a cell
           =/  huns  (~(get ja moan) data.i.salt)
-          |-  ^-  (unit sock)
+          |-  ^-  (unit hone)
           ?~  huns  ~
           ?:  ?&  (~(huge so soot.i.huns) i.t.salt)
                   !(~(big ca cape.root.i.huns) rack)
               ==
-            `root.i.huns
+            `i.huns
           $(huns t.huns)
         ~
-      ?^  roan  $(soda t.soda, salt [u.roan t.t.salt])
+      ?^  roan
+        =.  moot :: copy info into moot
+          %+  ~(jab by moot)  rail.kant
+          |=  =toot
+          %=  toot
+            soot  i.t.salt
+            sake  cape.soot.u.roan
+            root  root.u.roan
+            rake  cape.root.u.roan
+            form  `data.i.salt
+            norm  `nomm.norm.u.roan
+          ==
+        $(soda t.soda, salt [root.u.roan t.t.salt])
       ?.  ?|(?!(=(cape.soot cape.i.t.salt)) ?&(=(& cape.i.salt) =(~ form)))
         $(soda t.soda, salt [root t.t.salt])
       =/  note  ?:(=(& cape.i.salt) `data.i.salt ~)
@@ -405,7 +417,7 @@
       ?~  mail
         ?~  sirs :: not actually a call just the entrypoint
           ^^$(mile t.mile, flux (~(put in flux) mill))
-        %=  ^^$
+        %=  ^^$ :: an un-analyzed indirect call
           mile  t.mile
           work  [i.mile work]
           slag  (~(gas in slag) [mill sirs])
@@ -442,6 +454,16 @@
     =.  root.hood  ~(norm so (~(app ca rake.hood) root.hood))
     =.  moot  (~(put by moot) i.done hood)
     ?>  ?=(^ form.hood)
+    ?:  =/  huns  (~(get ja moan) u.form.hood)
+        |-  ^-  ?
+        ?^  huns
+          ?:  ?&  (~(huge so soot.i.huns) soot.hood)
+                  !(~(big ca cape.root.i.huns) rake.hood)
+              ==
+            &
+          $(huns t.huns)
+        |
+      $(done t.done)
     ?>  ?=(^ norm.hood)
     =.  moan
       %+  ~(add ja moan)  u.form.hood
