@@ -110,12 +110,11 @@ impl NockStack {
     #[inline]
     pub unsafe fn in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
+        let prev = *self.prev_stack_pointer_pointer();
         if self.is_west() {
-            let prev = *self.prev_stack_pointer_pointer();
             ptr_u64 >= self.alloc_pointer
                 && ptr_u64 < prev
         } else {
-            let prev = *self.prev_stack_pointer_pointer();
             ptr_u64 >= prev
                 && ptr_u64 < self.alloc_pointer
         }
