@@ -97,8 +97,6 @@
         tack  t.t.tack
       ==
     =/  honk  (fan u.snow)
-    ~?  =(~ honk)  missingarm+u.snow
-    ~?  =(~ honk)  moan+~(key by moan)
     ?>  ?=(^ honk)
     %=  $
       toll  [[%& nomm.norm.u.honk] [%| %wot] t.toll]
