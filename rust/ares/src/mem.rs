@@ -330,7 +330,9 @@ impl NockStack {
             *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
             *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
             self.pc = true;
-        };
+        } else {
+            eprintln!("pre_copy() called more than once on stack frame!");
+        }
     }
 
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
