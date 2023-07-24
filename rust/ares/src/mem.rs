@@ -710,19 +710,25 @@ impl NockStack {
         }
     }
 
-    /** Push onto a west-oriented lightweight stack, moving the stack_pointer.
-     * */
-    unsafe fn stack_push_west<T>(&mut self) -> *mut T {
-        let alloc = self.stack_pointer;
-        self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
-        alloc as *mut T
-    }
-
-    /** Push onto an east-oriented ligthweight stack, moving the stack_pointer */
-    unsafe fn stack_push_east<T>(&mut self) -> *mut T {
-        self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
-        self.stack_pointer as *mut T
-    }
+    /** Lightweight stack.
+     * The lightweight stack is a stack data structure present in each stack
+     * frame, often used for noun traversal. During normal operation (self.pc
+     * == false),a west frame has a "west-oriented" lightweight stack, which
+     * means that it sits immediately eastward of the frame pointer, pushing
+     * moves the stack pointer eastward, and popping moves the frame pointer
+     * westward. The stack is empty when stack_pointer == frame_pointer. The
+     * east frame situation is the same, swapping west for east.
+     *
+     * Once a stack frame is preparing to be popped, pre_copy() is called (pc == true)
+     * and this reverses the orientation of the lightweight stack. For a west frame,
+     * that means it starts at the eastward most free byte west of the allocation
+     * arena (which is now more words west than the allocation pointer, to account
+     * for slots containing the previous frame's pointers), pushing moves the
+     * stack pointer westward, and popping moves it eastward. Again, the east
+     * frame situation is the same, swapping west for east.
+     *
+     * When pc == true, the lightweight stack is used for copying from the current
+     * frame's allocation arena to the previous frames. */
 
     /** Push onto the lightweight stack, moving the stack_pointer. Note that
      * this violates the _east/_west naming convention somewhat, since e.g.
@@ -735,6 +741,20 @@ impl NockStack {
         } else {
             self.stack_push_east::<T>()
         }
+    }
+
+    /** Push onto a west-oriented lightweight stack, moving the stack_pointer.
+     * */
+    unsafe fn stack_push_west<T>(&mut self) -> *mut T {
+        let alloc = self.stack_pointer;
+        self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
+        alloc as *mut T
+    }
+
+    /** Push onto an east-oriented ligthweight stack, moving the stack_pointer */
+    unsafe fn stack_push_east<T>(&mut self) -> *mut T {
+        self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
+        self.stack_pointer as *mut T
     }
 
     /** Pop a west-oriented lightweight stack, moving the stack pointer. */
