@@ -332,7 +332,14 @@ impl NockStack {
             *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
             *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
             *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
+
+            // Change polarity of lightweight stack.
             self.pc = true;
+            if self.is_west() {
+                self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
+            } else {
+                self.stack_pointer = self.alloc_pointer.add(RESERVED);
+            }
         } else {
             eprintln!("pre_copy() called more than once on stack frame!");
         }
@@ -340,8 +347,6 @@ impl NockStack {
 
     unsafe fn copy_east(&mut self, noun: &mut Noun) {
         let noun_ptr = noun as *mut Noun;
-        // Lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy()
-        self.stack_pointer = self.alloc_pointer.add(RESERVED);
         // Location to which allocations are made
         let mut other_alloc_pointer = *(self.prev_alloc_pointer_pointer()) as *mut u64;
         // Add two slots to the lightweight stack
@@ -440,8 +445,6 @@ impl NockStack {
 
     unsafe fn copy_west(&mut self, noun: &mut Noun) {
         let noun_ptr = noun as *mut Noun;
-        // Lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy()
-        self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
         // Location to which allocations are made
         let mut other_alloc_pointer = *(self.prev_alloc_pointer_pointer()) as *mut u64;
         // Add two slots to the lightweight stack
