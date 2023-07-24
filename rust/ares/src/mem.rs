@@ -220,12 +220,18 @@ impl NockStack {
 
     /** Bump the alloc pointer for a west frame to make space for an allocation */
     unsafe fn raw_alloc_west(&mut self, words: usize) -> *mut u64 {
+        if self.pc == true {
+            panic!("Attempted to allocate in copying mode");
+        }
         self.alloc_pointer = self.alloc_pointer.sub(words);
         self.alloc_pointer
     }
 
     /** Bump the alloc pointer for an east frame to make space for an allocation */
     unsafe fn raw_alloc_east(&mut self, words: usize) -> *mut u64 {
+        if self.pc == true {
+            panic!("Attempted to allocate in copying mode");
+        }
         let alloc = self.alloc_pointer;
         self.alloc_pointer = self.alloc_pointer.add(words);
         alloc
@@ -274,6 +280,9 @@ impl NockStack {
         // called, at which point we need to be looking for the saved pointers next
         // to from-space instead of next to frame_pointer
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
+        if self.pc == false {
+            panic!("Attempted to allocate in previous frame outside of copying mode");
+        }
         let alloc = *self.free_slot(ALLOC);
         *self.free_slot(ALLOC) = *self.free_slot(ALLOC).add(word_size_of::<T>() * count);
         alloc as *mut T
@@ -284,6 +293,9 @@ impl NockStack {
         // called, at which point we need to be looking for the saved pointers next
         // to from-space instead of next to frame_pointer
         // note that the allocation is on the west frame, and thus resembles raw_alloc_west
+        if self.pc == false {
+            panic!("Attempted to allocate in previous frame outside of copying mode");
+        }
         *self.free_slot(ALLOC) = *self.free_slot(ALLOC).sub(word_size_of::<T>() * count);
         *self.free_slot(ALLOC) as *mut T
     }
