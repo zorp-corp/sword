@@ -710,20 +710,24 @@ impl NockStack {
         }
     }
 
-    /** Push onto the lightweight stack in a west frame, moving the stack_pointer */
+    /** Push onto a west-oriented lightweight stack, moving the stack_pointer.
+     * */
     unsafe fn stack_push_west<T>(&mut self) -> *mut T {
         let alloc = self.stack_pointer;
         self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
         alloc as *mut T
     }
 
-    /** Push onto the lightweight stack in an east frame, moving the stack_pointer */
+    /** Push onto an east-oriented ligthweight stack, moving the stack_pointer */
     unsafe fn stack_push_east<T>(&mut self) -> *mut T {
         self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
         self.stack_pointer as *mut T
     }
 
-    /** Push onto the lightweight stack, moving the stack_pointer */
+    /** Push onto the lightweight stack, moving the stack_pointer. Note that
+     * this violates the _east/_west naming convention somewhat, since e.g.
+     * a west frame when pc == false has a west-oriented lightweight stack,
+     * but when pc == true it becomes east-oriented.*/
     pub unsafe fn stack_push<T>(&mut self) -> *mut T {
         if self.is_west() && self.pc == false ||
            !self.is_west() && self.pc == true {
@@ -733,14 +737,20 @@ impl NockStack {
         }
     }
 
+    /** Pop a west-oriented lightweight stack, moving the stack pointer. */
     unsafe fn stack_pop_west<T>(&mut self) {
         self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
     }
 
+    /** Pop an east-oriented lightweight stack, moving the stack pointer. */
     unsafe fn stack_pop_east<T>(&mut self) {
         self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
     }
 
+    /** Pop the lightweight stack, moving the stack_pointer. Note that
+     * this violates the _east/_west naming convention somewhat, since e.g.
+     * a west frame when pc == false has a west-oriented lightweight stack,
+     * but when pc == true it becomes east-oriented.*/
     pub unsafe fn stack_pop<T>(&mut self) {
         if self.is_west() && self.pc == false ||
            !self.is_west() && self.pc == true {
@@ -750,6 +760,10 @@ impl NockStack {
         };
     }
 
+    /** Peek the top of the lightweight stack. Note that
+     * this violates the _east/_west naming convention somewhat, since e.g.
+     * a west frame when pc == false has a west-oriented lightweight stack,
+     * but when pc == true it becomes east-oriented.*/
     pub unsafe fn stack_top<T>(&mut self) -> *mut T {
         if self.is_west() && self.pc == false ||
            !self.is_west() && self.pc == true {
@@ -759,10 +773,12 @@ impl NockStack {
         }
     }
 
+    /** Peek the top of a west-oriented lightweight stack. */
     unsafe fn stack_top_west<T>(&mut self) -> *mut T {
         self.stack_pointer.sub(word_size_of::<T>()) as *mut T
     }
 
+    /** Peek the top of an east-oriented lightweight stack. */
     unsafe fn stack_top_east<T>(&mut self) -> *mut T {
         self.stack_pointer as *mut T
     }
