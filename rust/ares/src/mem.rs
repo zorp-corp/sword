@@ -271,12 +271,13 @@ impl NockStack {
         // This is only called when using preserve(), at which point pre_copy() has been
         // called, at which point we need to be looking for the saved pointers next
         // to from-space instead of next to frame_pointer
-        // note that the allocation is on the east frame, and thus resembles raw_alloc_east
         if self.pc == false {
             panic!("Attempted to allocate in previous frame outside of copying mode");
         }
-        let alloc = *self.prev_alloc_pointer_pointer();
-        *alloc = *alloc.add(word_size_of::<T>() * count);
+        // note that the allocation is on the east frame, and thus resembles raw_alloc_east
+        let prev_alloc_pointer_pointer = self.prev_alloc_pointer_pointer();
+        let alloc = *prev_alloc_pointer_pointer;
+        *prev_alloc_pointer_pointer = (*prev_alloc_pointer_pointer).add(word_size_of::<T>() * count);
         alloc as *mut T
     }
 
@@ -284,13 +285,13 @@ impl NockStack {
         // This is only called when using preserve(), at which point pre_copy() has been
         // called, at which point we need to be looking for the saved pointers next
         // to from-space instead of next to frame_pointer
-        // note that the allocation is on the west frame, and thus resembles raw_alloc_west
         if self.pc == false {
             panic!("Attempted to allocate in previous frame outside of copying mode");
         }
-        let alloc = *self.prev_alloc_pointer_pointer();
-        *alloc = *alloc.sub(word_size_of::<T>() * count);
-        *alloc as *mut T
+        // note that the allocation is on the west frame, and thus resembles raw_alloc_west
+        let prev_alloc_pointer_pointer = self.prev_alloc_pointer_pointer();
+        *prev_alloc_pointer_pointer = *(prev_alloc_pointer_pointer).sub(word_size_of::<T>() * count);
+        *prev_alloc_pointer_pointer as *mut T
     }
 
     pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
