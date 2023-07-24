@@ -1,11 +1,13 @@
 ## Ares: Noun representation
 
+See also docs/noun-rep.svg
+
 Nouns are represented as machine words with the MSBs as tag bits. By treating a
 0 MSB as the tag for a direct atom, we can compute directly with direct atoms
 without masking the tag.
 
 
-| MSBs | Noun |
+| MSBs | Noun                  |
 |------|-----------------------|
 | 0    | Direct Atom           |
 | 10   | Indirect Atom Pointer |
