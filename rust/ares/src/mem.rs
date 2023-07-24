@@ -183,29 +183,21 @@ impl NockStack {
         self.slot_pointer(local + RESERVED) as *mut Noun
     }
 
-    /** Pointer to where the previous (west) stack pointer is saved in an east frame */
-    unsafe fn prev_stack_pointer_pointer_east(&self) -> *mut *mut u64 {
-        if self.pc == false {
-            self.slot_pointer_east(STACK) as *mut *mut u64
-        } else {
-            self.free_slot(STACK) as *mut *mut u64
-        }
-    }
-
-    /** Pointer to where the previous (east) stack pointer is saved in an west frame */
-    unsafe fn prev_stack_pointer_pointer_west(&self) -> *mut *mut u64 {
-        if self.pc == false {
-            self.slot_pointer_west(STACK) as *mut *mut u64
-        } else {
-            self.free_slot(STACK) as *mut *mut u64
-        }
-    }
-
+    /** Pointer to where the previous stack pointer is saved in a frame */
     unsafe fn prev_stack_pointer_pointer(&self) -> *mut *mut u64 {
-        if self.is_west() {
-            self.prev_stack_pointer_pointer_west()
+        if self.pc == false {
+            self.slot_pointer(STACK) as *mut *mut u64
         } else {
-            self.prev_stack_pointer_pointer_east()
+            self.free_slot(STACK) as *mut *mut u64
+        }
+    }
+
+    /** Pointer to where the previous stack pointer is saved in a frame */
+    unsafe fn prev_alloc_pointer_pointer(&self) -> *mut *mut u64 {
+        if self.pc == false {
+            self.slot_pointer(ALLOC) as *mut *mut u64
+        } else {
+            self.free_slot(ALLOC) as *mut *mut u64
         }
     }
 
@@ -283,8 +275,8 @@ impl NockStack {
         if self.pc == false {
             panic!("Attempted to allocate in previous frame outside of copying mode");
         }
-        let alloc = *self.free_slot(ALLOC);
-        *self.free_slot(ALLOC) = *self.free_slot(ALLOC).add(word_size_of::<T>() * count);
+        let alloc = *self.prev_alloc_pointer_pointer();
+        *alloc = *alloc.add(word_size_of::<T>() * count);
         alloc as *mut T
     }
 
@@ -296,8 +288,9 @@ impl NockStack {
         if self.pc == false {
             panic!("Attempted to allocate in previous frame outside of copying mode");
         }
-        *self.free_slot(ALLOC) = *self.free_slot(ALLOC).sub(word_size_of::<T>() * count);
-        *self.free_slot(ALLOC) as *mut T
+        let alloc = *self.prev_alloc_pointer_pointer();
+        *alloc = *alloc.sub(word_size_of::<T>() * count);
+        *alloc as *mut T
     }
 
     pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
@@ -350,7 +343,7 @@ impl NockStack {
         // Lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy()
         self.stack_pointer = self.alloc_pointer.add(RESERVED);
         // Location to which allocations are made
-        let mut other_alloc_pointer = *(self.free_slot(ALLOC)) as *mut u64;
+        let mut other_alloc_pointer = *(self.prev_alloc_pointer_pointer()) as *mut u64;
         // Add two slots to the lightweight stack
         // Set the first new slot to the noun to be copied
         *(self.stack_push::<Noun>()) = *noun;
@@ -441,7 +434,7 @@ impl NockStack {
             }
         }
         // Set saved previous allocation pointer its new value after this allocation
-        *(self.free_slot(ALLOC)) = other_alloc_pointer as u64;
+        *(self.prev_alloc_pointer_pointer()) = other_alloc_pointer;
         assert_acyclic!(*noun);
     }
 
@@ -450,7 +443,7 @@ impl NockStack {
         // Lightweight stack starts at the edge of from-space, plus slots for the saved pointers from pre_copy()
         self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
         // Location to which allocations are made
-        let mut other_alloc_pointer = *(self.free_slot(ALLOC)) as *mut u64;
+        let mut other_alloc_pointer = *(self.prev_alloc_pointer_pointer()) as *mut u64;
         // Add two slots to the lightweight stack
         // Set the first new slot to the noun to be copied
         *(self.stack_push::<Noun>()) = *noun;
@@ -540,7 +533,7 @@ impl NockStack {
             }
         }
         // Set saved previous allocation pointer its new value after this allocation
-        *(self.free_slot(ALLOC)) = other_alloc_pointer as u64;
+        *(self.prev_alloc_pointer_pointer()) = other_alloc_pointer;
         assert_acyclic!(*noun);
     }
 
@@ -618,7 +611,9 @@ impl NockStack {
     }
 
     /** We restore from the free_slots instead of the FP-relative slots since they are destroyed by
-     * copy_west/copy_east
+     * copy_west/copy_east. We call free_slot instead of using the prev_xyz_pointer_pointer interface
+     * since we're changing the pointers that that interface uses to determine which location to point
+     * to.
      */
     unsafe fn pop_east(&mut self) {
         self.frame_pointer = *(self.free_slot_east(FRAME) as *const *mut u64);
