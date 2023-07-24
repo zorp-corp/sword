@@ -634,6 +634,10 @@ impl NockStack {
     }
 
     pub unsafe fn pop(&mut self) {
+        if !self.stack_is_empty() {
+            //TODO Should this actually be a panic?
+            eprintln!("Popping stack frame when lightweight stack is not empty!");
+        }
         if self.is_west() {
             self.pop_west()
         } else {
