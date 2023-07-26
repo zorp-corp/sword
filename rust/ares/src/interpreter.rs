@@ -240,23 +240,22 @@ pub fn interpret(
                     stack.pop();
                 }
                 Nock7ComputeSubject => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock7ComputeResult);
-                    let formula = *stack.local_noun_pointer(1);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = work_to_noun(Nock7ComputeResult);
                     push_formula(stack, formula);
                 }
                 Nock7ComputeResult => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock7RestoreSubject);
-                    *(stack.local_noun_pointer(1)) = subject;
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = subject;
+                    *(stack.stack_push()) = work_to_noun(Nock7RestoreSubject);
                     subject = res;
-                    let formula = *stack.local_noun_pointer(2);
                     push_formula(stack, formula);
                 }
                 Nock7RestoreSubject => {
-                    subject = *(stack.local_noun_pointer(1));
-                    stack.pre_copy();
-                    stack.preserve(&mut cache);
-                    stack.preserve(&mut res);
-                    stack.pop();
+                    subject = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
                 }
                 Nock8ComputeSubject => {
                     *(stack.local_noun_pointer(0)) = work_to_noun(Nock8ComputeResult);
@@ -453,12 +452,10 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
                         }
                         7 => {
                             if let Ok(arg_cell) = formula_cell.tail().as_cell() {
-                                stack.push(3);
                                 unsafe {
-                                    *(stack.local_noun_pointer(0)) =
-                                        work_to_noun(Nock7ComputeSubject);
-                                    *(stack.local_noun_pointer(1)) = arg_cell.head();
-                                    *(stack.local_noun_pointer(2)) = arg_cell.tail();
+                                    *(stack.stack_push()) = arg_cell.tail();
+                                    *(stack.stack_push()) = arg_cell.head();
+                                    *(stack.stack_push()) = work_to_noun(Nock7ComputeSubject);
                                 }
                             } else {
                                 panic!("Argument for Nock 7 must be cell");
