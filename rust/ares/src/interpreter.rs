@@ -110,23 +110,22 @@ pub fn interpret(
                     break;
                 }
                 NockCellComputeHead => {
-                    *stack.local_noun_pointer(0) = work_to_noun(NockCellComputeTail);
-                    let formula = *stack.local_noun_pointer(1);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = work_to_noun(NockCellComputeTail);
                     push_formula(stack, formula);
                 }
                 NockCellComputeTail => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(NockCellCons);
-                    *(stack.local_noun_pointer(1)) = res;
-                    let formula = *stack.local_noun_pointer(2);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = res;
+                    *(stack.stack_push()) = work_to_noun(NockCellCons);
                     push_formula(stack, formula);
                 }
                 NockCellCons => {
-                    let head = *stack.local_noun_pointer(1);
+                    let head = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
                     res = Cell::new(stack, head, res).as_noun();
-                    stack.pre_copy();
-                    stack.preserve(&mut cache);
-                    stack.preserve(&mut res);
-                    stack.pop();
                 }
                 Nock0Axis => {
                     if let Ok(atom) = (*(stack.stack_top::<Noun>())).as_atom() {
@@ -380,11 +379,10 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
         // Formula
         match formula_cell.head().as_either_atom_cell() {
             Right(_cell) => {
-                stack.push(3);
                 unsafe {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(NockCellComputeHead);
-                    *(stack.local_noun_pointer(1)) = formula_cell.head();
-                    *(stack.local_noun_pointer(2)) = formula_cell.tail();
+                    *(stack.stack_push()) = formula_cell.tail();
+                    *(stack.stack_push()) = formula_cell.head();
+                    *(stack.stack_push()) = work_to_noun(NockCellComputeHead);
                 }
             }
             Left(atom) => {
