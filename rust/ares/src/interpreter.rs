@@ -258,23 +258,23 @@ pub fn interpret(
                     stack.stack_pop::<Noun>();
                 }
                 Nock8ComputeSubject => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock8ComputeResult);
-                    let formula = *stack.local_noun_pointer(1);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = work_to_noun(Nock8ComputeResult);
                     push_formula(stack, formula);
                 }
                 Nock8ComputeResult => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock8RestoreSubject);
-                    *(stack.local_noun_pointer(1)) = subject;
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = subject;
+                    *(stack.stack_push()) = work_to_noun(Nock8RestoreSubject);
                     subject = Cell::new(stack, res, subject).as_noun();
-                    let formula = *stack.local_noun_pointer(2);
                     push_formula(stack, formula);
                 }
+                //TODO do I actually need this anymore?
                 Nock8RestoreSubject => {
-                    subject = *(stack.local_noun_pointer(1));
-                    stack.pre_copy();
-                    stack.preserve(&mut cache);
-                    stack.preserve(&mut res);
-                    stack.pop();
+                    subject = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
                 }
                 Nock9ComputeCore => {
                     *(stack.local_noun_pointer(0)) = work_to_noun(Nock9ComputeResult);
@@ -463,12 +463,11 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
                         }
                         8 => {
                             if let Ok(arg_cell) = formula_cell.tail().as_cell() {
-                                stack.push(3);
                                 unsafe {
-                                    *(stack.local_noun_pointer(0)) =
+                                    *(stack.stack_push()) = arg_cell.tail();
+                                    *(stack.stack_push()) = arg_cell.head();
+                                    *(stack.stack_push()) =
                                         work_to_noun(Nock8ComputeSubject);
-                                    *(stack.local_noun_pointer(1)) = arg_cell.head();
-                                    *(stack.local_noun_pointer(2)) = arg_cell.tail();
                                 };
                             } else {
                                 panic!("Argument for Nock 8 must be cell");
