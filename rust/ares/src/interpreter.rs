@@ -299,24 +299,27 @@ pub fn interpret(
                     stack.pop();
                 }
                 Nock10ComputeTree => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock10ComputePatch);
-                    let formula = *stack.local_noun_pointer(3);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = work_to_noun(Nock10ComputePatch);
                     push_formula(stack, formula);
                 }
                 Nock10ComputePatch => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock10Edit);
-                    *(stack.local_noun_pointer(3)) = res;
-                    let formula = *stack.local_noun_pointer(2);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    let axis = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push::<Noun>()) = res;
+                    *(stack.stack_push::<Noun>()) = axis;
+                    *(stack.stack_push::<Noun>()) = work_to_noun(Nock10Edit);
                     push_formula(stack, formula);
                 }
                 Nock10Edit => {
-                    if let Ok(edit_axis) = (*stack.local_noun_pointer(1)).as_atom() {
-                        let tree = *stack.local_noun_pointer(3);
+                    if let Ok(edit_axis) = (*stack.stack_top::<Noun>()).as_atom() {
+                        stack.stack_pop::<Noun>();
+                        let tree = *stack.stack_top::<Noun>();
+                        stack.stack_pop::<Noun>();
                         res = edit(stack, edit_axis.as_bitslice(), res, tree);
-                        stack.pre_copy();
-                        stack.preserve(&mut cache);
-                        stack.preserve(&mut res);
-                        stack.pop();
                     } else {
                         panic!("Axis into tree must be atom");
                     }
@@ -488,13 +491,11 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
                         10 => {
                             if let Ok(arg_cell) = formula_cell.tail().as_cell() {
                                 if let Ok(patch_cell) = arg_cell.head().as_cell() {
-                                    stack.push(4);
                                     unsafe {
-                                        *(stack.local_noun_pointer(0)) =
-                                            work_to_noun(Nock10ComputeTree);
-                                        *(stack.local_noun_pointer(1)) = patch_cell.head();
-                                        *(stack.local_noun_pointer(2)) = patch_cell.tail();
-                                        *(stack.local_noun_pointer(3)) = arg_cell.tail();
+                                        *(stack.stack_push()) = patch_cell.head();
+                                        *(stack.stack_push()) = patch_cell.tail();
+                                        *(stack.stack_push()) = arg_cell.tail();
+                                        *(stack.stack_push()) = work_to_noun(Nock10ComputeTree);
                                     };
                                 } else {
                                     panic!("Argument head for Nock 10 must be cell");
