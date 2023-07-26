@@ -85,10 +85,10 @@ pub fn interpret(
     formula: Noun,
 ) -> Noun {
     let mut res = unsafe { DirectAtom::new_unchecked(0).as_atom().as_noun() };
-    stack.push(1);
+    stack.push(0);
     let mut cache = Hamt::<Noun>::new();
     unsafe {
-        *(stack.local_noun_pointer(0)) = work_to_noun(Done);
+        *(stack.stack_push()) = work_to_noun(Done);
     }
     push_formula(stack, formula);
     assert_no_alloc(|| unsafe {
