@@ -129,12 +129,9 @@ pub fn interpret(
                     stack.pop();
                 }
                 Nock0Axis => {
-                    if let Ok(atom) = (*(stack.local_noun_pointer(1))).as_atom() {
+                    if let Ok(atom) = (*(stack.stack_top::<Noun>())).as_atom() {
+                        stack.stack_pop::<Noun>();
                         res = slot(subject, atom.as_bitslice());
-                        stack.pre_copy();
-                        stack.preserve(&mut cache);
-                        stack.preserve(&mut res);
-                        stack.pop();
                     } else {
                         panic!("Axis must be atom");
                     };
@@ -396,11 +393,10 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
                 if let Ok(direct) = atom.as_direct() {
                     match direct.data() {
                         0 => {
-                            stack.push(2);
                             unsafe {
-                                *(stack.local_noun_pointer(0)) = work_to_noun(Nock0Axis);
-                                *(stack.local_noun_pointer(1)) = formula_cell.tail();
-                            };
+                                *(stack.stack_push()) = formula_cell.tail();
+                                *(stack.stack_push()) = work_to_noun(Nock0Axis);
+                            }
                         }
                         1 => {
                             unsafe {
