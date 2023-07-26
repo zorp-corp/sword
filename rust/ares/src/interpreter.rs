@@ -178,17 +178,14 @@ pub fn interpret(
                     };
                 }
                 Nock4ComputeChild => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock4Increment);
-                    let formula = *stack.local_noun_pointer(1);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = work_to_noun(Nock4Increment);
                     push_formula(stack, formula);
                 }
                 Nock4Increment => {
                     if let Ok(atom) = res.as_atom() {
                         res = inc(stack, atom).as_noun();
-                        stack.pre_copy();
-                        stack.preserve(&mut cache);
-                        stack.preserve(&mut res);
-                        stack.pop();
                     } else {
                         panic!("Cannot increment (Nock 4) a cell");
                     };
@@ -421,11 +418,10 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
                             }
                         }
                         4 => {
-                            stack.push(2);
                             unsafe {
-                                *(stack.local_noun_pointer(0)) = work_to_noun(Nock4ComputeChild);
-                                *(stack.local_noun_pointer(1)) = formula_cell.tail();
-                            };
+                                *(stack.stack_push()) = formula_cell.tail();
+                                *(stack.stack_push()) = work_to_noun(Nock4ComputeChild);
+                            }
                         }
                         5 => {
                             if let Ok(arg_cell) = formula_cell.tail().as_cell() {
