@@ -191,27 +191,26 @@ pub fn interpret(
                     };
                 }
                 Nock5ComputeLeftChild => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock5ComputeRightChild);
-                    let formula = *stack.local_noun_pointer(1);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = work_to_noun(Nock5ComputeRightChild);
                     push_formula(stack, formula);
                 }
                 Nock5ComputeRightChild => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock5TestEquals);
-                    *(stack.local_noun_pointer(1)) = res;
-                    let formula = *stack.local_noun_pointer(2);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = res;
+                    *(stack.stack_push()) = work_to_noun(Nock5TestEquals);
                     push_formula(stack, formula);
                 }
                 Nock5TestEquals => {
-                    let saved_value_ptr = stack.local_noun_pointer(1);
+                    let saved_value_ptr = stack.stack_top::<Noun>();
                     res = if unifying_equality(stack, &mut res, saved_value_ptr) {
                         DirectAtom::new_unchecked(0).as_atom().as_noun()
                     } else {
                         DirectAtom::new_unchecked(1).as_atom().as_noun()
                     };
-                    stack.pre_copy();
-                    stack.preserve(&mut cache);
-                    stack.preserve(&mut res);
-                    stack.pop();
+                    stack.stack_pop::<Noun>();
                 }
                 Nock6ComputeTest => {
                     *(stack.local_noun_pointer(0)) = work_to_noun(Nock6ComputeBranch);
@@ -425,12 +424,10 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
                         }
                         5 => {
                             if let Ok(arg_cell) = formula_cell.tail().as_cell() {
-                                stack.push(3);
                                 unsafe {
-                                    *(stack.local_noun_pointer(0)) =
-                                        work_to_noun(Nock5ComputeLeftChild);
-                                    *(stack.local_noun_pointer(1)) = arg_cell.head();
-                                    *(stack.local_noun_pointer(2)) = arg_cell.tail();
+                                    *(stack.stack_push()) = arg_cell.tail();
+                                    *(stack.stack_push()) = arg_cell.head();
+                                    *(stack.stack_push()) = work_to_noun(Nock5ComputeLeftChild);
                                 };
                             } else {
                                 panic!("Argument for Nock 5 must be cell");
