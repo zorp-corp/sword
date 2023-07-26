@@ -69,6 +69,14 @@ fn noun_to_work(noun: Noun) -> NockWork {
     }
 }
 
+fn noun_to_work2(noun: Noun) -> Option<NockWork> {
+    if let Left(direct) = noun.as_either_direct_allocated() {
+        NockWork::from_u64(direct.data())
+    } else {
+        panic!("Work should always be a direct atom.")
+    }
+}
+
 /** Interpret nock */
 pub fn interpret(
     stack: &mut NockStack,
@@ -85,7 +93,15 @@ pub fn interpret(
     push_formula(stack, formula);
     assert_no_alloc(|| unsafe {
         loop {
-            match noun_to_work(*(stack.local_noun_pointer(0))) {
+            let top_work = noun_to_work2(*(stack.stack_top()));
+            let work = match top_work {
+                None => noun_to_work(*(stack.local_noun_pointer(0))),
+                Some(a) => {
+                    stack.stack_pop::<Noun>();
+                    a
+                },
+            };
+            match work {
                 Done => {
                     stack.pre_copy();
                     stack.preserve(&mut cache);
@@ -124,11 +140,8 @@ pub fn interpret(
                     };
                 }
                 Nock1Constant => {
-                    res = *(stack.local_noun_pointer(1));
-                    stack.pre_copy();
-                    stack.preserve(&mut cache);
-                    stack.preserve(&mut res);
-                    stack.pop();
+                    res = *stack.stack_top();
+                    stack.stack_pop::<Noun>();
                 }
                 Nock2ComputeSubject => {
                     *(stack.local_noun_pointer(0)) = work_to_noun(Nock2ComputeFormula);
@@ -390,10 +403,9 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
                             };
                         }
                         1 => {
-                            stack.push(2);
                             unsafe {
-                                *(stack.local_noun_pointer(0)) = work_to_noun(Nock1Constant);
-                                *(stack.local_noun_pointer(1)) = formula_cell.tail();
+                                *(stack.stack_push()) = formula_cell.tail();
+                                *(stack.stack_push()) = work_to_noun(Nock1Constant);
                             };
                         }
                         2 => {
