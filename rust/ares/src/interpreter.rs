@@ -165,8 +165,9 @@ pub fn interpret(
                     stack.pop();
                 }
                 Nock3ComputeChild => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock3ComputeType);
-                    let formula = *stack.local_noun_pointer(1);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = work_to_noun(Nock3ComputeType);
                     push_formula(stack, formula);
                 }
                 Nock3ComputeType => {
@@ -175,10 +176,6 @@ pub fn interpret(
                     } else {
                         DirectAtom::new_unchecked(1).as_atom().as_noun()
                     };
-                    stack.pre_copy();
-                    stack.preserve(&mut cache);
-                    stack.preserve(&mut res);
-                    stack.pop();
                 }
                 Nock4ComputeChild => {
                     *(stack.local_noun_pointer(0)) = work_to_noun(Nock4Increment);
@@ -418,11 +415,10 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
                             };
                         }
                         3 => {
-                            stack.push(2);
                             unsafe {
-                                *(stack.local_noun_pointer(0)) = work_to_noun(Nock3ComputeChild);
-                                *(stack.local_noun_pointer(1)) = formula_cell.tail();
-                            };
+                                *(stack.stack_push()) = formula_cell.tail();
+                                *(stack.stack_push()) = work_to_noun(Nock3ComputeChild);
+                            }
                         }
                         4 => {
                             stack.push(2);
