@@ -213,18 +213,24 @@ pub fn interpret(
                     stack.stack_pop::<Noun>();
                 }
                 Nock6ComputeTest => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock6ComputeBranch);
-                    let formula = *stack.local_noun_pointer(1);
+                    let formula = *(stack.stack_top::<Noun>());
+                    stack.stack_pop::<Noun>();
+                    *(stack.stack_push()) = work_to_noun(Nock6ComputeBranch);
                     push_formula(stack, formula);
                 }
                 Nock6ComputeBranch => {
-                    *(stack.local_noun_pointer(0)) = work_to_noun(Nock6Done);
                     if let Left(direct) = res.as_either_direct_allocated() {
                         if direct.data() == 0 {
-                            let formula = *stack.local_noun_pointer(2);
+                            let formula = *(stack.stack_top::<Noun>());
+                            stack.stack_pop::<Noun>();
+                            stack.stack_pop::<Noun>();
+                            *(stack.stack_push()) = work_to_noun(Nock6Done);
                             push_formula(stack, formula);
                         } else if direct.data() == 1 {
-                            let formula = *stack.local_noun_pointer(3);
+                            stack.stack_pop::<Noun>();
+                            let formula = *(stack.stack_top::<Noun>());
+                            stack.stack_pop::<Noun>();
+                            *(stack.stack_push()) = work_to_noun(Nock6Done);
                             push_formula(stack, formula);
                         } else {
                             panic!("Test branch of Nock 6 must return 0 or 1");
@@ -234,10 +240,7 @@ pub fn interpret(
                     }
                 }
                 Nock6Done => {
-                    stack.pre_copy();
-                    stack.preserve(&mut cache);
-                    stack.preserve(&mut res);
-                    stack.pop();
+                    //TODO remove this
                 }
                 Nock7ComputeSubject => {
                     let formula = *(stack.stack_top::<Noun>());
@@ -438,13 +441,11 @@ fn push_formula(stack: &mut NockStack, formula: Noun) {
                         6 => {
                             if let Ok(arg_cell) = formula_cell.tail().as_cell() {
                                 if let Ok(branch_cell) = arg_cell.tail().as_cell() {
-                                    stack.push(4);
                                     unsafe {
-                                        *(stack.local_noun_pointer(0)) =
-                                            work_to_noun(Nock6ComputeTest);
-                                        *(stack.local_noun_pointer(1)) = arg_cell.head();
-                                        *(stack.local_noun_pointer(2)) = branch_cell.head();
-                                        *(stack.local_noun_pointer(3)) = branch_cell.tail();
+                                        *(stack.stack_push()) = branch_cell.tail();
+                                        *(stack.stack_push()) = branch_cell.head();
+                                        *(stack.stack_push()) = arg_cell.head();
+                                        *(stack.stack_push()) = work_to_noun(Nock6ComputeTest);
                                     }
                                 } else {
                                     panic!("Argument tail for Nock 6 must be cell");
