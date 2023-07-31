@@ -16,8 +16,8 @@
   =|  kids=(jug @hail @hail)
   |^  ^-  _moan
     =>  raid
-    =>  espy
     =>  loot
+    =>  espy
     =>  ruin
     ?~(work moan $)
   ++  this  .
@@ -137,15 +137,8 @@
         ?:  =(0 here.code)  [| moot]
         [(~(pat ca rake) here.code) moot]
       ::
-          %one  [[| |] moot]
+          %one  [| moot]
           %two
-        =?  moot  ?!((~(has by moot) rail.code))
-          %+  ~(put by moot)  rail.code
-          :*  [| ~]  |
-              ~  ~
-              [| ~]  rake
-              `hail
-          ==
         =/  [soot=sock fake=cape form=(unit) norm=(unit nomm)]
           [soot rake form norm]:(~(got by moot) rail.code)
         =/  mole=(list hone)  ?~(form ~ (~(get ja moan) u.form))
@@ -199,6 +192,7 @@
         $(code then.code)
       ::
           %tip
+        ?:  =(hint.code %slow)  [| moot]
         =^  lake  moot  $(code vice.code, rake |)
         =^  rare  moot  $(code then.code)
         [(~(uni ca lake) rare) moot]
@@ -270,6 +264,35 @@
         $(soda [[%& then.cone] t.soda])
       ::
           %tip
+        ?:  =(hint.cone %slow)  :: %slow hint handling: no evaluation, just dynamic calls
+          =/  pots=(list nomm)  ~[vice.cone then.cone]
+          |-  ^-  _this  :: make sure we have moot entries for the dynamic calls
+          ?^  pots
+            ?-  -.i.pots
+                %par  $(pots [left.i.pots rite.i.pots t.pots])
+                %not  $(pots t.pots)
+                %one  $(pots t.pots)
+                %two
+              =?  moot  ?!((~(has by moot) rail.i.pots))
+                %+  ~(put by moot)  rail.i.pots
+                :*  [| ~]  |
+                    ~  ~
+                    [| ~]  rake
+                    `hail
+                ==
+              $(pots [cost.i.pots corn.i.pots t.pots])
+            ::
+                %the  $(pots [pell.i.pots t.pots])
+                %for  $(pots [mall.i.pots t.pots])
+                %ivy  $(pots [this.i.pots that.i.pots t.pots])
+                %six  $(pots [what.i.pots then.i.pots else.i.pots t.pots])
+                %eve  $(pots [once.i.pots then.i.pots t.pots])
+                %ten  $(pots [twig.i.pots tree.i.pots t.pots])
+                %sip  $(pots [then.i.pots t.pots])
+                %tip  $(pots [vice.i.pots then.i.pots t.pots])
+                %elf  $(pots [rent.i.pots walk.i.pots t.pots])
+            ==
+          ^$(soda t.soda, salt [[| ~] salt])
         $(soda [[%& vice.cone] [%& then.cone] [%| %tip hint.cone] t.soda])
       ::
           %elf
@@ -365,6 +388,13 @@
             norm  `nomm.norm.u.roan
           ==
         $(soda t.soda, salt [root.u.roan t.t.salt])
+      =?  moot  ?!((~(has by moot) rail.kant))
+        %+  ~(put by moot)  rail.kant
+        :*  [| ~]  |
+            ~  ~
+            [| ~]  rake
+            `hail
+        ==
       ?.  ?|(?!(=(cape.soot cape.i.t.salt)) ?&(=(& cape.i.salt) =(~ form)))
         $(soda t.soda, salt [root t.t.salt])
       =/  note  ?:(=(& cape.i.salt) `data.i.salt ~)
@@ -382,13 +412,16 @@
         [%ten *]
       ?>  ?=(^ salt)
       ?>  ?=(^ t.salt)
-      =/  dawn  (~(darn so i.salt) here.p.i.soda i.t.salt)
+      =/  dawn  (~(darn so i.salt) here.kant i.t.salt)
       ?~  dawn  $(soda t.soda, salt [[| ~] t.t.salt])
       $(soda t.soda, salt [u.dawn t.t.salt])
     ::
         [%tip *]
       ?>  ?=(^ salt)
       ?>  ?=(^ t.salt)
+      ?:  =(hint.kant %slow)
+        ?>  ?=(^ silt)
+        $(soda t.soda, salt [[| ~] t.t.salt], silt t.silt)
       $(soda t.soda, salt [i.salt t.t.salt])
     ==
   ::  recursion detection
