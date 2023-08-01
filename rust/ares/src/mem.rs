@@ -100,7 +100,7 @@ impl NockStack {
 
     /** Check to see if an allocation is in frame */
     #[inline]
-    pub unsafe fn in_frame<T>(&self, ptr: *const T) -> bool {
+    pub unsafe fn is_in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
         let prev = *self.prev_stack_pointer_pointer();
         if self.is_west() {
@@ -376,7 +376,7 @@ impl NockStack {
                         }
                         Option::None => {
                             // Check to see if its allocated within this frame
-                            if self.in_frame(allocated.to_raw_pointer())
+                            if self.is_in_frame(allocated.to_raw_pointer())
                             {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
@@ -473,7 +473,7 @@ impl NockStack {
                         }
                         Option::None => {
                             // Check to see if its allocated within this frame
-                            if self.in_frame(allocated.to_raw_pointer())
+                            if self.is_in_frame(allocated.to_raw_pointer())
                             {
                                 match allocated.as_either() {
                                     Either::Left(mut indirect) => {
