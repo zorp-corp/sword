@@ -618,35 +618,16 @@ impl NockStack {
         assert_acyclic!(*noun);
     }
 
-    /** We restore from the free_slots instead of the FP-relative slots since they are destroyed by
-     * copy_west/copy_east. We call free_slot instead of using the prev_xyz_pointer_pointer interface
-     * since we're changing the pointers that that interface uses to determine which location to point
-     * to.
-     */
-    unsafe fn frame_pop_east(&mut self) {
-        self.frame_pointer = *(self.free_slot_east(FRAME) as *const *mut u64);
-        self.stack_pointer = *(self.free_slot_east(STACK) as *const *mut u64);
-        self.alloc_pointer = *(self.free_slot_east(ALLOC) as *const *mut u64);
-        self.pc = false;
-    }
-
-    unsafe fn frame_pop_west(&mut self) {
-        self.frame_pointer = *(self.free_slot_west(FRAME) as *const *mut u64);
-        self.stack_pointer = *(self.free_slot_west(STACK) as *const *mut u64);
-        self.alloc_pointer = *(self.free_slot_west(ALLOC) as *const *mut u64);
-        self.pc = false;
-    }
-
     pub unsafe fn frame_pop(&mut self) {
-        if !self.stack_is_empty() {
-            //TODO Should this actually be a panic?
-            eprintln!("Popping stack frame when lightweight stack is not empty!");
-        }
-        if self.is_west() {
-            self.frame_pop_west()
-        } else {
-            self.frame_pop_east()
-        }
+        let prev_frame_ptr = *self.prev_frame_pointer_pointer() as *mut u64;
+        let prev_stack_ptr = *self.prev_stack_pointer_pointer() as *mut u64;
+        let prev_alloc_ptr = *self.prev_alloc_pointer_pointer() as *mut u64;
+
+        self.frame_pointer = prev_frame_ptr;
+        self.stack_pointer = prev_stack_ptr;
+        self.alloc_pointer = prev_alloc_ptr;
+
+        self.pc = false;
     }
 
     pub unsafe fn preserve<T: Preserve>(&mut self, x: &mut T) {
