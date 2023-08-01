@@ -543,7 +543,11 @@ impl NockStack {
     }
 
     pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
-        assert!(self.is_west());
+        // copy_pma() should only be called when there is a single stack
+        // frame; these asserts assure that.
+        assert!(self.is_west() &&
+            (*(self.prev_stack_pointer_pointer())).is_null() &&
+            (*(self.prev_frame_pointer_pointer())).is_null());
         let noun_ptr = noun as *mut Noun;
         self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
         *(self.push::<Noun>()) = *noun;
