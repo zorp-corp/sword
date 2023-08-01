@@ -90,15 +90,7 @@ impl NockStack {
     /** Checks if the current stack frame has West polarity */
     #[inline]
     pub fn is_west(&self) -> bool {
-        //TODO the interpreter won't know when this invariant is violated unless
-        // stack_pointer == alloc_pointer, for that we should implement a guard page
-        if self.stack_pointer < self.alloc_pointer {
-            true
-        } else if self.stack_pointer > self.alloc_pointer {
-            false
-        } else {
-            panic!("stack_pointer == alloc_pointer");
-        }
+        self.stack_pointer < self.alloc_pointer
     }
 
     /** Size **in 64-bit words** of this NockStack */
