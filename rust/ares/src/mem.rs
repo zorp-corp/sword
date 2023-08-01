@@ -175,6 +175,15 @@ impl NockStack {
         self.slot_pointer(local + RESERVED) as *mut Noun
     }
 
+    /** Pointer to where the previous frame pointer is saved in a frame */
+    unsafe fn prev_frame_pointer_pointer(&self) -> *mut *mut u64 {
+        if self.pc == false {
+            self.slot_pointer(FRAME) as *mut *mut u64
+        } else {
+            self.free_slot(FRAME) as *mut *mut u64
+        }
+    }
+
     /** Pointer to where the previous stack pointer is saved in a frame */
     unsafe fn prev_stack_pointer_pointer(&self) -> *mut *mut u64 {
         if self.pc == false {
