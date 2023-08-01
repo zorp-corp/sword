@@ -641,62 +641,26 @@ impl NockStack {
      *  adjacent to the frame pointer.
      */
 
-    /** Push a frame onto the east stack with 0 or more local variable slots.
-     *
-     * (The method is `push_west` because the naming convention refers to the beginning state of the
-     * stack, not the final state.)
-     */
-
-    unsafe fn frame_push_west(&mut self, num_locals: usize) {
-        let current_frame_pointer = self.frame_pointer;
-        let current_stack_pointer = self.stack_pointer;
-        let current_alloc_pointer = self.alloc_pointer;
-
-        self.alloc_pointer = current_stack_pointer;
-        self.frame_pointer = current_alloc_pointer.sub(num_locals + RESERVED);
-        self.stack_pointer = self.frame_pointer;
-
-        // At this point, stack_pointer > alloc_pointer so slot_pointer() will
-        // call slot_pointer_east()
-        *(self.slot_pointer(FRAME)) = current_frame_pointer as u64;
-        *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
-        *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
-
-        self.pc = false;
-    }
-
-    /** Push a frame onto the west stack with 0 or more local variable slots.
-     *
-     * (The method is `push_east` because the naming convention refers to the beginning state of
-     * the stack, not the final state.)
-     */
-    unsafe fn frame_push_east(&mut self, num_locals: usize) {
-        let current_frame_pointer = self.frame_pointer;
-        let current_stack_pointer = self.stack_pointer;
-        let current_alloc_pointer = self.alloc_pointer;
-
-        self.alloc_pointer = current_stack_pointer;
-        self.frame_pointer = current_alloc_pointer.add(num_locals + RESERVED);
-        self.stack_pointer = self.frame_pointer;
-
-        // At this point, stack_pointer < alloc_pointer so slot_pointer() will
-        // call slot_pointer_west()
-        *(self.slot_pointer(FRAME)) = current_frame_pointer as u64;
-        *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
-        *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
-
-        self.pc = false;
-    }
-
     /** Push a frame onto the stack with 0 or more local variable slots. */
     pub fn frame_push(&mut self, num_locals: usize) {
+        let current_frame_pointer = self.frame_pointer;
+        let current_stack_pointer = self.stack_pointer;
+        let current_alloc_pointer = self.alloc_pointer;
         unsafe {
-            if self.is_west() {
-                self.frame_push_west(num_locals)
-            } else {
-                self.frame_push_east(num_locals)
-            }
+            self.frame_pointer = if self.is_west() {
+                    current_alloc_pointer.sub(num_locals + RESERVED)
+                } else {
+                    current_alloc_pointer.add(num_locals + RESERVED)
+                };
+            self.alloc_pointer = current_stack_pointer;
+            self.stack_pointer = self.frame_pointer;
+
+            *(self.slot_pointer(FRAME)) = current_frame_pointer as u64;
+            *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
+            *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
         }
+
+        self.pc = false;
     }
 
     /** Lightweight stack.
