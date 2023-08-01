@@ -113,6 +113,11 @@ impl NockStack {
         self.size
     }
 
+    /** Current frame pointer of this NockStack */
+    pub fn frame_pointer(&self) -> *u64 {
+        self.frame_pointer
+    }
+
     #[inline]
     pub fn in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;

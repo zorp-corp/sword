@@ -20,6 +20,7 @@ fn main() -> io::Result<()> {
         ares::interpreter::use_gdb();
         ares::jets::use_gdb();
         ares::jets::math::use_gdb();
+        ares::jets::virtual::use_gdb();
         ares::mem::use_gdb();
         ares::mug::use_gdb();
         ares::newt::use_gdb();
