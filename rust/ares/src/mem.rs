@@ -549,7 +549,6 @@ impl NockStack {
             (*(self.prev_stack_pointer_pointer())).is_null() &&
             (*(self.prev_frame_pointer_pointer())).is_null());
         let noun_ptr = noun as *mut Noun;
-        self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
         *(self.push::<Noun>()) = *noun;
         *(self.push::<*mut Noun>()) = noun_ptr;
         loop {
