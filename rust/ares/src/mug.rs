@@ -165,9 +165,7 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
             }
         }
     }
-    unsafe {
-        get_mug(noun).expect("Noun should have a mug once it is mugged.")
-    }
+    get_mug(noun).expect("Noun should have a mug once it is mugged.")
 }
 
 pub fn mug(stack: &mut NockStack, noun: Noun) -> DirectAtom {
