@@ -120,42 +120,42 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
         return mug;
     }
     assert_acyclic!(noun);
-    unsafe { *(stack.stack_push()) = noun; }
+    unsafe { *(stack.push()) = noun; }
     loop {
         if stack.stack_is_empty() {
             break;
         } else {
-            let noun: Noun = unsafe { *(stack.stack_top()) };
+            let noun: Noun = unsafe { *(stack.top()) };
             match noun.as_either_direct_allocated() {
                 Left(_direct) => {
                     unsafe {
-                        stack.stack_pop::<Noun>();
+                        stack.pop::<Noun>();
                     }
                     continue;
                 } // no point in calculating a direct mug here as we wont cache it
                 Right(allocated) => match allocated.get_cached_mug() {
                     Some(_mug) => {
                         unsafe {
-                            stack.stack_pop::<Noun>();
+                            stack.pop::<Noun>();
                         }
                         continue;
                     }
                     None => match allocated.as_either() {
                         Left(indirect) => unsafe {
                             set_mug(allocated, calc_atom_mug_u32(indirect.as_atom()));
-                            stack.stack_pop::<Noun>();
+                            stack.pop::<Noun>();
                             continue;
                         },
                         Right(cell) => unsafe {
                             match (get_mug(cell.head()), get_mug(cell.tail())) {
                                 (Some(head_mug), Some(tail_mug)) => {
                                     set_mug(allocated, calc_cell_mug_u32(head_mug, tail_mug));
-                                    stack.stack_pop::<Noun>();
+                                    stack.pop::<Noun>();
                                     continue;
                                 }
                                 _ => {
-                                    *(stack.stack_push()) = cell.tail();
-                                    *(stack.stack_push()) = cell.head();
+                                    *(stack.push()) = cell.tail();
+                                    *(stack.push()) = cell.head();
                                     continue;
                                 }
                             }

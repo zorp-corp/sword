@@ -344,9 +344,9 @@ impl NockStack {
         let mut other_alloc_pointer = *(self.prev_alloc_pointer_pointer()) as *mut u64;
         // Add two slots to the lightweight stack
         // Set the first new slot to the noun to be copied
-        *(self.stack_push::<Noun>()) = *noun;
+        *(self.push::<Noun>()) = *noun;
         // Set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
-        *(self.stack_push::<*mut Noun>()) = noun_ptr;
+        *(self.push::<*mut Noun>()) = noun_ptr;
 
         loop {
             if self.stack_is_empty() {
@@ -354,10 +354,10 @@ impl NockStack {
             }
 
             // Pop a noun to copy from the stack
-            let next_dest = *(self.stack_top::<*mut Noun>());
-            self.stack_pop::<*mut Noun>();
-            let next_noun = *(self.stack_top::<Noun>());
-            self.stack_pop::<Noun>();
+            let next_dest = *(self.top::<*mut Noun>());
+            self.pop::<*mut Noun>();
+            let next_noun = *(self.top::<Noun>());
+            self.pop::<Noun>();
 
             // If it's a direct atom, just write it to the destination.
             // Otherwise, we have allocations to make.
@@ -411,10 +411,10 @@ impl NockStack {
                                             (*cell.to_raw_pointer()).metadata;
 
                                         // Push the tail and the head to the work stack
-                                        *(self.stack_push::<Noun>()) = cell.tail();
-                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
-                                        *(self.stack_push::<Noun>()) = cell.head();
-                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
+                                        *(self.push::<Noun>()) = cell.tail();
+                                        *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
+                                        *(self.push::<Noun>()) = cell.head();
+                                        *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
 
                                         // Set the forwarding pointer
                                         cell.set_forwarding_pointer(new_cell_alloc);
@@ -442,19 +442,19 @@ impl NockStack {
         let mut other_alloc_pointer = *(self.prev_alloc_pointer_pointer()) as *mut u64;
         // Add two slots to the lightweight stack
         // Set the first new slot to the noun to be copied
-        *(self.stack_push::<Noun>()) = *noun;
+        *(self.push::<Noun>()) = *noun;
         // Set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
-        *(self.stack_push::<*mut Noun>()) = noun_ptr;
+        *(self.push::<*mut Noun>()) = noun_ptr;
         loop {
             if self.stack_is_empty() {
                 break;
             }
 
             // Pop a noun to copy from the stack
-            let next_dest = *(self.stack_top::<*mut Noun>());
-            self.stack_pop::<*mut Noun>();
-            let next_noun = *(self.stack_top::<Noun>());
-            self.stack_pop::<Noun>();
+            let next_dest = *(self.top::<*mut Noun>());
+            self.pop::<*mut Noun>();
+            let next_noun = *(self.top::<Noun>());
+            self.pop::<Noun>();
 
             // If it's a direct atom, just write it to the destination.
             // Otherwise, we have allocations to make.
@@ -508,10 +508,10 @@ impl NockStack {
                                             (*cell.to_raw_pointer()).metadata;
 
                                         // Push the tail and the head to the work stack
-                                        *(self.stack_push::<Noun>()) = cell.tail();
-                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
-                                        *(self.stack_push::<Noun>()) = cell.head();
-                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
+                                        *(self.push::<Noun>()) = cell.tail();
+                                        *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
+                                        *(self.push::<Noun>()) = cell.head();
+                                        *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
 
                                         // Set the forwarding pointer
                                         cell.set_forwarding_pointer(new_cell_alloc);
@@ -537,17 +537,17 @@ impl NockStack {
         assert!(self.is_west());
         let noun_ptr = noun as *mut Noun;
         self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
-        *(self.stack_push::<Noun>()) = *noun;
-        *(self.stack_push::<*mut Noun>()) = noun_ptr;
+        *(self.push::<Noun>()) = *noun;
+        *(self.push::<*mut Noun>()) = noun_ptr;
         loop {
             if self.stack_is_empty() {
                 break;
             }
 
-            let next_dest = *(self.stack_top::<*mut Noun>());
-            self.stack_pop::<*mut Noun>();
-            let next_noun = *(self.stack_top::<Noun>());
-            self.stack_pop::<Noun>();
+            let next_dest = *(self.top::<*mut Noun>());
+            self.pop::<*mut Noun>();
+            let next_noun = *(self.top::<Noun>());
+            self.pop::<Noun>();
 
             match next_noun.as_either_direct_allocated() {
                 Either::Left(_direct) => {
@@ -586,10 +586,10 @@ impl NockStack {
                                         (*new_cell_alloc).metadata =
                                             (*cell.to_raw_pointer()).metadata;
 
-                                        *(self.stack_push::<Noun>()) = cell.tail();
-                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
-                                        *(self.stack_push::<Noun>()) = cell.head();
-                                        *(self.stack_push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
+                                        *(self.push::<Noun>()) = cell.tail();
+                                        *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
+                                        *(self.push::<Noun>()) = cell.head();
+                                        *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
 
                                         cell.set_forwarding_pointer(new_cell_alloc);
 
@@ -611,29 +611,29 @@ impl NockStack {
      * since we're changing the pointers that that interface uses to determine which location to point
      * to.
      */
-    unsafe fn pop_east(&mut self) {
+    unsafe fn frame_pop_east(&mut self) {
         self.frame_pointer = *(self.free_slot_east(FRAME) as *const *mut u64);
         self.stack_pointer = *(self.free_slot_east(STACK) as *const *mut u64);
         self.alloc_pointer = *(self.free_slot_east(ALLOC) as *const *mut u64);
         self.pc = false;
     }
 
-    unsafe fn pop_west(&mut self) {
+    unsafe fn frame_pop_west(&mut self) {
         self.frame_pointer = *(self.free_slot_west(FRAME) as *const *mut u64);
         self.stack_pointer = *(self.free_slot_west(STACK) as *const *mut u64);
         self.alloc_pointer = *(self.free_slot_west(ALLOC) as *const *mut u64);
         self.pc = false;
     }
 
-    pub unsafe fn pop(&mut self) {
+    pub unsafe fn frame_pop(&mut self) {
         if !self.stack_is_empty() {
             //TODO Should this actually be a panic?
             eprintln!("Popping stack frame when lightweight stack is not empty!");
         }
         if self.is_west() {
-            self.pop_west()
+            self.frame_pop_west()
         } else {
-            self.pop_east()
+            self.frame_pop_east()
         }
     }
 
@@ -654,7 +654,7 @@ impl NockStack {
      * stack, not the final state.)
      */
 
-    unsafe fn push_west(&mut self, num_locals: usize) {
+    unsafe fn frame_push_west(&mut self, num_locals: usize) {
         let current_frame_pointer = self.frame_pointer;
         let current_stack_pointer = self.stack_pointer;
         let current_alloc_pointer = self.alloc_pointer;
@@ -677,7 +677,7 @@ impl NockStack {
      * (The method is `push_east` because the naming convention refers to the beginning state of
      * the stack, not the final state.)
      */
-    unsafe fn push_east(&mut self, num_locals: usize) {
+    unsafe fn frame_push_east(&mut self, num_locals: usize) {
         let current_frame_pointer = self.frame_pointer;
         let current_stack_pointer = self.stack_pointer;
         let current_alloc_pointer = self.alloc_pointer;
@@ -696,12 +696,12 @@ impl NockStack {
     }
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
-    pub fn push(&mut self, num_locals: usize) {
+    pub fn frame_push(&mut self, num_locals: usize) {
         unsafe {
             if self.is_west() {
-                self.push_west(num_locals)
+                self.frame_push_west(num_locals)
             } else {
-                self.push_east(num_locals)
+                self.frame_push_east(num_locals)
             }
         }
     }
@@ -730,36 +730,36 @@ impl NockStack {
      * this violates the _east/_west naming convention somewhat, since e.g.
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
-    pub unsafe fn stack_push<T>(&mut self) -> *mut T {
+    pub unsafe fn push<T>(&mut self) -> *mut T {
         if self.is_west() && self.pc == false ||
            !self.is_west() && self.pc == true {
-            self.stack_push_west::<T>()
+            self.push_west::<T>()
         } else {
-            self.stack_push_east::<T>()
+            self.push_east::<T>()
         }
     }
 
     /** Push onto a west-oriented lightweight stack, moving the stack_pointer.
      * */
-    unsafe fn stack_push_west<T>(&mut self) -> *mut T {
+    unsafe fn push_west<T>(&mut self) -> *mut T {
         let alloc = self.stack_pointer;
         self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
         alloc as *mut T
     }
 
     /** Push onto an east-oriented ligthweight stack, moving the stack_pointer */
-    unsafe fn stack_push_east<T>(&mut self) -> *mut T {
+    unsafe fn push_east<T>(&mut self) -> *mut T {
         self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
         self.stack_pointer as *mut T
     }
 
     /** Pop a west-oriented lightweight stack, moving the stack pointer. */
-    unsafe fn stack_pop_west<T>(&mut self) {
+    unsafe fn pop_west<T>(&mut self) {
         self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
     }
 
     /** Pop an east-oriented lightweight stack, moving the stack pointer. */
-    unsafe fn stack_pop_east<T>(&mut self) {
+    unsafe fn pop_east<T>(&mut self) {
         self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
     }
 
@@ -767,12 +767,12 @@ impl NockStack {
      * this violates the _east/_west naming convention somewhat, since e.g.
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
-    pub unsafe fn stack_pop<T>(&mut self) {
+    pub unsafe fn pop<T>(&mut self) {
         if self.is_west() && self.pc == false ||
            !self.is_west() && self.pc == true {
-            self.stack_pop_west::<T>();
+            self.pop_west::<T>();
         } else {
-            self.stack_pop_east::<T>();
+            self.pop_east::<T>();
         };
     }
 
@@ -780,22 +780,22 @@ impl NockStack {
      * this violates the _east/_west naming convention somewhat, since e.g.
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
-    pub unsafe fn stack_top<T>(&mut self) -> *mut T {
+    pub unsafe fn top<T>(&mut self) -> *mut T {
         if self.is_west() && self.pc == false ||
            !self.is_west() && self.pc == true {
-            self.stack_top_west()
+            self.top_west()
         } else {
-            self.stack_top_east()
+            self.top_east()
         }
     }
 
     /** Peek the top of a west-oriented lightweight stack. */
-    unsafe fn stack_top_west<T>(&mut self) -> *mut T {
+    unsafe fn top_west<T>(&mut self) -> *mut T {
         self.stack_pointer.sub(word_size_of::<T>()) as *mut T
     }
 
     /** Peek the top of an east-oriented lightweight stack. */
-    unsafe fn stack_top_east<T>(&mut self) -> *mut T {
+    unsafe fn top_east<T>(&mut self) -> *mut T {
         self.stack_pointer as *mut T
     }
 
@@ -851,15 +851,15 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             };
         };
     };
-    stack.push(0);
-    *(stack.stack_push::<(*mut Noun, *mut Noun)>()) = (a, b);
+    stack.frame_push(0);
+    *(stack.push::<(*mut Noun, *mut Noun)>()) = (a, b);
     loop {
         if stack.stack_is_empty() {
             break;
         };
-        let (x, y): (*mut Noun, *mut Noun) = *(stack.stack_top());
+        let (x, y): (*mut Noun, *mut Noun) = *(stack.top());
         if (*x).raw_equals(*y) {
-            stack.stack_pop::<(*mut Noun, *mut Noun)>();
+            stack.pop::<(*mut Noun, *mut Noun)>();
             continue;
         };
         if let (Ok(x_alloc), Ok(y_alloc)) = (
@@ -891,7 +891,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         } else {
                             *y = *x;
                         }
-                        stack.stack_pop::<(*mut Noun, *mut Noun)>();
+                        stack.pop::<(*mut Noun, *mut Noun)>();
                         continue;
                     } else {
                         break;
@@ -909,7 +909,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         } else {
                             *y = *x;
                         }
-                        stack.stack_pop::<(*mut Noun, *mut Noun)>();
+                        stack.pop::<(*mut Noun, *mut Noun)>();
                         continue;
                     } else {
                         /* THIS ISN'T AN INFINITE LOOP
@@ -919,9 +919,9 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                          * If both sides are equal, then we will discover pointer
                          * equality when we return and unify the cell.
                          */
-                        *(stack.stack_push::<(*mut Noun, *mut Noun)>()) =
+                        *(stack.push::<(*mut Noun, *mut Noun)>()) =
                             (x_cell.tail_as_mut(), y_cell.tail_as_mut());
-                        *(stack.stack_push::<(*mut Noun, *mut Noun)>()) =
+                        *(stack.push::<(*mut Noun, *mut Noun)>()) =
                             (x_cell.head_as_mut(), y_cell.head_as_mut());
                         continue;
                     }
@@ -935,7 +935,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         }
     }
     stack.pre_copy();
-    stack.pop();
+    stack.frame_pop();
     assert_acyclic!(*a);
     assert_acyclic!(*b);
     (*a).raw_equals(*b)
