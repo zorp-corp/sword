@@ -795,7 +795,6 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             break; // direct atom not raw equal, so short circuit
         }
     }
-    //stack.pre_copy();
     stack.frame_pop();
     assert_acyclic!(*a);
     assert_acyclic!(*b);
