@@ -63,9 +63,7 @@ impl NockStack {
      * top_slots is how many slots to allocate to the top stack frame.
      */
     pub fn new(size: usize, top_slots: usize) -> NockStack {
-        //TODO memory doesn't have to be mut as written, but it was before split stack. not sure what
-        // it was accomplishing.
-        let mut memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
+        let memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
         let start = memory.as_ptr() as *const u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
         let frame_pointer = unsafe { start.add(top_slots + RESERVED) } as *mut u64;
