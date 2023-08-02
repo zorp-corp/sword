@@ -43,11 +43,7 @@ fn main() -> io::Result<()> {
         let in_map = Mmap::map(&f)?;
         let word_len = (in_len + 7) >> 3;
         let (mut atom, dest) = IndirectAtom::new_raw_mut(&mut stack, word_len as usize);
-
-        //write_bytes(dest.add(word_len as usize - 1), 0, 8);
-        //TODO I'm not sure what this +7 is really supposed to be.
-        write_bytes(dest.sub(word_len as usize + 7), 0, 8);
-
+        write_bytes(dest.add(word_len as usize - 1), 0, 1);
         copy_nonoverlapping(in_map.as_ptr(), dest as *mut u8, in_len as usize);
         mem::drop(in_map);
         atom.normalize_as_atom()
