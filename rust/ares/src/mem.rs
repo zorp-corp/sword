@@ -177,7 +177,7 @@ impl NockStack {
 
     /** Pointer to where the previous frame pointer is saved in a frame */
     unsafe fn prev_frame_pointer_pointer(&self) -> *mut *mut u64 {
-        if self.pc == false {
+        if !self.pc {
             self.slot_pointer(FRAME) as *mut *mut u64
         } else {
             self.free_slot(FRAME) as *mut *mut u64
@@ -186,7 +186,7 @@ impl NockStack {
 
     /** Pointer to where the previous stack pointer is saved in a frame */
     unsafe fn prev_stack_pointer_pointer(&self) -> *mut *mut u64 {
-        if self.pc == false {
+        if !self.pc {
             self.slot_pointer(STACK) as *mut *mut u64
         } else {
             self.free_slot(STACK) as *mut *mut u64
@@ -195,7 +195,7 @@ impl NockStack {
 
     /** Pointer to where the previous stack pointer is saved in a frame */
     unsafe fn prev_alloc_pointer_pointer(&self) -> *mut *mut u64 {
-        if self.pc == false {
+        if !self.pc {
             self.slot_pointer(ALLOC) as *mut *mut u64
         } else {
             self.free_slot(ALLOC) as *mut *mut u64
@@ -213,8 +213,8 @@ impl NockStack {
 
     /** Bump the alloc pointer for a west frame to make space for an allocation */
     unsafe fn raw_alloc_west(&mut self, words: usize) -> *mut u64 {
-        if self.pc == true {
-            panic!("Attempted to allocate in copying mode");
+        if self.pc {
+            panic!("Allocation during cleanup phase is prohibited.");
         }
         self.alloc_pointer = self.alloc_pointer.sub(words);
         self.alloc_pointer
@@ -222,8 +222,8 @@ impl NockStack {
 
     /** Bump the alloc pointer for an east frame to make space for an allocation */
     unsafe fn raw_alloc_east(&mut self, words: usize) -> *mut u64 {
-        if self.pc == true {
-            panic!("Attempted to allocate in copying mode");
+        if self.pc {
+            panic!("Allocation during cleanup phase is prohibited.");
         }
         let alloc = self.alloc_pointer;
         self.alloc_pointer = self.alloc_pointer.add(words);
@@ -269,12 +269,6 @@ impl NockStack {
     }
 
     unsafe fn struct_alloc_in_previous_frame_west<T>(&mut self, count: usize) -> *mut T {
-        // This is only called when using preserve(), at which point pre_copy() has been
-        // called, at which point we need to be looking for the saved pointers next
-        // to from-space instead of next to frame_pointer
-        if self.pc == false {
-            panic!("Attempted to allocate in previous frame outside of copying mode");
-        }
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
         let alloc = *self.prev_alloc_pointer_pointer();
         *(self.prev_alloc_pointer_pointer())
@@ -283,12 +277,6 @@ impl NockStack {
     }
 
     unsafe fn struct_alloc_in_previous_frame_east<T>(&mut self, count: usize) -> *mut T {
-        // This is only called when using preserve(), at which point pre_copy() has been
-        // called, at which point we need to be looking for the saved pointers next
-        // to from-space instead of next to frame_pointer
-        if self.pc == false {
-            panic!("Attempted to allocate in previous frame outside of copying mode");
-        }
         // note that the allocation is on the east frame, and thus resembles raw_alloc_west
         *(self.prev_alloc_pointer_pointer()) =
             (*(self.prev_alloc_pointer_pointer())).sub(word_size_of::<T>() * count);
@@ -296,7 +284,11 @@ impl NockStack {
 
     }
 
+    /** Allocates space in the previous frame for some number of T's. This calls pre_copy()
+      * first to ensure that the stack frame is in cleanup phase, which is the only time we
+      * should be allocating in a previous frame.*/
     pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
+        self.pre_copy();
         if self.is_west() {
             self.struct_alloc_in_previous_frame_west(count)
         } else {
@@ -318,8 +310,11 @@ impl NockStack {
 
     }
 
-    /** Allocate space for an indirect atom in the previous stack frame */
+    /** Allocate space for an indirect atom in the previous stack frame. This call pre_copy()
+     * first to ensure that the stack frame is in cleanup phase, which is the only time we
+     * should be allocating in a previous frame. */
     unsafe fn indirect_alloc_in_previous_frame(&mut self, words: usize) -> *mut u64 {
+        self.pre_copy();
         if self.is_west() {
             self.indirect_alloc_in_previous_frame_west(words)
         } else {
@@ -352,26 +347,37 @@ impl NockStack {
      * location.
      */
 
-    /** Copies reserved pointers to free space adjacent to the allocation arena. */
-    pub unsafe fn pre_copy(&mut self) {
-        if self.pc == false {
+    /** Copies reserved pointers to free space adjacent to the allocation arena, and
+     * moves the lightweight stack to the free space adjacent to that.
+     *
+     * Once this function is called a on stack frame, we say that it is now in the "cleanup
+     * phase". At this point, no more allocations can be made, and all that is left to
+     * do is figure out what data in this frame needs to be preserved and thus copied to
+     * the parent frame.
+     *
+     * This might be the most confusing part of the split stack system. But we've tried
+     * to make it so that the programmer doesn't need to think about it at all. The
+     * interface for using the reserved pointers (prev_xyz_pointer_pointer()) and
+     * lightweight stack (push(), pop(), top()) are the same regardless of whether
+     * or not pre_copy() has been called.*/
+    unsafe fn pre_copy(&mut self) {
+        if !self.pc {
             *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
             *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
             *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
 
-            // Change polarity of lightweight stack.
             self.pc = true;
+            // Change polarity of lightweight stack.
             if self.is_west() {
                 self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
             } else {
                 self.stack_pointer = self.alloc_pointer.add(RESERVED);
             }
-        } else {
-            eprintln!("pre_copy() called more than once on stack frame!");
         }
     }
 
     unsafe fn copy(&mut self, noun: &mut Noun) {
+        self.pre_copy();
         let noun_ptr = noun as *mut Noun;
         // Add two slots to the lightweight stack
         // Set the first new slot to the noun to be copied
@@ -609,8 +615,8 @@ impl NockStack {
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
     pub unsafe fn push<T>(&mut self) -> *mut T {
-        if self.is_west() && self.pc == false ||
-           !self.is_west() && self.pc == true {
+        if self.is_west() && !self.pc ||
+           !self.is_west() && self.pc {
             self.push_west::<T>()
         } else {
             self.push_east::<T>()
@@ -646,8 +652,8 @@ impl NockStack {
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
     pub unsafe fn pop<T>(&mut self) {
-        if self.is_west() && self.pc == false ||
-           !self.is_west() && self.pc == true {
+        if self.is_west() && !self.pc ||
+           !self.is_west() && self.pc {
             self.pop_west::<T>();
         } else {
             self.pop_east::<T>();
@@ -659,8 +665,8 @@ impl NockStack {
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
     pub unsafe fn top<T>(&mut self) -> *mut T {
-        if self.is_west() && self.pc == false ||
-           !self.is_west() && self.pc == true {
+        if self.is_west() && !self.pc ||
+           !self.is_west() && self.pc {
             self.top_west()
         } else {
             self.top_east()
@@ -681,7 +687,7 @@ impl NockStack {
      * when the stack pointer has been moved to be close to the allocation arena, such
      * as in copy_west(). */
     pub fn stack_is_empty(&self) -> bool {
-        if self.pc == false {
+        if !self.pc {
             self.stack_pointer == self.frame_pointer
         } else {
             if self.is_west() {
@@ -812,7 +818,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             break; // direct atom not raw equal, so short circuit
         }
     }
-    stack.pre_copy();
+    //stack.pre_copy();
     stack.frame_pop();
     assert_acyclic!(*a);
     assert_acyclic!(*b);

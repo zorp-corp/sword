@@ -36,7 +36,6 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
             let mut result = unsafe { *stack.local_noun_pointer(0) };
             assert_acyclic!(result);
             unsafe {
-                stack.pre_copy();
                 stack.preserve(&mut result);
                 stack.frame_pop();
             }
