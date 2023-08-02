@@ -149,27 +149,6 @@ impl NockStack {
         }
     }
 
-    unsafe fn free_alloc_east<T>(&mut self, _count: usize) -> *mut T {
-        self.alloc_pointer.add(RESERVED) as *mut T
-    }
-
-    unsafe fn free_alloc_west<T>(&mut self, count: usize) -> *mut T {
-        self.alloc_pointer.sub(RESERVED + 1)
-                          .sub(word_size_of::<T>() * count) as *mut T
-    }
-
-    /** This allocates space past the reserved slots stored for pointers
-     * past the allocation arena, for the purpose of allocating after
-     * pre_copy() has been called.
-     */
-    pub unsafe fn free_alloc<T>(&mut self, count: usize) -> *mut T {
-        if self.is_west() {
-            self.free_alloc_west(count)
-        } else {
-            self.free_alloc_east(count)
-        }
-    }
-
     /** Pointer to a local slot typed as Noun */
     pub unsafe fn local_noun_pointer(&mut self, local: usize) -> *mut Noun {
         self.slot_pointer(local + RESERVED) as *mut Noun

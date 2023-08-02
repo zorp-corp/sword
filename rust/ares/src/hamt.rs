@@ -441,21 +441,21 @@ impl<T: Copy> Default for Hamt<T> {
 impl<T: Copy + Preserve> Preserve for Hamt<T> {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if stack.is_in_frame(self.0.buffer) {
+            println!("bweh");
             let dest_buffer = stack.struct_alloc_in_previous_frame(self.0.size());
             copy_nonoverlapping(self.0.buffer, dest_buffer, self.0.size());
             self.0.buffer = dest_buffer;
-            //TODO Am unsure if I should be using the lightweight stack here instead
-            let traversal_stack = stack.free_alloc::<(Stem<T>, u32)>(6);
+            *(stack.push::<(Stem<T>, u32)>()) = (self.0, 0);
             let mut traversal_depth = 1;
-            *traversal_stack = (self.0, 0);
             'preserve: loop {
                 if traversal_depth == 0 {
                     break;
                 }
-                let (stem, mut position) = *traversal_stack.add(traversal_depth - 1);
+                let (stem, mut position) = *(stack.top::<(Stem<T>, u32)>());
                 // can we loop over the size and count leading 0s remaining in the bitmap?
                 'preserve_stem: loop {
                     if position >= 32 {
+                        stack.pop::<(Stem<T>, u32)>();
                         traversal_depth -= 1;
                         continue 'preserve;
                     }
@@ -480,8 +480,8 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                 };
                                 *(stem.buffer.add(idx) as *mut Entry<T>) = Entry { stem: new_stem };
                                 assert!(traversal_depth <= 5); // will increment
-                                (*traversal_stack.add(traversal_depth - 1)).1 = position + 1;
-                                *traversal_stack.add(traversal_depth) = (new_stem, 0);
+                                (*(stack.top::<(Stem<T>, u32)>())).1 = position + 1;
+                                *(stack.push::<(Stem<T>, u32)>()) = (new_stem, 0);
                                 traversal_depth += 1;
                                 continue 'preserve;
                             } else {
