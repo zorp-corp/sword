@@ -5,9 +5,10 @@ to use Ares as a serf. This is accurate as of August 2023 - details may have
 changed since then.
 
 We first cover how to run `rust/ares/test_data/baby.pill`, then
-`hoon/scaffolding/azimuth-pill.hoon`, then how to run your own pill.
+`hoon/scaffolding/azimuth-pill.hoon`, and finally some information on how to
+make your own pill.
 
-## Step 1: Modify Vere
+## Modify Vere
 
 Download the Vere repo and open `/pkg/vere/lord.c`. Search for `u3_lord_init()`.
 In this function definition, you will find several lines that look something
@@ -23,10 +24,10 @@ like
 ```
 
 Change the right hand side of the first line to the path of the Ares executable
-inside a string literal (probably something like `rust/ares/target/debug/ares`):
+as a string literal (probably something like `rust/ares/target/debug/ares`):
 
 ```
-arg_c[0] = "/path/to/ares/rust/ares/target/debug/ares";
+arg_c[0] = "/path/to/ares";
 ```
 
 Next we need to compile the new version of Vere that uses Ares as a serf. See
@@ -36,10 +37,10 @@ Vere to reside in and make a symlink to the `urbit` executable you just
 created like so:
 
 ```
-ln -s path/to/vere/bazel-bin/pkg/vere/urbit urbit
+ln -s path/to/vere/repo/bazel-bin/pkg/vere/urbit urbit
 ```
 
-## Step 2: Run `baby.pill`
+## Run `baby.pill`
 
 `baby.pill` is an extremely minimal Arvo-shaped core and Hoon standard library
 equipped with `%sham` jets needed to run it. ~wicdev-wisryt [streamed a
@@ -58,7 +59,7 @@ the pill:
 This will boot a fakezod. If it writes `effect` to the terminal with every
 keystroke, you have succeeded!
 
-## Step 3: Run `azimuth-pill.pill`
+## Run `azimuth-pill.pill`
 
 Next we will show how to build a pill that processes an Azimuth snapshot, called
 `azimuth-pill.pill`.
