@@ -114,7 +114,7 @@ impl NockStack {
     }
 
     /** Current frame pointer of this NockStack */
-    pub fn frame_pointer(&self) -> *u64 {
+    pub fn frame_pointer(&self) -> *const u64 {
         self.frame_pointer
     }
 

@@ -4,7 +4,7 @@ use crate::jets;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
+use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
 use ares_macros::tas;
 use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
@@ -69,16 +69,25 @@ fn noun_to_work(noun: Noun) -> NockWork {
     }
 }
 
+#[derive(Debug)]
 pub enum NockErr {
     Blocked(Noun),
     Error(Noun),
 }
 
-pub fn early_exit(stack: &mut NockStack, virtual_frame: *u64, cache: &mut Hamt::<Noun>::new()) {
-    while stack.frame_pointer() != virtual_frame {
-        // TODO: also preserve trace
-        stack.preserve(&mut cache);
-        stack.pop();
+impl From<NockErr> for () {
+    fn from(_: NockErr) -> Self {
+        ()
+    }
+}
+
+pub fn early_exit(stack: &mut NockStack, virtual_frame: *const u64, cache: &mut Hamt<Noun>) {
+    unsafe {
+        while stack.frame_pointer() != virtual_frame {
+            // TODO: also preserve trace
+            stack.preserve(cache);
+            stack.pop();
+        }
     }
 }
 
@@ -89,7 +98,7 @@ pub fn interpret(
     mut subject: Noun,
     formula: Noun,
 ) -> Result<Noun, NockErr> {
-    let mut res = unsafe { D(0) };
+    let mut res = D(0);
     let virtual_frame = stack.frame_pointer(); // before or after the push?
     stack.push(1);
     let mut cache = Hamt::<Noun>::new();
@@ -97,15 +106,14 @@ pub fn interpret(
         *(stack.local_noun_pointer(0)) = work_to_noun(Done);
     }
     push_formula(stack, formula)?;
-    let tone =
-    assert_no_alloc(|| unsafe {
+    let tone = assert_no_alloc(|| unsafe {
         loop {
             match noun_to_work(*(stack.local_noun_pointer(0))) {
                 Done => {
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.pop();
-                    break;
+                    break Ok(res);
                 }
                 NockCellComputeHead => {
                     *stack.local_noun_pointer(0) = work_to_noun(NockCellComputeTail);
@@ -127,15 +135,16 @@ pub fn interpret(
                 }
                 Nock0Axis => {
                     if let Ok(atom) = (*(stack.local_noun_pointer(1))).as_atom() {
-                        if let Ok(res) = slot(subject, atom.as_bitslice()) {
+                        if let Ok(x) = slot(subject, atom.as_bitslice()) {
+                            res = x;
                             stack.preserve(&mut cache);
                             stack.preserve(&mut res);
                             stack.pop();
                         } else {
-                            return Err(Error(D(1));
+                            break Err(NockErr::Error(D(1)));
                         }
                     } else {
-                        return Err(Error(D(0))); // Axis must be atom
+                        break Err(NockErr::Error(D(0))); // Axis must be atom
                     };
                 }
                 Nock1Constant => {
@@ -194,7 +203,7 @@ pub fn interpret(
                         stack.preserve(&mut res);
                         stack.pop();
                     } else {
-                        return Err(Error(D(2))); // Cannot increment (Nock 4) a cell
+                        break Err(NockErr::Error(D(2))); // Cannot increment (Nock 4) a cell
                     };
                 }
                 Nock5ComputeLeftChild => {
@@ -234,10 +243,10 @@ pub fn interpret(
                             let formula = *stack.local_noun_pointer(3);
                             push_formula(stack, formula)?;
                         } else {
-                            return Err(Error(D(3))); // Test branch of Nock 6 must return 0 or 1
+                            break Err(NockErr::Error(D(3))); // Test branch of Nock 6 must return 0 or 1
                         };
                     } else {
-                        return Err(Error(D(4))); // Test branch of Nock 6 must return a direct atom
+                        break Err(NockErr::Error(D(4))); // Test branch of Nock 6 must return a direct atom
                     }
                 }
                 Nock6Done => {
@@ -291,9 +300,14 @@ pub fn interpret(
                         *(stack.local_noun_pointer(0)) = work_to_noun(Nock9RestoreSubject);
                         *(stack.local_noun_pointer(2)) = subject;
                         subject = res;
-                        push_formula(stack, slot(subject, formula_axis.as_bitslice()))?;
+                        let axis = if let Ok(x) = slot(subject, formula_axis.as_bitslice()) {
+                            x
+                        } else {
+                            break Err(NockErr::Error(D(55))); // Axis must be in subject
+                        };
+                        push_formula(stack, axis)?;
                     } else {
-                        return Err(Error(D(5))); // Axis into core must be atom
+                        break Err(NockErr::Error(D(5))); // Axis into core must be atom
                     }
                 }
                 Nock9RestoreSubject => {
@@ -321,7 +335,7 @@ pub fn interpret(
                         stack.preserve(&mut res);
                         stack.pop();
                     } else {
-                        return Err(Error(D(6))); // Axis into tree must be atom
+                        break Err(NockErr::Error(D(6))); // Axis into tree must be atom
                     }
                 }
                 Nock11ComputeHint => {
@@ -371,12 +385,12 @@ pub fn interpret(
         Ok(res) => Ok(res),
         Err(err) => {
             early_exit(stack, virtual_frame, &mut cache);
-            Err(err);
+            Err(err)
         }
     }
 }
 
-fn push_formula(stack: &mut NockStack, formula: Noun) -> Result((), NockErr) {
+fn push_formula(stack: &mut NockStack, formula: Noun) -> Result<(), NockErr> {
     if let Ok(formula_cell) = formula.as_cell() {
         // Formula
         match formula_cell.head().as_either_atom_cell() {
@@ -546,7 +560,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun) -> Result((), NockErr) {
             }
         }
     } else {
-        return Err(Error(D(10))); // Bad formula: atoms are not formulas: {}
+        return Err(NockErr::Error(D(10))); // Bad formula: atoms are not formulas: {}
     }
     Ok(())
 }
@@ -558,9 +572,9 @@ pub fn raw_slot(noun: Noun, axis: u64) -> Noun {
 
 pub fn slot(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Result<Noun, ()> {
     let mut cursor = if let Some(x) = axis.last_one() {
-        Ok(x)
+        x
     } else {
-        Err(()) // 0 is not allowed as an axis
+        return Err(()); // 0 is not allowed as an axis
     };
     loop {
         if cursor == 0 {
@@ -574,7 +588,7 @@ pub fn slot(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Result<Noun, ()> {
                 noun = cell.head();
             }
         } else {
-            Err(()) // Axis tried to descend through atom: {}
+            return Err(()); // Axis tried to descend through atom: {}
         };
     }
     Ok(noun)
@@ -667,10 +681,12 @@ fn match_pre_hint(
             let jet_name = jet_formula.tail();
 
             let jet = jets::get_jet(jet_name).ok_or(())?;
-            if let Ok(mut jet_res) = jet(stack, subject) {
+            if let Ok(mut jet_res) = jet(stack, newt, subject) {
                 // if in test mode, check that the jet returns the same result as the raw nock
                 if jets::get_jet_test_mode(jet_name) {
-                    let mut nock_res = interpret(stack, newt, subject, formula);
+                    // Throw away trace because we'll regenerate it later, and this is in test mode
+                    // so it's okay if it runs twice
+                    let mut nock_res = interpret(stack, newt, subject, formula)?;
                     if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
                         eprintln!(
                             "\rJet {} failed, raw: {}, jetted: {}",

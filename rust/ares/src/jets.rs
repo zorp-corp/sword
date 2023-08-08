@@ -1,8 +1,10 @@
 pub mod math;
+pub mod mink;
 
 use crate::jets::math::*;
-use crate::jets::virtual::*;
+use crate::jets::mink::*;
 use crate::mem::NockStack;
+use crate::newt::Newt;
 use crate::noun::{self, Noun};
 use ares_macros::tas;
 
