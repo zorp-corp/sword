@@ -37,7 +37,7 @@ Vere to reside in and make a symlink to the `urbit` executable you just
 created like so:
 
 ```
-ln -s path/to/vere/repo/bazel-bin/pkg/vere/urbit urbit
+ln -s path/to/vere/repo/bazel-bin/pkg/vere/urbit ares-urbit
 ```
 
 ## Run `baby.pill`
@@ -53,7 +53,7 @@ To run it with our new version of Vere, we make a fakezod with `baby.pill` as
 the pill:
 
 ```
-./urbit -F zod -B /path/to/ares/rust/ares/test_data/baby.pill
+./ares-urbit -F zod -B /path/to/ares/rust/ares/test_data/baby.pill
 ```
 
 This will boot a fakezod. If it writes `effect` to the terminal with every
@@ -79,7 +79,7 @@ This will make a file `azimuth-pill.pill` in `path/to/fakezod/.urb/put`.
 Now we can run this pill with the version of Vere we built above:
 
 ```
-./urbit -F dev -B /path/to/fakezod/.urb/put/azimuth-pill.pill
+./ares-urbit -F dev -B /path/to/fakezod/.urb/put/azimuth-pill.pill
 ```
 
 If you succeeded, you should see the standard boot header followed by `ran a
