@@ -14,7 +14,7 @@ ares_macros = { path = "../ares_macros" }
 bitvec = "1.0.0"
 either = "1.6.1"
 libc = "0.2.126"
-murmur3 = { git = "https://github.com/tloncorp/murmur3", branch = "eamsden/non_copying" }
+murmur3 = { git = "https://github.com/tloncorp/murmur3", rev = "7878a0f" }
 memmap = "0.7.0"
 intmap = "1.1.0"
 num-traits = "0.2"
