@@ -429,6 +429,7 @@
         [%tip *]
       ?>  ?=(^ salt)
       ?>  ?=(^ t.salt)
+      ?>  ?=(^ halt)
       ?:  =(hint.kant %slow)
         ?>  ?=(^ silt)
         $(soda t.soda, salt [[| ~] t.t.salt], silt t.silt)
@@ -486,7 +487,7 @@
           :-  rail
           :*  u.kids  |
               `form  ~
-              [| ~]  |  `rail.kant
+              [| ~]  |  `i.halt
           ==
         =.  mite
           %-  ~(gas in mite)
@@ -696,7 +697,7 @@
   |-  ^-  (list [axe=@ form=*])
   ?^  tack
     ?:  ?=([^ *] +.i.tack)
-      $(tack [[(peg -.i.tack 2) -.i.tack] [(peg -.i.tack 3) +.i.tack] t.tack])
+      $(tack [[(peg -.i.tack 2) +<.i.tack] [(peg -.i.tack 3) +>.i.tack] t.tack])
     $(tack t.tack, salt [i.tack salt])
   salt
 ::  parse a $chum from a fast hint and turn it into a term
