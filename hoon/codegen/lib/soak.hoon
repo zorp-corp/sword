@@ -134,7 +134,7 @@
 ::  operations on sock
 ++  so
   |_  one=sock
-  ::  normalize, throwing away unknown axes in data
+  ::  check that a sock is a vaid representation
   ++  apt
     |-  ^-  ?
     ?@  cape.one
@@ -144,6 +144,7 @@
     ?&  $(cape.one -.cape.one, data.one -.data.one)
         $(cape.one +.cape.one, data.one +.data.one)
     ==
+  ::  normalize, throwing away unknown axes in data
   ++  norm
     |-  ^-  sock
     ?-  cape.one
@@ -153,6 +154,10 @@
       ?>  ?=(^ data.one)
       =/  l  $(cape.one -.cape.one, data.one -.data.one)
       =/  r  $(cape.one +.cape.one, data.one +.data.one)
+      ?:  ?&(=(& cape.l) =(& cape.r))
+        [& data.l data.r]
+      ?:  ?&(=(| cape.l) =(| cape.r))
+        [| ~]
       [[cape.l cape.r] data.l data.r]
     ==
   ::  nesting
