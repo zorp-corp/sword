@@ -2,15 +2,15 @@ use crate::assert_acyclic;
 use crate::mem::*;
 use crate::noun::{Allocated, Atom, DirectAtom, Noun};
 use either::Either::*;
-use murmur3::murmur3_32_nocopy;
+use murmur3::murmur3_32_of_slice;
 
 crate::gdb!();
 
 // Murmur3 hash an atom with a given padded length
 fn muk_u32(syd: u32, len: usize, key: Atom) -> u32 {
     match key.as_either() {
-        Left(direct) => murmur3_32_nocopy(&direct.data().to_le_bytes()[0..len], syd),
-        Right(indirect) => murmur3_32_nocopy(&indirect.as_bytes()[..len], syd),
+        Left(direct) => murmur3_32_of_slice(&direct.data().to_le_bytes()[0..len], syd),
+        Right(indirect) => murmur3_32_of_slice(&indirect.as_bytes()[..len], syd),
     }
 }
 
