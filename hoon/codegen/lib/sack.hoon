@@ -1,25 +1,28 @@
 /-  *noir
 /+  *soak
 =|  moan=(jar * hone)
+=|  cole=cool
 |%
+++  thus  .
 ++  rout
   |=  [soot=sock form=*]
-  ^-  _moan
+  ^-  _thus
   =/  moot
     %+  ~(put by *(map @hail toot))  `@hail`1
     :*  soot  |
         `form  ~
         [| ~]  |  ~
     ==
+  =|  mind=(map @hail hind)
   =/  work=(list @hail)  ~[`@hail`1]
   =/  mite  (~(put in *(set @hail)) `@hail`1)
   =|  kids=(jug @hail @hail)
-  |^  ^-  _moan
+  |^  ^-  _thus
     =>  raid
     =>  loot
     =>  espy
     =>  ruin
-    ?~(work moan $)
+    ?~(work thus $)
   ++  this  .
   ++  raid
     =/  cork  work
@@ -106,6 +109,7 @@
           hint.form
           $(form vice.form, hail (peg hail 13))
           $(form then.form, hail (peg hail 7))
+          hail
       ==
     ::
         [%12 rent=* walk=*]
@@ -193,6 +197,11 @@
       ::
           %tip
         ?:  =(hint.code %slow)  [| moot]
+        =?  rake  =(hint.code %fast)
+          =/  kind  (~(got by mind) rail.code)
+          ?>  ?=([%fast *] kind)
+          ?~  tire.kind  |
+          cape.bats.u.tire.kind
         =^  lake  moot  $(code vice.code, rake |)
         =^  rare  moot  $(code then.code)
         [(~(uni ca lake) rare) moot]
@@ -293,7 +302,7 @@
                 %elf  $(pots [rent.i.pots walk.i.pots t.pots])
             ==
           ^$(soda t.soda, salt [[| ~] salt])
-        $(soda [[%& vice.cone] [%& then.cone] [%| %tip hint.cone] t.soda])
+        $(soda [[%& vice.cone] [%& then.cone] [%| %tip hint.cone rail.cone] t.soda])
       ::
           %elf
         $(soda [[%& rent.cone] [%& walk.cone] [%| %elf] t.soda])
@@ -362,6 +371,13 @@
         [%two *]
       ?>  ?=(^ salt)
       ?>  ?=(^ t.salt)
+      =?  moot  ?!((~(has by moot) rail.kant))
+        %+  ~(put by moot)  rail.kant
+        :*  [| ~]  |
+            ~  ~
+            [| ~]  |
+            `hail
+        ==
       =/  [soot=sock sake=cape root=sock form=(unit) noir=(unit nomm) rack=cape]
         [soot sake root form norm rake]:(~(got by moot) rail.kant)
       =/  roan=(unit hone)
@@ -388,13 +404,6 @@
             norm  `nomm.norm.u.roan
           ==
         $(soda t.soda, salt [root.u.roan t.t.salt])
-      =?  moot  ?!((~(has by moot) rail.kant))
-        %+  ~(put by moot)  rail.kant
-        :*  [| ~]  |
-            ~  ~
-            [| ~]  rake
-            `hail
-        ==
       ?.  ?|(?!(=(cape.soot cape.i.t.salt)) ?&(=(& cape.i.salt) =(~ form)))
         $(soda t.soda, salt [root t.t.salt])
       =/  note  ?:(=(& cape.i.salt) `data.i.salt ~)
@@ -402,6 +411,7 @@
       =.  moot
         (~(jab by moot) rail.kant |=(=toot toot(soot i.t.salt, form note)))
       ?~  noir  $(soda t.soda, salt [[| ~] t.t.salt])
+      ?.  (~(huge so soot) i.t.salt)  $(soda t.soda, salt [soot t.t.salt])
       %=  $
         soda  [[%& u.noir] [%| %wot] t.soda]
         halt  [rail.kant halt]
@@ -422,6 +432,67 @@
       ?:  =(hint.kant %slow)
         ?>  ?=(^ silt)
         $(soda t.soda, salt [[| ~] t.t.salt], silt t.silt)
+      ?:  =(hint.kant %fast)
+        ?.  =(& cape.i.t.salt)  ~&  %fast-miss  $(soda t.soda, salt [i.salt t.t.salt])
+        =/  pest  (past data.i.t.salt)
+        ?~  pest  $(soda t.soda, salt [[| ~] t.t.salt])
+        =+  u.pest
+        =?  mind  !(~(has by mind) rail.kant)
+          (~(put by mind) rail.kant [%fast ~])
+        =/  kind  (~(got by mind) rail.kant)
+        ?>  ?=([%fast *] kind)
+        ?^  tire.kind
+          ?>  (~(huge so bats.u.tire.kind) i.salt)
+          $(soda t.soda, salt [bats.u.tire.kind t.t.salt])
+        =/  boas  (~(pull so i.salt) 2)
+        ?~  boas  ~&  fast-fake-b+name  $(soda t.soda, salt [i.salt t.t.salt])
+        =/  pork  (~(pull so i.salt) ?~(park 3 u.park))
+        ?~  pork  ~&  fast-fake-p+name  $(soda t.soda, salt [i.salt t.t.salt])
+        ?.  =(& cape.u.boas)  $(soda t.soda, salt [[| ~] t.t.salt])
+        =/  papa=(unit [=path =sock])
+          ?~  park  ?:(=(& cape.u.pork) `[~ u.pork] ~)
+          =/  bart  (~(pull so u.pork) 2)
+          ?~  bart  ~&  fast-fake-pb+name  ~
+          ?.  =(& cape.u.bart)  ~
+          ?@  data.u.bart  ~&  fast-fake-pba+name  ~
+          =/  pats  ~(tap in (~(get ju batt.cole) data.u.bart))
+          |-  ^-  (unit [=path =sock])
+          ?^  pats
+            =/  cure  ~(tap in (~(get ju core.cole) i.pats))
+            |-  ^-  (unit [=path =sock])
+            ?^  cure
+              ?:  (~(huge so i.cure) u.pork)
+                `[i.pats i.cure]
+              $(cure t.cure)
+            ^$(pats t.pats)
+          ~&  fast-fake-np+name  ~
+        ?~  papa  $(soda t.soda, salt [[| ~] t.t.salt])
+        =/  kids  (~(darn so (~(knit so u.boas) [| ~])) ?~(park 3 u.park) sock.u.papa)
+        ?>  ?=(^ kids)
+        =/  walk  [name path.u.papa]
+        =.  core.cole  (~(put ju core.cole) walk u.kids)
+        ?@  data.u.boas  ~&  fast-fake-ba+name  $(soda t.soda, salt [[| ~] t.t.salt])
+        =.  batt.cole  (~(put ju batt.cole) data.u.boas walk)
+        =/  matt
+          %-  ~(gas by *(map @ [@hail *]))
+          %+  turn  (peel data.u.boas)
+          |=  [axe=@ form=*]
+          [axe (peg rail.kant axe) form]
+        =.  mind  (~(put by mind) rail.kant [%fast `[walk u.kids matt]])
+        =.  moot
+          %-  ~(gas by moot)
+          %+  turn  ~(val by matt)
+          |=  [rail=@hail form=*]
+          :-  rail
+          :*  u.kids  |
+              `form  ~
+              [| ~]  |  `rail.kant
+          ==
+        =.  mite
+          %-  ~(gas in mite)
+          %+  turn  ~(val by matt)
+          |=([rail=@hail *] rail)
+        $(soda t.soda, salt [u.kids t.t.salt])
       $(soda t.soda, salt [i.salt t.t.salt])
     ==
   ::  recursion detection
@@ -498,6 +569,7 @@
         |
       $(done t.done)
     ?>  ?=(^ norm.hood)
+    =.  call.cole  (~(gas ju call.cole) (sale u.norm.hood))
     =.  moan
       %+  ~(add ja moan)  u.form.hood
       [soot.hood (cook u.norm.hood loop) root.hood]
@@ -505,6 +577,66 @@
     ?~  next
       $(done t.done)
     $(done t.done, enod [next enod])
+  ::  new entries for cold state
+  ++  sale
+    |=  norm=nomm
+    ^-  (list [[path @] sock *])
+    ?-  -.norm
+        %par  (weld $(norm left.norm) $(norm rite.norm))
+        %not  ~
+        %one  ~
+        %two  (weld $(norm cost.norm) $(norm corn.norm))
+        %the  $(norm pell.norm)
+        %for  $(norm mall.norm)
+        %ivy  (weld $(norm this.norm) $(norm that.norm))
+        %six
+      (weld $(norm what.norm) (weld $(norm then.norm) $(norm else.norm)))
+    ::
+        %eve  (weld $(norm once.norm) $(norm then.norm))
+        %ten  (weld $(norm twig.norm) $(norm tree.norm))
+        %sip  $(norm then.norm)
+        %tip
+      ?.  =(%fast hint.norm)  (weld $(norm vice.norm) $(norm then.norm))
+      =/  =hind  (~(got by mind) rail.norm)
+      ?~  hind  (weld $(norm vice.norm) $(norm then.norm))
+      ?~  tire.hind  (weld $(norm vice.norm) $(norm then.norm))
+      =*  tine  u.tire.hind
+      =|  kale=(list [[path @] sock *])
+      =|  calm=(map @ [=cape form=*])
+      =/  tack=(list @)  ~[1]
+      |-  ^-  (list [[path @] sock *])
+      ?^  tack
+        =/  mart  (~(get by matt.tine) i.tack)
+        ?^  mart
+          =/  =toot  (~(got by moot) -.u.mart)
+          ?>  =(bats.tine soot.toot)
+          %=  $
+              calm  (~(put by calm) i.tack [sake.toot +.u.mart])
+              kale
+            :_  kale
+            :-  [cone.tine i.tack]
+            [~(norm so (~(app ca sake.toot) bats.tine)) +.u.mart]
+          ::
+              tack  t.tack
+          ==
+        =/  clam  (~(get by calm) (peg i.tack 2))
+        =/  cram  (~(get by calm) (peg i.tack 3))
+        ?:  ?&(?=(^ clam) ?=(^ cram))
+          =/  sake  (~(uni ca cape.u.clam) cape.u.cram)
+          =/  form  [form.u.clam form.u.cram]
+          %=  $
+              calm  (~(put by calm) i.tack sake form)
+              kale
+            :_  kale
+            [[cone.tine i.tack] ~(norm so (~(app ca sake) bats.tine)) form]
+          ::
+              tack  t.tack 
+          ==
+        $(tack [(peg 2 i.tack) (peg 3 i.tack) tack])
+      (weld kale (weld ^$(norm vice.norm) ^$(norm then.norm)))
+    ::
+        %elf  (weld $(norm rent.norm) $(norm walk.norm))
+    ==
   ::  pick out food for nomm
   ++  cook
     |=  [norm=nomm pool=(map @hail @hail)]
@@ -538,4 +670,41 @@
         %elf  $(fore [rent.i.fore walk.i.fore t.fore])
     ==
   --
+:: parse a fast hint
+++  past
+  |=  a=*
+  ^-  (unit [name=term park=(unit @) hock=(list [term @])])
+  ?.  ?=([* [@ @] *] a)  ~&  [%fast-isnt a]  ~
+  =/  nume  (bait -.a)
+  ?~  nume  ~&  [%fast-isnt a]  ~
+  =/  huck  +>.a
+  =|  hock=(list [term @])
+  |-  ^-  (unit [name=term park=(unit @) hock=(list [term @])])
+  ?^  huck
+    ?.  ?&(?=([@ @] -.huck) ((sane %ta) -<.huck))  ~&  [%fast-isnt a]  ~
+    $(hock [-.huck hock], huck +.huck)
+  ?.  =(~ huck)  ~&  [%fast-isnt a]  ~
+  ?:  =(0 +<-.a)  `[u.nume `+<+.a (flop hock)]
+  ?:  =([1 0] +<.a)  `[u.nume ~ (flop hock)]
+  ~&  [%fast-isnt a]  ~
+:: recursively take apart autocons
+++  peel
+  |=  f=*
+  ^-  (list [axe=@ form=*])
+  =/  tack=(list [@ *])  [1 f]~
+  =|  salt=(list [axe=@ form=*])
+  |-  ^-  (list [axe=@ form=*])
+  ?^  tack
+    ?:  ?=([^ *] +.i.tack)
+      $(tack [[(peg -.i.tack 2) -.i.tack] [(peg -.i.tack 3) +.i.tack] t.tack])
+    $(tack t.tack, salt [i.tack salt])
+  salt
+::  parse a $chum from a fast hint and turn it into a term
+++  bait
+  |=  a=*
+  ^-  (unit term)
+  ?@  a  ?.(((sane %tas) a) ~ ``@tas`a)
+  ?.  ?=([@ @] a)  ~
+  ?.  ((sane %tas) -.a)  ~
+  `(crip (scag 32 (weld (trip -.a) (a-co:co +.a))))
 --
