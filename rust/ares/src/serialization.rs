@@ -27,22 +27,21 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     let buffer_bitslice = buffer.as_bitslice();
     let mut cursor: usize = 0;
     let backref_map = MutHamt::<Noun>::new(stack);
-    stack.push(2);
+    stack.frame_push(1);
     unsafe {
-        stack.save_prev_stack_pointer_to_local(0);
-        *(stack.alloc_in_previous_frame()) = stack.local_noun_pointer(1);
+        *(stack.push::<*mut Noun>()) = stack.local_noun_pointer(0);
     };
     loop {
-        if unsafe { stack.prev_stack_pointer_equals_local(0) } {
-            let mut result = unsafe { *(stack.local_noun_pointer(1)) };
+        if stack.stack_is_empty() {
+            let mut result = unsafe { *stack.local_noun_pointer(0) };
             assert_acyclic!(result);
             unsafe {
                 stack.preserve(&mut result);
-                stack.pop();
+                stack.frame_pop();
             }
             break result;
         } else {
-            let dest_ptr: *mut Noun = unsafe { *(stack.top_in_previous_frame()) };
+            let dest_ptr: *mut Noun = unsafe { *(stack.top()) };
             if buffer_bitslice[cursor] {
                 // 1 bit
                 if buffer_bitslice[cursor + 1] {
@@ -60,7 +59,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                         }
                         *dest_ptr = reffed_noun;
                         assert_acyclic!(reffed_noun);
-                        stack.reclaim_in_previous_frame::<*mut Noun>();
+                        stack.pop::<*mut Noun>();
                     }
                     continue;
                 } else {
@@ -72,15 +71,13 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                         *dest_ptr = cell.as_noun();
                         let mut backref_atom = Atom::new(stack, backref as u64).as_noun();
                         backref_map.insert(stack, &mut backref_atom, *dest_ptr);
-                        stack.reclaim_in_previous_frame::<*mut Noun>();
+                        stack.pop::<*mut Noun>();
                         (*cell_mem_ptr).tail =
                             DirectAtom::new_unchecked(0xEDBEEF).as_atom().as_noun();
                         (*cell_mem_ptr).head =
                             DirectAtom::new_unchecked(0xDEBEEF).as_atom().as_noun();
-                        *(stack.alloc_in_previous_frame::<*mut Noun>()) =
-                            &mut ((*cell_mem_ptr).tail);
-                        *(stack.alloc_in_previous_frame::<*mut Noun>()) =
-                            &mut ((*cell_mem_ptr).head);
+                        *(stack.push()) = &mut (*cell_mem_ptr).tail;
+                        *(stack.push()) = &mut (*cell_mem_ptr).head;
                     }
                     continue;
                 }
@@ -92,7 +89,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                     *dest_ptr = rub_atom(stack, &mut cursor, buffer_bitslice).as_noun();
                     let mut backref_atom = Atom::new(stack, backref as u64).as_noun();
                     backref_map.insert(stack, &mut backref_atom, *dest_ptr);
-                    stack.reclaim_in_previous_frame::<*mut Noun>();
+                    stack.pop::<*mut Noun>();
                 };
                 continue;
             }
@@ -172,16 +169,14 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
         atom,
         slice,
     };
-    stack.push(1);
     unsafe {
-        stack.save_prev_stack_pointer_to_local(0);
-        *(stack.alloc_in_previous_frame()) = noun;
+        *(stack.push::<Noun>()) = noun;
     };
     'jam: loop {
-        if unsafe { stack.prev_stack_pointer_equals_local(0) } {
+        if stack.stack_is_empty() {
             break;
         } else {
-            let mut noun = unsafe { *(stack.top_in_previous_frame::<Noun>()) };
+            let mut noun = unsafe { *(stack.top::<Noun>()) };
             if let Some(backref) = backref_map.lookup(stack, &mut noun) {
                 match noun.as_either_atom_cell() {
                     Left(atom) => {
@@ -198,7 +193,7 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
                     }
                 }
                 unsafe {
-                    stack.reclaim_in_previous_frame::<Noun>();
+                    stack.pop::<Noun>();
                 };
                 continue 'jam;
             };
@@ -207,28 +202,23 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
                 Left(atom) => {
                     jam_atom(stack, &mut state, atom);
                     unsafe {
-                        stack.reclaim_in_previous_frame::<Noun>();
+                        stack.pop::<Noun>();
                     };
                     continue;
                 }
                 Right(cell) => {
                     jam_cell(stack, &mut state);
                     unsafe {
-                        stack.reclaim_in_previous_frame::<Noun>();
-                        *(stack.alloc_in_previous_frame()) = cell.tail();
-                        *(stack.alloc_in_previous_frame()) = cell.head();
+                        stack.pop::<Noun>();
+                        *(stack.push::<Noun>()) = cell.tail();
+                        *(stack.push::<Noun>()) = cell.head();
                     };
                     continue;
                 }
             }
         }
     }
-    unsafe {
-        let mut result = state.atom.normalize_as_atom();
-        stack.preserve(&mut result);
-        stack.pop();
-        result
-    }
+    unsafe { state.atom.normalize_as_atom() }
 }
 
 fn jam_atom(traversal: &mut NockStack, state: &mut JamState, atom: Atom) {
