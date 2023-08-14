@@ -643,33 +643,37 @@
     |=  [norm=nomm pool=(map @hail @hail)]
     ^-  food
     =|  ices=(map @hail [=sock form=*])
+    =|  leap=(set [=sock form=*])
     =/  fore=(list nomm)  ~[norm]
     |-  ^-  food
-    ?~  fore  [norm ices]
-    ?-  -.i.fore
-        %par  $(fore [rite.i.fore left.i.fore t.fore])
-        %not  $(fore t.fore)
-        %one  $(fore t.fore)
-        %two
-      =/  roil  (~(gut by pool) rail.i.fore rail.i.fore)
-      =/  foot  (~(get by moot) roil)
-      ?>  ?=(^ foot)
-      ~?  ?=(~ form.u.foot)  indirect+rail.i.fore
-      =?  ices  ?=(^ form.u.foot)
-        %+  ~(put by ices)  rail.i.fore
-        [soot u.form]:u.foot
-      $(fore [corn.i.fore cost.i.fore t.fore])
-    ::
-        %the  $(fore [pell.i.fore t.fore])
-        %for  $(fore [mall.i.fore t.fore])
-        %ivy  $(fore [this.i.fore that.i.fore t.fore])
-        %six  $(fore [what.i.fore then.i.fore else.i.fore t.fore])
-        %eve  $(fore [once.i.fore then.i.fore t.fore])
-        %ten  $(fore [twig.i.fore tree.i.fore t.fore])
-        %sip  $(fore [then.i.fore t.fore])
-        %tip  $(fore [vice.i.fore then.i.fore t.fore])
-        %elf  $(fore [rent.i.fore walk.i.fore t.fore])
-    ==
+    ?^  fore
+      ?-  -.i.fore
+          %par  $(fore [rite.i.fore left.i.fore t.fore])
+          %not  $(fore t.fore)
+          %one  $(fore t.fore)
+          %two
+        =/  roil  (~(gut by pool) rail.i.fore rail.i.fore)
+        =/  foot  (~(get by moot) roil)
+        ?>  ?=(^ foot)
+        ~?  ?=(~ form.u.foot)  indirect+rail.i.fore
+        =?  ices  ?=(^ form.u.foot)
+          %+  ~(put by ices)  rail.i.fore
+          [soot u.form]:u.foot
+        =?  leap  ?&((~(has by pool) rail.i.fore) ?=(^ form.u.foot))
+        %-  ~(put in leap)  [soot u.form]:u.foot
+        $(fore [corn.i.fore cost.i.fore t.fore])
+      ::
+          %the  $(fore [pell.i.fore t.fore])
+          %for  $(fore [mall.i.fore t.fore])
+          %ivy  $(fore [this.i.fore that.i.fore t.fore])
+          %six  $(fore [what.i.fore then.i.fore else.i.fore t.fore])
+          %eve  $(fore [once.i.fore then.i.fore t.fore])
+          %ten  $(fore [twig.i.fore tree.i.fore t.fore])
+          %sip  $(fore [then.i.fore t.fore])
+          %tip  $(fore [vice.i.fore then.i.fore t.fore])
+          %elf  $(fore [rent.i.fore walk.i.fore t.fore])
+      ==
+    [norm ices leap]
   --
 :: parse a fast hint
 ++  past

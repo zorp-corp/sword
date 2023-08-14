@@ -52,5 +52,5 @@
       [%tip hint=@ rail=@hail]
   ==
 +$  food
-  [=nomm ices=(map @hail [=sock form=*])]
+  [=nomm ices=(map @hail [=sock form=*]) loop=(set [=sock form=*])]
 --
