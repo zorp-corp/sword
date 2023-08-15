@@ -13,6 +13,14 @@ fn main() {
             std::process::exit(-1);
         }
     }
+
+    cc::Build::new()
+        .file("./src/pma/test/malloc.c")
+        .opt_level(0)
+        .flag("-g3")
+        .flag("-Wno-int-conversion")
+        .flag("-w")
+        .compile("test_pma_malloc_unit");
 }
 
 fn debug() {

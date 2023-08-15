@@ -1,6 +1,6 @@
 use crate::assert_acyclic;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
-use crate::snapshot::pma::{pma_in_arena, pma_malloc};
+use crate::snapshot::pma::{pma_in_arena, pma_malloc_w};
 use either::Either::{self, Left, Right};
 use ibig::Stack;
 use libc::{c_void, memcmp};
@@ -620,7 +620,7 @@ impl NockStack {
                             match allocated.as_either() {
                                 Either::Left(mut indirect) => {
                                     let new_indirect_alloc =
-                                        pma_malloc(indirect_raw_size(indirect));
+                                        pma_malloc_w(indirect_raw_size(indirect));
 
                                     copy_nonoverlapping(
                                         indirect.to_raw_pointer(),
@@ -635,7 +635,7 @@ impl NockStack {
                                 }
                                 Either::Right(mut cell) => {
                                     let new_cell_alloc: *mut CellMemory =
-                                        pma_malloc(word_size_of::<CellMemory>());
+                                        pma_malloc_w(word_size_of::<CellMemory>());
 
                                     (*new_cell_alloc).metadata = (*cell.to_raw_pointer()).metadata;
 
