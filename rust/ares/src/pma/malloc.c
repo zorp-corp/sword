@@ -48,6 +48,13 @@
  */
 #define PMA_BITMAP_BITS       (8 * sizeof(uint8_t))
 
+/**
+ * Increment block size for resizing the snapshot backing file (4 GiB in bytes).
+ * This is just the default increment; the backing file is extended by the
+ * smallest multiple of this value sufficient to fit the new allocation.
+ */
+#define PMA_SNAPSHOT_RESIZE_INC 0x100000000
+
 //==============================================================================
 // AUTO MACROS (do not manually configure)
 //==============================================================================
@@ -87,6 +94,11 @@
  * the shared page header for a page containing a single allocation.
  */
 #define PMA_MAX_SHARED_ALLOC  (1UL << PMA_MAX_SHARED_SHIFT)
+
+/** 
+ * Number of buckets for shared page linked lists in the metadata page
+ */
+#define PMA_SHARED_BUCKETS    (PMA_MAX_SHARED_SHIFT - PMA_MIN_ALLOC_SHIFT + 1)
 
 /**
  * Round address down to beginning of containing page
@@ -163,8 +175,8 @@
  *
  * 164 for 4 KiB page
  */
-/* #define PMA_DIRTY_PAGE_LIMIT  ((PMA_PAGE_SIZE - sizeof(PMAMetadata)) / sizeof(PMADirtyPageEntry)) */
-#define PMA_DIRTY_PAGE_LIMIT 163
+// #define PMA_DIRTY_PAGE_LIMIT  ((PMA_PAGE_SIZE - sizeof(PMAMetadata)) / sizeof(PMADirtyPageEntry))
+#define PMA_DIRTY_PAGE_LIMIT  164
 
 /**
  * Default settings for new PMA backing files
@@ -185,7 +197,8 @@
 #define PMA_SNAPSHOT_FILENAME "snap.bin"
 #define PMA_PAGE_DIR_FILENAME "page.bin"
 #define PMA_DEFAULT_DIR_NAME  ".bin"
-#define PMA_FILE_FLAGS        (O_RDWR | O_CREAT)
+#define PMA_NEW_FILE_FLAGS    (O_RDWR | O_CREAT)
+#define PMA_LOAD_FILE_FLAGS   (O_RDWR)
 #define PMA_DIR_PERMISSIONS   (S_IRWXU | S_IRWXG | S_IRWXO)
 #define PMA_FILE_PERMISSIONS  (S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP)
 #define PMA_INIT_SNAP_SIZE    0x40000000
@@ -207,11 +220,16 @@
 #endif
 
 /**
- * Increment block size for resizing the snapshot backing file (4 GiB in bytes).
- * This is just the default increment; the backing file is extended by the
- * smallest multiple of this value sufficient to fit the new allocation.
+ * Maximum file size on disk for the filesystem (16 TiB for ext4).
+ * 
+ * TODO: need to automatically discover this and set it accordingly
  */
-#define PMA_SNAP_RESIZE_INC   0x100000000
+#define PMA_MAX_DISK_FILE_SIZE  0x100000000000
+
+/**
+ * Maximum multiplier for resizing the snapshot backing file.
+ */
+#define PMA_MAX_RESIZE_FACTOR   (PMA_MAX_DISK_FILE_SIZE / PMA_SNAPSHOT_RESIZE_INC)
 
 //==============================================================================
 // HELPER MACROS
@@ -329,7 +347,7 @@ struct PMADirtyPageEntry {
  * Free page cache node
  *
  * Nodes form a linked list of single free pages. A free page is an allocated
- * pages already backed by disk, but available for use (their old values were
+ * page already backed by disk, but available for use (the old values were
  * freed).
  *
  * Free pages are purposely not merged into runs, because two pages being
@@ -350,12 +368,14 @@ struct PMASinglePageCache {
  * Free page run cache node
  *
  * Nodes form a linked list of free multi-page runs. A free page is an allocated
- * pages already backed by disk, but available for use (their old values were
+ * page already backed by disk, but available for use (the old values were
  * freed).
  *
  * Free pages are purposely not merged into runs, because two pages being
  * adjacent in virtual memory does not mean that they are adjacent on disk, and
- * disk locality is preferable for multi-page allocations.
+ * disk locality is preferable for multi-page allocations (typically, when the
+ * OS experiences a page miss, the OS/hardware will fetch not just the missing
+ * page, but also several of the following [nearby?] pages).
  *
  * The caches for free single pages and free multi-page runs are split to save
  * time: any free page will do for a shared page or single page allocation, but
@@ -369,18 +389,16 @@ struct PMAPageRunCache {
 };
 
 /**
- * Free dpage run node
+ * Free dpage cache
  *
  * A dpage is a page-sized block already allocated to the snapshot file on disk
  * but without memory mapped to it. Reusing free dpages allows allocations
  * without growing the backing file.
- *
- * It's possible to simplify this cache by turning it into a stack of individual
- * free dpages. However, since multi-page allocations will *never* move,
- * allocating them in a single block not only simplifies the malloc algorithm,
- * but also allows us to take advantage of locality caching: typically, when the
- * OS experiences a page miss, the OS/hardware will fetch not just the missing
- * page, but also several of the following (nearby?) pages.
+ * 
+ * The cache contains only individual dpages. Since multi-page allocations are
+ * never moved, their corresponding dpage allocations never change. When freed,
+ * multi-page allocations in the free page run cache still refer to the same
+ * contiguous block of dpages that they were assigned upon initial allocation.
  */
 typedef struct PMADPageCache PMADPageCache;
 struct PMADPageCache {
@@ -404,7 +422,7 @@ struct PMAMetadata {
   uint64_t             root;            // Root after most recent event
   void                *arena_start;     // Beginning of mapped address space
   void                *arena_end;       // End of mapped address space (first address beyond mapped range)
-  PMASharedPageHeader *shared_pages[PMA_MAX_SHARED_SHIFT]; // Shared allocation pages
+  PMASharedPageHeader *shared_pages[PMA_SHARED_BUCKETS]; // Shared allocation pages
   PMADPageCache       *dpage_cache;     // Cache of free dpges as queue
   uint64_t             snapshot_size;   // Size of the backing file
   uint64_t             next_offset;     // Next open dpage in the backing file
@@ -433,25 +451,13 @@ struct PMAState {
   PMAPageRunCache    *free_page_runs;   // Cache of free multi-page runs
 };
 
+
+//==============================================================================
+// GLOBALS
+//==============================================================================
+
 PMAState *_pma_state = NULL;
 
-void
-pma_state_free(void)
-{
-  if (_pma_state->metadata) free(_pma_state->metadata);
-  free(_pma_state);
-  _pma_state = NULL;
-}
-
-int
-pma_state_malloc(void)
-{
-  if (_pma_state != NULL) return 1;
-  PMAState *ret = calloc(1, sizeof *ret);
-  ret->metadata = calloc(1, sizeof *ret->metadata);
-  _pma_state = ret;
-  return 0;
-}
 
 //==============================================================================
 // FORWARD DECLARATIONS
@@ -479,8 +485,11 @@ int       _pma_copy_dpage_cache(void);
 uint64_t  _pma_get_disk_dpage(void);
 void      _pma_copy_page(void *address, uint64_t offset, PMAPageStatus status, int fd);
 void      _pma_mark_page_dirty(uint64_t index, uint64_t offset, PMAPageStatus status, uint32_t num_pages);
-int       _pma_extend_snapshot_file(uint64_t multiplier);
+int       _pma_extend_snapshot_file(uint32_t multiplier);
 void      _pma_warning(const char *p, void *a, int l);
+void      _pma_state_free(void);
+int       _pma_state_malloc(void);
+
 
 //==============================================================================
 // PUBLIC FUNCTIONS
@@ -506,7 +515,7 @@ pma_init(const char *path) {
   meta_bytes = 2 * PMA_PAGE_SIZE;
 
   // Allocate memory for state
-  if (pma_state_malloc()) return -1;
+  if (_pma_state_malloc()) return -1;
 
   //
   // Create backing files
@@ -531,17 +540,24 @@ pma_init(const char *path) {
   // Create file path for dir of backing files
   sprintf(filepath, "%s/%s", path, PMA_DEFAULT_DIR_NAME);
 
-  // Create dir for backing files
-  if (mkdir(filepath, PMA_DIR_PERMISSIONS)) INIT_ERROR;
+  // Create dir for backing files, if necessary
+  dir = opendir(filepath);
+  if (dir == NULL) {
+    // Error if opening dir failed for reason other than it doesn't exist
+    if (ENOENT != errno) INIT_ERROR;
+
+    // Error if creating dir failed
+    if (mkdir(filepath, PMA_DIR_PERMISSIONS)) INIT_ERROR;
+  }
 
   // Create backing file for snapshot
   sprintf(filepath, "%s/%s/%s", path, PMA_DEFAULT_DIR_NAME, PMA_SNAPSHOT_FILENAME);
-  snapshot_fd = open(filepath, PMA_FILE_FLAGS, PMA_FILE_PERMISSIONS);
+  snapshot_fd = open(filepath, PMA_NEW_FILE_FLAGS, PMA_FILE_PERMISSIONS);
   if (snapshot_fd == -1) INIT_ERROR;
 
   // Create backing file for page directory
   sprintf(filepath, "%s/%s/%s", path, PMA_DEFAULT_DIR_NAME, PMA_PAGE_DIR_FILENAME);
-  page_dir_fd = open(filepath, PMA_FILE_FLAGS, PMA_FILE_PERMISSIONS);
+  page_dir_fd = open(filepath, PMA_NEW_FILE_FLAGS, PMA_FILE_PERMISSIONS);
   if (page_dir_fd == -1) INIT_ERROR;
 
   //
@@ -627,7 +643,7 @@ pma_init(const char *path) {
   _pma_state->metadata->root       = 0;
 
   // Initialize shared pages stacks
-  for(uint8_t i = 0; i < PMA_MAX_SHARED_SHIFT; ++i) {
+  for(uint8_t i = 0; i < PMA_SHARED_BUCKETS; ++i) {
     _pma_state->metadata->shared_pages[i] = NULL;
   }
 
@@ -642,7 +658,6 @@ pma_init(const char *path) {
   // Initialize snapshot page info
   _pma_state->metadata->snapshot_size = PMA_INIT_SNAP_SIZE;
   _pma_state->metadata->next_offset = meta_bytes + PMA_PAGE_SIZE;
-
 
   // Initialize arena start pointer
   _pma_state->metadata->arena_start  = (void *)PMA_SNAPSHOT_ADDR;
@@ -740,7 +755,7 @@ init_error:
   if (snapshot_fd) close(snapshot_fd);
   if (page_dir_fd) close(page_dir_fd);
   free(filepath);
-  pma_state_free();
+  _pma_state_free();
 
   return -1;
 }
@@ -763,10 +778,10 @@ pma_load(const char *path) {
   meta_bytes = 2 * PMA_PAGE_SIZE;
 
   // Allocate memory for state
-  if (pma_state_malloc()) return (PMARootState){0};
+  if (_pma_state_malloc()) return (PMARootState){0};
 
   //
-  // Create backing files
+  // Open backing files
   //
 
   // Initialize dir and file path buffer
@@ -777,13 +792,13 @@ pma_load(const char *path) {
 
   // Open backing file for snapshot
   sprintf(filepath, "%s/%s/%s", path, PMA_DEFAULT_DIR_NAME, PMA_SNAPSHOT_FILENAME);
-  snapshot_fd = open(filepath, PMA_FILE_FLAGS, PMA_FILE_PERMISSIONS);
+  snapshot_fd = open(filepath, PMA_LOAD_FILE_FLAGS, PMA_FILE_PERMISSIONS);
   if (snapshot_fd == -1) LOAD_ERROR;
   _pma_state->snapshot_fd = snapshot_fd;
 
   // Open backing file for page directory
   sprintf(filepath, "%s/%s/%s", path, PMA_DEFAULT_DIR_NAME, PMA_PAGE_DIR_FILENAME);
-  page_dir_fd = open(filepath, PMA_FILE_FLAGS, PMA_FILE_PERMISSIONS);
+  page_dir_fd = open(filepath, PMA_LOAD_FILE_FLAGS, PMA_FILE_PERMISSIONS);
   if (page_dir_fd == -1) LOAD_ERROR;
   _pma_state->page_dir_fd = page_dir_fd;
 
@@ -795,6 +810,15 @@ pma_load(const char *path) {
   if (-1 == read(snapshot_fd, &_pma_state->metadata->magic_code, sizeof(uint64_t))) {
     LOAD_ERROR;
   } else if (_pma_state->metadata->magic_code != PMA_MAGIC_CODE) {
+    errno = EILSEQ;
+    LOAD_ERROR;
+  }
+
+  // Read version
+  if (-1 == pread(snapshot_fd, &_pma_state->metadata->version, sizeof(uint32_t), 12)) {
+    LOAD_ERROR;
+  } else if (_pma_state->metadata->version != PMA_DATA_VERSION) {
+    // TODO: possibly upgrade
     errno = EILSEQ;
     LOAD_ERROR;
   }
@@ -962,8 +986,6 @@ pma_load(const char *path) {
   // Done
   //
 
-  // TODO: check version number, possibly upgrade
-
   // Clean up
   munmap(meta_pages, meta_bytes);
   free(filepath);
@@ -978,14 +1000,18 @@ load_error:
   fprintf(stderr, "(L%d) Error loading PMA from %s: %s\n", err_line, path, strerror(errno));
 
   if (meta_pages) munmap(meta_pages, meta_bytes);
-  munmap(_pma_state->page_directory.entries, PMA_MAXIMUM_DIR_SIZE);
-  munmap(_pma_state->metadata->arena_start,
-         (uintptr_t)_pma_state->metadata->arena_end
-         - (uintptr_t)_pma_state->metadata->arena_start);
-  if (snapshot_fd) close(snapshot_fd);
-  if (page_dir_fd) close(page_dir_fd);
+  if (_pma_state->page_directory.entries) {
+    munmap(_pma_state->page_directory.entries, PMA_MAXIMUM_DIR_SIZE);
+  }
+  if (_pma_state->metadata && _pma_state->metadata->arena_start) {
+    munmap(_pma_state->metadata->arena_start,
+          (uintptr_t)_pma_state->metadata->arena_end
+          - (uintptr_t)_pma_state->metadata->arena_start);
+  }
+  if (snapshot_fd > 0) close(snapshot_fd);
+  if (page_dir_fd > 0) close(page_dir_fd);
   free(filepath);
-  pma_state_free();
+  _pma_state_free();
 
   return (PMARootState){0};
 }
@@ -1009,7 +1035,7 @@ pma_close(uint64_t epoch, uint64_t event, uint64_t root) {
   close(_pma_state->snapshot_fd);
 
   // free pma state
-  pma_state_free();
+  _pma_state_free();
 
   return 0;
 }
@@ -1050,11 +1076,6 @@ pma_free(void *address) {
   }
   if (address >= _pma_state->metadata->arena_end) {
     WARNING("address too high to make sense");
-    errno = EINVAL;
-    return -1;
-  }
-  if (address >= _pma_state->metadata->arena_end) {
-    WARNING("address was never allocated");
     errno = EINVAL;
     return -1;
   }
@@ -1110,6 +1131,7 @@ pma_sync(uint64_t epoch, uint64_t event, uint64_t root) {
     dpage_cache->dirty = 0;
     dpage_cache->size = (dpage_cache->tail - dpage_cache->head);
     if (dpage_cache->size > PMA_DPAGE_CACHE_SIZE) {
+      // Simple correction of integer underflow when queue wraps around
       dpage_cache->size += PMA_DPAGE_CACHE_SIZE;
     }
   }
@@ -1268,7 +1290,7 @@ _pma_sync_dirty_pages(int fd, uint8_t num_dirty_pages, PMADirtyPageEntry *dirty_
       if (_pma_write_page_status(fd, (index + j), cont_status)) return -1;
       // Offset of 0 is code for "leave it alone"
       if (init_offset) {
-        if (_pma_write_page_offset(fd, index, (init_offset + (j * PMA_PAGE_SIZE)))) return -1;
+        if (_pma_write_page_offset(fd, (index + j), (init_offset + (j * PMA_PAGE_SIZE)))) return -1;
       }
     }
   }
@@ -1391,10 +1413,13 @@ _pma_malloc_bytes(size_t size)
   }
 
   // Find the right bucket
-  bucket = 0;
-  i = size - 1;
-  while (i >>= 1) bucket++;
-  slot_size = (1 << (bucket + 1));
+  bucket = 1;
+  if (size) {
+    i = size - 1;
+    while (i >>= 1) bucket++;
+  }
+  slot_size = (1 << bucket);
+  bucket = bucket - PMA_MIN_ALLOC_SHIFT;
 
   // Search for a shared page with open slots
   shared_page = _pma_state->metadata->shared_pages[bucket];
@@ -1454,7 +1479,10 @@ _pma_malloc_bytes(size_t size)
 int
 _pma_malloc_shared_page(uint8_t bucket)
 {
-  PMASharedPageHeader *shared_page;
+  PMASharedPageHeader  *shared_page;
+  uint8_t               shift;
+
+  assert(bucket <= PMA_SHARED_BUCKETS);
 
   // Get a new writeable page
   shared_page = (PMASharedPageHeader *)_pma_malloc_single_page(SHARED);
@@ -1462,10 +1490,13 @@ _pma_malloc_shared_page(uint8_t bucket)
     return -1;
   }
 
+  // Compute shift
+  shift = bucket + PMA_MIN_ALLOC_SHIFT;
+
   // Initialize header for shared page
   shared_page->dirty = 1;
-  shared_page->size = (bucket + 1);
-  shared_page->free = ((PMA_PAGE_SIZE - sizeof(PMASharedPageHeader)) / (1 << bucket));
+  shared_page->size = shift;
+  shared_page->free = ((PMA_PAGE_SIZE - sizeof(PMASharedPageHeader)) / (1 << shift));
   for (uint8_t i = 0; i < PMA_BITMAP_SIZE; ++i) {
     shared_page->bits[i] = PMA_EMPTY_BITMAP;
   }
@@ -1579,10 +1610,11 @@ _pma_malloc_multi_pages(uint64_t num_pages) {
  */
 void *
 _pma_get_cached_pages(uint64_t num_pages) {
-  PMAPageRunCache *page_run_cache = _pma_state->free_page_runs;
-  PMAPageRunCache *prev_page_run  = NULL;
-  PMAPageRunCache *valid_page_run = NULL;
-  void            *address        = NULL;
+  PMAPageRunCache **pre_valid_ptr  = NULL;
+  PMAPageRunCache **prev_node_ptr  = &(_pma_state->free_page_runs);
+  PMAPageRunCache  *page_run_cache = _pma_state->free_page_runs;
+  PMAPageRunCache  *valid_page_run = NULL;
+  void             *address        = NULL;
 
   // Do a pass looking for an exactly-sized run. While doing this, also record the smallest run still big enough to fit
   // our data.
@@ -1591,15 +1623,17 @@ _pma_get_cached_pages(uint64_t num_pages) {
 
     if (run_length == num_pages) {
       valid_page_run = page_run_cache;
+      pre_valid_ptr = prev_node_ptr;
       break;
 
     } else if (run_length > num_pages ) {
       if ((valid_page_run == NULL) || (valid_page_run->length > run_length)) {
         valid_page_run = page_run_cache;
+        pre_valid_ptr = prev_node_ptr;
       }
     }
 
-    prev_page_run = page_run_cache;
+    prev_node_ptr  = &(page_run_cache->next);
     page_run_cache = page_run_cache->next;
   }
 
@@ -1619,7 +1653,7 @@ _pma_get_cached_pages(uint64_t num_pages) {
       // Update cache pointers: we're going to use the whole run or we're going
       // to move the remaining page to the single-page cache. Either way, we're
       // going to free the run object.
-      prev_page_run->next = valid_page_run->next;
+      *pre_valid_ptr = valid_page_run->next;
 
       // If there's a page left...
       if (valid_page_run->length == (num_pages + 1)) {
@@ -1711,7 +1745,7 @@ _pma_get_new_pages(uint64_t num_pages) {
   // Get new dpages. Extend snapshot backing file first, if necessary.
   if (new_size >= size) {
     // Multi-page allocations maybe larger than the snapshot resize increment
-    uint64_t multiplier = ((new_size - size) / PMA_SNAP_RESIZE_INC) + 1;
+    uint32_t multiplier = ((new_size - size) / PMA_SNAPSHOT_RESIZE_INC) + 1;
 
     // Fail if snapshot file couldn't be extended
     if (_pma_extend_snapshot_file(multiplier)) return NULL;
@@ -1753,7 +1787,6 @@ _pma_get_new_pages(uint64_t num_pages) {
  */
 int
 _pma_free_pages(void *address) {
-
   uint32_t index = PTR_TO_INDEX(address);
   uint32_t num_pages = 0;
 
@@ -1896,7 +1929,9 @@ _pma_get_cached_dpage(void) {
   // Special copy-on-write for dpage cache
   if (!dirty) {
     if (_pma_copy_dpage_cache()) {
-      return 0;
+      void *address = _pma_state->metadata->dpage_cache;
+      WARNING(strerror(errno));
+      abort();
     }
   }
 
@@ -2020,9 +2055,9 @@ _pma_copy_page(void *address, uint64_t offset, PMAPageStatus status, int fd) {
   assert(new_address == address);
 
   // Add previous dpage to cache
-  // Note: the dpage cache should always be writeable here, either because the
-  // dpage cache is the page we just copied, or because it was made writeable in
-  // advance by _pma_copy_shared_page
+  // Note:  the dpage cache should always be writeable here, either because the
+  //        dpage cache is the page we just copied, or because it was made
+  //        writeable in advance by _pma_copy_shared_page
   assert(_pma_state->page_directory.entries[index].offset != 0);
   _pma_state->metadata->dpage_cache->queue[tail] = _pma_state->page_directory.entries[index].offset;
   _pma_state->metadata->dpage_cache->tail = ((tail + 1) % PMA_DPAGE_CACHE_SIZE);
@@ -2056,25 +2091,37 @@ _pma_mark_page_dirty(uint64_t index, uint64_t offset, PMAPageStatus status, uint
 /**
  * Extend the size of the PMA backing file on disk
  *
+ * Note: while it's possible that a multiplier larger than 2^32 could be valid
+ *       (i.e. using ZFS is the file system, so the backing file can be up to
+ *       16 EiB in size, and the PMA backing file extension increment is less
+ *       than 4 GiB), it almost certainly would never be encountered (the user
+ *       needs to allocate a 2 EiB file to the loom?).
+ * 
  * @param multiplier  New size = old size * multiplier
  *
  * @return  0   success
  * @return  -1  failure; errno set to error code
  */
 int
-_pma_extend_snapshot_file(uint64_t multiplier) {
-  int bytes;
-  int err;
+_pma_extend_snapshot_file(uint32_t multiplier) {
+  off_t     err;
+  ssize_t   bytes;
+  uint64_t  new_snapshot_size;
+
+  // Reject invalid multipliers
+  if (!multiplier || (multiplier > PMA_MAX_RESIZE_FACTOR)) return -1;
 
   // Update size in metadata
-  _pma_state->metadata->snapshot_size += (multiplier * PMA_SNAP_RESIZE_INC);
+  new_snapshot_size = _pma_state->metadata->snapshot_size + (multiplier * PMA_SNAPSHOT_RESIZE_INC);
 
   // Extend snapshot file
-  err = lseek(_pma_state->snapshot_fd, (_pma_state->metadata->snapshot_size - 1), SEEK_SET);
+  err = lseek(_pma_state->snapshot_fd, (new_snapshot_size - 1), SEEK_SET);
   if (err == -1) return -1;
+
   bytes = write(_pma_state->snapshot_fd, "", 1);
   if (bytes < 1) return -1;
 
+  _pma_state->metadata->snapshot_size = new_snapshot_size;
   return 0;
 }
 
@@ -2088,4 +2135,33 @@ _pma_extend_snapshot_file(uint64_t multiplier) {
 void
 _pma_warning(const char *s, void *p, int l) {
    fprintf(stderr, "*** %d: %p - %s\n", l, p, s);
+}
+
+/**
+ * Helper function to deallocate PMA state on shutdown.
+ */
+void
+_pma_state_free(void)
+{
+  if (_pma_state) {
+    if (_pma_state->metadata) free(_pma_state->metadata);
+    free(_pma_state);
+    _pma_state = NULL;
+  }
+}
+
+/**
+ * Helper function to allocate memory for PMA state.
+ * 
+ * @return  1   allocated PMA state already exists
+ * @return  0   memory for new PMA state successfully allocated
+ */
+int
+_pma_state_malloc(void)
+{
+  if (_pma_state != NULL) return 1;
+  PMAState *ret = calloc(1, sizeof *ret);
+  ret->metadata = calloc(1, sizeof *ret->metadata);
+  _pma_state = ret;
+  return 0;
 }
