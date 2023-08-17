@@ -59,7 +59,7 @@ impl NockStack {
      * The initial frame is a west frame. When the stack is initialized, a number of slots is given.
      * We add three extra slots to store the “previous” frame, stack, and allocation pointer. For the
      * initial frame, the previous allocation pointer is set to the beginning (low boundary) of the
-     * arena, the previous frame pointer is set to NULL, and the previous stack pointer is set to XX */
+     * arena, the previous frame pointer is set to NULL, and the previous stack pointer is set to NULL */
 
     /** size is in 64-bit (i.e. 8-byte) words.
      * top_slots is how many slots to allocate to the top stack frame.
@@ -88,6 +88,18 @@ impl NockStack {
             mean_stack,
             memory,
             pc: false,
+        }
+    }
+
+    /** Current frame pointer of this NockStack */
+    pub fn get_frame_pointer(&self) -> *const u64 {
+        self.frame_pointer
+    }
+
+    /** Current frame pointer of this NockStack */
+    pub fn get_mean_stack(&self) -> Noun {
+        unsafe {
+            *self.mean_stack
         }
     }
 

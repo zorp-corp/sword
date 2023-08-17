@@ -16,6 +16,7 @@ use crate::interpreter::raw_slot;
 use crate::jets::{JetErr, JetErr::*};
 use crate::mem::NockStack;
 use crate::mug::mug;
+use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
@@ -25,7 +26,11 @@ use std::{cmp, convert::TryFrom};
 
 crate::gdb!();
 
-pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_dec(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     if let Ok(atom) = arg.as_atom() {
         match atom.as_either() {
@@ -62,7 +67,11 @@ pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_add(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_add(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -77,7 +86,11 @@ pub fn jet_add(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_sub(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_sub(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -102,7 +115,11 @@ pub fn jet_sub(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_mul(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_mul(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -129,7 +146,11 @@ pub fn jet_mul(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_div(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_div(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -146,7 +167,11 @@ pub fn jet_div(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_mod(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_mod(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -161,7 +186,11 @@ pub fn jet_mod(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_dvr(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_dvr(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -189,7 +218,11 @@ pub fn jet_dvr(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_lth(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_lth(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -211,7 +244,11 @@ pub fn jet_lth(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     })
 }
 
-pub fn jet_lte(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_lte(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -233,7 +270,11 @@ pub fn jet_lte(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     })
 }
 
-pub fn jet_gth(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_gth(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -255,7 +296,11 @@ pub fn jet_gth(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     })
 }
 
-pub fn jet_gte(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_gte(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -277,7 +322,11 @@ pub fn jet_gte(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     })
 }
 
-pub fn jet_bex(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_bex(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6).as_direct()?.data() as usize;
 
     if arg < 63 {
@@ -291,7 +340,11 @@ pub fn jet_bex(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_lsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_lsh(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let (bloq, step) = bite(raw_slot(arg, 2))?;
     let a = raw_slot(arg, 3).as_atom()?;
@@ -317,7 +370,11 @@ pub fn jet_lsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_rsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_rsh(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let (bloq, step) = bite(raw_slot(arg, 2))?;
     let a = raw_slot(arg, 3).as_atom()?;
@@ -343,7 +400,11 @@ pub fn jet_rsh(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_con(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_con(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -359,7 +420,11 @@ pub fn jet_con(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_dis(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_dis(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -375,7 +440,11 @@ pub fn jet_dis(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_mix(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_mix(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
@@ -391,7 +460,11 @@ pub fn jet_mix(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_end(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_end(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let (bloq, step) = bite(raw_slot(arg, 2))?;
     let a = raw_slot(arg, 3).as_atom()?;
@@ -416,7 +489,11 @@ pub fn jet_end(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_cat(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_cat(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
     if bloq >= 64 {
@@ -440,7 +517,11 @@ pub fn jet_cat(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_can(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_can(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
     if bloq >= 64 {
@@ -490,7 +571,11 @@ pub fn jet_can(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_rep(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_rep(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let (bloq, step) = bite(raw_slot(arg, 2))?;
     let original_list = raw_slot(arg, 3);
@@ -533,7 +618,11 @@ pub fn jet_rep(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     }
 }
 
-pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_cut(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
     if bloq >= 64 {
@@ -552,7 +641,11 @@ pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     Ok(new_indirect.as_noun())
 }
 
-pub fn jet_rip(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_rip(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let (bloq, step) = bite(raw_slot(arg, 2))?;
     let atom = raw_slot(arg, 3).as_atom()?;
@@ -571,7 +664,11 @@ pub fn jet_rip(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     Ok(list)
 }
 
-pub fn jet_met(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_met(
+    _stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let bloq = raw_slot(arg, 2).as_direct()?.data() as usize;
     if bloq >= 64 {
@@ -582,7 +679,11 @@ pub fn jet_met(_stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     Ok(D(met(bloq, a) as u64))
 }
 
-pub fn jet_mug(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_mug(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     Ok(mug(stack, arg).as_noun())
 }
@@ -651,7 +752,11 @@ pub fn met(bloq: usize, a: Atom) -> usize {
     }
 }
 
-pub fn jet_rev(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
+pub fn jet_rev(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> Result<Noun, JetErr> {
     let arg = raw_slot(subject, 6);
     let boz = raw_slot(arg, 2).as_atom()?.as_direct()?.data();
 
@@ -751,7 +856,7 @@ mod tests {
 
     fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
         let sam = T(stack, &[D(0), sam, D(0)]);
-        let jet_res = assert_no_alloc(|| jet(stack, sam).unwrap());
+        let jet_res = assert_no_alloc(|| jet(stack, &mut None, sam).unwrap());
         assert_noun_eq(stack, jet_res, res);
     }
 
@@ -788,7 +893,7 @@ mod tests {
 
     fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
         let sam = T(stack, &[D(0), sam, D(0)]);
-        let jet_res = jet(stack, sam);
+        let jet_res = jet(stack, &mut None, sam);
         assert!(
             jet_res.is_err(),
             "with sample: {}, expected err: {:?}, got: {:?}",

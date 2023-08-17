@@ -20,6 +20,7 @@ fn main() -> io::Result<()> {
         ares::interpreter::use_gdb();
         ares::jets::use_gdb();
         ares::jets::math::use_gdb();
+        ares::jets::mink::use_gdb();
         ares::mem::use_gdb();
         ares::mug::use_gdb();
         ares::newt::use_gdb();
@@ -52,7 +53,8 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let result = interpret(&mut stack, &mut None, input_cell.head(), input_cell.tail());
+    let result = interpret(&mut stack, &mut None, input_cell.head(), input_cell.tail())
+        .expect("nock failed");
     if let Ok(atom) = result.as_atom() {
         println!("Result: {}", atom);
     }

@@ -1,14 +1,17 @@
 pub mod math;
+pub mod mink;
 
 use crate::jets::math::*;
+use crate::jets::mink::*;
 use crate::mem::NockStack;
+use crate::newt::Newt;
 use crate::noun::{self, Noun};
 use ares_macros::tas;
 
 crate::gdb!();
 
 /// Return Err if the computation crashed or should punt to Nock
-pub type Jet = fn(&mut NockStack, Noun) -> Result<Noun, JetErr>;
+pub type Jet = fn(&mut NockStack, &mut Option<&mut Newt>, Noun) -> Result<Noun, JetErr>;
 
 /// Only return a deterministic error if the Nock would have deterministically crashed.
 #[derive(Debug, PartialEq)]
@@ -62,6 +65,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"met") => Some(jet_met),
         tas!(b"mug") => Some(jet_mug),
         tas!(b"rev") => Some(jet_rev),
+        tas!(b"mink") => Some(jet_mink),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None
