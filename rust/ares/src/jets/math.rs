@@ -13,12 +13,12 @@
  * us to use any library without worrying whether it allocates.
  */
 use crate::jets;
-use crate::jets::{JetErr::*, slot};
+use crate::jets::JetErr::*;
+use crate::jets::util::{bite, chop, met, slot};
 use crate::mem::NockStack;
 use crate::mug::mug;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
-use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use ibig::ops::DivRem;
 use ibig::UBig;
@@ -689,70 +689,6 @@ pub fn jet_mug(
     Ok(mug(stack, arg).as_noun())
 }
 
-/** Extract the bloq and step from a bite */
-fn bite(a: Noun) -> Result<(usize, usize), ()> {
-    if let Ok(cell) = a.as_cell() {
-        let bloq = cell.head().as_direct()?.data() as usize;
-        if bloq >= 64 {
-            return Err(());
-        }
-        let step = cell.tail().as_direct()?.data() as usize;
-        Ok((bloq, step))
-    } else {
-        let bloq = a.as_direct()?.data() as usize;
-        if bloq >= 64 {
-            return Err(());
-        }
-        Ok((bloq, 1))
-    }
-}
-
-/** In a bloq space, copy from `from` for a span of `step`, to position `to`.
- *
- * Note: unlike the vere version, this sets the bits instead of XORing them.  If we need the XOR
- * version, we could use ^=.
- */
-unsafe fn chop(
-    bloq: usize,
-    from: usize,
-    step: usize,
-    to: usize,
-    dest: &mut BitSlice<u64, Lsb0>,
-    source: &BitSlice<u64, Lsb0>,
-) -> Result<(), ()> {
-    let from_b = from << bloq;
-    let to_b = to << bloq;
-    let mut step_b = step << bloq;
-    let end_b = from_b.checked_add(step_b).ok_or(())?;
-
-    if (from_b >> bloq) != from {
-        return Err(());
-    }
-
-    if from_b >= source.len() {
-        return Ok(());
-    }
-
-    if end_b > source.len() {
-        step_b -= end_b - source.len();
-    }
-
-    dest[to_b..to_b + step_b].copy_from_bitslice(&source[from_b..from_b + step_b]);
-    Ok(())
-}
-
-/** Measure the number of bloqs in an atom */
-pub fn met(bloq: usize, a: Atom) -> usize {
-    if unsafe { a.as_noun().raw_equals(D(0)) } {
-        0
-    } else if bloq < 6 {
-        (a.bit_size() + ((1 << bloq) - 1)) >> bloq
-    } else {
-        let bloq_word = bloq - 6;
-        (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
-    }
-}
-
 pub fn jet_rev(
     stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
@@ -797,14 +733,8 @@ pub fn jet_rev(
 mod tests {
     use super::*;
     use crate::jets::{Jet, JetErr};
-    use crate::mem::unifying_equality;
-    use crate::noun::Atom;
-    use assert_no_alloc::assert_no_alloc;
+    use crate::jets::util::test::{assert_jet, assert_jet_err, assert_jet_ubig, assert_nary_jet_ubig, init_stack, A};
     use ibig::ubig;
-
-    fn init() -> NockStack {
-        NockStack::new(8 << 10 << 10, 0)
-    }
 
     fn atoms(s: &mut NockStack) -> (Noun, Noun, Noun, Noun, Noun) {
         (atom_0(s), atom_24(s), atom_63(s), atom_96(s), atom_128(s))
@@ -845,32 +775,6 @@ mod tests {
         A(stack, &ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff))
     }
 
-    #[allow(non_snake_case)]
-    fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
-        Atom::from_ubig(stack, ubig).as_noun()
-    }
-
-    fn assert_noun_eq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
-        let eq = unsafe { unifying_equality(stack, &mut a, &mut b) };
-        assert!(eq, "got: {}, need: {}", a, b);
-    }
-
-    fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
-        let sam = T(stack, &[D(0), sam, D(0)]);
-        let jet_res = assert_no_alloc(|| jet(stack, &mut None, sam).unwrap());
-        assert_noun_eq(stack, jet_res, res);
-    }
-
-    fn assert_jet_ubig(stack: &mut NockStack, jet: Jet, sam: Noun, res: UBig) {
-        let res = A(stack, &res);
-        assert_jet(stack, jet, sam, res);
-    }
-
-    fn assert_nary_jet_ubig(stack: &mut NockStack, jet: Jet, sam: &[Noun], res: UBig) {
-        let sam = T(stack, sam);
-        assert_jet_ubig(stack, jet, sam, res);
-    }
-
     fn assert_math_jet(
         stack: &mut NockStack,
         jet: Jet,
@@ -892,24 +796,6 @@ mod tests {
         assert_jet(stack, jet, sam, res);
     }
 
-    fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
-        let sam = T(stack, &[D(0), sam, D(0)]);
-        let jet_res = jet(stack, &mut None, sam);
-        assert!(
-            jet_res.is_err(),
-            "with sample: {}, expected err: {:?}, got: {:?}",
-            sam,
-            err,
-            &jet_res
-        );
-        let jet_err = jet_res.unwrap_err();
-        assert_eq!(
-            jet_err, err,
-            "with sample: {}, expected err: {:?}, got: {:?}",
-            sam, err, jet_err
-        );
-    }
-
     fn assert_math_jet_err(
         stack: &mut NockStack,
         jet: Jet,
@@ -922,33 +808,8 @@ mod tests {
     }
 
     #[test]
-    fn test_met() {
-        let s = &mut init();
-        let a = atom_128(s).as_atom().unwrap();
-        assert_eq!(met(0, a), 128);
-        assert_eq!(met(1, a), 64);
-        assert_eq!(met(2, a), 32);
-        assert_eq!(met(3, a), 16);
-        assert_eq!(met(4, a), 8);
-        assert_eq!(met(5, a), 4);
-        assert_eq!(met(6, a), 2);
-        assert_eq!(met(7, a), 1);
-        assert_eq!(met(8, a), 1);
-
-        let a = atom_63(s).as_atom().unwrap();
-        assert_eq!(met(0, a), 63);
-        assert_eq!(met(1, a), 32);
-        assert_eq!(met(2, a), 16);
-        assert_eq!(met(3, a), 8);
-        assert_eq!(met(4, a), 4);
-        assert_eq!(met(5, a), 2);
-        assert_eq!(met(6, a), 1);
-        assert_eq!(met(7, a), 1);
-    }
-
-    #[test]
     fn test_dec() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, _a24, a63, _a96, a128) = atoms(s);
         assert_jet_ubig(s, jet_dec, a128, ubig!(0xdeadbeef12345678fedcba987654320f));
         assert_jet(s, jet_dec, a63, D(0x7ffffffffffffffe));
@@ -957,7 +818,7 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_math_jet(
             s,
             jet_add,
@@ -975,7 +836,7 @@ mod tests {
 
     #[test]
     fn test_sub() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_math_jet(
             s,
             jet_sub,
@@ -995,7 +856,7 @@ mod tests {
 
     #[test]
     fn test_mul() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_math_jet(
             s,
             jet_mul,
@@ -1019,7 +880,7 @@ mod tests {
 
     #[test]
     fn test_div() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_math_jet(s, jet_div, &[atom_128, atom_96], ubig!(0xe349f8f0));
         assert_math_jet(s, jet_div, &[atom_96, atom_63], ubig!(0x1f59d6018));
         assert_math_jet(s, jet_div, &[atom_63, atom_96], ubig!(0));
@@ -1041,7 +902,7 @@ mod tests {
 
     #[test]
     fn test_mod() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_math_jet(
             s,
             jet_mod,
@@ -1060,7 +921,7 @@ mod tests {
 
     #[test]
     fn test_dvr() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, a24, a63, a96, a128) = atoms(s);
         let a264 = atom_264(s);
         let a528 = atom_528(s);
@@ -1105,7 +966,7 @@ mod tests {
 
     #[test]
     fn test_lth() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_math_jet_noun(s, jet_lth, &[atom_128, atom_96], NO);
         assert_math_jet_noun(s, jet_lth, &[atom_96, atom_63], NO);
         assert_math_jet_noun(s, jet_lth, &[atom_63, atom_96], YES);
@@ -1118,7 +979,7 @@ mod tests {
 
     #[test]
     fn test_lte() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_math_jet_noun(s, jet_lte, &[atom_128, atom_96], NO);
         assert_math_jet_noun(s, jet_lte, &[atom_96, atom_63], NO);
         assert_math_jet_noun(s, jet_lte, &[atom_63, atom_96], YES);
@@ -1131,7 +992,7 @@ mod tests {
 
     #[test]
     fn test_gth() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_math_jet_noun(s, jet_gth, &[atom_128, atom_96], YES);
         assert_math_jet_noun(s, jet_gth, &[atom_96, atom_63], YES);
         assert_math_jet_noun(s, jet_gth, &[atom_63, atom_96], NO);
@@ -1144,7 +1005,7 @@ mod tests {
 
     #[test]
     fn test_gte() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_math_jet_noun(s, jet_gte, &[atom_128, atom_96], YES);
         assert_math_jet_noun(s, jet_gte, &[atom_96, atom_63], YES);
         assert_math_jet_noun(s, jet_gte, &[atom_63, atom_96], NO);
@@ -1157,7 +1018,7 @@ mod tests {
 
     #[test]
     fn test_bex() {
-        let s = &mut init();
+        let s = &mut init_stack();
         assert_jet(s, jet_bex, D(0), D(1));
         assert_jet(s, jet_bex, D(5), D(32));
         assert_jet(s, jet_bex, D(62), D(0x4000000000000000));
@@ -1171,7 +1032,7 @@ mod tests {
 
     #[test]
     fn test_lsh() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, a24, _a63, a96, a128) = atoms(s);
         let sam = T(s, &[a0, a24]);
         assert_jet(s, jet_lsh, sam, D(0x10eca86));
@@ -1201,7 +1062,7 @@ mod tests {
 
     #[test]
     fn test_rsh() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, a24, _a63, a96, a128) = atoms(s);
         let sam = T(s, &[a0, a24]);
         assert_jet(s, jet_rsh, sam, D(0x43b2a1));
@@ -1226,7 +1087,7 @@ mod tests {
 
     #[test]
     fn test_con() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (_a0, _a24, a63, _a96, a128) = atoms(s);
         assert_math_jet(s, jet_con, &[atom_0, atom_0], ubig!(0));
         assert_math_jet(
@@ -1248,7 +1109,7 @@ mod tests {
 
     #[test]
     fn test_dis() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, a24, _a63, _a96, _a128) = atoms(s);
         assert_math_jet(s, jet_dis, &[atom_0, atom_0], ubig!(0));
         assert_math_jet(s, jet_dis, &[atom_24, atom_96], ubig!(0x22442));
@@ -1265,7 +1126,7 @@ mod tests {
 
     #[test]
     fn test_mix() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (_a0, _a24, _a63, _a96, a128) = atoms(s);
         assert_math_jet(s, jet_mix, &[atom_0, atom_0], ubig!(0));
         assert_math_jet(
@@ -1287,7 +1148,7 @@ mod tests {
 
     #[test]
     fn test_end() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, a24, _a63, a96, a128) = atoms(s);
         let sam = T(s, &[a0, a24]);
         assert_jet(s, jet_end, sam, D(0x1));
@@ -1309,7 +1170,7 @@ mod tests {
 
     #[test]
     fn test_cat() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, a24, a63, _a96, a128) = atoms(s);
         let sam = T(s, &[a0, a0, a0]);
         assert_jet(s, jet_cat, sam, D(0));
@@ -1329,7 +1190,7 @@ mod tests {
 
     #[test]
     fn test_cut() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (_a0, a24, _a63, a96, a128) = atoms(s);
         let run = T(s, &[D(0), D(5)]);
         let sam = T(s, &[D(0), run, a24]);
@@ -1348,7 +1209,7 @@ mod tests {
 
     #[test]
     fn test_can() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, a24, a63, a96, a128) = atoms(s);
         let sam = T(s, &[D(0), D(0)]);
         assert_jet(s, jet_can, sam, D(0));
@@ -1367,7 +1228,7 @@ mod tests {
 
     #[test]
     fn test_rep() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, a24, a63, a96, a128) = atoms(s);
         let sam = T(s, &[D(0), D(0)]);
         assert_jet(s, jet_rep, sam, D(0));
@@ -1379,7 +1240,7 @@ mod tests {
 
     #[test]
     fn test_rip() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (_a0, _a24, _a63, _a96, a128) = atoms(s);
         let sam = T(s, &[D(0), D(0)]);
         assert_jet(s, jet_rip, sam, D(0));
@@ -1401,8 +1262,8 @@ mod tests {
     }
 
     #[test]
-    fn test_jet_met() {
-        let s = &mut init();
+    fn test_met() {
+        let s = &mut init_stack();
         let (a0, a24, _a63, _a96, a128) = atoms(s);
         let sam = T(s, &[a0, a0]);
         assert_jet(s, jet_met, sam, D(0));
@@ -1416,7 +1277,7 @@ mod tests {
 
     #[test]
     fn test_mug() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (a0, a24, a63, a96, a128) = atoms(s);
         assert_jet(s, jet_mug, a0, D(0x79ff04e8));
         assert_jet(s, jet_mug, a24, D(0x69d59d90));
@@ -1437,7 +1298,7 @@ mod tests {
 
     #[test]
     fn test_rev() {
-        let s = &mut init();
+        let s = &mut init_stack();
         let (_a0, a24, _a63, _a96, _a128) = atoms(s);
         let sam = T(s, &[D(0), D(60), a24]);
         assert_jet(s, jet_rev, sam, D(0xc2a6e1000000000));

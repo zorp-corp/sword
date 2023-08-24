@@ -32,7 +32,7 @@ impl From<()> for JetErr {
 
 impl From<noun::Error> for JetErr {
     fn from(_err: noun::Error) -> Self {
-        Self::NonDeterministic
+        Self::Deterministic
     }
 }
 
@@ -89,6 +89,176 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
     false
 }
 
-pub fn slot(noun: Noun, axis: u64) -> Result {
-    noun.slot(axis).map_err(|_e| JetErr::Deterministic)
+pub mod util {
+    use super::*;
+    use crate::noun::{Atom, Noun, D};
+    use bitvec::prelude::{BitSlice, Lsb0};
+    use std::result;
+    
+    pub fn slot(noun: Noun, axis: u64) -> Result {
+        noun.slot(axis).map_err(|_e| JetErr::Deterministic)
+    }
+
+    /** Extract the bloq and step from a bite */
+    pub fn bite(a: Noun) -> result::Result<(usize, usize), ()> {
+        if let Ok(cell) = a.as_cell() {
+            let bloq = cell.head().as_direct()?.data() as usize;
+            if bloq >= 64 {
+                return Err(());
+            }
+            let step = cell.tail().as_direct()?.data() as usize;
+            Ok((bloq, step))
+        } else {
+            let bloq = a.as_direct()?.data() as usize;
+            if bloq >= 64 {
+                return Err(());
+            }
+            Ok((bloq, 1))
+        }
+    }
+
+    /** In a bloq space, copy from `from` for a span of `step`, to position `to`.
+     *
+     * Note: unlike the vere version, this sets the bits instead of XORing them.  If we need the XOR
+     * version, we could use ^=.
+     */
+    pub unsafe fn chop(
+        bloq: usize,
+        from: usize,
+        step: usize,
+        to: usize,
+        dest: &mut BitSlice<u64, Lsb0>,
+        source: &BitSlice<u64, Lsb0>,
+    ) -> result::Result<(), ()> {
+        let from_b = from << bloq;
+        let to_b = to << bloq;
+        let mut step_b = step << bloq;
+        let end_b = from_b.checked_add(step_b).ok_or(())?;
+
+        if (from_b >> bloq) != from {
+            return Err(());
+        }
+
+        if from_b >= source.len() {
+            return Ok(());
+        }
+
+        if end_b > source.len() {
+            step_b -= end_b - source.len();
+        }
+
+        dest[to_b..to_b + step_b].copy_from_bitslice(&source[from_b..from_b + step_b]);
+        Ok(())
+    }
+
+    /** Measure the number of bloqs in an atom */
+    pub fn met(bloq: usize, a: Atom) -> usize {
+        if unsafe { a.as_noun().raw_equals(D(0)) } {
+            0
+        } else if bloq < 6 {
+            (a.bit_size() + ((1 << bloq) - 1)) >> bloq
+        } else {
+            let bloq_word = bloq - 6;
+            (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
+        }
+    }
+
+    pub mod test {
+        use super::*;
+        use crate::mem::{NockStack, unifying_equality};
+        use crate::noun::{Atom, Noun, D, T};
+        use assert_no_alloc::assert_no_alloc;
+        use ibig::UBig;
+
+        pub fn init_stack() -> NockStack {
+            NockStack::new(8 << 10 << 10, 0)
+        }
+
+        #[allow(non_snake_case)]
+        pub fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
+            Atom::from_ubig(stack, ubig).as_noun()
+        }
+
+        pub fn assert_noun_eq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
+            let eq = unsafe { unifying_equality(stack, &mut a, &mut b) };
+            assert!(eq, "got: {}, need: {}", a, b);
+        }
+
+        pub fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
+            let sam = T(stack, &[D(0), sam, D(0)]);
+            let jet_res = assert_no_alloc(|| jet(stack, &mut None, sam).unwrap());
+            assert_noun_eq(stack, jet_res, res);
+        }
+
+        pub fn assert_jet_ubig(stack: &mut NockStack, jet: Jet, sam: Noun, res: UBig) {
+            let res = A(stack, &res);
+            assert_jet(stack, jet, sam, res);
+        }
+
+        pub fn assert_nary_jet_ubig(stack: &mut NockStack, jet: Jet, sam: &[Noun], res: UBig) {
+            let sam = T(stack, sam);
+            assert_jet_ubig(stack, jet, sam, res);
+        }
+
+        pub fn assert_math_jet(
+            stack: &mut NockStack,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            res: UBig,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
+            assert_nary_jet_ubig(stack, jet, &sam, res);
+        }
+
+        pub fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
+            let sam = T(stack, &[D(0), sam, D(0)]);
+            let jet_res = jet(stack, &mut None, sam);
+            assert!(
+                jet_res.is_err(),
+                "with sample: {}, expected err: {:?}, got: {:?}",
+                sam,
+                err,
+                &jet_res
+            );
+            let jet_err = jet_res.unwrap_err();
+            assert_eq!(
+                jet_err, err,
+                "with sample: {}, expected err: {:?}, got: {:?}",
+                sam, err, jet_err
+            );
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use super::test::{init_stack, A};
+        use ibig::ubig;
+
+        #[test]
+        fn test_met() {
+            let s = &mut init_stack();
+
+            let a = A(s, &ubig!(0xdeadbeef12345678fedcba9876543210)).as_atom().unwrap();
+            assert_eq!(met(0, a), 128);
+            assert_eq!(met(1, a), 64);
+            assert_eq!(met(2, a), 32);
+            assert_eq!(met(3, a), 16);
+            assert_eq!(met(4, a), 8);
+            assert_eq!(met(5, a), 4);
+            assert_eq!(met(6, a), 2);
+            assert_eq!(met(7, a), 1);
+            assert_eq!(met(8, a), 1);
+
+            let a = D(0x7fffffffffffffff).as_atom().unwrap();
+            assert_eq!(met(0, a), 63);
+            assert_eq!(met(1, a), 32);
+            assert_eq!(met(2, a), 16);
+            assert_eq!(met(3, a), 8);
+            assert_eq!(met(4, a), 4);
+            assert_eq!(met(5, a), 2);
+            assert_eq!(met(6, a), 1);
+            assert_eq!(met(7, a), 1);
+        }
+    }
 }

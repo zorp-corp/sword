@@ -2,7 +2,7 @@
  */
 use crate::interpreter::{interpret, NockErr};
 use crate::jets;
-use crate::jets::slot;
+use crate::jets::util::slot;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Noun, D, T};
@@ -34,30 +34,11 @@ pub fn jet_mink(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::Jet;
-    use crate::mem::unifying_equality;
-    use assert_no_alloc::assert_no_alloc;
-
-    fn init() -> NockStack {
-        NockStack::new(8 << 10 << 10, 0)
-    }
-
-    fn assert_noun_eq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
-        let eq = unsafe { unifying_equality(stack, &mut a, &mut b) };
-        assert!(eq, "got: {}, need: {}", a, b);
-    }
-
-    fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
-        // subject to jet = [battery payload]
-        //                = [battery [sample context]]
-        let subject = T(stack, &[D(0), sam, D(0)]);
-        let jet_res = assert_no_alloc(|| jet(stack, &mut None, subject).unwrap());
-        assert_noun_eq(stack, jet_res, res);
-    }
+    use crate::jets::util::test::{assert_jet, init_stack};
 
     #[test]
     fn test_mink_success() {
-        let sack = &mut init();
+        let sack = &mut init_stack();
         let subj = D(0);
         let form = T(sack, &[D(1), D(53)]);
         let nock = T(sack, &[subj, form]);
@@ -69,7 +50,7 @@ mod tests {
 
     #[test]
     fn test_mink_zapzap() {
-        let sack = &mut init();
+        let sack = &mut init_stack();
         let subj = D(0);
         let form = T(sack, &[D(0), D(0)]);
         let nock = T(sack, &[subj, form]);
@@ -81,7 +62,7 @@ mod tests {
 
     #[test]
     fn test_mink_trace() {
-        let sack = &mut init();
+        let sack = &mut init_stack();
         let subj = D(0);
         let scry = D(0);
 
