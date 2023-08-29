@@ -9,6 +9,7 @@ use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots};
 use ares_macros::tas;
+use std::cmp;
 
 crate::gdb!();
 
@@ -70,6 +71,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"rev") => Some(jet_rev),
         //
         tas!(b"cap") => Some(jet_cap),
+        tas!(b"mas") => Some(jet_mas),
         //
         tas!(b"mink") => Some(jet_mink),
         _ => {
@@ -91,8 +93,10 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
-    use crate::noun::{Atom, Noun, D};
+    use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D};
+    use crate::noun::Error::NotRepresentable;
     use bitvec::prelude::{BitSlice, Lsb0};
+    use ibig::UBig;
     use std::result;
     
     pub fn slot(noun: Noun, axis: u64) -> Result {
@@ -149,6 +153,58 @@ pub mod util {
 
         dest[to_b..to_b + step_b].copy_from_bitslice(&source[from_b..from_b + step_b]);
         Ok(())
+    }
+
+    /** Subtraction */
+    pub fn sub(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            let a_small = a.data();
+            let b_small = b.data();
+
+            if a_small < b_small {
+                Err(NotRepresentable)
+            } else {
+                Ok(Atom::new(stack, a_small - b_small))
+            }
+        } else {
+            let a_big = a.as_ubig(stack);
+            let b_big = b.as_ubig(stack);
+
+            if a_big < b_big {
+                Err(NotRepresentable)
+            } else {
+                let a_big = a.as_ubig(stack);
+                let b_big = b.as_ubig(stack);
+                let res = UBig::sub_stack(stack, a_big, b_big);
+                Ok(Atom::from_ubig(stack, &res))
+            }
+        }
+    }
+
+    /** Binary exponent */
+    pub fn bex(stack: &mut NockStack, arg: usize) -> Atom {
+        unsafe {
+            if arg < 63 {
+                DirectAtom::new_unchecked(1 << arg).as_atom()
+            } else {
+                let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, (arg + 7) >> 3);
+                dest.set(arg, true);
+                atom.normalize_as_atom()
+            }
+        }
+    }
+
+    /** Binary OR */
+    pub fn con(stack: &mut NockStack, a: Atom, b: Atom) -> Atom {
+        let new_size = cmp::max(a.size(), b.size());
+
+        unsafe {
+            let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+            let a_bit = a.as_bitslice();
+            dest[..a_bit.len()].copy_from_bitslice(a_bit);
+            *dest |= b.as_bitslice();
+            atom.normalize_as_atom()
+        }
     }
 
     /** Measure the number of bloqs in an atom */

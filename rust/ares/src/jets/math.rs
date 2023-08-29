@@ -14,12 +14,12 @@
  */
 use crate::jets;
 use crate::jets::JetErr::*;
-use crate::jets::util::{bite, chop, met, slot};
+use crate::jets::util::*;
 use crate::mem::NockStack;
 use crate::mug::mug;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
-use either::Either::*;
+use either::{Left, Right};
 use ibig::ops::DivRem;
 use ibig::UBig;
 use std::cmp;
@@ -96,24 +96,7 @@ pub fn jet_sub(
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() < b.data() {
-            Err(Deterministic)
-        } else {
-            Ok(unsafe { DirectAtom::new_unchecked(a.data() - b.data()) }.as_noun())
-        }
-    } else {
-        let a_int = a.as_ubig(stack);
-        let b_int = b.as_ubig(stack);
-        if a_int < b_int {
-            Err(Deterministic)
-        } else {
-            let a_big = a.as_ubig(stack);
-            let b_big = b.as_ubig(stack);
-            let res = UBig::sub_stack(stack, a_big, b_big);
-            Ok(Atom::from_ubig(stack, &res).as_noun())
-        }
-    }
+    Ok(sub(stack, a, b)?.as_noun())
 }
 
 pub fn jet_mul(
@@ -329,16 +312,7 @@ pub fn jet_bex(
     subject: Noun,
 ) -> jets::Result {
     let arg = slot(subject, 6)?.as_direct()?.data() as usize;
-
-    if arg < 63 {
-        Ok(unsafe { DirectAtom::new_unchecked(1 << arg) }.as_noun())
-    } else {
-        unsafe {
-            let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, (arg + 7) >> 3);
-            dest.set(arg, true);
-            Ok(atom.normalize_as_atom().as_noun())
-        }
-    }
+    Ok(bex(stack, arg).as_noun())
 }
 
 pub fn jet_lsh(
@@ -410,15 +384,7 @@ pub fn jet_con(
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    let new_size = cmp::max(a.size(), b.size());
-
-    unsafe {
-        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
-        let a_bit = a.as_bitslice();
-        dest[..a_bit.len()].copy_from_bitslice(a_bit);
-        *dest |= b.as_bitslice();
-        Ok(atom.normalize_as_atom().as_noun())
-    }
+    Ok(con(stack, a, b).as_noun())
 }
 
 pub fn jet_dis(

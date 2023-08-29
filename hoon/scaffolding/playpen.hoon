@@ -147,6 +147,17 @@
     *         $(a (div a 2))
   ==
 ::
+++  mas                                                 ::  axis within head/tail
+  ~/  %mas
+  |=  a=@
+  ~>  %sham.%mas
+  ^-  @
+  ?-  a
+    ?(%2 %3)  1
+    ?(%0 %1)  !!
+    *         (add (mod a 2) (mul $(a (div a 2)) 2))
+  ==
+::
 ::  List logic
 ::
 ++  flop                                                ::  reverse
