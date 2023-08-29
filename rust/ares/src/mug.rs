@@ -120,6 +120,7 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
         return mug;
     }
     assert_acyclic!(noun);
+    stack.frame_push(0);
     unsafe {
         *(stack.push()) = noun;
     }
@@ -166,6 +167,9 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
                 },
             }
         }
+    }
+    unsafe {
+        stack.frame_pop();
     }
     get_mug(noun).expect("Noun should have a mug once it is mugged.")
 }
