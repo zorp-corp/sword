@@ -544,9 +544,7 @@ pub fn jet_cut(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     let atom = raw_slot(arg, 7).as_atom()?;
 
     if run == 0 {
-        unsafe {
-            return Ok(DirectAtom::new_unchecked(0).as_noun());
-        }
+        return Ok(D(0));
     }
 
     let new_indirect = unsafe {
