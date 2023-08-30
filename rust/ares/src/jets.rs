@@ -2,8 +2,11 @@ pub mod math;
 
 use crate::jets::math::*;
 use crate::mem::NockStack;
-use crate::noun::{self, Noun};
+use crate::mem::Preserve;
+use crate::noun::{self, Noun, Atom};
+use crate::hamt::Hamt;
 use ares_macros::tas;
+use std::mem::size_of;
 
 crate::gdb!();
 
@@ -77,4 +80,91 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
     }
     */
     false
+}
+
+#[repr(packed)]
+pub struct Cold {
+    path_to_batteries: Hamt<Noun>,
+    battery_to_paths: Hamt<Noun>,
+}
+
+impl Preserve for Cold {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        self.path_to_batteries.preserve(stack);
+        self.battery_to_paths.preserve(stack);
+    }
+}
+
+impl Cold {
+    /** For snapshotting, dump the cold state as a list of path X battery hierarchy pairs */
+    fn as_noun(&mut self, stack: &mut NockStack) -> Noun {
+        todo!()
+    }
+
+    /** For snapshotting, restore the cold state from a list of path X battery hierarchy pairs */
+    fn from_noun(noun: &mut Noun, stack: &mut NockStack) -> Self {
+        todo!()
+    }
+
+    /** For import from a portable snapshot, restore the cold state from a cued portable snapshot
+     */
+    fn from_portable_snapshot(snapshot: &mut Noun, stack: &mut NockStack) -> Self {
+        todo!()
+    }
+
+    /** Register a core */
+    fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent: &mut Atom) -> Warm {
+        todo!()
+    }
+
+    /** Regenerate warm state */
+    fn warm(&mut self, stack: &mut NockStack) -> Warm {
+        todo!()
+    }
+}
+
+
+#[repr(packed)]
+#[derive(Copy,Clone)]
+struct WarmEntry {
+    jet: Jet,
+    batteries: Noun,
+    next: Option<*mut WarmEntry>
+}
+
+impl Preserve for WarmEntry {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        let mut dest = stack.struct_alloc_in_previous_frame(size_of::<WarmEntry>());
+        loop {
+            let mut batt_tmp = self.batteries;
+            batt_tmp.preserve(stack);
+            // no need to preserve jet as its not allocated on the nockstack
+            self.batteries = batt_tmp;
+            *dest = *self;
+            if let Some(next_ptr) = self.next {
+                let new_dest = stack.struct_alloc_in_previous_frame(size_of::<WarmEntry>());
+                (*dest).next = Some(new_dest);
+                dest = new_dest;
+            } else {
+                break;
+            }
+        }
+    }
+}
+
+#[repr(packed)]
+pub struct Warm {
+    jets: Hamt<WarmEntry>,
+}
+
+impl Preserve for Warm {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        self.jets.preserve(stack);
+    }
+}
+
+impl Warm {
+    pub fn get_jet(&mut self, stack: &mut NockStack, formula: &mut Noun, subject: &mut Noun) -> Option<Jet> {
+        todo!()
+    }
 }
