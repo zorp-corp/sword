@@ -52,4 +52,17 @@ mod tests {
         assert_eq!(tas!(b"dec"), 0x636564);
         assert_eq!(tas!(b"prop"), 0x706f7270);
     }
+
+    #[test]
+    fn test_jam() {
+        use crate::mem::NockStack;
+        use crate::noun::*;
+        use crate::serialization::jam;
+        let mut stack = NockStack::new(8 << 10 << 10, 0);
+        let head = Atom::new(&mut stack, 0).as_noun();
+        let tail = Atom::new(&mut stack, 1).as_noun();
+        let cell = Cell::new(&mut stack, head, tail).as_noun();
+        let res = jam(&mut stack, cell).as_direct().unwrap().data();
+        assert_eq!(res, 201);
+    }
 }
