@@ -278,7 +278,8 @@ impl NockStack {
     }
 
     unsafe fn indirect_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
-        *(self.prev_alloc_pointer_pointer()) = *(self.prev_alloc_pointer_pointer()).sub(words + 2);
+        *(self.prev_alloc_pointer_pointer()) =
+            (*(self.prev_alloc_pointer_pointer())).sub(words + 2);
         *self.prev_alloc_pointer_pointer() as *mut u64
     }
 
