@@ -169,6 +169,7 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
         atom,
         slice,
     };
+    stack.frame_push(0);
     unsafe {
         *(stack.push::<Noun>()) = noun;
     };
@@ -218,7 +219,12 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
             }
         }
     }
-    unsafe { state.atom.normalize_as_atom() }
+    unsafe {
+        let mut result = state.atom.normalize_as_atom();
+        stack.preserve(&mut result);
+        stack.frame_pop();
+        result
+    }
 }
 
 fn jam_atom(traversal: &mut NockStack, state: &mut JamState, atom: Atom) {
