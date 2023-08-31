@@ -305,6 +305,7 @@ pub fn interpret(
                     Nock2ComputeResult => {
                         if vale.tail {
                             stack.pop::<NockWork>();
+                            subject = vale.subject;
                             push_formula(stack, res, true);
                         } else {
                             vale.todo = Nock2RestoreSubject;
@@ -478,6 +479,7 @@ pub fn interpret(
                             push_formula(stack, diet.patch, false);
                         }
                         Nock10Edit => {
+                            eprintln!("edit axis {} patch {} tree {}", diet.axis, res, diet.tree);
                             res = edit(stack, diet.axis.as_bitslice(), res, diet.tree);
                             stack.pop::<NockWork>();
                         }
@@ -542,7 +544,7 @@ pub fn interpret(
 }
 
 fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
-    // eprintln!("push_formula {} tail {}", formula, tail);
+    eprintln!("push_formula {} tail {}", formula, tail);
     unsafe {
         if let Ok(formula_cell) = formula.as_cell() {
             // Formula
