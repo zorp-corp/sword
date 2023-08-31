@@ -340,6 +340,7 @@ pub fn interpret(
                     Nock4Increment => {
                         if let Ok(atom) = res.as_atom() {
                             res = inc(stack, atom).as_noun();
+                            stack.pop::<NockWork>();
                         } else {
                             panic!("Cannot increment (Nock 4) a cell");
                         }
@@ -427,6 +428,7 @@ pub fn interpret(
                             pins.todo = Nock8RestoreSubject;
                             pins.pin = subject;
                             *stack.top() = Work8(pins);
+                            subject = T(stack, &[res, subject]);
                             push_formula(stack, pins.formula, false);
                         }
                     }
@@ -540,6 +542,7 @@ pub fn interpret(
 }
 
 fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
+    // eprintln!("push_formula {} tail {}", formula, tail);
     unsafe {
         if let Ok(formula_cell) = formula.as_cell() {
             // Formula
