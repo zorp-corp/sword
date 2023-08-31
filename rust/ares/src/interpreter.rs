@@ -308,9 +308,7 @@ pub fn interpret(
                             push_formula(stack, res, true);
                         } else {
                             vale.todo = Nock2RestoreSubject;
-                            let new_subject = vale.subject;
-                            vale.subject = subject;
-                            subject = new_subject;
+                            std::mem::swap(&mut vale.subject, &mut subject);
                             *stack.top() = Work2(vale);
                             stack.frame_push(0);
                             *stack.push() = Ret;
@@ -574,7 +572,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
                                         todo: Nock2ComputeSubject,
                                         subject: arg_cell.head(),
                                         formula: arg_cell.tail(),
-                                        tail: tail,
+                                        tail,
                                     });
                                 } else {
                                     panic!("Argument for Nock 2 must be cell");
@@ -611,7 +609,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
                                             test: arg_cell.head(),
                                             zero: branch_cell.head(),
                                             once: branch_cell.tail(),
-                                            tail: tail,
+                                            tail,
                                         });
                                     } else {
                                         panic!("Argument tail for Nock 6 must be cell");
@@ -626,7 +624,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
                                         todo: Nock7ComputeSubject,
                                         subject: arg_cell.head(),
                                         formula: arg_cell.tail(),
-                                        tail: tail,
+                                        tail,
                                     });
                                 } else {
                                     panic!("Argument for Nock 7 must be cell");
@@ -638,7 +636,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
                                         todo: Nock8ComputeSubject,
                                         pin: arg_cell.head(),
                                         formula: arg_cell.tail(),
-                                        tail: tail,
+                                        tail,
                                     });
                                 } else {
                                     panic!("Argument for Nock 8 must be cell");
@@ -651,7 +649,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
                                             todo: Nock9ComputeCore,
                                             axis: axis_atom,
                                             core: arg_cell.tail(),
-                                            tail: tail,
+                                            tail,
                                         });
                                     } else {
                                         panic!("Axis for Nock 9 must be atom");
