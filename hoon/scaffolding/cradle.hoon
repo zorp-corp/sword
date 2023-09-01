@@ -1,3 +1,6 @@
+::  This file is just tiny.hoon from urbit/urbit (but with sham jets). Required
+::  to run baby.hoon as an Arvo.
+::
 !.
 =>  %a50
 ~%  %a.50  ~  ~

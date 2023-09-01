@@ -1,6 +1,9 @@
+::  This file is a combination of tiny.hoon and naive.hoon from urbit/urbit
+::  (but with sham jets). Required to run azimuth-pill.hoon as an Arvo.
+::
 !.
 !=
-:: begin cradle.hoon
+:: begin tiny.hoon
 =>
 =>  %a50
 ~%  %a.50  ~  ~

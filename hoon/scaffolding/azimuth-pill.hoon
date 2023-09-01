@@ -1,7 +1,6 @@
-::  A small pill that runs a snasphot of azimuth state against a few
-::  tens of thousands of logs.  Requires naive-cradle.hoon,
-::  mainnet.azimuth-snapshot, and log.jam from this scaffolding
-::  directory.
+::  A small pill that runs a snasphot of azimuth state against a few tens of
+::  thousands of logs.  Requires naive-cradle.hoon,
+::  mainnet.azimuth-snapshot, and log.jam from this scaffolding directory.
 ::
 /+  naive=naive-cradle, orig-naive=naive, ethereum, dice
 /*  snap  %azimuth-snapshot  /lib/mainnet/azimuth-snapshot
