@@ -23,9 +23,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
-     inkscape:zoom="1.2951323"
-     inkscape:cx="196.50502"
-     inkscape:cy="569.82594"
+     inkscape:zoom="5.1805293"
+     inkscape:cx="195.44335"
+     inkscape:cy="645.30085"
      inkscape:window-width="2696"
      inkscape:window-height="2066"
      inkscape:window-x="0"
@@ -1781,12 +1781,12 @@
     <text
        xml:space="preserve"
        style="font-size:1.41111px;fill:#550000;stroke:#000000;stroke-width:0;stroke-dasharray:none"
-       x="32.381275"
+       x="75.77298"
        y="102.50232"
        id="text2403-3-8"><tspan
          sodipodi:role="line"
          style="font-size:1.41111px;fill:#550000;stroke-width:0"
-         x="32.381275"
+         x="75.77298"
          y="102.50232"
          id="tspan2870-1">prev_alloc_ptr</tspan></text>
     <text
@@ -1803,12 +1803,12 @@
     <text
        xml:space="preserve"
        style="font-size:1.41111px;fill:#800000;stroke:#000000;stroke-width:0;stroke-dasharray:none"
-       x="75.455643"
+       x="32.593102"
        y="102.51159"
        id="text2403-3-6-7-9"><tspan
          sodipodi:role="line"
          style="font-size:1.41111px;fill:#800000;stroke-width:0"
-         x="75.455643"
+         x="32.593102"
          y="102.51159"
          id="tspan2870-2-4-3">prev_stack_ptr</tspan></text>
     <text
