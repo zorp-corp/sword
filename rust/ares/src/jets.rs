@@ -1,8 +1,10 @@
 pub mod math;
 pub mod mink;
+pub mod tree;
 
 use crate::jets::math::*;
 use crate::jets::mink::*;
+use crate::jets::tree::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots};
@@ -66,6 +68,9 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"met") => Some(jet_met),
         tas!(b"mug") => Some(jet_mug),
         tas!(b"rev") => Some(jet_rev),
+        //
+        tas!(b"cap") => Some(jet_cap),
+        //
         tas!(b"mink") => Some(jet_mink),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);

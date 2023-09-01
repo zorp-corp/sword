@@ -133,6 +133,20 @@
   ?:  =(0 b)  a
   $(a (dec a), b (dec b))
 ::
+::  Tree addressing
+::
+++  cap                                                 ::  index in head or tail
+  ~/  %cap                                              
+  |=  a=@
+  ~>  %sham.%cap
+  ^-  ?(%2 %3)
+  ?-  a
+    %2        %2
+    %3        %3
+    ?(%0 %1)  !!
+    *         $(a (div a 2))
+  ==
+::
 ::  List logic
 ::
 ++  flop                                                ::  reverse
