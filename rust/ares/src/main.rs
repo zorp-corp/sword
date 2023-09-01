@@ -13,6 +13,12 @@ use std::mem;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::write_bytes;
 
+use assert_no_alloc::*;
+
+#[cfg(debug_assertions)] // required when disable_release is set (default)
+#[global_allocator]
+static A: AllocDisabler = AllocDisabler;
+
 fn main() -> io::Result<()> {
     let filename = env::args().nth(1).expect("Must provide input filename");
 
