@@ -4,10 +4,10 @@ use crate::jets;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
+use crate::noun::{Atom, Cell, D, DirectAtom, IndirectAtom, Noun, Slots};
 use ares_macros::tas;
-use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
+use assert_no_alloc::assert_no_alloc;
 use either::Either::*;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 
@@ -128,8 +128,8 @@ pub fn interpret(
                     stack.frame_pop();
                 }
                 Nock0Axis => {
-                    if let Ok(atom) = (*(stack.local_noun_pointer(1))).as_atom() {
-                        if let Ok(x) = slot(subject, atom.as_bitslice()) {
+                    if let Ok(atom) = (*(stack.local_noun_pointer(1))).as_direct() {
+                        if let Ok(x) = subject.slot(atom.data()) {
                             res = x;
                             stack.preserve(&mut cache);
                             stack.preserve(&mut res);
@@ -297,16 +297,13 @@ pub fn interpret(
                     push_formula(stack, formula)?;
                 }
                 Nock9ComputeResult => {
-                    if let Ok(formula_axis) = (*(stack.local_noun_pointer(1))).as_atom() {
+                    if let Ok(formula_axis) = (*(stack.local_noun_pointer(1))).as_direct() {
                         *(stack.local_noun_pointer(0)) = work_to_noun(Nock9RestoreSubject);
                         *(stack.local_noun_pointer(2)) = subject;
                         subject = res;
-                        let axis = if let Ok(x) = slot(subject, formula_axis.as_bitslice()) {
-                            x
-                        } else {
-                            break Err(NockErr::Error(D(55))); // Axis must be in subject
-                        };
-                        push_formula(stack, axis)?;
+                        // Axis must be in subject
+                        let axis = subject.slot(formula_axis.data()).map_err(|_e| NockErr::Error(D(55)));
+                        push_formula(stack, axis?)?;
                     } else {
                         break Err(NockErr::Error(D(5))); // Axis into core must be atom
                     }
@@ -583,35 +580,6 @@ pub fn exit_early(stack: &mut NockStack, virtual_frame: *const u64, trace: &mut 
             stack.frame_pop();
         }
     }
-}
-
-/** Note: axis must fit in a direct atom */
-pub fn raw_slot(noun: Noun, axis: u64) -> Noun {
-    slot(noun, DirectAtom::new(axis).unwrap().as_bitslice()).unwrap()
-}
-
-pub fn slot(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Result<Noun, ()> {
-    let mut cursor = if let Some(x) = axis.last_one() {
-        x
-    } else {
-        return Err(()); // 0 is not allowed as an axis
-    };
-    loop {
-        if cursor == 0 {
-            break;
-        };
-        cursor -= 1;
-        if let Ok(cell) = noun.as_cell() {
-            if axis[cursor] {
-                noun = cell.tail();
-            } else {
-                noun = cell.head();
-            }
-        } else {
-            return Err(()); // Axis tried to descend through atom: {}
-        };
-    }
-    Ok(noun)
 }
 
 fn edit(

@@ -575,6 +575,27 @@ impl fmt::Display for Cell {
     }
 }
 
+impl Slots for Cell {}
+impl private::RawSlots for Cell {
+    fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
+        let mut noun: Noun = self.as_noun();
+        let mut cursor = axis.last_one().expect("raw_slow somehow by-passed 0 check");
+
+        while cursor != 0 {
+            cursor -= 1;
+
+            // Returns Err if axis tried to descend through atom
+            if axis[cursor] {
+                noun = noun.as_cell()?.tail();
+            } else {
+                noun = noun.as_cell()?.head();
+            }
+        }
+
+        Ok(noun)
+    }
+}
+
 /**
  * Memory representation of the contents of a cell
  */
@@ -1052,6 +1073,16 @@ impl fmt::Display for Noun {
     }
 }
 
+impl Slots for Noun {}
+impl private::RawSlots for Noun {
+    fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
+        match self.as_either_atom_cell() {
+            Either::Right(cell) => cell.raw_slot(axis),
+            Either::Left(_atom) => Err(Error::NotCell), // Axis tried to descend through atom
+        }
+    }
+}
+
 /**
  * An allocation object (probably a mem::NockStack) which can allocate a memory buffer sized to
  * a certain number of nouns
@@ -1065,4 +1096,37 @@ pub trait NounAllocator: Sized {
 
     /** Allocate memory for a cell */
     unsafe fn alloc_cell(&mut self) -> *mut CellMemory;
+}
+
+/**
+ * Implementing types allow component Nouns to be retreived by numeric axis
+ */
+pub trait Slots: private::RawSlots {
+    /**
+     * Retrieve component Noun at given axis, or fail with descriptive error
+     */
+    fn slot(&self, axis: u64) -> Result<Noun> {
+        if axis == 0 {
+            Err(Error::NotRepresentable) // 0 is not allowed as an axis
+        } else {
+            self.raw_slot(DirectAtom::new(axis).unwrap().as_bitslice())
+        }
+    }
+}
+
+/**
+ * Implementation methods that should not be made available to derived crates
+ */
+mod private {
+    use crate::noun::{BitSlice, Lsb0, Noun, Result};
+
+    /**
+     * Implementation of the Slots trait
+     */
+    pub trait RawSlots {
+        /**
+         * Actual logic of retreiving Noun object at some axis
+         */
+        fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun>;
+    }
 }

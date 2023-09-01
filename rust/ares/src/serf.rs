@@ -1,13 +1,14 @@
-use crate::interpreter::{interpret, raw_slot, NockErr};
+use crate::interpreter::{interpret, NockErr};
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
-use crate::noun::{Noun, D, T};
+use crate::noun::{Noun, D, Slots, T};
 use crate::snapshot::{self, Snapshot};
 use ares_macros::tas;
 use std::fs::create_dir_all;
 use std::io;
 use std::path::PathBuf;
+use std::result::Result;
 use std::thread::sleep;
 use std::time;
 
@@ -47,11 +48,11 @@ pub fn serf() -> io::Result<()> {
 
     // Can't use for loop because it borrows newt
     while let Some(writ) = newt.next(stack) {
-        let tag = raw_slot(writ, 2).as_direct().unwrap();
+        let tag = slot(writ, 2)?.as_direct().unwrap();
         match tag.data() {
             tas!(b"live") => {
-                let inner = raw_slot(writ, 6);
-                match inner.as_direct().unwrap().data() {
+                let inner = slot(writ, 6)?.as_direct().unwrap();
+                match inner.data() {
                     tas!(b"cram") => eprintln!("cram"),
                     tas!(b"exit") => eprintln!("exit"),
                     tas!(b"save") => {
@@ -66,7 +67,7 @@ pub fn serf() -> io::Result<()> {
                 newt.live(stack);
             }
             tas!(b"peek") => {
-                let sam = raw_slot(writ, 7);
+                let sam = slot(writ, 7)?;
                 let res = slam(stack, newt, arvo, PEEK_AXIS, sam)
                     .expect("peek error handling unimplemented");
                 newt.peek_done(stack, res);
@@ -74,21 +75,21 @@ pub fn serf() -> io::Result<()> {
             tas!(b"play") => {
                 let run = if event_number == 0 {
                     // apply lifecycle to first batch
-                    let lit = raw_slot(writ, 7);
+                    let lit = slot(writ, 7)?;
                     let sub = T(stack, &[D(0), D(3)]);
                     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
                     let gat = interpret(stack, &mut Some(newt), lit, lyf)
                         .expect("play error handling unimplemented");
-                    arvo = raw_slot(gat, 7);
+                    arvo = slot(gat, 7)?;
                     false
                 } else {
                     true
                 };
 
                 // do we need to assert something here?
-                // event_number = raw_slot(writ, 6).as_direct().unwrap().data();
+                // event_number = slot(writ, 6)?.as_direct().unwrap().data();
 
-                let mut lit = raw_slot(writ, 7);
+                let mut lit = slot(writ, 7)?;
                 while let Ok(cell) = lit.as_cell() {
                     if run {
                         let ovo = cell.head();
@@ -106,7 +107,7 @@ pub fn serf() -> io::Result<()> {
                 newt.play_done(stack, 0);
             }
             tas!(b"work") => {
-                let ovo = raw_slot(writ, 7);
+                let ovo = slot(writ, 7)?;
                 let res = slam(stack, newt, arvo, POKE_AXIS, ovo)
                     .expect("work error handling unimplemented")
                     .as_cell()
@@ -138,4 +139,8 @@ pub fn slam(
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[core, ovo]);
     interpret(stack, &mut Some(newt), sub, fol)
+}
+
+fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
+    noun.slot(axis).map_err(|_e| io::Error::new(io::ErrorKind::InvalidInput, "Bad axis"))
 }

@@ -1,7 +1,8 @@
 /** Virtualization jets
  */
-use crate::interpreter::{interpret, raw_slot, NockErr};
-use crate::jets::JetErr;
+use crate::interpreter::{interpret, NockErr};
+use crate::jets;
+use crate::jets::slot;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Noun, D, T};
@@ -13,13 +14,13 @@ pub fn jet_mink(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,
     subject: Noun,
-) -> Result<Noun, JetErr> {
-    let arg = raw_slot(subject, 6);
+) -> jets::Result {
+    let arg = slot(subject, 6)?;
     // mink sample = [nock scry_namespace]
     //             = [[subject formula] scry_namespace]
-    let v_subject = raw_slot(arg, 4);
-    let v_formula = raw_slot(arg, 5);
-    let _scry = raw_slot(arg, 3);
+    let v_subject = slot(arg, 4)?;
+    let v_formula = slot(arg, 5)?;
+    let _scry = slot(arg, 3)?;
 
     match interpret(stack, newt, v_subject, v_formula) {
         Ok(res) => Ok(T(stack, &[D(0), res])),

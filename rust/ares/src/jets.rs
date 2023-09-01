@@ -5,13 +5,14 @@ use crate::jets::math::*;
 use crate::jets::mink::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{self, Noun};
+use crate::noun::{self, Noun, Slots};
 use ares_macros::tas;
 
 crate::gdb!();
 
 /// Return Err if the computation crashed or should punt to Nock
-pub type Jet = fn(&mut NockStack, &mut Option<&mut Newt>, Noun) -> Result<Noun, JetErr>;
+pub type Result = std::result::Result<Noun, JetErr>;
+pub type Jet = fn(&mut NockStack, &mut Option<&mut Newt>, Noun) -> Result;
 
 /// Only return a deterministic error if the Nock would have deterministically crashed.
 #[derive(Debug, PartialEq)]
@@ -81,4 +82,8 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
     }
     */
     false
+}
+
+pub fn slot(noun: Noun, axis: u64) -> Result {
+    noun.slot(axis).map_err(|_e| JetErr::Deterministic)
 }
