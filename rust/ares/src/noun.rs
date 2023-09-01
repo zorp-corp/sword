@@ -182,6 +182,10 @@ impl DirectAtom {
     pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         BitSlice::from_element(&self.0)
     }
+
+    pub fn as_bitslice_mut(&mut self) -> &mut BitSlice<u64, Lsb0> {
+        BitSlice::from_element_mut(&mut self.0)
+    }
 }
 
 impl fmt::Display for DirectAtom {
@@ -372,8 +376,16 @@ impl IndirectAtom {
         unsafe { self.to_raw_pointer().add(2) as *const u64 }
     }
 
+    pub fn data_pointer_mut(&mut self) -> *mut u64 {
+        unsafe { self.to_raw_pointer_mut().add(2) as *mut u64 }
+    }
+
     pub fn as_slice(&self) -> &[u64] {
         unsafe { from_raw_parts(self.data_pointer(), self.size()) }
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [u64] {
+        unsafe { from_raw_parts_mut(self.data_pointer_mut(), self.size()) }
     }
 
     pub fn as_bytes(&self) -> &[u8] {
@@ -383,6 +395,10 @@ impl IndirectAtom {
     /** BitSlice view on an indirect atom, with lifetime tied to reference to indirect atom. */
     pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         BitSlice::from_slice(self.as_slice())
+    }
+
+    pub fn as_bitslice_mut(&mut self) -> &mut BitSlice<u64, Lsb0> {
+        BitSlice::from_slice_mut(self.as_mut_slice())
     }
 
     pub fn as_ubig<S: Stack>(&self, stack: &mut S) -> UBig {
@@ -595,16 +611,10 @@ impl Atom {
         let bit_size = big.bit_len();
         let buffer = big.to_le_bytes_stack();
         if bit_size < 64 {
-            #[rustfmt::skip]
-            let value: u64 =
-                  if bit_size == 0  { 0 } else { (buffer[0] as u64)
-                | if bit_size <= 8  { 0 } else { (buffer[1] as u64) << 8
-                | if bit_size <= 16 { 0 } else { (buffer[2] as u64) << 16
-                | if bit_size <= 24 { 0 } else { (buffer[3] as u64) << 24
-                | if bit_size <= 32 { 0 } else { (buffer[4] as u64) << 32
-                | if bit_size <= 40 { 0 } else { (buffer[5] as u64) << 40
-                | if bit_size <= 48 { 0 } else { (buffer[6] as u64) << 48
-                | if bit_size <= 56 { 0 } else { (buffer[7] as u64) << 56 } } } } } } } };
+            let mut value = 0u64;
+            for i in (0..bit_size).step_by(8) {
+                value |= (buffer[i / 8] as u64) << i;
+            }
             unsafe { DirectAtom::new_unchecked(value).as_atom() }
         } else {
             let byte_size = (big.bit_len() + 7) >> 3;
@@ -649,6 +659,14 @@ impl Atom {
             unsafe { self.indirect.as_bitslice() }
         } else {
             unsafe { self.direct.as_bitslice() }
+        }
+    }
+
+    pub fn as_bitslice_mut(&mut self) -> &mut BitSlice<u64, Lsb0> {
+        if self.is_indirect() {
+            unsafe { self.indirect.as_bitslice_mut() }
+        } else {
+            unsafe { self.direct.as_bitslice_mut() }
         }
     }
 
@@ -892,8 +910,8 @@ impl Noun {
     /** Produce the size of a noun in the current frame, in words */
     pub fn mass_frame(self, stack: &NockStack) -> usize {
         unsafe {
-            let res = self.mass_wind(&|p| stack.in_frame(p));
-            self.mass_unwind(&|p| stack.in_frame(p));
+            let res = self.mass_wind(&|p| stack.is_in_frame(p));
+            self.mass_unwind(&|p| stack.is_in_frame(p));
             res
         }
     }
