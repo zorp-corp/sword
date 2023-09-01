@@ -300,7 +300,7 @@ pub fn interpret(
                             *stack.top() = NockWork::Work2(vale);
                             stack.frame_push(0);
                             *stack.push() = NockWork::Ret;
-                            push_formula(stack, res, false);
+                            push_formula(stack, res, true);
                         }
                     }
                     Todo2::RestoreSubject => {
@@ -444,7 +444,7 @@ pub fn interpret(
                             subject = res;
                             stack.frame_push(0);
                             *stack.push() = NockWork::Ret;
-                            push_formula(stack, formula, false);
+                            push_formula(stack, formula, true);
                         }
                     }
                     Todo9::RestoreSubject => {
