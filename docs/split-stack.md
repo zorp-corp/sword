@@ -188,9 +188,9 @@ The new stack pointer is set to be equal to the new frame pointer.
 
 The new allocation pointer is set to be equal to the parent frame's stack pointer.
 
-The relative position of the stack and allocation pointers determines whether a
-stack frame is called west or east. If the stack pointer is west of the 
-allocation pointer, the polarity is west. If the stack pointer is east of the
+The relative position of the frame and allocation pointers determines whether a
+stack frame is called west or east. If the frame pointer is west of the 
+allocation pointer, the polarity is west. If the frame pointer is east of the
 allocation pointer, the polarity is east. Thus, by the process outlined about,
 we see that when the current stack frame has a west polarity, the following one
 will always have an east polarity, and vice versa.
