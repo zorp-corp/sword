@@ -441,15 +441,15 @@ pub fn jet_cat(
     let bloq = bloq(slot(arg, 2)?)?;
     let a = slot(arg, 6)?.as_atom()?;
     let b = slot(arg, 7)?.as_atom()?;
-
-    let new_size = a.size() + b.size();
-    if new_size == 0 {
+    
+    let len_a = met(bloq, a);
+    let len_b = met(bloq, b);
+    let new_len = bite_to_word(bloq, checked_add(len_a, len_b)?)?;
+    if new_len == 0 {
         Ok(a.as_noun())
     } else {
         unsafe {
-            let len_a = met(bloq, a);
-            let len_b = met(bloq, b);
-            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, new_len);
             chop(bloq, 0, len_a, 0, new_slice, a.as_bitslice())?;
             chop(bloq, 0, len_b, len_a, new_slice, b.as_bitslice())?;
             Ok(new_indirect.normalize_as_atom().as_noun())
@@ -1147,19 +1147,21 @@ mod tests {
     #[test]
     fn test_cat() {
         let s = &mut init_stack();
-        let (a0, a24, a63, _a96, a128) = atoms(s);
-        let sam = T(s, &[a0, a0, a0]);
+        let (a0, a24, _a63, _a96, a128) = atoms(s);
+        let bloq0 = D(0);
+        let bloq3 = D(3);
+        let bloq4 = D(4);
+        let sam = T(s, &[bloq0, a0, a0]);
         assert_jet(s, jet_cat, sam, D(0));
-        let sam = T(s, &[a0, a24, a128]);
+        let sam = T(s, &[bloq3, a0, a0]);
+        assert_jet(s, jet_cat, sam, D(0));
+        let sam = T(s, &[bloq0, a24, a128]);
         let res = A(s, &ubig!(_0xdeadbeef12345678fedcba9876543210876543));
         assert_jet(s, jet_cat, sam, res);
-        let sam = T(s, &[a0, a63, a24]);
-        let res = A(s, &ubig!(0x43b2a1ffffffffffffffff));
+        let sam = T(s, &[bloq3, a24, a128]);
+        let res = A(s, &ubig!(_0xdeadbeef12345678fedcba9876543210876543));
         assert_jet(s, jet_cat, sam, res);
-        let sam = T(s, &[D(1), a63, a24]);
-        let res = A(s, &ubig!(0x8765437fffffffffffffff));
-        assert_jet(s, jet_cat, sam, res);
-        let sam = T(s, &[D(4), a24, a128]);
+        let sam = T(s, &[bloq4, a24, a128]);
         let res = A(s, &ubig!(_0xdeadbeef12345678fedcba987654321000876543));
         assert_jet(s, jet_cat, sam, res);
     }
