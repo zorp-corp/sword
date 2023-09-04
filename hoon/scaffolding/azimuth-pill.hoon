@@ -235,7 +235,6 @@
   ++  swp                                                 ::  naive rev bloq order
     ~/  %swp
     |=  [a=bloq b=@]
-    ~>  %sham.%swp
     (rep a (flop (rip a b)))
   ::
   ++  met                                                 ::  measure
@@ -311,7 +310,6 @@
   ++  lent                                                ::  length
     ~/  %lent
     |=  a=(list)
-    ~>  %sham.%lent
     ^-  @
     =+  b=0
     |-
@@ -321,7 +319,6 @@
   ++  slag                                                ::  suffix
     ~/  %slag
     |*  [a=@ b=(list)]
-    ~>  %sham.%slag
     |-  ^+  b
     ?:  =(0 a)  b
     ?~  b  ~
@@ -330,7 +327,6 @@
   ++  snag                                                ::  index
     ~/  %snag
     |*  [a=@ b=(list)]
-    ~>  %sham.%snag
     |-  ^+  ?>(?=(^ b) i.b)
     ?~  b
       ~_  leaf+"snag-fail"
@@ -348,7 +344,6 @@
   ++  flop                                                ::  reverse
     ~/  %flop
     |*  a=(list)
-    ~>  %sham.%flop
     =>  .(a (homo a))
     ^+  a
     =+  b=`_a`~
@@ -359,7 +354,6 @@
   ++  welp                                                ::  concatenate
     ~/  %welp
     =|  [* *]
-    ~>  %sham.%welp
     |@
     ++  $
       ?~  +<-
@@ -370,7 +364,6 @@
   ++  reap                                                ::  replicate
     ~/  %reap
     |*  [a=@ b=*]
-    ~>  %sham.%reap
     |-  ^-  (list _b)
     ?~  a  ~
     [b $(a (dec a))]
