@@ -247,6 +247,14 @@
   ?:  =(0 a)  i.b
   $(b t.b, a (dec a))
 ::
+++  weld                                                ::  concatenate
+  ~/  %weld
+  |*  [a=(list) b=(list)]
+  =>  .(a ^.(homo a), b ^.(homo b))
+  |-  ^+  b
+  ?~  a  b
+  [i.a $(a t.a)]
+::
 ++  welp                                                ::  concatenate
   ~/  %welp
   =|  [* *]
