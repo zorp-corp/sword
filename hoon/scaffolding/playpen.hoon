@@ -247,6 +247,15 @@
   ?:  =(0 a)  i.b
   $(b t.b, a (dec a))
 ::
+++  turn                                                ::  transform
+  ~/  %turn
+  |*  [a=(list) b=gate]
+  =>  .(a (homo a))
+  ^-  (list _?>(?=(^ a) (b i.a)))
+  |-
+  ?~  a  ~
+  [i=(b i.a) t=$(a t.a)]
+::
 ++  weld                                                ::  concatenate
   ~/  %weld
   |*  [a=(list) b=(list)]
