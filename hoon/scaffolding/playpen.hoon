@@ -892,4 +892,11 @@
       %3  `[-.target u.mutant]
     ==
   --
+::
+++  mure                                                ::  untyped unitary virtual
+  |=  tap=(trap)
+  ^-  (unit)
+  =/  ton  (mink [tap %9 2 %0 1] |=(a=^ ``.*(a [%12 [%0 2] %0 3])))
+  ?.(?=(%0 -.ton) ~ `product.ton)
+
 --
