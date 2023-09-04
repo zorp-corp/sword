@@ -1188,20 +1188,42 @@ mod tests {
     #[test]
     fn test_can() {
         let s = &mut init_stack();
-        let (a0, a24, a63, a96, a128) = atoms(s);
-        let sam = T(s, &[D(0), D(0)]);
+        let (a0, _a24, _a63, _a96, a128) = atoms(s);
+        let bloq0 = D(0);
+        let bloq3 = D(3);
+        let bloq4 = D(4);
+        let sam = T(s, &[bloq0, D(0)]);
+        assert_jet(s, jet_can, sam, D(0));
+        let sam = T(s, &[bloq3, D(0)]);
         assert_jet(s, jet_can, sam, D(0));
         let run1 = T(s, &[D(0), a0]);
-        let run2 = T(s, &[D(3), a24]);
-        let run3 = T(s, &[D(2), a63]);
-        let run4 = T(s, &[D(16), a96]);
-        let run5 = T(s, &[D(8), a128]);
-        let sam = T(s, &[D(3), run1, run2, run3, run4, run5, D(0)]);
-        let res = A(
-            s,
-            &ubig!(_0xfedcba987654321000000000faceb00c15deadbeef123456ffff876543),
-        );
-        assert_jet(s, jet_can, sam, res);
+        let run2 = T(s, &[D(1), a0]);
+        let run3 = T(s, &[D(2), a0]);
+        let sam = T(s, &[bloq0, run1, run2, run3, D(0)]);
+        assert_jet(s, jet_can, sam, D(0));
+        let sam = T(s, &[bloq3, run1, run2, run3, D(0)]);
+        assert_jet(s, jet_can, sam, D(0));
+        let run1 = T(s, &[D(1), a128]);
+        let run2 = T(s, &[D(3), a0]);
+        let sam = T(s, &[bloq3, run1, run2, D(0)]);
+        assert_jet(s, jet_can, sam, D(0x10));
+        let run1 = T(s, &[D(3), a0]);
+        let run2 = T(s, &[D(1), a128]);
+        let sam = T(s, &[bloq3, run1, run2, D(0)]);
+        assert_jet(s, jet_can, sam, D(0x10000000));
+        let run1 = T(s, &[D(8), D(0xfe)]);
+        let run2 = T(s, &[D(4), D(0xa)]);
+        let run3 = T(s, &[D(0), D(0xbbbb)]);
+        let run4 = T(s, &[D(1), D(0)]);
+        let run5 = T(s, &[D(1), D(0)]);
+        let run6 = T(s, &[D(1), D(1)]);
+        let run7 = T(s, &[D(1), D(1)]);
+        let sam = T(s, &[bloq0, run1, run2, run3, run4, run5, run6, run7, D(0)]);
+        assert_jet(s, jet_can, sam, D(0xcafe));
+        let run1 = T(s, &[D(1), D(0xfe)]);
+        let run2 = T(s, &[D(1), D(0xca)]);
+        let sam = T(s, &[bloq4, run1, run2, D(0)]);
+        assert_jet(s, jet_can, sam, D(0xca00fe));
     }
 
     #[test]
