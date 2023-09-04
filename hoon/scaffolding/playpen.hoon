@@ -292,6 +292,16 @@
   %+  add  $(i +(i), b t.b)
   (lsh [bloq (mul step i)] (end [bloq step] i.b))
 ::
+++  rev                                                 ::  reverse block order
+  ~/  %rev
+  |=  [boz=bloq len=@ud dat=@]
+  ~>  %sham.%rev
+  ^-  @
+  =.  dat  (end [boz len] dat)
+  %+  lsh
+    [boz (sub len (met boz dat))]
+  (swp boz dat)
+::
 ++  rip                                                 ::  disassemble
   ~/  %rip
   |=  [a=bite b=@]
