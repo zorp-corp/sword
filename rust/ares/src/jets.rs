@@ -61,6 +61,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"cat") => Some(jet_cat),
         tas!(b"cut") => Some(jet_cut),
         tas!(b"can") => Some(jet_can),
+        tas!(b"rap") => Some(jet_rap),
         tas!(b"rep") => Some(jet_rep),
         tas!(b"rip") => Some(jet_rip),
         tas!(b"met") => Some(jet_met),

@@ -273,6 +273,14 @@
   ?:  =(0 b)  c
   $(b (rsh a b), c +(c))
 ::
+++  rap                                                 ::  assemble variable
+  ~/  %rap
+  |=  [a=bloq b=(list @)]
+  ~>  %sham.%rap
+  ^-  @
+  ?~  b  0
+  (cat a i.b $(b t.b))
+::
 ++  rep                                                 ::  assemble fixed
   ~/  %rep
   |=  [a=bite b=(list @)]

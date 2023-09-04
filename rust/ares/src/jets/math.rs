@@ -507,6 +507,55 @@ pub fn jet_can(
     }
 }
 
+pub fn jet_rap(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> jets::Result {
+    let arg = slot(subject, 6)?;
+    let bloq = bloq(slot(arg, 2)?)?;
+    let original_list = slot(arg, 3)?;
+
+    let mut len = 0usize;
+    let mut list = original_list;
+    loop {
+        if unsafe { list.raw_equals(D(0)) } {
+            break;
+        }
+
+        let cell = list.as_cell()?;
+
+        len = checked_add(len, met(bloq, cell.head().as_atom()?))?;
+        list = cell.tail();
+    }
+
+    if len == 0 {
+        Ok(D(0))
+    } else {
+        unsafe {
+            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+            let mut pos = 0;
+            let mut list = original_list;
+
+            loop {
+                if list.raw_equals(D(0)) {
+                    break;
+                }
+
+                let cell = list.as_cell()?;
+                let atom = cell.head().as_atom()?;
+                let step = met(bloq, atom);
+                chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
+
+                pos += step;
+                list = cell.tail();
+            }
+
+            Ok(new_indirect.normalize_as_atom().as_noun())
+        }
+    }
+}
+
 pub fn jet_rep(
     stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
@@ -1151,6 +1200,35 @@ mod tests {
             &ubig!(_0xfedcba987654321000000000faceb00c15deadbeef123456ffff876543),
         );
         assert_jet(s, jet_can, sam, res);
+    }
+
+    #[test]
+    fn test_rap() {
+        let s = &mut init_stack();
+        let bloq0 = D(0);
+        let bloq2 = D(2);
+        let bloq3 = D(3);
+        let empty_list = D(0);
+        let zero_list = T(s, &[D(0), D(0), D(0)]);
+        let test_list = T(s, &[D(0xe), D(0xf), D(0xa), D(0xc), D(0)]);
+        let wide_list = T(s, &[D(0xafe), D(0xc), D(0)]);
+        let sam = T(s, &[bloq0, empty_list]);
+        assert_jet(s, jet_rap, sam, D(0));
+        let sam = T(s, &[bloq0, zero_list]);
+        assert_jet(s, jet_rap, sam, D(0));
+        let sam = T(s, &[bloq3, zero_list]);
+        assert_jet(s, jet_rap, sam, D(0));
+        let sam = T(s, &[bloq0, test_list]);
+        assert_jet(s, jet_rap, sam, D(0xcafe));
+        let sam = T(s, &[bloq2, test_list]);
+        assert_jet(s, jet_rap, sam, D(0xcafe));
+        let sam = T(s, &[bloq2, wide_list]);
+        assert_jet(s, jet_rap, sam, D(0xcafe));
+        let sam = T(s, &[bloq3, test_list]);
+        let res = A(s, &ubig!(0xc0a0f0e));
+        assert_jet(s, jet_rap, sam, res);
+        let sam = T(s, &[bloq3, wide_list]);
+        assert_jet(s, jet_rap, sam, D(0xc0afe));
     }
 
     #[test]
