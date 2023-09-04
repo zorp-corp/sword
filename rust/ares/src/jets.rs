@@ -1,10 +1,14 @@
 pub mod math;
-pub mod mink;
 pub mod tree;
+pub mod bits;
+pub mod hash;
+pub mod mink;
 
 use crate::jets::math::*;
-use crate::jets::mink::*;
 use crate::jets::tree::*;
+use crate::jets::bits::*;
+use crate::jets::hash::*;
+use crate::jets::mink::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots};
@@ -40,36 +44,39 @@ impl From<JetErr> for () {
 
 pub fn get_jet(jet_name: Noun) -> Option<Jet> {
     match jet_name.as_direct().ok()?.data() {
-        tas!(b"dec") => Some(jet_dec),
         tas!(b"add") => Some(jet_add),
-        tas!(b"sub") => Some(jet_sub),
-        tas!(b"mul") => Some(jet_mul),
+        tas!(b"dec") => Some(jet_dec),
         tas!(b"div") => Some(jet_div),
-        tas!(b"mod") => Some(jet_mod),
         tas!(b"dvr") => Some(jet_dvr),
-        tas!(b"lth") => Some(jet_lth),
-        tas!(b"lte") => Some(jet_lte),
-        tas!(b"gth") => Some(jet_gth),
         tas!(b"gte") => Some(jet_gte),
-        tas!(b"bex") => Some(jet_bex),
-        tas!(b"lsh") => Some(jet_lsh),
-        tas!(b"rsh") => Some(jet_rsh),
-        tas!(b"con") => Some(jet_con),
-        tas!(b"dis") => Some(jet_dis),
-        tas!(b"mix") => Some(jet_mix),
-        tas!(b"end") => Some(jet_end),
-        tas!(b"cat") => Some(jet_cat),
-        tas!(b"cut") => Some(jet_cut),
-        tas!(b"can") => Some(jet_can),
-        tas!(b"rap") => Some(jet_rap),
-        tas!(b"rep") => Some(jet_rep),
-        tas!(b"rip") => Some(jet_rip),
-        tas!(b"met") => Some(jet_met),
-        tas!(b"mug") => Some(jet_mug),
-        tas!(b"rev") => Some(jet_rev),
+        tas!(b"gth") => Some(jet_gth),
+        tas!(b"lte") => Some(jet_lte),
+        tas!(b"lth") => Some(jet_lth),
+        tas!(b"mod") => Some(jet_mod),
+        tas!(b"mul") => Some(jet_mul),
+        tas!(b"sub") => Some(jet_sub),
         //
         tas!(b"cap") => Some(jet_cap),
         tas!(b"mas") => Some(jet_mas),
+        //
+        tas!(b"bex") => Some(jet_bex),
+        tas!(b"can") => Some(jet_can),
+        tas!(b"cat") => Some(jet_cat),
+        tas!(b"cut") => Some(jet_cut),
+        tas!(b"end") => Some(jet_end),
+        tas!(b"lsh") => Some(jet_lsh),
+        tas!(b"met") => Some(jet_met),
+        tas!(b"rap") => Some(jet_rap),
+        tas!(b"rep") => Some(jet_rep),
+        tas!(b"rev") => Some(jet_rev),
+        tas!(b"rip") => Some(jet_rip),
+        tas!(b"rsh") => Some(jet_rsh),
+        //
+        tas!(b"con") => Some(jet_con),
+        tas!(b"dis") => Some(jet_dis),
+        tas!(b"mix") => Some(jet_mix),
+        //
+        tas!(b"mug") => Some(jet_mug),
         //
         tas!(b"mink") => Some(jet_mink),
         _ => {
