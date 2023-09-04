@@ -893,6 +893,14 @@
     ==
   --
 ::
+++  mole                                                ::  typed unitary virtual
+  ::  XX: needs real jet dashboard to jet
+  ~/  %mole
+  |*  tap=(trap)
+  ^-  (unit _$:tap)
+  =/  mur  (mure tap)
+  ?~(mur ~ `$:tap)
+::
 ++  mure                                                ::  untyped unitary virtual
   |=  tap=(trap)
   ^-  (unit)
