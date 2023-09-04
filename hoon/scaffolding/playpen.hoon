@@ -206,6 +206,13 @@
   ?~  a  b
   $(a t.a, b [i.a b])
 ::
+++  homo                                                ::  homogenize
+  |*  a=(list)
+  ^+  =<  $
+    |@  ++  $  ?:(*? ~ [i=(snag 0 a) t=$])
+    --
+  a
+::
 ++  lent                                                ::  length
   ~/  %lent
   |=  a=(list)
