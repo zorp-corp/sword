@@ -438,10 +438,7 @@ pub fn jet_cat(
     subject: Noun,
 ) -> jets::Result {
     let arg = slot(subject, 6)?;
-    let bloq = slot(arg, 2)?.as_direct()?.data() as usize;
-    if bloq >= 64 {
-        return Err(NonDeterministic);
-    }
+    let bloq = bloq(slot(arg, 2)?)?;
     let a = slot(arg, 6)?.as_atom()?;
     let b = slot(arg, 7)?.as_atom()?;
 
@@ -466,10 +463,7 @@ pub fn jet_can(
     subject: Noun,
 ) -> jets::Result {
     let arg = slot(subject, 6)?;
-    let bloq = slot(arg, 2)?.as_direct()?.data() as usize;
-    if bloq >= 64 {
-        return Err(NonDeterministic);
-    }
+    let bloq = bloq(slot(arg, 2)?)?;
     let original_list = slot(arg, 3)?;
 
     let mut len = 0usize;
@@ -565,10 +559,7 @@ pub fn jet_cut(
     subject: Noun,
 ) -> jets::Result {
     let arg = slot(subject, 6)?;
-    let bloq = slot(arg, 2)?.as_direct()?.data() as usize;
-    if bloq >= 64 {
-        return Err(NonDeterministic);
-    }
+    let bloq = bloq(slot(arg, 2)?)?;
     let start = slot(arg, 12)?.as_direct()?.data() as usize;
     let run = slot(arg, 13)?.as_direct()?.data() as usize;
     let atom = slot(arg, 7)?.as_atom()?;
@@ -610,10 +601,7 @@ pub fn jet_met(
     subject: Noun,
 ) -> jets::Result {
     let arg = slot(subject, 6)?;
-    let bloq = slot(arg, 2)?.as_direct()?.data() as usize;
-    if bloq >= 64 {
-        return Err(NonDeterministic);
-    }
+    let bloq = bloq(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
 
     Ok(D(met(bloq, a) as u64))

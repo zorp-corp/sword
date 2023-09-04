@@ -131,21 +131,24 @@ pub mod util {
         noun.slot(axis).map_err(|_e| JetErr::Deterministic)
     }
 
+    /// Extract a bloq and check that it's computable by the current system
+    pub fn bloq(a: Noun) -> result::Result<usize, JetErr> {
+        let bloq = a.as_direct()?.data() as usize;
+        if bloq >= 64 {
+            Err(JetErr::NonDeterministic)
+        } else {
+            Ok(bloq)
+        }
+    }
+
     /// Extract the bloq and step from a bite
     pub fn bite(a: Noun) -> result::Result<(usize, usize), JetErr> {
         if let Ok(cell) = a.as_cell() {
-            let bloq = cell.head().as_direct()?.data() as usize;
-            if bloq >= 64 {
-                return Err(JetErr::NonDeterministic);
-            }
+            let bloq = bloq(cell.head())?;
             let step = cell.tail().as_direct()?.data() as usize;
             Ok((bloq, step))
         } else {
-            let bloq = a.as_direct()?.data() as usize;
-            if bloq >= 64 {
-                return Err(JetErr::NonDeterministic);
-            }
-            Ok((bloq, 1))
+            bloq(a).map(|x| (x, 1 as usize))
         }
     }
 
