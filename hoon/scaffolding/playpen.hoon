@@ -697,4 +697,11 @@
     =+  d=(get b)
     (~(put by a) b (~(put in d) c))
   --
+::
+::  Text processing
+::
+++  crip                                                ::  tape to cord
+  |=  a=tape
+  ^-  @t
+  (rap 3 a)
 --
