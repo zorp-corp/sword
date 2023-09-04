@@ -413,11 +413,10 @@ pub fn jet_mix(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::Jet;
-    use crate::jets::util::test::{assert_jet, assert_jet_ubig, assert_nary_jet_ubig, init_stack, A};
+    use crate::jets::util::test::{assert_jet, assert_jet_ubig, init_stack, A};
     use crate::mem::NockStack;
     use crate::noun::{Noun, D, T};
-    use ibig::{UBig, ubig};
+    use ibig::ubig;
 
     fn atoms(s: &mut NockStack) -> (Noun, Noun, Noun, Noun, Noun) {
         (atom_0(s), atom_24(s), atom_63(s), atom_96(s), atom_128(s))
@@ -441,27 +440,6 @@ mod tests {
 
     fn atom_128(stack: &mut NockStack) -> Noun {
         A(stack, &ubig!(0xdeadbeef12345678fedcba9876543210))
-    }
-
-    fn assert_math_jet(
-        stack: &mut NockStack,
-        jet: Jet,
-        sam: &[fn(&mut NockStack) -> Noun],
-        res: UBig,
-    ) {
-        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-        assert_nary_jet_ubig(stack, jet, &sam, res);
-    }
-
-    fn assert_math_jet_noun(
-        stack: &mut NockStack,
-        jet: Jet,
-        sam: &[fn(&mut NockStack) -> Noun],
-        res: Noun,
-    ) {
-        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-        let sam = T(stack, &sam);
-        assert_jet(stack, jet, sam, res);
     }
 
     /*
@@ -737,61 +715,60 @@ mod tests {
     #[test]
     fn test_con() {
         let s = &mut init_stack();
-        let (_a0, _a24, a63, _a96, a128) = atoms(s);
-        assert_math_jet(s, jet_con, &[atom_0, atom_0], ubig!(0));
-        assert_math_jet(
-            s,
-            jet_con,
-            &[atom_24, atom_96],
-            ubig!(0xfaceb00c15deadbeef977557),
-        );
-        assert_math_jet(
-            s,
-            jet_con,
-            &[atom_96, atom_128],
-            ubig!(0xdeadbeeffafef67cffdebfbeff563656),
-        );
-        assert_math_jet_noun(s, jet_con, &[atom_24, atom_63], a63);
-        assert_math_jet_noun(s, jet_con, &[atom_0, atom_128], a128);
-        assert_math_jet_noun(s, jet_con, &[atom_128, atom_0], a128);
+        let (a0, a24, a63, a96, a128) = atoms(s);
+        let sam = T(s, &[a0, a0]);
+        assert_jet(s, jet_con, sam, D(0));
+        let sam = T(s, &[a24, a96]);
+        let res = A(s, &ubig!(0xfaceb00c15deadbeef977557));
+        assert_jet(s, jet_con, sam, res);
+        let sam = T(s, &[a96, a128]);
+        let res = A(s, &ubig!(0xdeadbeeffafef67cffdebfbeff563656));
+        assert_jet(s, jet_con, sam, res);
+        let sam = T(s, &[a24, a63]);
+        assert_jet(s, jet_con, sam, a63);
+        let sam = T(s, &[a0, a128]);
+        assert_jet(s, jet_con, sam, a128);
+        let sam = T(s, &[a128, a0]);
+        assert_jet(s, jet_con, sam, a128);
     }
 
     #[test]
     fn test_dis() {
         let s = &mut init_stack();
-        let (a0, a24, _a63, _a96, _a128) = atoms(s);
-        assert_math_jet(s, jet_dis, &[atom_0, atom_0], ubig!(0));
-        assert_math_jet(s, jet_dis, &[atom_24, atom_96], ubig!(0x22442));
-        assert_math_jet(
-            s,
-            jet_dis,
-            &[atom_96, atom_128],
-            ubig!(0x1204100814dca89866103010),
-        );
-        assert_math_jet_noun(s, jet_dis, &[atom_24, atom_63], a24);
-        assert_math_jet_noun(s, jet_dis, &[atom_0, atom_128], a0);
-        assert_math_jet_noun(s, jet_dis, &[atom_128, atom_0], a0);
+        let (a0, a24, a63, a96, a128) = atoms(s);
+        let sam = T(s, &[a0, a0]);
+        assert_jet(s, jet_dis, sam, D(0));
+        let sam = T(s, &[a24, a96]);
+        assert_jet(s, jet_dis, sam, D(0x22442));
+        let sam = T(s, &[a96, a128]);
+        let res = A(s, &ubig!(0x1204100814dca89866103010));
+        assert_jet(s, jet_dis, sam, res);
+        let sam = T(s, &[a24, a63]);
+        assert_jet(s, jet_dis, sam, a24);
+        let sam = T(s, &[a0, a128]);
+        assert_jet(s, jet_dis, sam, a0);
+        let sam = T(s, &[a128, a0]);
+        assert_jet(s, jet_dis, sam, a0);
     }
 
     #[test]
     fn test_mix() {
         let s = &mut init_stack();
-        let (_a0, _a24, _a63, _a96, a128) = atoms(s);
-        assert_math_jet(s, jet_mix, &[atom_0, atom_0], ubig!(0));
-        assert_math_jet(
-            s,
-            jet_mix,
-            &[atom_24, atom_96],
-            ubig!(0xfaceb00c15deadbeef955115),
-        );
-        assert_math_jet(
-            s,
-            jet_mix,
-            &[atom_96, atom_128],
-            ubig!(0xdeadbeefe8fae674eb02172699460646),
-        );
-        assert_math_jet(s, jet_mix, &[atom_24, atom_63], ubig!(0x7fffffffff789abc));
-        assert_math_jet_noun(s, jet_mix, &[atom_0, atom_128], a128);
-        assert_math_jet_noun(s, jet_mix, &[atom_128, atom_0], a128);
+        let (a0, a24, a63, a96, a128) = atoms(s);
+        let sam = T(s, &[a0, a0]);
+        assert_jet(s, jet_mix, sam, D(0));
+        let sam = T(s, &[a24, a96]);
+        let res = A(s, &ubig!(0xfaceb00c15deadbeef955115));
+        assert_jet(s, jet_mix, sam, res);
+        let sam = T(s, &[a96, a128]);
+        let res = A(s, &ubig!(0xdeadbeefe8fae674eb02172699460646));
+        assert_jet(s, jet_mix, sam, res);
+        let sam = T(s, &[a24, a63]);
+        let res = A(s, &ubig!(0x7fffffffff789abc));
+        assert_jet(s, jet_mix, sam, res);
+        let sam = T(s, &[a0, a128]);
+        assert_jet(s, jet_mix, sam, a128);
+        let sam = T(s, &[a128, a0]);
+        assert_jet(s, jet_mix, sam, a128);
     }
 }

@@ -297,16 +297,6 @@ pub mod util {
             assert_jet_ubig(stack, jet, sam, res);
         }
 
-        pub fn assert_math_jet(
-            stack: &mut NockStack,
-            jet: Jet,
-            sam: &[fn(&mut NockStack) -> Noun],
-            res: UBig,
-        ) {
-            let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-            assert_nary_jet_ubig(stack, jet, &sam, res);
-        }
-
         pub fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
             let sam = T(stack, &[D(0), sam, D(0)]);
             let jet_res = jet(stack, &mut None, sam);
