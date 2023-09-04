@@ -96,9 +96,15 @@ pub mod util {
     use ibig::UBig;
     use std::result;
 
+    /**
+     * Currently, only addresses indexable by the first 48 bits are reachable by 
+     * modern 64-bit CPUs.
+     */
+    const MAX_BIT_LENGTH: usize = (1 << 47) - 1;
+
     /// Performs addition that returns None on Noun size overflow
     pub fn checked_add(a: usize, b: usize) -> result::Result<usize, JetErr> {
-        a.checked_add(b).ok_or(JetErr::NonDeterministic)
+        a.checked_add(b).filter(|x| x <= &MAX_BIT_LENGTH).ok_or(JetErr::NonDeterministic)
     }
 
     /// Performs addition that returns None on Noun size overflow
@@ -110,7 +116,7 @@ pub mod util {
         let res = a << bloq;
 
         // Catch overflow
-        if (res >> bloq) < a {
+        if (res >> bloq) < a || res > MAX_BIT_LENGTH {
             Err(JetErr::NonDeterministic)
         } else {
             Ok(res)
@@ -134,7 +140,7 @@ pub mod util {
     /// Extract a bloq and check that it's computable by the current system
     pub fn bloq(a: Noun) -> result::Result<usize, JetErr> {
         let bloq = a.as_direct()?.data() as usize;
-        if bloq >= 64 {
+        if bloq >= 47 {
             Err(JetErr::NonDeterministic)
         } else {
             Ok(bloq)
