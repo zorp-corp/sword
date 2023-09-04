@@ -23,7 +23,6 @@ use either::{Left, Right};
 use ibig::ops::DivRem;
 use ibig::UBig;
 use std::cmp;
-use std::convert::TryFrom;
 
 crate::gdb!();
 
@@ -324,24 +323,16 @@ pub fn jet_lsh(
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
 
-    // TODO: need to assert step << bloq doesn't overflow?
     let len = met(bloq, a);
-    let new_size = (a
-        .bit_size()
-        .checked_add(step << bloq)
-        .ok_or(NonDeterministic)?
-        .checked_add(63)
-        .ok_or(NonDeterministic)?)
-        >> 6;
-
-    if unsafe { a.as_noun().raw_equals(D(0)) } {
-        Ok(D(0))
-    } else {
-        unsafe {
-            let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
-            chop(bloq, 0, len, step, dest, a.as_bitslice())?;
-            Ok(atom.normalize_as_atom().as_noun())
-        }
+    if len == 0 {
+        return Ok(D(0));
+    }
+    
+    let new_size = bits_to_word(checked_add(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
+    unsafe {
+        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+        chop(bloq, 0, len, step, dest, a.as_bitslice())?;
+        Ok(atom.normalize_as_atom().as_noun())
     }
 }
 
@@ -359,15 +350,7 @@ pub fn jet_rsh(
         return Ok(D(0));
     }
 
-    // TODO: need to assert step << bloq doesn't overflow?
-    let new_size = (a
-        .bit_size()
-        .checked_sub(step << bloq)
-        .ok_or(NonDeterministic)?
-        .checked_add(63)
-        .ok_or(NonDeterministic)?)
-        >> 6;
-
+    let new_size = bits_to_word(checked_sub(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
     unsafe {
         let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
         chop(bloq, step, len - step, 0, dest, a.as_bitslice())?;
@@ -442,14 +425,7 @@ pub fn jet_end(
         Ok(a.as_noun())
     } else {
         unsafe {
-            let new_size = (a
-                .bit_size()
-                .checked_sub(step << bloq)
-                .ok_or(NonDeterministic)?
-                .checked_add(63)
-                .ok_or(NonDeterministic)?)
-                >> 6;
-            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, step)?);
             chop(bloq, 0, step, 0, new_slice, a.as_bitslice())?;
             Ok(new_indirect.normalize_as_atom().as_noun())
         }
@@ -505,9 +481,9 @@ pub fn jet_can(
 
         let cell = list.as_cell()?;
         let item = cell.head().as_cell()?;
-        let step = usize::try_from(item.head().as_direct()?.data()).unwrap();
+        let step = item.head().as_direct()?.data() as usize;
 
-        len = len.checked_add(step).ok_or(NonDeterministic)?;
+        len = checked_add(len, step)?;
         list = cell.tail();
     }
 
@@ -515,8 +491,7 @@ pub fn jet_can(
         Ok(D(0))
     } else {
         unsafe {
-            let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(stack, len << bloq);
+            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
             let mut pos = 0;
             let mut list = original_list;
             loop {
@@ -556,7 +531,7 @@ pub fn jet_rep(
 
         let cell = list.as_cell()?;
 
-        len = len.checked_add(step).ok_or(NonDeterministic)?;
+        len = checked_add(len, step)?;
         list = cell.tail();
     }
 
@@ -564,8 +539,7 @@ pub fn jet_rep(
         Ok(D(0))
     } else {
         unsafe {
-            let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(stack, len << bloq);
+            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
             let mut pos = 0;
             let mut list = original_list;
             loop {
@@ -600,8 +574,7 @@ pub fn jet_cut(
     let atom = slot(arg, 7)?.as_atom()?;
 
     let new_indirect = unsafe {
-        let (mut new_indirect, new_slice) =
-            IndirectAtom::new_raw_mut_bitslice(stack, ((run << bloq) + 63) >> 6);
+        let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, run)?);
         chop(bloq, start, run, 0, new_slice, atom.as_bitslice())?;
         new_indirect.normalize_as_atom()
     };

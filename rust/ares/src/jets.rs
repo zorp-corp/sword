@@ -17,18 +17,15 @@ crate::gdb!();
 pub type Result = std::result::Result<Noun, JetErr>;
 pub type Jet = fn(&mut NockStack, &mut Option<&mut Newt>, Noun) -> Result;
 
-/// Only return a deterministic error if the Nock would have deterministically crashed.
+/**
+ * Only return a deterministic error if the Nock would have deterministically
+ * crashed.
+ */
 #[derive(Debug, PartialEq)]
 pub enum JetErr {
     Punt,             // Retry with the raw nock
     Deterministic,    // The Nock would have crashed
     NonDeterministic, // Other error
-}
-
-impl From<()> for JetErr {
-    fn from(_: ()) -> Self {
-        JetErr::NonDeterministic
-    }
 }
 
 impl From<noun::Error> for JetErr {
@@ -98,24 +95,55 @@ pub mod util {
     use bitvec::prelude::{BitSlice, Lsb0};
     use ibig::UBig;
     use std::result;
+
+    /// Performs addition that returns None on Noun size overflow
+    pub fn checked_add(a: usize, b: usize) -> result::Result<usize, JetErr> {
+        a.checked_add(b).ok_or(JetErr::NonDeterministic)
+    }
+
+    /// Performs addition that returns None on Noun size overflow
+    pub fn checked_sub(a: usize, b: usize) -> result::Result<usize, JetErr> {
+        a.checked_sub(b).ok_or(JetErr::NonDeterministic)
+    }
+
+    pub fn checked_left_shift(bloq: usize, a: usize) -> result::Result<usize, JetErr> {
+        let res = a << bloq;
+
+        // Catch overflow
+        if (res >> bloq) < a {
+            Err(JetErr::NonDeterministic)
+        } else {
+            Ok(res)
+        }
+    }
+
+    /// Convert length in bits to length in 64-bit words
+    pub fn bits_to_word(a: usize) -> result::Result<usize, JetErr> {
+        checked_add(a, 63).map(|x| x >> 6)
+    }
+    
+    /// Convert length as bite to length in 64-bit words
+    pub fn bite_to_word(bloq: usize, step: usize) -> result::Result<usize, JetErr> {
+        bits_to_word(checked_left_shift(bloq, step)?)
+    }
     
     pub fn slot(noun: Noun, axis: u64) -> Result {
         noun.slot(axis).map_err(|_e| JetErr::Deterministic)
     }
 
-    /** Extract the bloq and step from a bite */
-    pub fn bite(a: Noun) -> result::Result<(usize, usize), ()> {
+    /// Extract the bloq and step from a bite
+    pub fn bite(a: Noun) -> result::Result<(usize, usize), JetErr> {
         if let Ok(cell) = a.as_cell() {
             let bloq = cell.head().as_direct()?.data() as usize;
             if bloq >= 64 {
-                return Err(());
+                return Err(JetErr::NonDeterministic);
             }
             let step = cell.tail().as_direct()?.data() as usize;
             Ok((bloq, step))
         } else {
             let bloq = a.as_direct()?.data() as usize;
             if bloq >= 64 {
-                return Err(());
+                return Err(JetErr::NonDeterministic);
             }
             Ok((bloq, 1))
         }
@@ -123,8 +151,8 @@ pub mod util {
 
     /** In a bloq space, copy from `from` for a span of `step`, to position `to`.
      *
-     * Note: unlike the vere version, this sets the bits instead of XORing them.  If we need the XOR
-     * version, we could use ^=.
+     * Note: unlike the vere version, this sets the bits instead of XORing
+     * them.  If we need the XOR version, we could use ^=.
      */
     pub unsafe fn chop(
         bloq: usize,
@@ -133,15 +161,11 @@ pub mod util {
         to: usize,
         dest: &mut BitSlice<u64, Lsb0>,
         source: &BitSlice<u64, Lsb0>,
-    ) -> result::Result<(), ()> {
-        let from_b = from << bloq;
-        let to_b = to << bloq;
-        let mut step_b = step << bloq;
-        let end_b = from_b.checked_add(step_b).ok_or(())?;
-
-        if (from_b >> bloq) != from {
-            return Err(());
-        }
+    ) -> result::Result<(), JetErr> {
+        let from_b = checked_left_shift(bloq, from)?;
+        let to_b = checked_left_shift(bloq, to)?;
+        let mut step_b = checked_left_shift(bloq, step)?;
+        let end_b = checked_add(from_b, step_b)?;
 
         if from_b >= source.len() {
             return Ok(());
@@ -155,7 +179,7 @@ pub mod util {
         Ok(())
     }
 
-    /** Subtraction */
+    /// Subtraction
     pub fn sub(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             let a_small = a.data();
@@ -181,7 +205,7 @@ pub mod util {
         }
     }
 
-    /** Binary exponent */
+    /// Binary exponent
     pub fn bex(stack: &mut NockStack, arg: usize) -> Atom {
         unsafe {
             if arg < 63 {
@@ -194,7 +218,7 @@ pub mod util {
         }
     }
 
-    /** Binary OR */
+    /// Binary OR
     pub fn con(stack: &mut NockStack, a: Atom, b: Atom) -> Atom {
         let new_size = cmp::max(a.size(), b.size());
 
@@ -207,7 +231,7 @@ pub mod util {
         }
     }
 
-    /** Measure the number of bloqs in an atom */
+    /// Measure the number of bloqs in an atom
     pub fn met(bloq: usize, a: Atom) -> usize {
         if unsafe { a.as_noun().raw_equals(D(0)) } {
             0
