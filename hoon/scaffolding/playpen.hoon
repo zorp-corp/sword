@@ -380,11 +380,28 @@
 ::
 ++  fe                                                  ::  modulo bloq
   |_  a=bloq
+  ++  dif                                               ::  difference
+    |=([b=@ c=@] (sit (sub (add out (sit b)) (sit c))))
+  ++  inv  |=(b=@ (sub (dec out) (sit b)))              ::  inverse
+  ++  net  |=  b=@  ^-  @                               ::  flip byte endianness
+           =>  .(b (sit b))
+           ?:  (lte a 3)
+             b
+           =+  c=(dec a)
+           %+  con
+             (lsh c $(a c, b (cut c [0 1] b)))
+           $(a c, b (cut c [1 1] b))
+  ++  out  (bex (bex a))                                ::  mod value
   ++  rol  |=  [b=bloq c=@ d=@]  ^-  @                  ::  roll left
            =+  e=(sit d)
            =+  f=(bex (sub a b))
            =+  g=(mod c f)
            (sit (con (lsh [b g] e) (rsh [b (sub f g)] e)))
+  ++  ror  |=  [b=bloq c=@ d=@]  ^-  @                  ::  roll right
+           =+  e=(sit d)
+           =+  f=(bex (sub a b))
+           =+  g=(mod c f)
+           (sit (con (rsh [b g] e) (lsh [b (sub f g)] e)))
   ++  sum  |=([b=@ c=@] (sit (add b c)))                ::  wrapping add
   ++  sit  |=(b=@ (end a b))                            ::  enforce modulo
   --
