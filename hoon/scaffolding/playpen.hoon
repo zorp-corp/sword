@@ -859,6 +859,59 @@
 ::
 ::  Exotic bases
 ::
+++  po                                                  ::  phonetic base
+  ~/  %po
+  =+  :-  ^=  sis                                       ::  prefix syllables
+      'dozmarbinwansamlitsighidfidlissogdirwacsabwissib\
+      /rigsoldopmodfoglidhopdardorlorhodfolrintogsilmir\
+      /holpaslacrovlivdalsatlibtabhanticpidtorbolfosdot\
+      /losdilforpilramtirwintadbicdifrocwidbisdasmidlop\
+      /rilnardapmolsanlocnovsitnidtipsicropwitnatpanmin\
+      /ritpodmottamtolsavposnapnopsomfinfonbanmorworsip\
+      /ronnorbotwicsocwatdolmagpicdavbidbaltimtasmallig\
+      /sivtagpadsaldivdactansidfabtarmonranniswolmispal\
+      /lasdismaprabtobrollatlonnodnavfignomnibpagsopral\
+      /bilhaddocridmocpacravripfaltodtiltinhapmicfanpat\
+      /taclabmogsimsonpinlomrictapfirhasbosbatpochactid\
+      /havsaplindibhosdabbitbarracparloddosbortochilmac\
+      /tomdigfilfasmithobharmighinradmashalraglagfadtop\
+      /mophabnilnosmilfopfamdatnoldinhatnacrisfotribhoc\
+      /nimlarfitwalrapsarnalmoslandondanladdovrivbacpol\
+      /laptalpitnambonrostonfodponsovnocsorlavmatmipfip'
+      ^=  dex                                           ::  suffix syllables
+      'zodnecbudwessevpersutletfulpensytdurwepserwylsun\
+      /rypsyxdyrnuphebpeglupdepdysputlughecryttyvsydnex\
+      /lunmeplutseppesdelsulpedtemledtulmetwenbynhexfeb\
+      /pyldulhetmevruttylwydtepbesdexsefwycburderneppur\
+      /rysrebdennutsubpetrulsynregtydsupsemwynrecmegnet\
+      /secmulnymtevwebsummutnyxrextebfushepbenmuswyxsym\
+      /selrucdecwexsyrwetdylmynmesdetbetbeltuxtugmyrpel\
+      /syptermebsetdutdegtexsurfeltudnuxruxrenwytnubmed\
+      /lytdusnebrumtynseglyxpunresredfunrevrefmectedrus\
+      /bexlebduxrynnumpyxrygryxfeptyrtustyclegnemfermer\
+      /tenlusnussyltecmexpubrymtucfyllepdebbermughuttun\
+      /bylsudpemdevlurdefbusbeprunmelpexdytbyttyplevmyl\
+      /wedducfurfexnulluclennerlexrupnedlecrydlydfenwel\
+      /nydhusrelrudneshesfetdesretdunlernyrsebhulryllud\
+      /remlysfynwerrycsugnysnyllyndyndemluxfedsedbecmun\
+      /lyrtesmudnytbyrsenwegfyrmurtelreptegpecnelnevfes'
+  |%
+  ++  ins  ~/  %ins                                     ::  parse prefix
+           |=  a=@tas
+           =+  b=0
+           |-  ^-  (unit @)
+           ?:(=(256 b) ~ ?:(=(a (tos b)) [~ b] $(b +(b))))
+  ++  ind  ~/  %ind                                     ::  parse suffix
+           |=  a=@tas
+           =+  b=0
+           |-  ^-  (unit @)
+           ?:(=(256 b) ~ ?:(=(a (tod b)) [~ b] $(b +(b))))
+  ++  tos  ~/  %tos                                     ::  fetch prefix
+           |=(a=@ ?>((lth a 256) (cut 3 [(mul 3 a) 3] sis)))
+  ++  tod  ~/  %tod                                     ::  fetch suffix
+           |=(a=@ ?>((lth a 256) (cut 3 [(mul 3 a) 3] dex)))
+  --
+::
 ++  fa                                                  ::  base58check
   =+  key='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
   =/  yek=@ux  ~+
