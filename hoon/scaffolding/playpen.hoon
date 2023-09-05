@@ -846,6 +846,33 @@
   =+  q=:(sum h o p (wac j kbx) (wac j wox))            ::  t1
   $(j +(j), a (sum q n), b a, c b, d c, e (sum d q), f e, g f, h g)
 ::
+::  Exotic bases
+::
+++  fa                                                  ::  base58check
+  =+  key='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+  =/  yek=@ux  ~+
+      =-  yek:(roll (rip 3 key) -)
+      =+  [a=*char b=*@ yek=`@ux`(fil 3 256 0xff)]
+      |.
+      [+(b) (mix yek (lsh [3 `@u`a] (~(inv fe 3) b)))]
+  |%
+  ++  cha  |=(a=char `(unit @uF)`=+(b=(cut 3 [`@`a 1] yek) ?:(=(b 0xff) ~ `b)))
+  ++  tok
+    |=  a=@ux  ^-  @ux
+    =+  b=(pad a)
+    =-  (~(net fe 5) (end [3 4] (shay 32 -)))
+    (shay (add b (met 3 a)) (lsh [3 b] (swp 3 a)))
+  ::
+  ++  pad  |=(a=@ =+(b=(met 3 a) ?:((gte b 21) 0 (sub 21 b))))
+  ++  enc  |=(a=@ux `@ux`(mix (lsh [3 4] a) (tok a)))
+  ++  den
+    |=  a=@ux  ^-  (unit @ux)
+    =+  b=(rsh [3 4] a)
+    ?.  =((tok b) (end [3 4] a))
+      ~
+    `b
+  --
+::
 ::  Text processing
 ::
 ++  crip                                                ::  tape to cord
