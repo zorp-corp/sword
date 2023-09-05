@@ -1156,6 +1156,116 @@
   ++  w  ?:(=(tig 63) '~' ?:(=(tig 62) '-' ?:((gte tig 36) (add tig 29) x)))
   --
 ::
+::  Atom printing
+::
+++  co
+  !:
+  ~%  %co  ..co  ~
+  =<  |_  lot=coin
+      ++  rear  |=(rom=tape rend(rep rom))
+      ++  rent  ~+  `@ta`(rap 3 rend)
+      ++  rend
+        ^-  tape
+        ~+
+        ?:  ?=(%blob -.lot)
+          ['~' '0' ((v-co 1) (jam p.lot))]
+        ?:  ?=(%many -.lot)
+          :-  '.'
+          |-  ^-  tape
+          ?~   p.lot
+            ['_' '_' rep]
+          ['_' (weld (trip (wack rent(lot i.p.lot))) $(p.lot t.p.lot))]
+        =+  [yed=(end 3 p.p.lot) hay=(cut 3 [1 1] p.p.lot)]
+        |-  ^-  tape
+        ?+    yed  (z-co q.p.lot)
+            %p
+          =+  sxz=(fein:ob q.p.lot)
+          =+  dyx=(met 3 sxz)
+          :-  '~'
+          ?:  (lte dyx 1)
+            (weld (trip (tod:po sxz)) rep)
+          =+  dyy=(met 4 sxz)
+          =|  imp=@ud
+          |-  ^-  tape
+          ?:  =(imp dyy)
+            rep
+          %=  $
+            imp  +(imp)
+            rep  =/  log  (cut 4 [imp 1] sxz)
+                 ;:  weld
+                   (trip (tos:po (rsh 3 log)))
+                   (trip (tod:po (end 3 log)))
+                   ?:(=((mod imp 4) 0) ?:(=(imp 0) "" "--") "-")
+                   rep
+          ==     ==
+        ::
+            %u
+          ?:  ?=(%c hay)
+            %+  welp  ['0' 'c' (reap (pad:fa q.p.lot) '1')]
+            (c-co (enc:fa q.p.lot))
+          ::
+          =;  gam=(pair tape tape)
+            (weld p.gam ?:(=(0 q.p.lot) `tape`['0' ~] q.gam))
+          ?+  hay  [~ ((ox-co [10 3] |=(a=@ ~(d ne a))) q.p.lot)]
+            %b  [['0' 'b' ~] ((ox-co [2 4] |=(a=@ ~(d ne a))) q.p.lot)]
+            %i  [['0' 'i' ~] ((d-co 1) q.p.lot)]
+            %x  [['0' 'x' ~] ((ox-co [16 4] |=(a=@ ~(x ne a))) q.p.lot)]
+            %v  [['0' 'v' ~] ((ox-co [32 5] |=(a=@ ~(x ne a))) q.p.lot)]
+            %w  [['0' 'w' ~] ((ox-co [64 5] |=(a=@ ~(w ne a))) q.p.lot)]
+          ==
+      --
+  =|  rep=tape
+  =<  |%
+      ++  c-co  (em-co [58 1] |=([? b=@ c=tape] [~(c ne b) c]))
+      ++  d-co  |=(min=@ (em-co [10 min] |=([? b=@ c=tape] [~(d ne b) c])))
+      --
+  |%
+  ::  +em-co: format in numeric base
+  ::
+  ::    in .bas, format .min digits of .hol with .par
+  ::
+  ::    - .hol is processed least-significant digit first
+  ::    - all available digits in .hol will be processed, but
+  ::      .min digits can exceed the number available in .hol
+  ::    - .par handles all accumulated output on each call,
+  ::      and can edit it, prepend or append digits, &c
+  ::    - until .hol is exhausted, .par's sample is [| digit output],
+  ::      subsequently, it's [& 0 output]
+  ::
+  ++  em-co
+    |=  [[bas=@ min=@] par=$-([? @ tape] tape)]
+    |=  hol=@
+    ^-  tape
+    ?:  &(=(0 hol) =(0 min))
+      rep
+    =/  [dar=@ rad=@]  (dvr hol bas)
+    %=  $
+      min  ?:(=(0 min) 0 (dec min))
+      hol  dar
+      rep  (par =(0 dar) rad rep)
+    ==
+  ::
+  ::  +ox-co: format '.'-separated digit sequences in numeric base
+  ::
+  ::    in .bas, format each digit of .hol with .dug,
+  ::    with '.' separators every .gop digits.
+  ::
+  ::    - .hol is processed least-significant digit first
+  ::    - .dug handles individual digits, output is prepended
+  ::    - every segment but the last is zero-padded to .gop
+  ::
+  ++  ox-co
+    |=  [[bas=@ gop=@] dug=$-(@ @)]
+    %+  em-co
+      [(pow bas gop) 0]
+    |=  [top=? seg=@ res=tape]
+    %+  weld
+      ?:(top ~ `tape`['.' ~])
+    %.  seg
+    %+  em-co(rep res)
+      [bas ?:(top 0 gop)]
+    |=([? b=@ c=tape] [(dug b) c])
+::
 ::  Virtualization
 ::
 ++  mink  !.                                            ::  raw virtual nock
