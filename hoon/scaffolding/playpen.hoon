@@ -229,6 +229,14 @@
   ?~  a  ~
   [b $(a (dec a))]
 ::
+++  roll                                                ::  left fold
+  ~/  %roll
+  |*  [a=(list) b=_=>(~ |=([* *] +<+))]
+  |-  ^+  ,.+<+.b
+  ?~  a
+    +<+.b
+  $(a t.a, b b(+<+ (b i.a +<+.b)))
+::
 ++  slag                                                ::  suffix
   ~/  %slag
   |*  [a=@ b=(list)]
