@@ -891,6 +891,17 @@
   ^-  @t
   (rap 3 a)
 ::
+::  Parsing
+:: 
+++  ne
+  |_  tig=@
+  ++  c  (cut 3 [tig 1] key:fa)
+  ++  d  (add tig '0')
+  ++  x  ?:((gte tig 10) (add tig 87) d)
+  ++  v  ?:((gte tig 10) (add tig 87) d)
+  ++  w  ?:(=(tig 63) '~' ?:(=(tig 62) '-' ?:((gte tig 36) (add tig 29) x)))
+  --
+::
 ::  Virtualization
 ::
 ++  mink  !.                                            ::  raw virtual nock
