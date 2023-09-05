@@ -318,6 +318,17 @@
   =/  [=bloq =step]  ?^(a a [a *step])
   (mod b (bex (mul (bex bloq) step)))
 ::
+++  fil                                                 ::  fill bloqstream
+  ~/  %fil
+  |=  [a=bloq b=step c=@]
+  =|  n=@ud
+  =.  c  (end a c)
+  =/  d  c
+  |-  ^-  @
+  ?:  =(n b)
+    (rsh a d)
+  $(d (add c (lsh a d)), n +(n))
+::
 ++  lsh                                                 ::  left-shift
   ~/  %lsh
   |=  [a=bite b=@]
