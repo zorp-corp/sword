@@ -593,6 +593,17 @@
     (dor a b)
   (lth c d)
 ::
+::  Unsigned powers
+::
+++  pow                                                 ::  unsigned exponent
+  ~/  %pow
+  |=  [a=@ b=@]
+  ?:  =(b 0)  1
+  |-  ?:  =(b 1)  a
+  =+  c=$(b (div b 2))
+  =+  d=(mul c c)
+  ?~  (dis b 1)  d  (mul d a)
+::
 ::  Set logic
 ::
 ++  in
