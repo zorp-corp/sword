@@ -1449,5 +1449,8 @@
   ^-  (unit)
   =/  ton  (mink [tap %9 2 %0 1] |=(a=^ ``.*(a [%12 [%0 2] %0 3])))
   ?.(?=(%0 -.ton) ~ `product.ton)
-
+::
+++  soft                                                ::  virtual clam
+  |*  han=$-(* *)
+  |=(fud=* (mole |.((han fud))))
 --
