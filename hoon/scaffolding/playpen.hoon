@@ -5,8 +5,11 @@
 =>  %a50
 ~%  %a.50  ~  ~
 |%
+::
 ::  Types
 ::
++$  cord  @t
++$  knot  @ta
 +$  ship  @p
 +$  life  @ud
 +$  rift  @ud
@@ -15,12 +18,45 @@
 +$  step  _`@u`1
 +$  bite  $@(bloq [=bloq =step])
 +$  octs  [p=@ud q=@]
++$  dime  [p=@ta q=@]
++$  pint  [p=[p=@ q=@] q=[p=@ q=@]]
++$  spot  [p=path q=pint]
 +$  mold  $~(* $-(* *))
 ++  unit  |$  [item]  $@(~ [~ u=item])
 ++  list  |$  [item]  $@(~ [i=item t=(list item)])
 ++  lest  |$  [item]  [i=item t=(list item)]
++$  tape  (list @tD)
++$  path  (list knot)
++$  coin  $~  [%$ %ud 0]
+          $%  [%$ p=dime]
+              [%blob p=*]
+              [%many p=(list coin)]
+          ==
++$  tone  $%  [%0 product=*]
+              [%1 block=*]
+              [%2 trace=(list [@ta *])]
+          ==
+++  trel
+  |$  [first second third]
+  [p=first q=second r=third]
+++  qual
+  |$  [first second third fourth]
+  [p=first q=second r=third s=fourth]
++$  tank
+  $+  tank
+  $~  leaf/~
+  $@  cord
+  $%  [%leaf p=tape]
+      [%palm p=(qual tape tape tape tape) q=(list tank)]
+      [%rose p=(trel tape tape tape) q=(list tank)]
+  ==
++$  toon  $%  [%0 p=*]
+              [%1 p=*]
+              [%2 p=(list tank)]
+          ==
 ++  tree  |$  [node]  $@(~ [n=node l=(tree node) r=(tree node)])
 ++  pair  |$  [head tail]  [p=head q=tail]
+::
 ++  map
   |$  [key value]
   $|  (tree (pair key value))
