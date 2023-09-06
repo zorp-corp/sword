@@ -1272,6 +1272,13 @@
       [bas ?:(top 0 gop)]
     |=([? b=@ c=tape] [(dug b) c])
 ::
+::  Formatting functions
+::
+++  smyt                                                ::  pretty print path
+  |=  bon=path  ^-  tank
+  :+  %rose  [['/' ~] ['/' ~] ~]
+  (turn bon |=(a=@ [%leaf (trip a)]))
+::
 ::  Virtualization
 ::
 ++  mink  !.                                            ::  raw virtual nock
