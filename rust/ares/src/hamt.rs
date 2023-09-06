@@ -171,11 +171,7 @@ impl<T: Copy> Copy for Stem<T> {}
 
 impl<T: Copy> Clone for Stem<T> {
     fn clone(&self) -> Self {
-        Stem {
-            bitmap: self.bitmap,
-            typemap: self.typemap,
-            buffer: self.buffer,
-        }
+        *self
     }
 }
 
@@ -231,10 +227,7 @@ impl<T: Copy> Copy for Leaf<T> {}
 
 impl<T: Copy> Clone for Leaf<T> {
     fn clone(&self) -> Self {
-        Leaf {
-            len: self.len,
-            buffer: self.buffer,
-        }
+        *self
     }
 }
 

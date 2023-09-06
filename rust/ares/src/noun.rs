@@ -373,11 +373,11 @@ impl IndirectAtom {
 
     /** Pointer to data for indirect atom */
     pub fn data_pointer(&self) -> *const u64 {
-        unsafe { self.to_raw_pointer().add(2) as *const u64 }
+        unsafe { self.to_raw_pointer().add(2) }
     }
 
     pub fn data_pointer_mut(&mut self) -> *mut u64 {
-        unsafe { self.to_raw_pointer_mut().add(2) as *mut u64 }
+        unsafe { self.to_raw_pointer_mut().add(2) }
     }
 
     pub fn as_slice(&self) -> &[u64] {
@@ -756,11 +756,11 @@ impl Allocated {
     }
 
     pub unsafe fn get_metadata(&self) -> u64 {
-        *(self.to_raw_pointer() as *const u64)
+        *(self.to_raw_pointer())
     }
 
     pub unsafe fn set_metadata(self, metadata: u64) {
-        *(self.const_to_raw_pointer_mut() as *mut u64) = metadata;
+        *(self.const_to_raw_pointer_mut()) = metadata;
     }
 
     pub fn as_either(&self) -> Either<IndirectAtom, Cell> {
