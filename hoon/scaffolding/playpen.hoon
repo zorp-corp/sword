@@ -237,6 +237,13 @@
     +<+.b
   $(a t.a, b b(+<+ (b i.a +<+.b)))
 ::
+++  scag                                                ::  prefix
+  ~/  %scag
+  |*  [a=@ b=(list)]
+  |-  ^+  b
+  ?:  |(?=(~ b) =(0 a))  ~
+  [i.b $(b t.b, a (dec a))]
+::
 ++  slag                                                ::  suffix
   ~/  %slag
   |*  [a=@ b=(list)]
