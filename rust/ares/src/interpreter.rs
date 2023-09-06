@@ -347,7 +347,7 @@ pub fn interpret(
                         push_formula(stack, five.right, false);
                     }
                     Todo5::TestEquals => {
-                        let saved_value_ptr = &mut five.left as *mut Noun;
+                        let saved_value_ptr = &mut five.left;
                         res = if unifying_equality(stack, &mut res, saved_value_ptr) {
                             D(0)
                         } else {
