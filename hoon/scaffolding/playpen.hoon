@@ -1144,6 +1144,12 @@
   |=  a=tape
   ^-  @t
   (rap 3 a)
+++  trip                                                ::  cord to tape
+  ~/  %trip
+  |=  a=@  ^-  tape
+  ?:  =(0 (met 3 a))
+    ~
+  [^-(@ta (end 3 a)) $(a (rsh 3 a))]
 ::
 ::  Parsing
 :: 
