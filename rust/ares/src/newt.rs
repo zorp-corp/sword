@@ -91,7 +91,7 @@ impl Newt {
             Either::Left(direct) => unsafe {
                 copy_nonoverlapping(
                     &direct.data() as *const u64 as *const u8,
-                    buf.as_mut_ptr().add(5) as *mut u8,
+                    buf.as_mut_ptr().add(5),
                     size,
                 );
             },
@@ -99,7 +99,7 @@ impl Newt {
                 // REVIEW: is this safe/the right way to do this?
                 copy_nonoverlapping(
                     indirect.data_pointer() as *const u8,
-                    buf.as_mut_ptr().add(5) as *mut u8,
+                    buf.as_mut_ptr().add(5),
                     size,
                 );
             },
