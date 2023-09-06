@@ -1292,6 +1292,12 @@
 ::
 ::  Virtualization
 ::
+++  mack                                                ::  untyped, scry-less, unitary virtualization
+  |=  [sub=* fol=*]
+  ^-  (unit)
+  =/  ton  (mink [sub fol] |~(^ ~))
+  ?.(?=(%0 -.ton) ~ `product.ton)
+::
 ++  mink  !.                                            ::  raw virtual nock
   ~/  %mink
   |=  $:  [subject=* formula=*]
