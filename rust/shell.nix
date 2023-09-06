@@ -13,5 +13,6 @@ pkgs.mkShell {
       "rust-src"
     ])
     cargo-watch
+    gdb
   ];
 }
