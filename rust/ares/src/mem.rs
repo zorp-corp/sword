@@ -274,13 +274,13 @@ impl NockStack {
         let alloc = *self.prev_alloc_pointer_pointer();
         *(self.prev_alloc_pointer_pointer()) =
             (*(self.prev_alloc_pointer_pointer())).add(words + 2);
-        alloc as *mut u64
+        alloc
     }
 
     unsafe fn indirect_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
         *(self.prev_alloc_pointer_pointer()) =
             (*(self.prev_alloc_pointer_pointer())).sub(words + 2);
-        *self.prev_alloc_pointer_pointer() as *mut u64
+        *self.prev_alloc_pointer_pointer()
     }
 
     /** Allocate space for an indirect atom in the previous stack frame. This call pre_copy()
@@ -513,9 +513,9 @@ impl NockStack {
     }
 
     pub unsafe fn frame_pop(&mut self) {
-        let prev_frame_ptr = *self.prev_frame_pointer_pointer() as *mut u64;
-        let prev_stack_ptr = *self.prev_stack_pointer_pointer() as *mut u64;
-        let prev_alloc_ptr = *self.prev_alloc_pointer_pointer() as *mut u64;
+        let prev_frame_ptr = *self.prev_frame_pointer_pointer();
+        let prev_stack_ptr = *self.prev_stack_pointer_pointer();
+        let prev_alloc_ptr = *self.prev_alloc_pointer_pointer();
 
         self.frame_pointer = prev_frame_ptr;
         self.stack_pointer = prev_stack_ptr;
