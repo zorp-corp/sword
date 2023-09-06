@@ -1454,6 +1454,10 @@
     ==
   --
 ::
+++  mock                                                ::  virtual nock
+  |=  [[sub=* fol=*] gul=$-(^ (unit (unit)))]
+  (mook (mink [sub fol] gul))
+::
 ++  mook                                                ::  convert %tone to %toon
   |=  ton=tone
   ^-  toon
