@@ -241,6 +241,58 @@ pub fn jet_lth(
     })
 }
 
+pub fn jet_max(
+    _stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> jets::Result {
+    let arg = slot(subject, 6)?;
+    let a = slot(arg, 2)?.as_atom()?;
+    let b = slot(arg, 3)?.as_atom()?;
+
+    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+        if a.data() >= b.data() {
+            a.as_noun()
+        } else {
+            b.as_noun()
+        }
+    } else if a.bit_size() > b.bit_size() {
+        a.as_noun()
+    } else if a.bit_size() < b.bit_size() {
+        b.as_noun()
+    } else if a.as_ubig(_stack) >= b.as_ubig(_stack) {
+        a.as_noun()
+    } else {
+        b.as_noun()
+    })
+}
+
+pub fn jet_min(
+    _stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun,
+) -> jets::Result {
+    let arg = slot(subject, 6)?;
+    let a = slot(arg, 2)?.as_atom()?;
+    let b = slot(arg, 3)?.as_atom()?;
+
+    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+        if a.data() <= b.data() {
+            a.as_noun()
+        } else {
+            b.as_noun()
+        }
+    } else if a.bit_size() < b.bit_size() {
+        a.as_noun()
+    } else if a.bit_size() > b.bit_size() {
+        b.as_noun()
+    } else if a.as_ubig(_stack) <= b.as_ubig(_stack) {
+        a.as_noun()
+    } else {
+        b.as_noun()
+    })
+}
+
 pub fn jet_mod(
     stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
@@ -527,6 +579,36 @@ mod tests {
         assert_math_jet_noun(s, jet_lth, &[atom_128, atom_24], NO);
         assert_math_jet_noun(s, jet_lth, &[atom_128, atom_128_b], NO);
         assert_math_jet_noun(s, jet_lth, &[atom_128_b, atom_128], YES);
+    }
+
+    #[test]
+    fn test_max() {
+        let s = &mut init_stack();
+        assert_math_jet(s, jet_max, &[atom_128, atom_96], ubig!(0xdeadbeef12345678fedcba9876543210));
+        assert_math_jet(s, jet_max, &[atom_96, atom_63], ubig!(0xfaceb00c15deadbeef123456));
+        assert_math_jet(s, jet_max, &[atom_63, atom_96], ubig!(0xfaceb00c15deadbeef123456));
+        assert_math_jet(s, jet_max, &[atom_63, atom_63], ubig!(0x7fffffffffffffff));
+        assert_math_jet(s, jet_max, &[atom_63, atom_24], ubig!(0x7fffffffffffffff));
+        assert_math_jet(s, jet_max, &[atom_128, atom_24], ubig!(0xdeadbeef12345678fedcba9876543210));
+        assert_math_jet(s, jet_max, &[atom_128, atom_128_b], ubig!(0xdeadbeef12345678fedcba9876543210));
+        assert_math_jet(s, jet_max, &[atom_128_b, atom_128], ubig!(0xdeadbeef12345678fedcba9876543210));
+        assert_math_jet(s, jet_max, &[atom_528, atom_264], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff));
+        assert_math_jet(s, jet_max, &[atom_264, atom_528], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff));
+    }
+
+    #[test]
+    fn test_min() {
+        let s = &mut init_stack();
+        assert_math_jet(s, jet_min, &[atom_128, atom_96], ubig!(0xfaceb00c15deadbeef123456));
+        assert_math_jet(s, jet_min, &[atom_96, atom_63], ubig!(0x7fffffffffffffff));
+        assert_math_jet(s, jet_min, &[atom_63, atom_96], ubig!(0x7fffffffffffffff));
+        assert_math_jet(s, jet_min, &[atom_63, atom_63], ubig!(0x7fffffffffffffff));
+        assert_math_jet(s, jet_min, &[atom_63, atom_24], ubig!(0x876543));
+        assert_math_jet(s, jet_min, &[atom_128, atom_24], ubig!(0x876543));
+        assert_math_jet(s, jet_min, &[atom_128, atom_128_b], ubig!(0xdeadbeef12345678fedcba9876540000));
+        assert_math_jet(s, jet_min, &[atom_128_b, atom_128], ubig!(0xdeadbeef12345678fedcba9876540000));
+        assert_math_jet(s, jet_min, &[atom_528, atom_264], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ff));
+        assert_math_jet(s, jet_min, &[atom_264, atom_528], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ff));
     }
 
     #[test]
