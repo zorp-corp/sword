@@ -13,8 +13,8 @@
  * us to use any library without worrying whether it allocates.
  */
 use crate::jets;
-use crate::jets::JetErr::*;
 use crate::jets::util::*;
+use crate::jets::JetErr::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
@@ -306,11 +306,13 @@ pub fn jet_sub(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jets::util::test::{
+        assert_jet, assert_jet_err, assert_jet_ubig, assert_nary_jet_ubig, init_stack, A,
+    };
     use crate::jets::{Jet, JetErr};
-    use crate::jets::util::test::{assert_jet, assert_jet_err, assert_jet_ubig, assert_nary_jet_ubig, init_stack, A};
     use crate::mem::NockStack;
-    use crate::noun::{Noun, D, T, YES, NO};
-    use ibig::{UBig, ubig};
+    use crate::noun::{Noun, D, NO, T, YES};
+    use ibig::{ubig, UBig};
 
     fn atoms(s: &mut NockStack) -> (Noun, Noun, Noun, Noun, Noun) {
         (atom_0(s), atom_24(s), atom_63(s), atom_96(s), atom_128(s))

@@ -98,9 +98,7 @@ impl NockStack {
 
     /** Current frame pointer of this NockStack */
     pub fn get_mean_stack(&self) -> Noun {
-        unsafe {
-            *self.mean_stack
-        }
+        unsafe { *self.mean_stack }
     }
 
     /** Checks if the current stack frame has West polarity */

@@ -4,10 +4,10 @@ use crate::jets;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{Atom, Cell, D, DirectAtom, IndirectAtom, Noun, Slots};
+use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, Slots, D};
 use ares_macros::tas;
-use bitvec::prelude::{BitSlice, Lsb0};
 use assert_no_alloc::assert_no_alloc;
+use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 use num_traits::cast::{FromPrimitive, ToPrimitive};
 
@@ -91,7 +91,7 @@ pub fn interpret(
     let mut res: Noun = D(0);
     let mut trace: Noun;
     let mut cache = Hamt::<Noun>::new();
-    
+
     let virtual_frame = stack.get_frame_pointer();
     stack.frame_push(1);
     unsafe {
@@ -302,7 +302,9 @@ pub fn interpret(
                         *(stack.local_noun_pointer(2)) = subject;
                         subject = res;
                         // Axis must be in subject
-                        let axis = subject.slot(formula_axis.data()).map_err(|_e| NockErr::Error(D(55)));
+                        let axis = subject
+                            .slot(formula_axis.data())
+                            .map_err(|_e| NockErr::Error(D(55)));
                         push_formula(stack, axis?)?;
                     } else {
                         break Err(NockErr::Error(D(5))); // Axis into core must be atom
@@ -572,7 +574,12 @@ fn push_formula(stack: &mut NockStack, formula: Noun) -> Result<(), NockErr> {
     Ok(())
 }
 
-pub fn exit_early(stack: &mut NockStack, virtual_frame: *const u64, trace: &mut Noun, cache: &mut Hamt<Noun>) {
+pub fn exit_early(
+    stack: &mut NockStack,
+    virtual_frame: *const u64,
+    trace: &mut Noun,
+    cache: &mut Hamt<Noun>,
+) {
     unsafe {
         while stack.get_frame_pointer() != virtual_frame {
             stack.preserve(trace);

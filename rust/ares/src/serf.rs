@@ -2,7 +2,7 @@ use crate::interpreter::{interpret, NockErr};
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
-use crate::noun::{Noun, D, Slots, T};
+use crate::noun::{Noun, Slots, D, T};
 use crate::snapshot::{self, Snapshot};
 use ares_macros::tas;
 use std::fs::create_dir_all;
@@ -142,5 +142,6 @@ pub fn slam(
 }
 
 fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
-    noun.slot(axis).map_err(|_e| io::Error::new(io::ErrorKind::InvalidInput, "Bad axis"))
+    noun.slot(axis)
+        .map_err(|_e| io::Error::new(io::ErrorKind::InvalidInput, "Bad axis"))
 }

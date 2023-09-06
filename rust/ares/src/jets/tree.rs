@@ -1,8 +1,8 @@
 /** Tree jets
  */
 use crate::jets;
-use crate::jets::JetErr::*;
 use crate::jets::util::*;
+use crate::jets::JetErr::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Noun, D};
@@ -12,7 +12,7 @@ crate::gdb!();
 pub fn jet_cap(
     _stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
-    subject: Noun
+    subject: Noun,
 ) -> jets::Result {
     let arg = slot(subject, 6)?;
     let tom = arg.as_atom()?;
@@ -32,19 +32,19 @@ pub fn jet_cap(
 pub fn jet_mas(
     stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
-    subject: Noun
+    subject: Noun,
 ) -> jets::Result {
     let arg = slot(subject, 6)?;
     let tom = arg.as_atom()?;
     let met = met(0, tom);
-    
+
     if met < 2 {
         Err(Deterministic)
     } else {
         let c = bex(stack, met - 1);
         let d = bex(stack, met - 2);
         let e = sub(stack, tom, c)?;
-        
+
         Ok(con(stack, e, d).as_noun())
     }
 }
@@ -52,8 +52,8 @@ pub fn jet_mas(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::JetErr;
     use crate::jets::util::test::{assert_jet, assert_jet_err, init_stack};
+    use crate::jets::JetErr;
     use crate::noun::D;
 
     #[test]

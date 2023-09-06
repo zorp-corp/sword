@@ -89,7 +89,7 @@ mod tests {
         let hint_path = T(sack, &[D(1953719668), D(0)]);
         let hint_dyn = D(1);
         let hint_row = D(1);
-        
+
         let make_hint = |sack: &mut NockStack, col_start: u64, col_end: u64| {
             let start = T(sack, &[hint_row, D(col_start)]);
             let end = T(sack, &[hint_row, D(col_end)]);

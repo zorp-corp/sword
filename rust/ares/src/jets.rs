@@ -1,14 +1,14 @@
-pub mod math;
-pub mod tree;
 pub mod bits;
 pub mod hash;
+pub mod math;
 pub mod mink;
+pub mod tree;
 
-use crate::jets::math::*;
-use crate::jets::tree::*;
 use crate::jets::bits::*;
 use crate::jets::hash::*;
+use crate::jets::math::*;
 use crate::jets::mink::*;
+use crate::jets::tree::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots};
@@ -98,21 +98,23 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
-    use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D};
     use crate::noun::Error::NotRepresentable;
+    use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D};
     use bitvec::prelude::{BitSlice, Lsb0};
     use ibig::UBig;
     use std::result;
 
     /**
-     * Currently, only addresses indexable by the first 48 bits are reachable by 
+     * Currently, only addresses indexable by the first 48 bits are reachable by
      * modern 64-bit CPUs.
      */
     const MAX_BIT_LENGTH: usize = (1 << 47) - 1;
 
     /// Performs addition that returns None on Noun size overflow
     pub fn checked_add(a: usize, b: usize) -> result::Result<usize, JetErr> {
-        a.checked_add(b).filter(|x| x <= &MAX_BIT_LENGTH).ok_or(JetErr::NonDeterministic)
+        a.checked_add(b)
+            .filter(|x| x <= &MAX_BIT_LENGTH)
+            .ok_or(JetErr::NonDeterministic)
     }
 
     /// Performs addition that returns None on Noun size overflow
@@ -135,12 +137,12 @@ pub mod util {
     pub fn bits_to_word(a: usize) -> result::Result<usize, JetErr> {
         checked_add(a, 63).map(|x| x >> 6)
     }
-    
+
     /// Convert length as bite to length in 64-bit words
     pub fn bite_to_word(bloq: usize, step: usize) -> result::Result<usize, JetErr> {
         bits_to_word(checked_left_shift(bloq, step)?)
     }
-    
+
     pub fn slot(noun: Noun, axis: u64) -> Result {
         noun.slot(axis).map_err(|_e| JetErr::Deterministic)
     }
@@ -262,7 +264,7 @@ pub mod util {
 
     pub mod test {
         use super::*;
-        use crate::mem::{NockStack, unifying_equality};
+        use crate::mem::{unifying_equality, NockStack};
         use crate::noun::{Atom, Noun, D, T};
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
@@ -318,15 +320,17 @@ pub mod util {
 
     #[cfg(test)]
     mod tests {
-        use super::*;
         use super::test::{init_stack, A};
+        use super::*;
         use ibig::ubig;
 
         #[test]
         fn test_met() {
             let s = &mut init_stack();
 
-            let a = A(s, &ubig!(0xdeadbeef12345678fedcba9876543210)).as_atom().unwrap();
+            let a = A(s, &ubig!(0xdeadbeef12345678fedcba9876543210))
+                .as_atom()
+                .unwrap();
             assert_eq!(met(0, a), 128);
             assert_eq!(met(1, a), 64);
             assert_eq!(met(2, a), 32);

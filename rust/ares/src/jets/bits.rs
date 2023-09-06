@@ -1,8 +1,8 @@
 /** Bit arithmetic & logic jets
  */
 use crate::jets;
-use crate::jets::JetErr::*;
 use crate::jets::util::*;
+use crate::jets::JetErr::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Cell, DirectAtom, IndirectAtom, Noun, D};
@@ -51,7 +51,8 @@ pub fn jet_can(
         Ok(D(0))
     } else {
         unsafe {
-            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+            let (mut new_indirect, new_slice) =
+                IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
             let mut pos = 0;
             let mut list = original_list;
             loop {
@@ -82,7 +83,7 @@ pub fn jet_cat(
     let bloq = bloq(slot(arg, 2)?)?;
     let a = slot(arg, 6)?.as_atom()?;
     let b = slot(arg, 7)?.as_atom()?;
-    
+
     let len_a = met(bloq, a);
     let len_b = met(bloq, b);
     let new_len = bite_to_word(bloq, checked_add(len_a, len_b)?)?;
@@ -110,7 +111,8 @@ pub fn jet_cut(
     let atom = slot(arg, 7)?.as_atom()?;
 
     let new_indirect = unsafe {
-        let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, run)?);
+        let (mut new_indirect, new_slice) =
+            IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, run)?);
         chop(bloq, start, run, 0, new_slice, atom.as_bitslice())?;
         new_indirect.normalize_as_atom()
     };
@@ -132,7 +134,8 @@ pub fn jet_end(
         Ok(a.as_noun())
     } else {
         unsafe {
-            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, step)?);
+            let (mut new_indirect, new_slice) =
+                IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, step)?);
             chop(bloq, 0, step, 0, new_slice, a.as_bitslice())?;
             Ok(new_indirect.normalize_as_atom().as_noun())
         }
@@ -152,7 +155,7 @@ pub fn jet_lsh(
     if len == 0 {
         return Ok(D(0));
     }
-    
+
     let new_size = bits_to_word(checked_add(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
     unsafe {
         let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
@@ -199,7 +202,8 @@ pub fn jet_rap(
         Ok(D(0))
     } else {
         unsafe {
-            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+            let (mut new_indirect, new_slice) =
+                IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
             let mut pos = 0;
             let mut list = original_list;
 
@@ -248,7 +252,8 @@ pub fn jet_rep(
         Ok(D(0))
     } else {
         unsafe {
-            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+            let (mut new_indirect, new_slice) =
+                IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
             let mut pos = 0;
             let mut list = original_list;
             loop {
@@ -409,7 +414,6 @@ pub fn jet_mix(
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -443,8 +447,8 @@ mod tests {
     }
 
     /*
-    * Bit arithmetic
-    */
+     * Bit arithmetic
+     */
 
     #[test]
     fn test_bex() {
