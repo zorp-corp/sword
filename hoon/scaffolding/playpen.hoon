@@ -196,6 +196,10 @@
 ::
 ::  List logic
 ::
+++  snoc                                                ::  append to end of list
+  |*  [a=(list) b=*]
+  (weld a ^+(a [b]~))
+::
 ++  flop                                                ::  reverse
   ~/  %flop
   |*  a=(list)

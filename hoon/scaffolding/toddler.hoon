@@ -17,6 +17,12 @@
   ++  pair  |$  [head tail]  [p=head q=tail]
   +$  path  (list knot)
   +$  wire  path
+  ++  ack
+    |=  [m=@ud n=@ud]
+    ?~  m  +(n)
+    ?~  n
+      $(m (dec m), n 1)
+    $(m (dec m), n $(n (dec n)))
   --  =>
   ::
   |%
@@ -28,7 +34,7 @@
     ^-  ^
     :: ~>  %slog.[0 'got']
     :: ~>  %slog.[0 -.card.ovo]
-    =/  fec  [//term/1 %blit [%put "effect"] [%nel ~] ~]
+    =/  fec  [//term/1 %blit [%put (snoc "A(2,1) = " (add 48 (ack 2 1)))] [%nel ~] ~]
     [[fec ~] ..poke]
   --
   ::
