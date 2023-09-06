@@ -1274,6 +1274,10 @@
 ::
 ::  Formatting functions
 ::
+++  scow
+  ~/  %scow
+  |=(mol=dime ~(rend co %$ mol))
+::
 ++  smyt                                                ::  pretty print path
   |=  bon=path  ^-  tank
   :+  %rose  [['/' ~] ['/' ~] ~]
