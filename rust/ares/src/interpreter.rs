@@ -237,6 +237,17 @@ pub fn interpret(
         *stack.push() = NockWork::Done;
     };
     push_formula(stack, formula, true);
+    // DO NOT REMOVE THIS ASSERTION
+    //
+    // If you need to allocate for debugging, wrap the debugging code in
+    //
+    // ```
+    // permit_alloc(|| {
+    //   your.code.goes.here()
+    // })
+    // ```
+    //
+    // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     assert_no_alloc(|| unsafe {
         loop {
             let work: NockWork = *stack.top();
