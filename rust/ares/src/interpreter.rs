@@ -237,6 +237,17 @@ pub fn interpret(
         *stack.push() = NockWork::Done;
     };
     push_formula(stack, formula, true);
+    // DO NOT REMOVE THIS ASSERTION
+    //
+    // If you need to allocate for debugging, wrap the debugging code in
+    //
+    // ```
+    // permit_alloc(|| {
+    //   your.code.goes.here()
+    // })
+    // ```
+    //
+    // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     assert_no_alloc(|| unsafe {
         loop {
             let work: NockWork = *stack.top();
@@ -300,7 +311,7 @@ pub fn interpret(
                             *stack.top() = NockWork::Work2(vale);
                             stack.frame_push(0);
                             *stack.push() = NockWork::Ret;
-                            push_formula(stack, res, false);
+                            push_formula(stack, res, true);
                         }
                     }
                     Todo2::RestoreSubject => {
@@ -347,7 +358,7 @@ pub fn interpret(
                         push_formula(stack, five.right, false);
                     }
                     Todo5::TestEquals => {
-                        let saved_value_ptr = &mut five.left as *mut Noun;
+                        let saved_value_ptr = &mut five.left;
                         res = if unifying_equality(stack, &mut res, saved_value_ptr) {
                             D(0)
                         } else {
@@ -444,7 +455,7 @@ pub fn interpret(
                             subject = res;
                             stack.frame_push(0);
                             *stack.push() = NockWork::Ret;
-                            push_formula(stack, formula, false);
+                            push_formula(stack, formula, true);
                         }
                     }
                     Todo9::RestoreSubject => {
