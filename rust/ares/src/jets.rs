@@ -3,7 +3,7 @@ pub mod math;
 use crate::jets::math::*;
 use crate::mem::NockStack;
 use crate::mem::Preserve;
-use crate::noun::{self, Noun, Atom};
+use crate::noun::{self, Noun, Cell, Atom};
 use crate::hamt::Hamt;
 use ares_macros::tas;
 use std::mem::size_of;
@@ -166,5 +166,59 @@ impl Preserve for Warm {
 impl Warm {
     pub fn get_jet(&mut self, stack: &mut NockStack, formula: &mut Noun, subject: &mut Noun) -> Option<Jet> {
         todo!()
+    }
+}
+
+//TODO move this somewhere else
+#[derive(Copy, Clone)]
+pub struct HList {
+    head: Option<Cell>,
+}
+
+impl From<Noun> for HList {
+    fn from(n: Noun) -> Self {
+        if n.is_cell() {
+            HList::from(n.as_cell().unwrap())
+        } else {
+            HList { head: None }
+        }
+    }
+}
+
+impl From<Cell> for HList {
+    fn from(c: Cell) -> Self {
+        Self { head: Some(c) }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct HListIntoIter {
+    next: Option<Cell>,
+}
+
+impl IntoIterator for HList {
+    type Item = Noun;
+    type IntoIter = HListIntoIter;
+
+    #[inline(always)]
+    fn into_iter(self) -> Self::IntoIter {
+        HListIntoIter { next: self.head }
+    }
+}
+
+impl Iterator for HListIntoIter {
+    type Item = Noun;
+
+    #[inline(always)]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.take().map(|cell| {
+            let tail = cell.tail();
+            self.next = if tail.is_cell() {
+                Some(tail.as_cell().unwrap())
+            } else {
+                None
+            };
+            cell.head()
+        })
     }
 }
