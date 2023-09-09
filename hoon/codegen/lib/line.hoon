@@ -100,10 +100,10 @@
           ?-  -.goal
               %done
             =^  last  gen  rain
-            =^  loch  gen  (emit %loch ~ %don last)
+            =^  loch  gen  (emit 0 %loch ~ %don last)
             $(goal [%next [%this last] loch])
           ::
-              %pick  bomb
+              %pick  punt
               %next
             =^  [bill=bile left=need rite=need]  gen  (lyse goal)
             =^  tale  gen
@@ -118,12 +118,13 @@
           ?-  -.goal
               %done
             =^  last  gen  rain
-            =^  dear  gen  (emit %dear ~ %don last)
+            =^  dear  gen  (emit 0 %dear ~ %don last)
             $(goal [%next [%this last] dear])
           ::
               %pick
             =^  cove  gen  rain
-            =^  cozy  gen  (emit %cozy ~ %brn cove [zero once]:goal)
+            =^  pint  gen  punt
+            =^  cozy  gen  (emit 0 %cozy ~ %brn cove then.pint [zero once]:goal)
             $(goal [%next [%this cove] cozy])
           ::
               %next
@@ -134,7 +135,7 @@
           ?-  -.goal
               %done
             =^  last  gen  rain
-            =^  rime  gen  (emit %rime [%imm moan.nomm last]~ %don last)
+            =^  rime  gen  (emit 0 %rime [%imm moan.nomm last]~ %don last)
             [[%next [%none ~] rime] gen]
           ::
               %pick
@@ -142,7 +143,7 @@
               [[%next [%none ~] zero.goal] gen]
             ?:  =(1 moan.nomm)
               [[%next [%none ~] once.goal] gen]
-            bomb
+            punt
           ::
               %next
             =^  bill  gen  (mede then.goal moan.nomm what.goal)
@@ -152,7 +153,9 @@
             %two
           ?:  ?=(%pick -.goal)
             =^  pyre  gen  rain
-            =^  pika  gen  (emit %pika ~ %brn pyre [zero once]:goal)
+            =^  pint  gen  punt
+            =^  pika  gen
+              (emit 0 %pika ~ %brn pyre then.pint [zero once]:goal)
             $(goal [%next [%this pyre] pika])
           =^  [duke=bile sone=need fore=need]  gen
             =/  bull  (~(get by ices) rail.nomm)
@@ -160,28 +163,42 @@
               =^  sofa  gen  rain
               =^  fora  gen  rain
               ?:  ?=(%done -.goal)
-                =^  dune  gen  (emit %dune ~ %lnt sofa fora)
+                =^  dune  gen  (emit 0 %dune ~ %lnt sofa fora)
                 [[dune [%this sofa] [%this fora]] gen]
               =^  [fine=bile rare=@stir]  gen  (reed goal)
-              =^  dunk  gen  (emit %dunk ~ %lnk sofa fora rare fine)
+              =^  dunk  gen  (emit 0 %dunk ~ %lnk sofa fora rare fine)
               [[dunk [%this sofa] [%this fora]] gen]
             =/  hull  (~(get by hill) u.bull)
             ?~  hull :: direct but no registerization
+              =^  soap  gen  rain
               =^  sofa  gen  rain
+              =^  hoof  gen  rain
               ?:  ?=(%done -.goal)
-                =^  dude  gen  (emit %dude ~ %jmp u.bull ~[sofa])
+                =^  dude  gen  (emit 0 %dude ~ %jmp u.bull soap ~[sofa])
+                =^  dawn  gen  (emit 0 %dawn [%con sofa hoof soap]~ %hop dude)
                 =.  redo.gen  (~(put in redo.gen) dude)  
-                [[dude [%this sofa] [%none ~]] gen]
+                [[dawn [%this sofa] [%this hoof]] gen]
               =^  [fine=bile rare=@stir]  gen  (reed goal)
-              =^  deed  gen  (emit %deed ~ %cal u.bull ~[sofa] rare fine)
+              =^  deed  gen  (emit 0 %deed ~ %cal u.bull soap ~[sofa] rare fine)
+              =^  deem  gen  (emit 0 %deem [%con sofa hoof soap]~ %hop deed)
               =.  redo.gen  (~(put in redo.gen) deed)
-              [[deed [%this sofa] [%none ~]] gen]
+              [[deem [%this sofa] [%this hoof]] gen]
             ::  direct with registerization
             ?:  ?=(%done -.goal)
-              =^  kilt  gen  (cane want.u.hull u.bull ~)
-              [[then.kilt what.kilt [%none ~]] gen]
-            =^  kilt  gen  (cane want.u.hull u.bull `goal)
-            [[then.kilt what.kilt [%none ~]] gen]
+              =^  [kilt=next soap=@stir]  gen  (cane want.u.hull u.bull ~)
+              =^  hose  gen  rain
+              =^  hoof  gen  rain
+              =^  down  gen
+                (emit 0 %down [%con hose hoof soap]~ %hop then.kilt)
+              =^  cops  gen  (copy down what.kilt [%this hose])
+              [[then.cops what.cops [%this hoof]] gen]
+            =^  [kilt=next soap=@stir]  gen  (cane want.u.hull u.bull `goal)
+            =^  hose  gen  rain
+            =^  hoof  gen  rain
+            =^  doom  gen
+              (emit 0 %doom [%con hose hoof soap]~ %hop then.kilt)
+            =^  cops  gen  (copy doom what.kilt [%this hose])
+            [[then.cops what.cops [%this hoof]] gen]
           =^  foes  gen  $(nomm corn.nomm, fax (peg fax 14), goal [%next fore duke])
           =^  suet  gen  $(nomm cost.nomm, fax (peg fax 6), goal [%next sone then.foes])
           (copy then.suet what.suet what.foes)
@@ -190,8 +207,8 @@
           ?-  -.goal
               %done
             =^  reef  gen  rain
-            =^  tear  gen  (emit %tear [%imm 0 reef]~ %don reef)
-            =^  fear  gen  (emit %fear [%imm 1 reef]~ %don reef)
+            =^  tear  gen  (emit 0 %tear [%imm 0 reef]~ %don reef)
+            =^  fear  gen  (emit 0 %fear [%imm 1 reef]~ %don reef)
             $(goal [%pick tear fear])
           ::
               %next
@@ -201,14 +218,14 @@
             =^  tare  gen  rain
             =^  fare  gen  rain
             =^  thin  gen
-              (emit %thin [%phi ~[tare fare] sass.what.goal]~ %hop then.goal)
-            =^  tear  gen  (emit %tear [%imm 0 tare]~ %hop thin)
-            =^  fear  gen  (emit %fear [%imm 1 fare]~ %hop thin)
+              (emit 0 %thin [%phi ~[tare fare] sass.what.goal]~ %hop then.goal)
+            =^  tear  gen  (emit 0 %tear [%imm 0 tare]~ %hop thin)
+            =^  fear  gen  (emit 0 %fear [%imm 1 fare]~ %hop thin)
             $(goal [%pick tear fear])
           ::
               %pick
             =^  coat  gen  rain
-            =^  pith  gen  (emit %pith ~ %clq coat [zero once]:goal)
+            =^  pith  gen  (emit 0 %pith ~ %clq coat [zero once]:goal)
             $(nomm pell.nomm, goal [%next [%this coat] pith], fax (peg fax 3))
           ==
         ::
@@ -217,25 +234,33 @@
               %done
             =^  rink  gen  rain
             =^  pink  gen  rain
-            =^  tike  gen  (emit %tike [%inc pink rink]~ %don rink)
-            $(nomm mall.nomm, goal [%next [%this pink] tike], fax (peg fax 3))
+            =^  tike  gen  (emit 0 %tike [%inc pink rink]~ %don rink)
+            =^  boom  gen  bomb
+            =^  sike  gen  (emit 0 %sike ~ %clq pink then.boom tike) 
+            $(nomm mall.nomm, goal [%next [%this pink] sike], fax (peg fax 3))
           ::
               %pick
             =^  rink  gen  rain
             =^  pink  gen  rain
+            =^  pint  gen  punt
             =^  pike  gen
-              (emit %pike [%inc pink rink]~ %brn rink [zero once]:goal)
-            $(nomm mall.nomm, goal [%next [%this pink] pike], fax (peg fax 3))
+              (emit 0 %pike [%inc pink rink]~ %brn rink then.pint [zero once]:goal)
+            =^  boom  gen  bomb
+            =^  like  gen  (emit 0 %like ~ %clq pink then.boom pike)
+            $(nomm mall.nomm, goal [%next [%this pink] like], fax (peg fax 3))
           ::
               %next
-            ?:  ?=(%both -.what.goal)  bomb
+            ?:  ?=(%both -.what.goal)  punt
             =^  rink  gen
               ?:  ?=(%none -.what.goal)
                 rain
               [sass.what.goal gen]
             =^  pink  gen  rain
             =^  bike  gen
-              (emit %bike [%inc pink rink]~ %hop then.goal)
+              (emit 0 %bike [%inc pink rink]~ %hop then.goal)
+            =^  boom  gen  bomb
+            =^  mike  gen
+              (emit 0 %mike ~ [%clq pink then.boom bike])
             $(nomm mall.nomm, goal [%next [%this pink] bike], fax (peg fax 3))
           ==
         ::
@@ -243,8 +268,8 @@
           ?-  -.goal
               %done
             =^  qual  gen  rain
-            =^  reek  gen  (emit %reek [%imm 0 qual]~ %don qual)
-            =^  riff  gen  (emit %riff [%imm 1 qual]~ %don qual)
+            =^  reek  gen  (emit 0 %reek [%imm 0 qual]~ %don qual)
+            =^  riff  gen  (emit 0 %riff [%imm 1 qual]~ %don qual)
             $(goal [%pick reek riff])
           ::
               %next
@@ -257,15 +282,15 @@
             =^  tare  gen  rain
             =^  fare  gen  rain
             =^  ward  gen
-              (emit %ward [%phi ~[tare fare] sass.what.goal]~ %hop then.goal)
-            =^  ware  gen  (emit %ware [%imm 0 tare]~ %hop ward)
-            =^  mare  gen  (emit %mare [%imm 1 fare]~ %hop ward)
+              (emit 0 %ward [%phi ~[tare fare] sass.what.goal]~ %hop then.goal)
+            =^  ware  gen  (emit 0 %ware [%imm 0 tare]~ %hop ward)
+            =^  mare  gen  (emit 0 %mare [%imm 1 fare]~ %hop ward)
             $(goal [%pick ware mare])
           ::
               %pick
             =^  tire  gen  rain
             =^  tear  gen  rain
-            =^  pare  gen  (emit %pare ~ %eqq tire tear [zero once]:goal)
+            =^  pare  gen  (emit 0 %pare ~ %eqq tire tear [zero once]:goal)
             =^  than  gen
               $(nomm that.nomm, goal [%next [%this tear] pare], fax (peg fax 7))
             =^  thin  gen
@@ -278,7 +303,24 @@
           ==
         ::
             %six
-          ~|  %todo  !!
+          ?:  ?=(%next -.goal)
+            =^  [join=bile teal=need feel=need]  gen  (phil goal)
+            =^  fest  gen
+              $(nomm else.nomm, fax (peg fax 15), goal [%next feel join])
+            =^  zest  gen
+              $(nomm then.nomm, fax (peg fax 14), goal [%next teal join])
+            =^  [bead=need tile=bile file=bile]  gen  (sect zest fest)
+            =^  cond  gen
+              $(nomm what.nomm, fax (peg fax 6), goal [%pick tile file])
+            (copy then.cond what.cond bead)
+          =^  fest  gen
+            $(nomm else.nomm, fax (peg fax 15))
+          =^  zest  gen
+            $(nomm then.nomm, fax (peg fax 14))
+          =^  [bead=need tile=bile file=bile]  gen  (sect zest fest)
+          =^  cond  gen
+            $(nomm what.nomm, fax (peg fax 6), goal [%pick tile file])
+          (copy then.cond what.cond bead)
         ::
             %eve
           =^  thin  gen  $(nomm then.nomm, fax (peg fax 7))
@@ -303,14 +345,18 @@
         ~|  %todo  !!
       :: emit a basic block
       ++  emit
-        |=  [thus=@tas =blob]
+        |=  [tis=@ thus=@tas =blob]
         ^-  [bile _gen]
-        =/  bill  [%bile fax thus i.toil]
+        =/  bill  [%bile fax tis thus i.toil]
         [bill gen(will (~(put by will.gen) bill blob))]
       ++  bomb
         ^-  [next _gen]
-        =^  boom  gen  (emit %boom ~ %bom ~)
+        =^  boom  gen  (emit 0 %boom ~ %bom ~)
         [[%next [%none ~] boom] gen]
+      ++  punt
+        ^-  [next _gen]
+        =^  drop  gen  (emit 0 %drop ~ %pun ~)
+        [[%next [%none ~] drop] gen]
       ::  get a new SSA register
       ++  rain
         ^-  [@stir _gen]
@@ -376,7 +422,7 @@
         ?>  =(~ t.salt)
         =^  bill  gen
           ?~  pose  [then gen]
-          (emit %copy pose %hop then)
+          (emit 0 %copy pose %hop then)
         [[%next i.salt bill] gen]
       ::  split a need
       ++  lyse
@@ -389,7 +435,7 @@
           =^  hire  gen  rain
           =^  tire  gen  rain
           =^  bill  gen
-            (emit %lyse [%con hire tire sass.what.next]~ %hop then.next)
+            (emit 0 %lyse [%con hire tire sass.what.next]~ %hop then.next)
           [[bill [%this hire] %this tire] gen]
         ==
       ::  push a need down an axis
@@ -416,8 +462,8 @@
           ::
               %both
             ?@  a.i.tack
-              =^  boom  gen  bomb
-              [then.boom gen]
+              =^  pint  gen  punt
+              [then.pint gen]
             %=  $
                 tack
               :*  [-.a.i.tack left.need.i.tack]
@@ -429,7 +475,7 @@
               %none  $(tack t.tack)
           ==
         ?~  pose  [bill gen]
-        (emit %mede pose %hop bill)
+        (emit 0 %mede pose %hop bill)
       ::  split a register to a need
       ++  reed
         |=  next
@@ -461,17 +507,40 @@
           ==
         ?>  ?=(^ salt)
         ?>  =(~ t.salt)
-        ?~  pose  [[then i.salt] gen]
-        =^  beer  gen  (emit %beer (flop pose) %hop then)
-        [[beer i.salt] gen]
+        ?:  =(~ pose)  [[then i.salt] gen]
+        =^  pint  gen  punt
+        =|  bail=@
+        =/  benz=site  [%hop then]
+        =|  bock=(list pole)
+        |-  ^-  [[bile @stir] _gen]
+        ?^  pose
+          ?:  ?=(%hed -.i.pose)
+            =^  beer  gen  (emit bail %beer [i.pose bock] benz)
+            %=  $
+              bail  .+(bail)
+              pose  t.pose
+              bock  ~
+              benz  [%clq +<.i.pose beer then.pint]
+            ==
+          ?:  ?=(%tal -.i.pose)
+            =^  beer  gen  (emit bail %beer [i.pose bock] benz)
+            %=  $
+              bail  .+(bail)
+              pose  t.pose
+              bock  ~
+              benz  [%clq +<.i.pose beer then.pint]
+            ==
+          $(bock [i.pose bock], pose t.pose)
+        =^  wine  gen  (emit bail %wine bock benz)
+        [[wine i.salt] gen]
       ::  fresh variables for a call
       ++  cane
         |=  [=need =bell nuts=(unit next)]
-        ^-  [next _gen]
+        ^-  [[next @stir] _gen]
         =|  rear=(list @stir)
         =/  tack=(list (unit ^need))  ~[`need]
         =|  news=(list ^need)
-        |-  ^-  [next _gen]
+        |-  ^-  [[next @stir] _gen]
         ?^  tack
           ?~  i.tack
             ?>  ?=(^ news)
@@ -489,12 +558,13 @@
           ==
         ?>  ?=(^ news)
         ?>  =(~ t.news)
+        =^  sofa  gen  rain
         =^  kale  gen
           ?~  nuts
-            (emit %cave ~ %jmp bell rear)
+            (emit 0 %cave ~ %jmp bell sofa rear)
           =^  [bill=bile rats=@stir]  gen  (reed u.nuts)
-          (emit %kale ~ %cal bell rear rats bill)
-        [[%next i.news kale] gen]
+          (emit 0 %kale ~ %cal bell sofa rear rats bill)
+        [[[%next i.news kale] sofa] gen]
       ::  fresh variables for a phi node
       ++  phil
         |=  =next
@@ -528,15 +598,141 @@
         ?>  =(~ t.neat)
         =^  jill  gen
           ?~  pose  [then.next gen]
-          (emit %jill pose %hop then.next)
+          (emit 0 %jill pose %hop then.next)
         [[jill i.neat] gen]
       ::  intersect needs prior to conditional
       ++  sect
         |=  [true=next lies=next]
         =|  toes=(list pole)
         =|  foes=(list pole)
+        =/  note=(list (unit [t=need f=need]))  ~[`[what.true what.lies]]
         =|  neat=(list need)
-        ~|  %todo  !!  ::  XX START HERE need to run down two trees at once
+        |-  ^-  [[need bile bile] _gen]  :: intersect needs, when only one is %both, build split code for it
+        ?^  note
+          ?^  i.note
+            ?:  ?=(%both -.t.u.i.note)
+              ?:  ?=(%both -.f.u.i.note)
+                %=  $
+                    note
+                  :*  `[left.t left.f]:u.i.note
+                      `[rite.t rite.f]:u.i.note
+                      ~
+                      t.note
+                  ==
+                ==
+              =^  tare  gen
+                ?:  ?=(%this -.f.u.i.note)
+                  [sass.f.u.i.note gen]
+                rain
+              =/  spit=(list [n=need r=@stir])  [t.u.i.note tare]~
+              |-  ^-  [[need bile bile] _gen]
+              ?^  spit
+                ?-  -.n.i.spit
+                    %both
+                  =^  l  gen  rain
+                  =^  r  gen  rain
+                  %=  $
+                    toes  [[%hed r.i.spit l] [%tal r.i.spit r] toes]
+                    spit  [[left.n.i.spit l] [rite.n.i.spit r] t.spit]
+                  ==
+                ::
+                    %none
+                  $(spit t.spit)
+                ::
+                    %this
+                  %=  $
+                    toes  [[%mov r.i.spit sass.n.i.spit] toes]
+                    spit  t.spit
+                  ==
+                ==
+              ^$(neat [[%this tare] neat], note t.note)
+            ?:  ?=(%both -.f.u.i.note)
+              =^  tare  gen
+                ?:  ?=(%this -.t.u.i.note)
+                  [sass.t.u.i.note gen]
+                rain
+              =/  spit=(list [n=need r=@stir])  [f.u.i.note tare]~
+              |-  ^-  [[need bile bile] _gen]
+              ?^  spit
+                ?-  -.n.i.spit
+                    %both
+                  =^  l  gen  rain
+                  =^  r  gen  rain
+                  %=  $
+                    foes  [[%hed r.i.spit l] [%tal r.i.spit r] foes]
+                    spit  [[left.n.i.spit l] [rite.n.i.spit r] t.spit]
+                  ==
+                ::
+                    %none
+                  $(spit t.spit)
+                ::
+                    %this
+                  %=  $
+                    foes  [[%mov r.i.spit sass.n.i.spit] foes]
+                    spit  t.spit
+                  ==
+                ==
+              ^$(neat [[%this tare] neat], note t.note)
+            ?:  ?=(%none -.t.u.i.note)  $(note t.note, neat [f.u.i.note neat])
+            ?:  ?=(%none -.f.u.i.note)  $(note t.note, neat [t.u.i.note neat])
+            %=  $
+              foes  [[%mov [sass.t sass.f]:u.i.note] foes]
+              note  t.note
+              neat  [t.u.i.note neat]
+            ==
+          ?>  ?=(^ neat)
+          ?>  ?=(^ t.neat)
+          $(note t.note, neat [[%both i.t.neat i.neat] t.t.neat])
+        ?>  ?=(^ neat)
+        ?>  =(~ t.neat)
+        =|  bale=@
+        =|  bock=(list pole)
+        =/  benz=site  [%hop then.true]
+        =^  pint  gen  punt
+        |-  ^-  [[need bile bile] _gen]  :: add clq operations before every hed or tal in toes
+        ?^  toes  
+          ?:  ?=(%hed -.i.toes)
+            =^  tile  gen  (emit bale %tile [i.toes bock] benz)
+            %=  $
+              benz  [%clq +<.i.toes tile then.pint]
+              bock  ~
+              toes  t.toes
+              bale  .+(bale)
+            ==
+          ?:  ?=(%tal -.i.toes)
+            =^  tile  gen  (emit bale %tile [i.toes bock] benz)
+            %=  $
+              benz  [%clq +<.i.toes tile then.pint]
+              bock  ~
+              toes  t.toes
+              bale  .+(bale)
+            ==
+          $(bock [i.toes bock], toes t.toes)
+        =^  sits  gen  (emit bale %sits bock benz)
+        =.  bale  0
+        =.  bock  ~
+        =.  benz  [%hop then.lies]
+        |-  ^-  [[need bile bile] _gen]  :: add clq operations before every hed or tal in foes
+        ?^  foes
+          ?:  ?=(%hed -.i.foes)
+            =^  file  gen  (emit bale %file [i.foes bock] benz)
+            %=  $
+              benz  [%clq +<.i.foes file then.pint]
+              bock  ~
+              foes  t.foes
+              bale  .+(bale)
+            ==
+          ?:  ?=(%tal -.i.foes)
+            =^  file  gen  (emit bale %file [i.foes bock] benz)
+            %=  $
+              benz  [%clq +<.i.foes file then.pint]
+              bock  ~
+              foes  t.foes
+              bale  .+(bale)
+            ==
+          $(bock [i.foes bock], foes t.foes)
+        =^  sift  gen  (emit bale %sift bock benz)
+        [[i.neat sits sift] gen]
       --
     [redo this]
   --
