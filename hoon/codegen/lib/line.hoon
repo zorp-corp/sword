@@ -327,7 +327,27 @@
           $(nomm once.nomm, goal thin, fax (peg fax 6))
         ::
             %ten
-          ~|  %todo  !!
+          ?-  -.goal
+              %done
+            =^  last  gen  rain
+            =^  dead  gen  (emit 0 %dead ~ %don last)
+            $(goal [%next [%this last] dead])
+          ::
+              %pick
+            ?.  =(here.nomm 1)  punt
+            =^  flip  gen  rain
+            =^  pint  gen  punt
+            =^  deep  gen  (emit 0 %deep ~ %brn flip then.pint [zero once]:goal)
+            $(goal [%next [%this flip] deep])
+          ::
+              %next
+            =^  [twig=need tree=need then=bile]  gen  (into here.nomm goal)
+            =^  nest  gen
+              $(nomm tree.nomm, fax (peg fax 15), goal [%next tree then])
+            =^  eggs  gen
+              $(nomm tree.nomm, fax (peg fax 14), goal [%next twig then.nest])
+            (copy then.eggs what.eggs what.nest)
+          ==
         ::
             %sip
           ~|  %todo  !!
@@ -442,12 +462,64 @@
       ++  from
         |=  [axe=@ =need]
         ?<  =(0 axe)
-        |-  ^-  ^need
+        |-  ^-  _need
         ?:  =(1 axe)  need
         ?-  (cap axe)
           %2  [%both $(axe (mas axe)) [%none ~]]
           %3  [%both $(axe (mas axe)) [%none ~]]
         ==
+      ::  split a need along an axis
+      ++  into
+        |=  [axe=@ feed=next]
+        ?<  =(0 axe)
+        =|  bead=(list [c=?(%2 %3) n=need])
+        =|  pose=(list pole)
+        |-  ^-  [[need need bile] _gen]
+        ?.  =(1 axe)
+          ?-  -.what.feed
+              %none
+            $(bead [[(cap axe) %none ~] bead], axe (mas axe))
+          ::
+              %both
+            ?-  (cap axe)
+                %2
+              %=  $
+                bead  [[%2 rite.what.feed] bead]
+                what.feed  left.what.feed
+                axe  (mas axe)
+              ==
+            ::
+                %3
+              %=  $
+                bead  [[%3 left.what.feed] bead]
+                what.feed  rite.what.feed
+                axe  (mas axe)
+              ==
+            ==
+          ::
+              %this
+            =^  l  gen  rain
+            =^  r  gen  rain
+            =.  pose  [[%con l r sass.what.feed] pose]
+            ?-  (cap axe)
+                %2
+              $(bead [[%2 [%this r]] bead], what.feed [%this l], axe (mas axe))
+            ::
+                %3
+              $(bead [[%3 [%this l]] bead], what.feed [%this r], axe (mas axe))
+            ==
+          ==
+        =/  lead=need  [%none ~]
+        |-  ^-  [[need need bile] _gen]
+        ?^  bead
+          ?-  c.i.bead
+            %2  $(bead t.bead, lead [%both lead n.i.bead])
+            %3  $(bead t.bead, lead [%both n.i.bead lead])
+          ==
+        =^  gill  gen
+          ?~  pose  [then.feed gen]
+          (emit 0 %gill pose %hop then.feed)
+        [[what.feed lead gill] gen]
       ::  split an immediate to a need
       ++  mede
         |=  [bill=bile a=* =need]
