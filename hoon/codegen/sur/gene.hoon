@@ -30,7 +30,7 @@
       [%tal @stir @stir]        :: Take tail head of first SSA and place in second.
                                 ::  Undefined if first SSA not a cell
       [%men @stir]              :: Push onto the mean stack
-      [%man @stir]              :: Pop from the mean stack
+      [%man ~]                  :: Pop from the mean stack
       [%hit @stir]              :: Profiling hit counter
       [%slg @stir]              :: Debugging print
       [%mew @stir @stir @stir @stir]  :: Cache write - cache key - subject - formula - result
@@ -60,7 +60,7 @@
                                                 ::   subject in register list
       [%spy @stir @stir @stir bile]             :: Scry with the ref/path pair in the first 2 SSA registers
                                                 ::   define the third as the result
-      [%mer @stir @stir @stir bile bile]        :: Cache read: key - subject - formula - hit - miss
+      [%mer @stir @stir @stir @stir bile bile]  :: Cache read: key - subject - formula - hit - miss
       [%don @stir]                              :: Finish the procedure, returning the value in the SSA
       [%pun ~]                                  :: Punt to tree-walking nock, with a saved mean stack, subject, and formula
       [%bom ~]                                  :: Crash immediately without punting

@@ -379,10 +379,118 @@
           $(nomm then.nomm, fax (peg fax 7))
         ::
             %tip
-          ~|  %todo  !!
+          ?:  ?=(?(%hunk %hand %lose %mean %spot) hint.nomm)
+            =^  mane  gen  rain
+            =^  teak  gen  rain
+            =^  seek  gen  rain
+            ?-  -.goal
+                %done
+              =^  real  gen  $(nomm then.nomm, fax (peg fax 15))
+              =^  dint  gen
+                %:  emit
+                    0  %dint
+                    :~  [%imm hint.nomm teak]
+                        [%con teak mane seek]
+                        [%men seek]
+                    ==
+                    %hop  then.real
+                ==
+              =^  fake  gen
+                %=  $
+                  nomm  vice.nomm
+                  fax  (peg fax 14)
+                  goal  [%next [%this mane] dint]
+                ==
+              (copy then.fake what.fake what.real)
+            ::
+                %pick
+              =^  tame  gen  (emit 0 %tame [%man ~]~ %hop zero.goal)
+              =^  fame  gen  (emit 0 %fame [%man ~]~ %hop once.goal)
+              =^  real  gen
+                $(nomm then.nomm, fax (peg fax 15), goal [%pick tame fame])
+              =^  maps  gen
+                %:  emit
+                    0  %maps
+                    :~  [%imm hint.nomm teak]
+                        [%con teak mane seek]
+                        [%men seek]
+                    ==
+                    %hop  then.real
+                ==
+              =^  fake  gen
+                %=  $
+                  nomm  vice.nomm
+                  fax  (peg fax 14)
+                  goal  [%next [%this mane] maps]
+                ==
+              (copy then.fake what.fake what.real)
+            ::
+                %next
+              =^  pops  gen  (emit 0 %pops [%man ~]~ %hop then.goal)
+              =^  real  gen
+                $(nomm then.nomm, fax (peg fax 15), then.goal pops)
+              =^  naps  gen
+                %:  emit
+                  0  %naps
+                  :~  [%imm hint.nomm teak]
+                      [%con teak mane seek]
+                      [%men seek]
+                  ==
+                  %hop  then.real
+                ==
+              =^  fake  gen
+                %=  $
+                  nomm  vice.nomm
+                  fax  (peg fax 14)
+                  goal  [%next [%this mane] naps]
+                ==
+              (copy then.fake what.fake what.real)
+            ==
+          ?:  ?=(?(%live %slog) hint.nomm)
+            =^  clue  gen  rain
+            =^  real  gen  $(nomm then.nomm, fax (peg fax 15))
+            =^  wave  gen
+              ?:  ?=(%live hint.nomm)
+                (emit 0 %wave [%hit clue]~ %hop then.real)
+              (emit 0 %save [%slg clue]~ %hop then.real)
+            =^  fake  gen
+              $(nomm vice.nomm, fax (peg fax 14), goal real(then wave))
+            (copy then.fake what.fake what.real)
+          ::  XX we need to save the formula in %tip for this
+          ~?  ?=(%memo hint.nomm)  '%memo codegen is TODO'
+          =^  real  gen  $(nomm then.nomm, fax (peg fax 15))
+          =^  fake  gen
+            $(nomm vice.nomm, fax (peg fax 14), goal [%next [%none ~] then.real])
+          (copy then.fake what.fake what.real)
         ::
             %elf
-          ~|  %todo  !!
+          ?-  -.goal
+              %done
+            =^  last  gen  rain
+            =^  deft  gen  (emit 0 %deft ~ %don last)
+            $(goal [%next [%this last] deft])
+          ::
+              %pick
+            =^  pint  gen  punt
+            =^  flip  gen  rain
+            =^  heft  gen  (emit 0 %heft ~ %brn flip then.pint [zero once]:goal)
+            $(goal [%next [%this flip] heft])
+          ::
+              %next
+            =^  [weft=bile good=@stir]  gen  (reed goal)
+            =^  home  gen  rain
+            =^  path  gen  rain
+            =^  show  gen  (emit 0 %show ~ %spy home path good weft)
+            =^  trot  gen
+              $(nomm walk.nomm, fax (peg fax 6), goal [%next [%this path] show])
+            =^  paid  gen
+              %=  $
+                nomm  rent.nomm
+                fax  (peg fax 7)
+                goal  [%next [%this home] then.trot]
+              ==
+            (copy then.paid what.paid what.trot)
+          ==
         ==
       ::  emit indirect entry code
       ++  kerf
