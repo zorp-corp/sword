@@ -18,6 +18,9 @@ const DIRECT_MASK: u64 = !(u64::MAX >> 1);
 /** Maximum value of a direct atom. Values higher than this must be represented by indirect atoms. */
 pub const DIRECT_MAX: u64 = u64::MAX >> 1;
 
+/** Highest direct bit (since leading 0 marks directness) */
+const DIRECT_BITS: u64 = 62;
+
 /** Tag for an indirect atom. */
 const INDIRECT_TAG: u64 = u64::MAX & DIRECT_MASK;
 

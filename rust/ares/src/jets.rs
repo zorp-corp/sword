@@ -105,6 +105,7 @@ pub mod util {
     use std::result;
 
     /**
+     * Address-based size checks.
      * Currently, only addresses indexable by the first 48 bits are reachable by 
      * modern 64-bit CPUs.
      */
@@ -115,7 +116,7 @@ pub mod util {
         a.checked_add(b).filter(|x| x <= &MAX_BIT_LENGTH).ok_or(JetErr::NonDeterministic)
     }
 
-    /// Performs addition that returns None on Noun size overflow
+    /// Performs subtraction that returns None on Noun size overflow
     pub fn checked_sub(a: usize, b: usize) -> result::Result<usize, JetErr> {
         a.checked_sub(b).ok_or(JetErr::NonDeterministic)
     }
@@ -128,6 +129,51 @@ pub mod util {
             Err(JetErr::NonDeterministic)
         } else {
             Ok(res)
+        }
+    }
+
+    /**
+     * Value-based size operations.
+     * Up to 64 bits are allowed, then it's a UBig.
+     */
+    const MAX_BIT_LENGTH: u64 = (1 << 63) - 1;
+
+    /// Performs addition that returns UBig on Noun size overflow
+    pub fn safe_add(a: u64, b: u64) -> result::Either<u64, UBig> {
+        if a <= (crate::noun::DIRECT_MAX - b) {
+            a + b
+        } else {
+            ubig!(a) + ubig!(b)
+        }
+    }
+
+    /// Performs multiplication that returns UBig on Noun size overflow
+    pub fn safe_mul(a: u64, b: u64) -> result::Either<u64, UBig> {
+        if a == 0 || b == 0 {
+            return 0;
+        }
+        if a == 1 {
+            return b;
+        }
+        if b == 1 {
+            return a;
+        }
+        
+        if a <= (crate::noun::DIRECT_MAX / b) {
+            a * b
+        } else {
+            ubig!(a) * ubig!(b)
+        }
+    }
+
+    /// Performs left-shift that returns UBig on Noun size overflow
+    /// Must be smaller than crate::noun::DIRECT_BITS, which is 62
+    /// bits (not 63), thus the decrement
+    pub fn safe_shl(a: u64, b: u64) -> result::Either<u64, UBig> {
+        if b <= (a.leading_zeros() - 1) {
+            a << b
+        } else {
+            ubig!(a) << ubig!(b)
         }
     }
 
@@ -196,6 +242,25 @@ pub mod util {
         Ok(())
     }
 
+    /// Addition
+    pub fn add(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            let a_small: u64 = a.data();
+            let b_small: u64 = b.data();
+
+            if a_small > MAX_BIT_LENGTH as u64 - b_small {
+                Err(NotRepresentable)
+            } else {
+                Ok(Atom::new(stack, a_small + b_small))
+            }
+        } else {
+            let a_big = a.as_ubig(stack);
+            let b_big = b.as_ubig(stack);
+            let res = UBig::add_stack(stack, a_big, b_big);
+            Ok(Atom::from_ubig(stack, &res))
+        }
+    }
+    
     /// Subtraction
     pub fn sub(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
@@ -219,6 +284,63 @@ pub mod util {
                 let res = UBig::sub_stack(stack, a_big, b_big);
                 Ok(Atom::from_ubig(stack, &res))
             }
+        }
+    }
+
+    /// Multiplication
+    pub fn mul(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            let a_small = a.data();
+            let b_small = b.data();
+
+            if a_small > MAX_BIT_LENGTH as u64 / b_small {
+                Err(NotRepresentable)
+            } else {
+                Ok(Atom::new(stack, a_small * b_small))
+            }
+        } else {
+            let a_big = a.as_ubig(stack);
+            let b_big = b.as_ubig(stack);
+            let res = UBig::mul_stack(stack, a_big, b_big);
+            Ok(Atom::from_ubig(stack, &res))
+        }
+    }
+
+    /// Division
+    pub fn div(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            let a_small = a.data();
+            let b_small = b.data();
+
+            if b_small == 0 {
+                Err(NotRepresentable)
+            } else {
+                Ok(Atom::new(stack, a_small / b_small))
+            }
+        } else {
+            let a_big = a.as_ubig(stack);
+            let b_big = b.as_ubig(stack);
+            let res = UBig::div_stack(stack, a_big, b_big);
+            Ok(Atom::from_ubig(stack, &res))
+        }
+    }
+
+    /// Modulus
+    pub fn mod_(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            let a_small = a.data();
+            let b_small = b.data();
+
+            if b_small == 0 {
+                Err(NotRepresentable)
+            } else {
+                Ok(Atom::new(stack, a_small % b_small))
+            }
+        } else {
+            let a_big = a.as_ubig(stack);
+            let b_big = b.as_ubig(stack);
+            let res = UBig::rem_stack(stack, a_big, b_big);
+            Ok(Atom::from_ubig(stack, &res))
         }
     }
 

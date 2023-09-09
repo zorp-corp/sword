@@ -3,9 +3,12 @@
 use crate::jets;
 use crate::jets::JetErr::*;
 use crate::jets::util::*;
+use crate::jets::util::test::{assert_jet, assert_jet_err, assert_jet_ubig, assert_nary_jet_ubig, init_stack, A};
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{Noun, D};
+use crate::noun::{Atom, Noun, D};
+//use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
+use ibig::{UBig, ubig};
 
 crate::gdb!();
 
@@ -46,6 +49,73 @@ pub fn jet_mas(
         let e = sub(stack, tom, c)?;
         
         Ok(con(stack, e, d).as_noun())
+    }
+}
+
+/*
+++  peg
+  ~/  %peg
+  |=  [a=@ b=@]
+  ?<  =(0 a)
+  ^-  @
+  ?-  b
+    %1  a
+    %2  (mul a 2)
+    %3  +((mul a 2))
+    *   (add (mod b 2) (mul $(b (div b 2)) 2))
+  ==
+*/
+pub fn jet_peg(
+    stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun
+) -> jets::Result {
+    let arg = slot(subject, 6)?;
+    let a = slot(arg, 2)?.as_atom()?;
+    let b = slot(arg, 3)?.as_atom()?;
+
+    if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+        if a.as_direct()?.data() == 0 {
+            return Err(Deterministic);
+        }
+        //  XX JET MISMATCH IMPORTED FROM VERE
+        if b.as_direct()?.data() == 0 {
+            return Err(Deterministic);
+        }
+
+        let c = met(0, b);
+        let d = c - 1;
+        let e = d << 1;
+        let f = b.as_direct()?.data() - e;  // left or right child
+        let g = d << a; // can overflow in which case use ubig
+        // checked_left_shift, checked_add only good for usize 2^{47} max size but for values okay to 2^{64}
+        // wrappers on checked_add, checked_sub native to numbers
+        // no native ch_lsh in Rust---should have version for values, other for addresses
+        // so you could rewrite to just use other jets
+        let h = checked_add(f, g);
+    
+        //  XX MAY RETURN INDIRECT ATOM
+        D(h)
+    } else {
+        let a_big = a.as_ubig(stack)?;
+        let b_big = b.as_ubig(stack)?;
+
+        if a_big == 0 {
+            return Err(Deterministic);
+        }
+        //  XX JET MISMATCH IMPORTED FROM VERE
+        if b_big == 0 {
+            return Err(Deterministic);
+        }
+
+        let c = met(0, b);
+        let d = c - 1;
+        let e = checked_left_shift(d, 1);
+        let f = b_big - e;  // left or right child
+        let g = checked_left_shift(d, a);
+        let h = checked_add(f, g);
+
+        Ok(Atom::from_ubig(stack, &h).as_noun())
     }
 }
 

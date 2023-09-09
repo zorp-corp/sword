@@ -242,7 +242,7 @@ pub fn jet_lth(
 }
 
 pub fn jet_max(
-    _stack: &mut NockStack,
+    stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
     subject: Noun,
 ) -> jets::Result {
@@ -260,7 +260,7 @@ pub fn jet_max(
         a.as_noun()
     } else if a.bit_size() < b.bit_size() {
         b.as_noun()
-    } else if a.as_ubig(_stack) >= b.as_ubig(_stack) {
+    } else if a.as_ubig(stack) >= b.as_ubig(stack) {
         a.as_noun()
     } else {
         b.as_noun()
