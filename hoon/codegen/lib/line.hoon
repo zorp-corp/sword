@@ -350,7 +350,33 @@
           ==
         ::
             %sip
-          ~|  %todo  !!
+          ?:  ?=(%bout hint.nomm)
+            ?-  -.goal
+                %done
+              =^  last  gen  rain
+              =^  dime  gen  (emit 0 %dime ~ %don last)
+              $(goal [%next [%this last] dime])
+            ::
+                %pick
+              =^  tome  gen  (emit 0 %tome [%tom ~]~ %hop zero.goal)
+              =^  foam  gen  (emit 0 %foam [%tom ~]~ %hop once.goal)
+              =^  race  gen
+                $(nomm then.nomm, fax (peg fax 7), goal [%pick tome foam])
+              =^  tick  gen  (emit 0 %tick [%tim ~]~ %hop then.race)
+              [race(then tick) gen]
+            ::
+                %next
+              =^  stop  gen  (emit 0 %stop [%tom ~]~ %hop then.goal)
+              =^  race  gen
+                $(nomm then.nomm, fax (peg fax 7), then.goal stop)
+              =^  goes  gen  (emit 0 %goes [%tim ~]~ %hop then.race)
+              [race(then goes) gen]
+            ==
+          ?:  ?=(%meme hint.nomm)
+            =^  raft  gen  $(nomm then.nomm, fax (peg fax 7))
+            =^  meme  gen  (emit 0 %meme [%mem ~]~ %hop then.raft)
+            [raft(then meme) gen]
+          $(nomm then.nomm, fax (peg fax 7))
         ::
             %tip
           ~|  %todo  !!
