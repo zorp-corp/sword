@@ -321,19 +321,7 @@ pub fn jet_rip(
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let atom = slot(arg, 3)?.as_atom()?;
-    let len = (met(bloq, atom) + step - 1) / step;
-
-    let mut list = D(0);
-    for i in (0..len).rev() {
-        let new_atom = unsafe {
-            let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(stack, step << bloq);
-            chop(bloq, i * step, step, 0, new_slice, atom.as_bitslice())?;
-            new_indirect.normalize_as_atom()
-        };
-        list = Cell::new(stack, new_atom.as_noun(), list).as_noun();
-    }
-    Ok(list)
+    Ok(rip(bloq, step, atom))
 }
 
 pub fn jet_rsh(

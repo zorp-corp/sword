@@ -17,12 +17,34 @@
   ++  pair  |$  [head tail]  [p=head q=tail]
   +$  path  (list knot)
   +$  wire  path
-  ++  ack
+  ::  mutually recursive Ackermann functions
+  ::  test turning %spot hints on/off
+  ++  wack
+    ::  re-enable %spot hints
+    !:
     |=  [m=@ud n=@ud]
+    ::  %mean hint
+    ~_  [%leaf "I am a %mean hint via ~_ from +wack"]
+    ::  %hela hint
+    ~>  %hela
+    ::  %memo hint
+    ~+
     ?~  m  +(n)
     ?~  n
-      $(m (dec m), n 1)
-    $(m (dec m), n $(n (dec n)))
+      (tack (dec m) 1)
+    (tack (dec m) $(n (dec n)))
+  ++  tack
+    ::  disable %spot hints
+    !.
+    |=  [m=@ud n=@ud]
+    ::  %hela hint
+    ~>  %hela
+    ::  %memo hint
+    ~+
+    ?~  m  +(n)
+    ?~  n
+      (wack (dec m) 1)
+    (wack (dec m) $(n (dec n)))
   --  =>
   ::
   |%
@@ -32,10 +54,8 @@
   ++  poke
     |=  [now=@da ovo=ovum]
     ^-  ^
-    :: ~>  %slog.[0 'got']
-    :: ~>  %slog.[0 -.card.ovo]
-    =/  fec  [//term/1 %blit [%put (snoc "A(2,1) = " (add 48 (ack 2 1)))] [%nel ~] ~]
-    [[fec ~] ..poke]
+    ~>  %slog.[0 (wack 2 1)]
+    [~ ..poke]
   --
   ::
   |=  [now=@da ovo=ovum]

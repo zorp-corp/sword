@@ -741,6 +741,35 @@ fn match_hint_pre_nock(
             let trace = Cell::new(stack, tag.as_noun(), res).as_noun();
             stack.trace_push(trace);
         }
+        tas!(b"hela") => {
+            // Joe: "to render to a tank call mook in Arvo with u3v_wish in Vere"
+            // need to make tank from stack trace; need mook equivalent
+            //
+            //      u3_serf_writ -> u3_serf_work -> _serf_work -> _serf_poke -> u3m_soft -> u3dc -> u3v_do -> u3v_wish -> +wish in Arvo
+            //                                                                               |
+            //                                                                               V
+            //                                                                              mook
+            //
+            //  No +wish in toy Arvo; missing +slap and a ton of parsing functions needed by +ream
+            //
+            //      u3t_slog        = print on thing directly
+            //      u3t_slog_trace  = print stack trace             = - convert tone to toon
+            //                                                        - presume toon is [%2 tang]
+            //                                                        - print each tank in tang one at at time using u3t_slog
+            //      u3t_slog_hela   = print entire stack trace      = - weld stacks from all roads together
+            //                                                        - call u3t_slog_trace on combined stack
+            //      u3t_slog_nara   = print home road stack trace   = call u3t_slog_trace on home road stack
+            //
+            if let Some(not) = newt {
+                // flop the trace_stack                 XX: u3m_soft doesn't do this!!!
+                // call mook on [%2 trace_stack]
+                // slog each item in the trace
+                //      if priority given: use priority
+                //      if priority not given: priority = 0
+                // delete data structure
+                
+            }
+        }
         _ => {}
     }
 

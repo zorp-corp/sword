@@ -1,7 +1,7 @@
 pub mod bits;
 pub mod hash;
 pub mod math;
-pub mod mink;
+pub mod mock;
 pub mod tree;
 
 use crate::jets::bits::*;
@@ -237,6 +237,33 @@ pub mod util {
         }
     }
 
+    /// Measure the number of bloqs in an atom
+    pub fn met(bloq: usize, a: Atom) -> usize {
+        if unsafe { a.as_noun().raw_equals(D(0)) } {
+            0
+        } else if bloq < 6 {
+            (a.bit_size() + ((1 << bloq) - 1)) >> bloq
+        } else {
+            let bloq_word = bloq - 6;
+            (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
+        }
+    }
+
+    pub fn rip(bloq: usize, step: usize, atom: Atom) -> Noun {
+        let len = (met(bloq, atom) + step - 1) / step;
+        let mut list = D(0);
+        for i in (0..len).rev() {
+            let new_atom = unsafe {
+                let (mut new_indirect, new_slice) =
+                    IndirectAtom::new_raw_mut_bitslice(stack, step << bloq);
+                chop(bloq, i * step, step, 0, new_slice, atom.as_bitslice())?;
+                new_indirect.normalize_as_atom()
+            };
+            list = Cell::new(stack, new_atom.as_noun(), list).as_noun();
+        }
+        list
+    }
+
     /// Binary OR
     pub fn con(stack: &mut NockStack, a: Atom, b: Atom) -> Atom {
         let new_size = cmp::max(a.size(), b.size());
@@ -247,18 +274,6 @@ pub mod util {
             dest[..a_bit.len()].copy_from_bitslice(a_bit);
             *dest |= b.as_bitslice();
             atom.normalize_as_atom()
-        }
-    }
-
-    /// Measure the number of bloqs in an atom
-    pub fn met(bloq: usize, a: Atom) -> usize {
-        if unsafe { a.as_noun().raw_equals(D(0)) } {
-            0
-        } else if bloq < 6 {
-            (a.bit_size() + ((1 << bloq) - 1)) >> bloq
-        } else {
-            let bloq_word = bloq - 6;
-            (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
         }
     }
 

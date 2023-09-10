@@ -227,6 +227,16 @@ pub fn T<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> Noun {
     Cell::new_tuple(allocator, tup).as_noun()
 }
 
+/// Create $tape Noun from ASCII string
+pub fn tape<A: NounAllocator>(allocator: &mut A, text: &str) -> Noun {
+    let mut res = D(0);
+    // XX: Need deferred Cell allocation, like u3i_defcons in Vere
+    for c in str.bytes().rev() {
+        res = T(allocator, &[D(c as u64), res])
+    }
+    res
+}
+
 /** An indirect atom.
  *
  * Indirect atoms represent atoms above DIRECT_MAX as a tagged pointer to a memory buffer
