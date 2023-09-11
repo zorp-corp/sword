@@ -6,10 +6,9 @@
 ++  lean
   =|  =hill
   |=  moan=(jar * hone:noir)
-  =*  this  .
-  ^-  [_hill _this]
   =>
   |%
+  ++  this  .
   ::  enumerate difference in arms between hill and moan
   ++  peck
     ^-  [new=(set bell) old=(set bell)]
@@ -70,13 +69,13 @@
     ?^  back
       $(queu (flop back), back ~)
     toil
-  ::  first pass: turn nomm into linearized code
+  ::  first pass (reverse): turn nomm into linearized code
   ++  mill
-    =|  redo=(set bile)
+    =|  redo=(list [a=bell r=(list bile)])
     |=  toil=(list bell)
-    ^-  [(set bile) _this]
+    ^-  _this
     ?^  toil
-      =|  gen=[will=(map bile blob) sans=@stir redo=(set bile)]
+      =|  gen=[will=(map bile blob) sans=@stir redo=(list bile)]
       =/  =goal  [%done ~]  
       =/  fax  1
       |^
@@ -84,7 +83,7 @@
         =^  [wish=bile sire=@stir]  gen  (kerf dire)
         %=  ^$
             toil  t.toil
-            redo  (~(uni in redo) redo.gen)
+            redo  [[i.toil redo.gen] redo]
             hill
           %+  ~(put by hill)  i.toil
           [then.dire what.dire wish sire [will sans]:gen]
@@ -165,7 +164,7 @@
               ?:  ?=(%done -.goal)
                 =^  dune  gen  (emit 0 %dune ~ %lnt sofa fora)
                 [[dune [%this sofa] [%this fora]] gen]
-              =^  [fine=bile rare=@stir]  gen  (reed goal)
+              =^  [fine=bile rare=@stir]  gen  (kerf goal)
               =^  dunk  gen  (emit 0 %dunk ~ %lnk sofa fora rare fine)
               [[dunk [%this sofa] [%this fora]] gen]
             =/  hull  (~(get by hill) u.bull)
@@ -176,12 +175,12 @@
               ?:  ?=(%done -.goal)
                 =^  dude  gen  (emit 0 %dude ~ %jmp u.bull soap ~[sofa])
                 =^  dawn  gen  (emit 0 %dawn [%con sofa hoof soap]~ %hop dude)
-                =.  redo.gen  (~(put in redo.gen) dude)  
+                =.  redo.gen  [dude redo.gen]
                 [[dawn [%this sofa] [%this hoof]] gen]
-              =^  [fine=bile rare=@stir]  gen  (reed goal)
+              =^  [fine=bile rare=@stir]  gen  (kerf goal)
               =^  deed  gen  (emit 0 %deed ~ %cal u.bull soap ~[sofa] rare fine)
               =^  deem  gen  (emit 0 %deem [%con sofa hoof soap]~ %hop deed)
-              =.  redo.gen  (~(put in redo.gen) deed)
+              =.  redo.gen  [deed redo.gen]
               [[deem [%this sofa] [%this hoof]] gen]
             ::  direct with registerization
             ?:  ?=(%done -.goal)
@@ -477,7 +476,7 @@
             $(goal [%next [%this flip] heft])
           ::
               %next
-            =^  [weft=bile good=@stir]  gen  (reed goal)
+            =^  [weft=bile good=@stir]  gen  (kerf goal)
             =^  home  gen  rain
             =^  path  gen  rain
             =^  show  gen  (emit 0 %show ~ %spy home path good weft)
@@ -492,11 +491,6 @@
             (copy then.paid what.paid what.trot)
           ==
         ==
-      ::  emit indirect entry code
-      ++  kerf
-        |=  dire=next
-        ^-  [[bile @stir] _gen]
-        ~|  %todo  !!
       :: emit a basic block
       ++  emit
         |=  [tis=@ thus=@tas =blob]
@@ -683,7 +677,7 @@
         ?~  pose  [bill gen]
         (emit 0 %mede pose %hop bill)
       ::  split a register to a need
-      ++  reed
+      ++  kerf
         |=  next
         ^-  [[bile @stir] _gen]
         =/  tack=(list (unit need))  ~[`what]
@@ -768,7 +762,7 @@
         =^  kale  gen
           ?~  nuts
             (emit 0 %cave ~ %jmp bell sofa rear)
-          =^  [bill=bile rats=@stir]  gen  (reed u.nuts)
+          =^  [bill=bile rats=@stir]  gen  (kerf u.nuts)
           (emit 0 %kale ~ %cal bell sofa rear rats bill)
         [[[%next i.news kale] sofa] gen]
       ::  fresh variables for a phi node
@@ -940,8 +934,175 @@
         =^  sift  gen  (emit bale %sift bock benz)
         [[i.neat sits sift] gen]
       --
-    [redo this]
+    ::  XX redos
+    ::    - generate new registers for call site
+    ::    - split out registers generating appropriate clq branches
+    ::    - make end of original block point to first register split
+    ::      block
+    |-  ^-  _this
+    ?^  redo
+      =/  pine  (~(got by hill) a.i.redo)
+      |-
+      ?^  r.i.redo
+        =/  bock  (~(got by will.pine) i.r.i.redo)
+        =*  fax  axe.i.r.i.redo
+        ?:  ?=(%cal -.bend.bock)
+          =*  coil  +<.bend.bock :: label to call
+          =/  sill  +>+<.bend.bock :: so that we don't overconstrain the type
+          ?>  ?=(^ sill)
+          ?>  =(~ t.sill)
+          =/  tack=(list [r=@stir n=need])  [i.sill want:(~(got by hill) coil)]~
+          =|  args=(list @stir)
+          =|  pose=(list pole)
+          |-  ^-  _this  :: 
+          ?^  tack 
+            ?-  -.n.i.tack
+                %none  $(tack t.tack)
+                %this
+              %=  $
+                args  [r.i.tack args]
+                tack  t.tack
+              ==
+            ::
+                %both
+              =^  l  sans.pine  [. .+(.)]:sans.pine
+              =^  r  sans.pine  [. .+(.)]:sans.pine
+              %=  $
+                pose  [[%tal r.i.tack r] [%hed r.i.tack l] pose]
+                tack  [[r rite.n.i.tack] [l left.n.i.tack] tack]
+              ==
+            ==
+          =/  runt  [%bile fax 0 %runt a.i.redo]
+          =.  will.pine
+            (~(put by will.pine) runt [~ %pun ~])
+          =|  bail=@
+          =/  then=site  bend.bock(+>+< args)
+          =|  body=(list pole)
+          |-  ^-  _this
+          ?^  pose
+            ?:  ?=(%hed -.i.pose)
+              =/  aged=bile  [%bile fax bail %ages a.i.redo]
+              =.  will.pine
+                (~(put by will.pine) aged [[i.pose body] then])
+              %=  $
+                pose  t.pose
+                body  ~
+                then  [%clq +<.i.pose aged runt]
+              ==
+            ?:  ?=(%tal -.i.pose)
+              =/  aged=bile  [%bile fax bail %ages a.i.redo]
+              =.  will.pine
+                (~(put by will.pine) aged [[i.pose body] then])
+              %=  $
+                pose  t.pose
+                body  ~
+                then  [%clq +<.i.pose aged runt]
+              ==
+            $(body [i.pose body], pose t.pose)
+          =/  aged=bile  [%bile fax bail %ages a.i.redo]
+          =.  will.pine
+            (~(put by will.pine) aged [body then])
+          =.  will.pine
+            (~(put by will.pine) i.r.i.redo [body.bock %hop aged])
+          %=  ^^$
+            r.i.redo  t.r.i.redo
+          ==
+        ?:  ?=(%jmp -.bend.bock)
+          =*  coil  +<.bend.bock :: label to call
+          =/  sill  +>+.bend.bock :: so that we don't overconstrain the type
+          ?>  ?=(^ sill)
+          ?>  =(~ t.sill)
+          =/  tack=(list [r=@stir n=need])  [i.sill want:(~(got by hill) coil)]~
+          =|  args=(list @stir)
+          =|  pose=(list pole)
+          |-  ^-  _this  :: 
+          ?^  tack 
+            ?-  -.n.i.tack
+                %none  $(tack t.tack)
+                %this
+              %=  $
+                args  [r.i.tack args]
+                tack  t.tack
+              ==
+            ::
+                %both
+              =^  l  sans.pine  [. .+(.)]:sans.pine
+              =^  r  sans.pine  [. .+(.)]:sans.pine
+              %=  $
+                pose  [[%tal r.i.tack r] [%hed r.i.tack l] pose]
+                tack  [[r rite.n.i.tack] [l left.n.i.tack] tack]
+              ==
+            ==
+          =/  runt  [%bile fax 0 %runt a.i.redo]
+          =.  will.pine
+            (~(put by will.pine) runt [~ %pun ~])
+          =|  bail=@
+          =/  then=site  bend.bock(+>+ args)
+          =|  body=(list pole)
+          |-  ^-  _this
+          ?^  pose
+            ?:  ?=(%hed -.i.pose)
+              =/  aged=bile  [%bile fax bail %ages a.i.redo]
+              =.  will.pine
+                (~(put by will.pine) aged [[i.pose body] then])
+              %=  $
+                pose  t.pose
+                body  ~
+                then  [%clq +<.i.pose aged runt]
+              ==
+            ?:  ?=(%tal -.i.pose)
+              =/  aged=bile  [%bile fax bail %ages a.i.redo]
+              =.  will.pine
+                (~(put by will.pine) aged [[i.pose body] then])
+              %=  $
+                pose  t.pose
+                body  ~
+                then  [%clq +<.i.pose aged runt]
+              ==
+            $(body [i.pose body], pose t.pose)
+          =/  aged=bile  [%bile fax bail %ages a.i.redo]
+          =.  will.pine
+            (~(put by will.pine) aged [body then])
+          =.  will.pine
+            (~(put by will.pine) i.r.i.redo [body.bock %hop aged])
+          %=  ^^$
+            r.i.redo  t.r.i.redo
+          ==
+        ~|  '%redo-foul'  !!
+      %=  ^$
+        redo  t.redo
+        hill  (~(put by hill) a.i.redo pine)
+      ==
+    this
+  ::  second pass (forward):
+  ::    - generate come-from graph
+  ::    - track movs
+  ::    - track cons/hed/tal
+  ::    - track known cell/atom
+  ::    - eliminate/rewrite mov
+  ::    - rewrite hed/tal when register for (hed r/tal r) already exists
+  ::    - eliminate clq on known cons/atom (rewrite to hop)
+  ::    - eliminate unitary phi
+  ::  third pass (backward):
+  ::    -  track register uses
+  ::    -  eliminate unused hed/tal/cons/inc/imm
+  ::    -  unify blocks across single come-from-hop
+  ::  these passes are done sequentially on each arm
+  ::  to allow easier handoff of the come-from graph
+  ::  there are no inter-arm dependencies in these passes
+  ++  sand
+    |=  toil=(list bell)
+    ^-  [_hill _this]
+    ?^  toil
+      ~&  'todo: sand forward pass'
+      ~&  'todo: sand backward pass'
+      $(toil t.toil)
+    [hill this]
   --
+  ^-  [_hill _this]
+  =/  toil  work
+  =>  [toil (mill toil)]
+  =>  (sand -)
   [hill this]
 --
 |%
