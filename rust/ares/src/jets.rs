@@ -82,6 +82,35 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
     false
 }
 
+/**
+    +=  location    $:  pattern=(each static dynamic)
+                        name=term
+                        hooks=(map term axis)
+                    ==
+    +=  static      (each payload=* parent=location)
+    +=  dynamic     [where=axis parent=location]
+    ::
+    +=  registry    [roots=(map * location) parents=(list parent)]
+    +=  parent      (pair axis (map location location))
+    ::
+    +=  activation  $:  hot-index=@ud
+                        drivers=(map axis @ud)
+                        label=path
+                        jit=* :: FIXME: should probably be (map battery *)
+                              :: since there can be multiple batteries per location
+                    ==
+    +=  hot-info    $:  reg=registry
+                        hot-index=@ud
+                        drivers=(map axis @ud)
+                        label=path
+                    ==
+    +=  bash        @  :: battery hash (sha-256 based)
+    ::
+    +=  hot         (map bash hot-info)
+    +=  cold        (map battery=^ (pair bash registry))
+    +=  warm        (map location activation)
+*/
+
 #[repr(packed)]
 pub struct Cold {
     path_to_batteries: Hamt<Noun>,
@@ -96,11 +125,20 @@ impl Preserve for Cold {
 }
 
 impl Cold {
+    pub fn new() -> Self {
+        Self {
+            path_to_batteries: Hamt::new(),
+            battery_to_paths: Hamt::new(),
+        }
+    }
+
+    //TODO use From trait?
     /** For snapshotting, dump the cold state as a list of path X battery hierarchy pairs */
     fn as_noun(&mut self, stack: &mut NockStack) -> Noun {
         todo!()
     }
 
+    //TODO use From trait?
     /** For snapshotting, restore the cold state from a list of path X battery hierarchy pairs */
     fn from_noun(noun: &mut Noun, stack: &mut NockStack) -> Self {
         //  +=  cold        (map battery=^ (pair bash registry))
@@ -122,8 +160,11 @@ impl Cold {
     }
 
     /** Register a core */
-    fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent: &mut Atom) -> Warm {
-        todo!()
+    //TODO why are core, chum, parent mutable?
+//    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent: &mut Atom) -> Warm {
+    pub fn register(&mut self, stack: &mut NockStack, core: &Noun, chum: &Noun, parent: &Atom) -> Warm {
+        Warm::new()
+//        todo!()
     }
 
     /** Regenerate warm state */
@@ -131,7 +172,6 @@ impl Cold {
         todo!()
     }
 }
-
 
 #[repr(packed)]
 #[derive(Copy,Clone)]
@@ -173,6 +213,10 @@ impl Preserve for Warm {
 }
 
 impl Warm {
+    pub fn new() -> Self {
+        Self { jets: Hamt::new() }
+    }
+
     pub fn get_jet(&mut self, stack: &mut NockStack, formula: &mut Noun, subject: &mut Noun) -> Option<Jet> {
         todo!()
     }
