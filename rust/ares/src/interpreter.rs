@@ -1,5 +1,6 @@
 use crate::hamt::Hamt;
 use crate::jets;
+use crate::jets::Cold;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -232,6 +233,8 @@ pub fn interpret(
 ) -> Noun {
     let mut res = unsafe { DirectAtom::new_unchecked(0).as_atom().as_noun() };
     stack.frame_push(0);
+    //TODO this is not how to do cold state
+    let mut cold = Cold::new();
     let mut cache = Hamt::<Noun>::new();
     unsafe {
         *stack.push() = NockWork::Done;
@@ -486,7 +489,7 @@ pub fn interpret(
                     Todo11D::ComputeHint => {
                         let hint_cell = Cell::new(stack, dint.tag.as_noun(), dint.hint);
                         if let Ok(found) =
-                            match_pre_hint(stack, newt, subject, hint_cell, formula, &cache)
+                            match_pre_hint(stack, newt, subject, hint_cell, formula, &cache, &mut cold, dint.body)
                         {
                             res = found;
                             stack.pop::<NockWork>();
@@ -828,6 +831,8 @@ fn match_pre_hint(
     cell: Cell,
     formula: Noun,
     cache: &Hamt<Noun>,
+    cold: &mut Cold,
+    body: Noun,
 ) -> Result<Noun, ()> {
     let direct = cell.head().as_direct()?;
     match direct.data() {
@@ -855,7 +860,28 @@ fn match_pre_hint(
                 eprintln!("\rJet {} failed", jet_name);
                 Err(())
             }
-        }
+        },
+        tas!(b"fast") => {
+            //TODO checking to see if a fast jet is already registered should be
+            // done first
+            let clue_formula = cell.tail();
+            //  ++  clue  (trel chum nock (list (pair term nock))
+            let clue = interpret(stack, newt, subject, clue_formula).as_cell()?;
+            let chum = clue.head();
+            let parent_formula = clue.tail().as_cell()?.head();
+            //TODO every parent formula is either a nock 0 or 1. since we ultimately
+            // want an atom, just take the tail of the formula?
+            let parent_axis = parent_formula.as_cell()?.tail().as_atom()?;
+            let _hooks = clue.tail().as_cell()?.tail();
+            let core = interpret(stack, newt, subject, body);
+            println!("clue_formula: {:?}", clue_formula);
+            println!("clue: {:?}", clue.as_noun());
+            println!("parent_formula: {:?}", parent_formula);
+            println!("parent: {:?}", parent_axis.as_noun());
+            //println!("core: {:?}", core);
+            cold.register(stack, &core, &chum, &parent_axis);
+            Err(())
+        },
         tas!(b"memo") => {
             let formula = unsafe { *stack.local_noun_pointer(2) };
             let mut key = Cell::new(stack, subject, formula).as_noun();
@@ -864,7 +890,7 @@ fn match_pre_hint(
             } else {
                 Err(())
             }
-        }
+        },
         _ => Err(()),
     }
 }
