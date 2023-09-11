@@ -31,87 +31,21 @@ pub fn jet_mink(
     }
 }
 
-mod util {
-    // +$  tone  $%  [%0 product=*]
-    //               [%1 block=*]
-    //               [%2 trace=(list [@ta *])]
-    //           ==
-    // +$  toon  $%  [%0 p=*]
-    //               [%1 p=*]
-    //               [%2 p=(list tank)]
-    //           ==
-    // ++  mook
-    //   |=  ton=tone
-    //   ^-  toon
-    //   ?.  ?=([%2 *] ton)
-    //     ton
-    //   |^  [%2 (turn skip rend)]
-    //   ::
-    //   ++  skip
-    //     ^+  trace.ton
-    //     =/  yel  (lent trace.ton)                ::  get length of the trace
-    //     ?.  (gth yel 1.024)  trace.ton           ::  return early if the length of the trace is less than 1024
-    //     %+  weld
-    //       (scag 512 trace.ton)
-    //     ^+  trace.ton
-    //     :_  (slag (sub yel 512) trace.ton)
-    //     :-  %lose
-    //     (crip "[skipped {(scow %ud (sub yel 1.024))} frames]")
-    //   ::
-    //   ::  +rend: raw stack frame to tank
-    //   ::
-    //   ::    $%  [%hunk ref=* path]            ::  failed scry ([~ ~])
-    //   ::        [%lose cord]                  ::  skipped frames
-    //   ::        [%hand *]                     ::  mug any
-    //   ::        [%mean $@(cord (trap tank))]  ::  ~_ et al
-    //   ::        [%spot spot]                  ::  source location
-    //   ::    ==
-    //   ::
-    //   ++  rend
-    //     |=  [tag=@ta dat=*]
-    //     ^-  tank
-    //     ?+    tag
-    //     ::
-    //       leaf+"mook.{(rip 3 tag)}"
-    //     ::
-    //         %hunk
-    //       ?@  dat  leaf+"mook.hunk"
-    //       =/  sof=(unit path)  ((soft path) +.dat)
-    //       ?~  sof  leaf+"mook.hunk"
-    //       (smyt u.sof)
-    //     ::
-    //         %lose
-    //       ?^  dat  leaf+"mook.lose"
-    //       leaf+(rip 3 dat)
-    //     ::
-    //         %hand
-    //       leaf+(scow %p (mug dat))
-    //     ::
-    //         %mean
-    //       ?@  dat  leaf+(rip 3 dat)
-    //       =/  mac  (mack dat -.dat)
-    //       ?~  mac  leaf+"####"
-    //       =/  sof  ((soft tank) u.mac)
-    //       ?~  sof  leaf+"mook.mean"
-    //       u.sof
-    //     ::
-    //         %spot
-    //       =/  sof=(unit spot)  ((soft spot) dat)
-    //       ?~  sof  leaf+"mook.spot"
-    //       :+  %rose  [":" ~ ~]
-    //       :~  (smyt p.u.sof)
-    //           =*  l   p.q.u.sof
-    //           =*  r   q.q.u.sof
-    //           =/  ud  |=(a=@u (scow %ud a))
-    //           leaf+"<[{(ud p.l)} {(ud q.l)}].[{(ud p.r)} {(ud q.r)}]>"
-    //       ==
-    //     ==
-    //   --
+pub mod util {
+    use crate::jets::{JetErr, Result, jet_mink};
+    use crate::jets::util::rip;
+    use crate::mem::NockStack;
+    use crate::newt::Newt;
+    use crate::noun::{Noun, D, T, tape};
+    use ares_macros::tas;
+
+    const LEAF: Noun = D(tas!(b"leaf"));
+    const ROSE: Noun = D(tas!(b"rose"));
 
     /** Consume $tone, produce $toon
      */
     pub fn mook(
-        stack: NockStack,
+        stack: &mut NockStack,
         newt: &mut Option<&mut Newt>,
         tone: Noun,
         flop: bool
@@ -127,7 +61,6 @@ mod util {
         }
 
         // XX: trim traces longer than 1024 frames
-        let leaf = D(tas!(b"leaf"));
         
         if flop {
             let mut list = original_list;
@@ -142,45 +75,103 @@ mod util {
                 let tag = trace.head().as_direct()?;
                 let dat = trace.tail();
                 
-                // XX: implement
                 let tank: Noun = match tag.data() {
-                    // *[a [9 2 [0 1]]]
-                    // *[*[a [0 1]] [2 [0 1] [0 2]]]
-                    // *[\[1 a] [2 [0 1] [0 2]]]
-                    // *[a [2 [0 1] [0 2]]]
-                    // *[*[a [0 1]] *[a [0 2]]]
-                    // *[\[1 a] \[2 a]]
-                    // *[a \[2 a]]
+                    tas!(b"mean") => {
+                        if let Ok(atom) = dat.as_atom() {
+                            let tape = rip(stack, 3, 1, atom)?;
+                            T(stack, &[LEAF, tape])
+                        } else {
+                            let virt = T(stack, &[dat, dat.as_cell()?.head()]);
+                            let load = T(stack, &[virt, D(0)]);
+                            let subj = T(stack, &[D(0), load, D(0)]);
+                            let tone = jet_mink(stack, newt, subj)?.as_cell()?;
+                            if unsafe { !tone.head().raw_equals(D(0)) } {
+                                let tape = tape(stack, "####");
+                                T(stack, &[LEAF, tape])
+                            } else {
+                                // XX: need to check that this is actually a tank
+                                //     return leaf+"mean.mook" if not
+                                tone.tail()
+                            }
+                        }
+                    },
                     tas!(b"spot") => {
                         let subj = T(stack, &[D(0), dat, D(0)]);
-                        let spot = jet_mink(stack, newt, subj)?;
-                        if spot.as_cell()?.head().as_direct().data() != 0 {
+                        let tone = jet_mink(stack, newt, subj)?.as_cell()?;
+                        if unsafe { !tone.head().raw_equals(D(0)) } {
                             // XX test this in Vere
                             // if the formula in dat crashes, we produce leaf+"mook.spot"
                             let msg = tape(stack, "mook.spot");
-                            T(stack, &[leaf, msg])
+                            T(stack, &[LEAF, msg])
                         } else {
+                            let spot = tone.tail().as_cell()?;
+                            let pint = spot.tail().as_cell()?;
+                            let pstr = pint.head().as_cell()?;
+                            let pend = pint.tail().as_cell()?;
 
+                            let colo = T(stack, &[D(tas!(b":")), D(0)]);
+                            let trel = T(stack, &[colo, D(0), D(0)]);
+
+                            let smyt = smyt(stack, spot.head())?;
+
+                            // XX: numbers not +scow-ed
+                            let text = format!(
+                                "<[{} {}.{} {}]>",
+                                pstr.head().as_atom()?.as_either().either(|l| l.data().to_string(), |r| r.as_ubig(stack).to_string()),
+                                pstr.tail().as_atom()?.as_either().either(|l| l.data().to_string(), |r| r.as_ubig(stack).to_string()),
+                                pend.head().as_atom()?.as_either().either(|l| l.data().to_string(), |r| r.as_ubig(stack).to_string()),
+                                pend.tail().as_atom()?.as_either().either(|l| l.data().to_string(), |r| r.as_ubig(stack).to_string())
+                            );
+                            let tape = tape(stack, &text);
+                            let finn = T(stack, &[LEAF, tape]);
+
+                            T(stack, &[ROSE, trel, smyt, finn])
                         }
+                    },
+                    _ => {
+                        let tape = rip(stack, 3, 1, tag.as_atom())?;
+                        T(stack, &[D(tas!(b"m")), D(tas!(b"o")), D(tas!(b"o")), D(tas!(b"k")), D(tas!(b".")), tape])
                     }
                     // XX: TODO
                     //  %hand
                     //  %hunk
                     //  %lose
-                    //  %mean
-                    //  default
-
                 };
                 
                 res = T(stack, &[tank, res]);
                 list = cell.tail();
             }
             
-            Ok(Res)
+            Ok(res)
         } else {
             // XX: need non-tail recursive helper to build +mook without +flop, because no helper in noun.rs to allocate Cell and set tail later (like u3i_defcons in Vere)
             Ok(D(0))
         }
+    }
+
+    pub fn smyt(stack: &mut NockStack, path: Noun) -> Result {
+        let lash = D(tas!(b"/"));
+        let zero = D(0);
+        let sep = T(stack, &[lash, zero]);
+        
+        let trel = T(stack, &[sep, sep, zero]);
+        let tank = smyt_help(stack, path)?;
+
+        Ok(T(stack, &[ROSE, trel, tank]))
+    }
+    
+    fn smyt_help(stack: &mut NockStack, path: Noun) -> Result {
+        // XX: Need deferred Cell allocation, like u3i_defcons in Vere
+        if unsafe { path.raw_equals(D(0)) } {
+            return Ok(D(0));
+        }
+
+        let cell = path.as_cell()?;
+        let tail = smyt_help(stack, cell.tail())?;
+        let trip = rip(stack, 3, 1, cell.head().as_atom()?)?;
+        let head = T(stack, &[LEAF, trip]);
+
+        Ok(T(stack, &[head, tail]))
     }
 }
 

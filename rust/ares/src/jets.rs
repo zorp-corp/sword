@@ -1,13 +1,13 @@
 pub mod bits;
 pub mod hash;
 pub mod math;
-pub mod mock;
+pub mod nock;
 pub mod tree;
 
 use crate::jets::bits::*;
 use crate::jets::hash::*;
 use crate::jets::math::*;
-use crate::jets::mink::*;
+use crate::jets::nock::*;
 use crate::jets::tree::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -99,7 +99,7 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 pub mod util {
     use super::*;
     use crate::noun::Error::NotRepresentable;
-    use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D};
+    use crate::noun::{Noun, Atom, DirectAtom, IndirectAtom, Cell, D};
     use bitvec::prelude::{BitSlice, Lsb0};
     use ibig::UBig;
     use std::result;
@@ -249,7 +249,12 @@ pub mod util {
         }
     }
 
-    pub fn rip(bloq: usize, step: usize, atom: Atom) -> Noun {
+    pub fn rip(
+        stack: &mut NockStack, 
+        bloq: usize,
+        step: usize,
+        atom: Atom
+    ) -> Result {
         let len = (met(bloq, atom) + step - 1) / step;
         let mut list = D(0);
         for i in (0..len).rev() {
@@ -261,7 +266,8 @@ pub mod util {
             };
             list = Cell::new(stack, new_atom.as_noun(), list).as_noun();
         }
-        list
+
+        Ok(list)
     }
 
     /// Binary OR

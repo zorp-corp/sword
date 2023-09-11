@@ -5,7 +5,7 @@ use crate::jets::util::*;
 use crate::jets::JetErr::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{Cell, DirectAtom, IndirectAtom, Noun, D};
+use crate::noun::{DirectAtom, IndirectAtom, Noun, D};
 use std::cmp;
 
 crate::gdb!();
@@ -321,7 +321,7 @@ pub fn jet_rip(
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let atom = slot(arg, 3)?.as_atom()?;
-    Ok(rip(bloq, step, atom))
+    rip(stack, bloq, step, atom)
 }
 
 pub fn jet_rsh(

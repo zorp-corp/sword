@@ -19,8 +19,11 @@ fn main() -> io::Result<()> {
     if filename == "see gdb! definition in lib.rs about this" {
         ares::interpreter::use_gdb();
         ares::jets::use_gdb();
+        ares::jets::bits::use_gdb();
+        ares::jets::hash::use_gdb();
         ares::jets::math::use_gdb();
-        ares::jets::mink::use_gdb();
+        ares::jets::nock::use_gdb();
+        ares::jets::tree::use_gdb();
         ares::mem::use_gdb();
         ares::mug::use_gdb();
         ares::newt::use_gdb();

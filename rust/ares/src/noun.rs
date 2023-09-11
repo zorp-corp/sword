@@ -231,7 +231,7 @@ pub fn T<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> Noun {
 pub fn tape<A: NounAllocator>(allocator: &mut A, text: &str) -> Noun {
     let mut res = D(0);
     // XX: Need deferred Cell allocation, like u3i_defcons in Vere
-    for c in str.bytes().rev() {
+    for c in text.bytes().rev() {
         res = T(allocator, &[D(c as u64), res])
     }
     res
