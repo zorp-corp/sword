@@ -146,13 +146,13 @@ impl Cold {
     /** For snapshotting, restore the cold state from a list of path X battery hierarchy pairs */
     fn from_noun(noun: &mut Noun, stack: &mut NockStack) -> Self {
         //  +=  cold        (map battery=^ (pair bash registry))
-        let cold = Cold { path_to_batteries: Hamt::new(), battery_to_paths: Hamt::new() };
+        let mut cold = Cold { path_to_batteries: Hamt::new(), battery_to_paths: Hamt::new() };
         let list = HList::from(*noun).into_iter();
         for entry in list {
             let mut bat = entry.as_cell().unwrap().head();
             let mut pat = entry.as_cell().unwrap().tail();
-            cold.path_to_batteries.insert(stack, &mut pat, bat);
-            cold.battery_to_paths.insert(stack, &mut bat, pat);
+            cold.path_to_batteries = cold.path_to_batteries.insert(stack, &mut pat, bat);
+            cold.battery_to_paths = cold.battery_to_paths.insert(stack, &mut bat, pat);
         };
         cold
     }
