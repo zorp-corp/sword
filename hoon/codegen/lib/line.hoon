@@ -1099,11 +1099,11 @@
       $(toil t.toil)
     [hill this]
   --
-  ^-  [_hill _this]
+  ^-  _this
   =/  toil  work
   =>  [toil (mill toil)]
   =>  (sand -)
-  [hill this]
+  this
 --
 |%
 ::  hacked-in version of as-yet-non-existent set xor
