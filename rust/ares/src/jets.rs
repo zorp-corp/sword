@@ -4,7 +4,7 @@ use crate::interpreter::{slot, raw_slot};
 use crate::jets::math::*;
 use crate::mem::NockStack;
 use crate::mem::Preserve;
-use crate::noun::{self, Noun, Cell, Atom};
+use crate::noun::{self, Noun, Cell, Atom, D};
 use crate::hamt::Hamt;
 use ares_macros::tas;
 use assert_no_alloc::{assert_no_alloc, permit_alloc};
@@ -171,9 +171,8 @@ impl Cold {
                     -> Result<Warm, JetErr> {
         //TODO why do i need permit_alloc here? slot allocs?
         permit_alloc(|| {
-            println!("{}", "register()".green());
+            println!("{} chum: {:?}", "register()".green(), chum);
              //TODO when I register a jet, I guess I check the parent to see if its also registered, etc?
-            println!("chum: {:?}", chum);
             //TODO this seems wrong, register shouldn't even be called if this is the case
             if core.is_atom() {
                 return Err(JetErr::Deterministic)
@@ -182,21 +181,24 @@ impl Cold {
             if parent_axis.is_direct() {
                 if parent_axis.as_direct()?.data() == 0 {
                     // root
-                    self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, *chum);
-                    self.path_to_batteries = self.path_to_batteries.insert(stack, chum, battery);
+                    let mut path = Cell::new(stack, *chum, D(0)).as_noun(); // single element path
+                    self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
+                    self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
+                    //TODO figure out the return
                     return Ok(Warm::new())
                 };
             };
             let parent_core = slot(*core, parent_axis.as_bitslice());
-            println!("parent_core: {:?}", parent_core);
             let mut parent_core_battery = raw_slot(parent_core, 2);
-            println!("parent_core_battery: {:?}", parent_core);
-            let parent_core_path = self.battery_to_paths.lookup(stack, &mut parent_core_battery);
+            let Some(parent_core_path) = self.battery_to_paths.lookup(stack, &mut parent_core_battery) else {
+                println!("{}", "missing parent core path".yellow());
+                return Ok(Warm::new())
+            };
             println!("{}: {:?}", "parent_core_path".red(), parent_core_path);
-            // TODO I don't want just chum, i want a list of chums, derived from the parent and its parent, etc.
-            self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, *chum);
+            let mut path = Cell::new(stack, *chum, parent_core_path).as_noun();
+            self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
             // TODO I don't want just the battery, i want a list of batteries, derived from the parent and its parent etc
-            self.path_to_batteries = self.path_to_batteries.insert(stack, chum, battery);
+            self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
             Ok(Warm::new())
         })
     }

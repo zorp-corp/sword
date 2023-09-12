@@ -9,6 +9,7 @@ use ares_macros::tas;
 use assert_no_alloc::{assert_no_alloc, permit_alloc};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
+use colored::*;
 
 crate::gdb!();
 
@@ -944,11 +945,6 @@ fn match_post_hint(
             //TODO it doesn't seem right to compute the core here, isnt it
             // already hanging around somewhere?
             let mut core = interpret(stack, newt, subject, body);
-            eprintln!("clue: {:?}", clue.as_noun());
-            eprintln!("chum: {:?}", chum);
-            eprintln!("parent_formula: {:?}", parent_formula.as_noun());
-            eprintln!("parent: {:?}", parent_axis.as_noun());
-            //println!("core: {:?}", core);
             cold.register(stack, &mut core, &mut chum, &parent_axis);
             Err(())
         },
