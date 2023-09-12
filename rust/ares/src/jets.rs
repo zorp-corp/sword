@@ -173,10 +173,6 @@ impl Cold {
         permit_alloc(|| {
             println!("{} chum: {:?}", "register()".green(), chum);
              //TODO when I register a jet, I guess I check the parent to see if its also registered, etc?
-            //TODO this seems wrong, register shouldn't even be called if this is the case
-            if core.is_atom() {
-                return Err(JetErr::Deterministic)
-            };
             let mut battery = raw_slot(*core, 2);
             if parent_axis.is_direct() {
                 if parent_axis.as_direct()?.data() == 0 {
