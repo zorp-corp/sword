@@ -1,4 +1,4 @@
-> =a =>  puny+314  =>
+=a !=  =>  =>  puny+314  =>
   ~%  %puny.314  ~  ~  :: no parent, core payload is fixed as %puny
   |%
   ++  puny-version  +  :: returns [%puny 314]
@@ -9,14 +9,11 @@
   ++  baz
     ~/  %baz  :: what's this?
     |=  a=@
-  =|  b=@
+    =|  b=@
     |-  ^-  @
     ?:  =(b foo)  a
     $(a .+(a), b .+(b))
   --
-> baz:a
-<1.vjm [a=@ <2.rvx 1.sxz [%puny @ud]>]>
-> (baz:a 5)
-1.240
-> =b [[baz:a 1] 9 2 10 [6 0 3] 0 2]
-> .puny/atom b
+  (baz 5)
+
+.puny/atom [~ a]
