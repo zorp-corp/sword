@@ -516,7 +516,7 @@ pub fn interpret(
                     Todo11D::ComputeHint => {
                         let hint_cell = Cell::new(stack, dint.tag.as_noun(), dint.hint);
                         if let Ok(found) =
-                            match_pre_hint(stack, newt, subject, hint_cell, formula, &cache, &mut cold, dint.body)
+                            match_pre_hint(stack, newt, subject, hint_cell, formula, &cache)
                         {
                             res = found;
                             stack.pop::<NockWork>();
@@ -858,8 +858,6 @@ fn match_pre_hint(
     cell: Cell,
     formula: Noun,
     cache: &Hamt<Noun>,
-    cold: &mut Cold,
-    body: Noun,
 ) -> Result<Noun, ()> {
     let direct = cell.head().as_direct()?;
     match direct.data() {
