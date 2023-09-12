@@ -38,7 +38,7 @@ fn main() -> io::Result<()> {
     let output_filename = format!("{}.out", filename);
     let f = File::open(filename)?;
     let in_len = f.metadata()?.len();
-    let mut stack = NockStack::new(8 << 10 << 10, 0);
+    let mut stack = NockStack::new(96 << 10 << 10 << 4, 0);
     let jammed_input = unsafe {
         let in_map = Mmap::map(&f)?;
         let word_len = (in_len + 7) >> 3;
@@ -49,6 +49,7 @@ fn main() -> io::Result<()> {
         atom.normalize_as_atom()
     };
     let input = cue(&mut stack, jammed_input);
+    println!("input {:?}", input);
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");

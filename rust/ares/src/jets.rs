@@ -1,5 +1,6 @@
 pub mod math;
 
+use crate::interpreter::slot;
 use crate::jets::math::*;
 use crate::mem::NockStack;
 use crate::mem::Preserve;
@@ -162,8 +163,21 @@ impl Cold {
     /** Register a core */
     //TODO why are core, chum, parent mutable?
 //    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent: &mut Atom) -> Warm {
-    pub fn register(&mut self, stack: &mut NockStack, core: &Noun, chum: &Noun, parent: &Atom) -> Warm {
-        Warm::new()
+//    TODO should i actually return warm state?
+    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent: &Atom)
+                    -> Result<Warm, JetErr> {
+        //TODO when I register a jet, I guess I check the parent to see if its also registered, etc?
+        let mut battery = core.as_cell()?.head();
+        let parent_core = slot(*core, parent.as_bitslice());
+        let mut parent_core_battery = parent_core.as_cell()?.head(); //probably crashes
+        let parent_core_path = self.battery_to_paths.lookup(stack, &mut parent_core_battery);
+        println!("parent_core_path: {:?}", parent_core_path);
+        // TODO I don't want just chum, i want a list of chums, derived from the parent and its parent, etc.
+        self.battery_to_paths.insert(stack, &mut battery, *chum);
+        // TODO I don't want just the battery, i want a list of batteries, derived from the parent and its parent etc
+        self.path_to_batteries.insert(stack, chum, battery);
+        Ok(Warm::new())
+//        Ok(self.warm(stack))
 //        todo!()
     }
 
