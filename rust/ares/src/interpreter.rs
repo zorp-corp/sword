@@ -279,18 +279,6 @@ pub fn interpret(
     assert_no_alloc(|| unsafe {
         loop {
             let work: NockWork = *stack.top();
-            permit_alloc(|| {
-//                println!("subject {:?}", subject);
-                // println!("formula {:?}", formula);
-                // println!("work {}", work);
-                match work {
-                    NockWork::Work11D(_) =>
-                        println!("work {}", work),
-                    NockWork::Work11S(_) =>
-                         println!("work {}", work),
-                    _ => return
-                };
-            });
             match work {
                 NockWork::Done => {
                     stack.preserve(&mut cache);
@@ -526,7 +514,6 @@ pub fn interpret(
                 }
                 NockWork::Work11D(mut dint) => match dint.todo {
                     Todo11D::ComputeHint => {
-                        println!("work11DComputeHint");
                         let hint_cell = Cell::new(stack, dint.tag.as_noun(), dint.hint);
                         if let Ok(found) =
                             match_pre_hint(stack, newt, subject, hint_cell, formula, &cache, &mut cold, dint.body)
@@ -540,7 +527,6 @@ pub fn interpret(
                         }
                     }
                     Todo11D::ComputeResult => {
-                        println!("work11DComputeResult");
                         dint.todo = Todo11D::Done;
                         let hint = Cell::new(stack, dint.tag.as_noun(), dint.hint).as_noun();
                         if let Ok(found) = match_post_hint(stack, newt, subject, hint, res, &mut cold, dint.body) {
@@ -560,7 +546,6 @@ pub fn interpret(
                 },
                 NockWork::Work11S(mut sint) => match sint.todo {
                     Todo11S::ComputeResult => {
-                        println!("work11SComputeResult");
                         sint.todo = Todo11S::Done;
                         if let Ok(found) =
                             match_post_hint(stack, newt, subject, sint.tag.as_noun(), res, &mut cold, sint.body)
@@ -940,7 +925,9 @@ fn match_post_hint(
             Err(())
         },
         tas!(b"fast") => {
-            println!("match_post_hint()");
+            permit_alloc(|| {
+                eprintln!("{}", "match_post_hint() fast".green());
+            });
             //TODO checking to see if a fast jet is already registered should be
             // done first
             //  ++  clue  (trel chum nock (list (pair term nock))
@@ -952,16 +939,17 @@ fn match_post_hint(
             let parent_formula_head = parent_formula.head().as_direct()?.data();
             let parent_axis = match parent_formula_head {
                 0 => parent_formula.tail().as_atom()?, // axis
-                1 => Atom::new(stack, 1),                         // has no parent
-                _ => return Err(()),                              // fund
+                1 => Atom::new(stack, 0),              // parent of root is 0 by convention
+                _ => return Err(()),                   // fund
             };
             let _hooks = clue.tail().as_cell()?.tail();
-            //TODO it doesn't seem right to compute the core here
+            //TODO it doesn't seem right to compute the core here, isnt it
+            // already hanging around somewhere?
             let mut core = interpret(stack, newt, subject, body);
-            println!("clue: {:?}", clue.as_noun());
-            println!("chum: {:?}", chum);
-            println!("parent_formula: {:?}", parent_formula.as_noun());
-            println!("parent: {:?}", parent_axis.as_noun());
+            eprintln!("clue: {:?}", clue.as_noun());
+            eprintln!("chum: {:?}", chum);
+            eprintln!("parent_formula: {:?}", parent_formula.as_noun());
+            eprintln!("parent: {:?}", parent_axis.as_noun());
             //println!("core: {:?}", core);
             cold.register(stack, &mut core, &mut chum, &parent_axis);
             Err(())

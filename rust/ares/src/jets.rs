@@ -1,13 +1,16 @@
 pub mod math;
 
-use crate::interpreter::slot;
+use crate::interpreter::{slot, raw_slot};
 use crate::jets::math::*;
 use crate::mem::NockStack;
 use crate::mem::Preserve;
 use crate::noun::{self, Noun, Cell, Atom};
 use crate::hamt::Hamt;
 use ares_macros::tas;
+use assert_no_alloc::{assert_no_alloc, permit_alloc};
 use std::mem::size_of;
+
+use colored::*;
 
 crate::gdb!();
 
@@ -153,7 +156,7 @@ impl Cold {
         };
         cold
     }
-
+//
     /** For import from a portable snapshot, restore the cold state from a cued portable snapshot
      */
     fn from_portable_snapshot(snapshot: &mut Noun, stack: &mut NockStack) -> Self {
@@ -164,21 +167,38 @@ impl Cold {
     //TODO why are core, chum, parent mutable?
 //    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent: &mut Atom) -> Warm {
 //    TODO should i actually return warm state?
-    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent: &Atom)
+    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent_axis: &Atom)
                     -> Result<Warm, JetErr> {
-        //TODO when I register a jet, I guess I check the parent to see if its also registered, etc?
-        let mut battery = core.as_cell()?.head();
-        let parent_core = slot(*core, parent.as_bitslice());
-        let mut parent_core_battery = parent_core.as_cell()?.head(); //probably crashes
-        let parent_core_path = self.battery_to_paths.lookup(stack, &mut parent_core_battery);
-        println!("parent_core_path: {:?}", parent_core_path);
-        // TODO I don't want just chum, i want a list of chums, derived from the parent and its parent, etc.
-        self.battery_to_paths.insert(stack, &mut battery, *chum);
-        // TODO I don't want just the battery, i want a list of batteries, derived from the parent and its parent etc
-        self.path_to_batteries.insert(stack, chum, battery);
-        Ok(Warm::new())
-//        Ok(self.warm(stack))
-//        todo!()
+        //TODO why do i need permit_alloc here? slot allocs?
+        permit_alloc(|| {
+            println!("{}", "register()".green());
+             //TODO when I register a jet, I guess I check the parent to see if its also registered, etc?
+            println!("chum: {:?}", chum);
+            //TODO this seems wrong, register shouldn't even be called if this is the case
+            if core.is_atom() {
+                return Err(JetErr::Deterministic)
+            };
+            let mut battery = raw_slot(*core, 2);
+            if parent_axis.is_direct() {
+                if parent_axis.as_direct()?.data() == 0 {
+                    // root
+                    self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, *chum);
+                    self.path_to_batteries = self.path_to_batteries.insert(stack, chum, battery);
+                    return Ok(Warm::new())
+                };
+            };
+            let parent_core = slot(*core, parent_axis.as_bitslice());
+            println!("parent_core: {:?}", parent_core);
+            let mut parent_core_battery = raw_slot(parent_core, 2);
+            println!("parent_core_battery: {:?}", parent_core);
+            let parent_core_path = self.battery_to_paths.lookup(stack, &mut parent_core_battery);
+            println!("{}: {:?}", "parent_core_path".red(), parent_core_path);
+            // TODO I don't want just chum, i want a list of chums, derived from the parent and its parent, etc.
+            self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, *chum);
+            // TODO I don't want just the battery, i want a list of batteries, derived from the parent and its parent etc
+            self.path_to_batteries = self.path_to_batteries.insert(stack, chum, battery);
+            Ok(Warm::new())
+        })
     }
 
     /** Regenerate warm state */
