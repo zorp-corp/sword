@@ -1,2 +1,4 @@
 ships/
 *.backup
+urbit
+*.jam.out

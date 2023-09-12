@@ -21,7 +21,7 @@ pub fn jet_mink(
     let v_subject = slot(arg, 4)?;
     let v_formula = slot(arg, 5)?;
     let _scry = slot(arg, 3)?;
-    
+
     match interpret(stack, newt, v_subject, v_formula) {
         Ok(res) => Ok(T(stack, &[D(0), res])),
         Err(err) => match err {
@@ -32,11 +32,11 @@ pub fn jet_mink(
 }
 
 pub mod util {
-    use crate::jets::{JetErr, Result, jet_mink};
     use crate::jets::util::rip;
+    use crate::jets::{jet_mink, JetErr, Result};
     use crate::mem::NockStack;
     use crate::newt::Newt;
-    use crate::noun::{Noun, D, T, tape};
+    use crate::noun::{tape, Noun, D, T};
     use ares_macros::tas;
 
     const LEAF: Noun = D(tas!(b"leaf"));
@@ -48,7 +48,7 @@ pub mod util {
         stack: &mut NockStack,
         newt: &mut Option<&mut Newt>,
         tone: Noun,
-        flop: bool
+        flop: bool,
     ) -> Result {
         let temp = tone.as_cell()?;
         let tag = temp.head().as_direct()?;
@@ -57,11 +57,11 @@ pub mod util {
         if tag.data() < 2 {
             return Ok(tone);
         } else if tag.data() > 2 {
-            return Err(JetErr::Deterministic)
+            return Err(JetErr::Deterministic);
         }
 
         // XX: trim traces longer than 1024 frames
-        
+
         if flop {
             let mut list = original_list;
             let mut res = D(0);
@@ -74,7 +74,7 @@ pub mod util {
                 let trace = cell.head().as_cell()?;
                 let tag = trace.head().as_direct()?;
                 let dat = trace.tail();
-                
+
                 let tank: Noun = match tag.data() {
                     tas!(b"mean") => {
                         if let Ok(atom) = dat.as_atom() {
@@ -94,7 +94,7 @@ pub mod util {
                                 tone.tail()
                             }
                         }
-                    },
+                    }
                     tas!(b"spot") => {
                         let subj = T(stack, &[D(0), dat, D(0)]);
                         let tone = jet_mink(stack, newt, subj)?.as_cell()?;
@@ -117,31 +117,52 @@ pub mod util {
                             // XX: numbers not +scow-ed
                             let text = format!(
                                 "<[{} {}.{} {}]>",
-                                pstr.head().as_atom()?.as_either().either(|l| l.data().to_string(), |r| r.as_ubig(stack).to_string()),
-                                pstr.tail().as_atom()?.as_either().either(|l| l.data().to_string(), |r| r.as_ubig(stack).to_string()),
-                                pend.head().as_atom()?.as_either().either(|l| l.data().to_string(), |r| r.as_ubig(stack).to_string()),
-                                pend.tail().as_atom()?.as_either().either(|l| l.data().to_string(), |r| r.as_ubig(stack).to_string())
+                                pstr.head().as_atom()?.as_either().either(
+                                    |l| l.data().to_string(),
+                                    |r| r.as_ubig(stack).to_string()
+                                ),
+                                pstr.tail().as_atom()?.as_either().either(
+                                    |l| l.data().to_string(),
+                                    |r| r.as_ubig(stack).to_string()
+                                ),
+                                pend.head().as_atom()?.as_either().either(
+                                    |l| l.data().to_string(),
+                                    |r| r.as_ubig(stack).to_string()
+                                ),
+                                pend.tail().as_atom()?.as_either().either(
+                                    |l| l.data().to_string(),
+                                    |r| r.as_ubig(stack).to_string()
+                                )
                             );
                             let tape = tape(stack, &text);
                             let finn = T(stack, &[LEAF, tape]);
 
                             T(stack, &[ROSE, trel, smyt, finn])
                         }
-                    },
+                    }
                     _ => {
                         let tape = rip(stack, 3, 1, tag.as_atom())?;
-                        T(stack, &[D(tas!(b"m")), D(tas!(b"o")), D(tas!(b"o")), D(tas!(b"k")), D(tas!(b".")), tape])
-                    }
-                    // XX: TODO
-                    //  %hand
-                    //  %hunk
-                    //  %lose
+                        T(
+                            stack,
+                            &[
+                                D(tas!(b"m")),
+                                D(tas!(b"o")),
+                                D(tas!(b"o")),
+                                D(tas!(b"k")),
+                                D(tas!(b".")),
+                                tape,
+                            ],
+                        )
+                    } // XX: TODO
+                      //  %hand
+                      //  %hunk
+                      //  %lose
                 };
-                
+
                 res = T(stack, &[tank, res]);
                 list = cell.tail();
             }
-            
+
             Ok(res)
         } else {
             // XX: need non-tail recursive helper to build +mook without +flop, because no helper in noun.rs to allocate Cell and set tail later (like u3i_defcons in Vere)
@@ -153,13 +174,13 @@ pub mod util {
         let lash = D(tas!(b"/"));
         let zero = D(0);
         let sep = T(stack, &[lash, zero]);
-        
+
         let trel = T(stack, &[sep, sep, zero]);
         let tank = smyt_help(stack, path)?;
 
         Ok(T(stack, &[ROSE, trel, tank]))
     }
-    
+
     fn smyt_help(stack: &mut NockStack, path: Noun) -> Result {
         // XX: Need deferred Cell allocation, like u3i_defcons in Vere
         if unsafe { path.raw_equals(D(0)) } {

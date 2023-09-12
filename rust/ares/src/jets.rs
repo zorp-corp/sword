@@ -99,7 +99,7 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 pub mod util {
     use super::*;
     use crate::noun::Error::NotRepresentable;
-    use crate::noun::{Noun, Atom, DirectAtom, IndirectAtom, Cell, D};
+    use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
     use bitvec::prelude::{BitSlice, Lsb0};
     use ibig::UBig;
     use std::result;
@@ -249,12 +249,7 @@ pub mod util {
         }
     }
 
-    pub fn rip(
-        stack: &mut NockStack, 
-        bloq: usize,
-        step: usize,
-        atom: Atom
-    ) -> Result {
+    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> Result {
         let len = (met(bloq, atom) + step - 1) / step;
         let mut list = D(0);
         for i in (0..len).rev() {

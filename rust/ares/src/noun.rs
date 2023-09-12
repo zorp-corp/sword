@@ -383,11 +383,11 @@ impl IndirectAtom {
 
     /** Pointer to data for indirect atom */
     pub fn data_pointer(&self) -> *const u64 {
-        unsafe { self.to_raw_pointer().add(2) as *const u64 }
+        unsafe { self.to_raw_pointer().add(2) }
     }
 
     pub fn data_pointer_mut(&mut self) -> *mut u64 {
-        unsafe { self.to_raw_pointer_mut().add(2) as *mut u64 }
+        unsafe { self.to_raw_pointer_mut().add(2) }
     }
 
     pub fn as_slice(&self) -> &[u64] {
@@ -803,11 +803,11 @@ impl Allocated {
     }
 
     pub unsafe fn get_metadata(&self) -> u64 {
-        *(self.to_raw_pointer() as *const u64)
+        *(self.to_raw_pointer())
     }
 
     pub unsafe fn set_metadata(self, metadata: u64) {
-        *(self.const_to_raw_pointer_mut() as *mut u64) = metadata;
+        *(self.const_to_raw_pointer_mut()) = metadata;
     }
 
     pub fn as_either(&self) -> Either<IndirectAtom, Cell> {
@@ -1117,10 +1117,28 @@ pub trait Slots: private::RawSlots {
      */
     fn slot(&self, axis: u64) -> Result<Noun> {
         if axis == 0 {
-            Err(Error::NotRepresentable) // 0 is not allowed as an axis
+            // 0 is not allowed as an axis
+            Err(Error::NotRepresentable)
         } else {
-            self.raw_slot(DirectAtom::new(axis).unwrap().as_bitslice())
+            self.raw_slot(BitSlice::from_element(&axis))
         }
+    }
+
+    /**
+     * Retrieve component Noun at axis given as Atom, or fail with descriptive error
+     */
+    fn slot_atom(&self, atom: Atom) -> Result<Noun> {
+        atom.as_either().either(
+            |d| self.slot(d.data()),
+            |i| {
+                if unsafe { i.as_noun().raw_equals(D(0)) } {
+                    // 0 is not allowed as an axis
+                    Err(Error::NotRepresentable)
+                } else {
+                    self.raw_slot(i.as_bitslice())
+                }
+            },
+        )
     }
 }
 

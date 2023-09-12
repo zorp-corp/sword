@@ -110,6 +110,10 @@ pub fn jet_cut(
     let run = slot(arg, 13)?.as_direct()?.data() as usize;
     let atom = slot(arg, 7)?.as_atom()?;
 
+    if run == 0 {
+        return Ok(D(0));
+    }
+
     let new_indirect = unsafe {
         let (mut new_indirect, new_slice) =
             IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, run)?);
@@ -519,6 +523,9 @@ mod tests {
     fn test_cut() {
         let s = &mut init_stack();
         let (_a0, a24, _a63, a96, a128) = atoms(s);
+        let run = T(s, &[D(0), D(0)]);
+        let sam = T(s, &[D(0), run, a24]);
+        assert_jet(s, jet_cut, sam, D(0));
         let run = T(s, &[D(0), D(5)]);
         let sam = T(s, &[D(0), run, a24]);
         assert_jet(s, jet_cut, sam, D(0x3));
