@@ -1,13 +1,16 @@
 pub mod bits;
+pub mod form;
 pub mod hash;
 pub mod math;
 pub mod nock;
+pub mod text;
 pub mod tree;
 
 use crate::jets::bits::*;
 use crate::jets::hash::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
+use crate::jets::text::*;
 use crate::jets::tree::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -59,6 +62,8 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"cap") => Some(jet_cap),
         tas!(b"mas") => Some(jet_mas),
         //
+        tas!(b"lent") => Some(jet_lent),
+        //
         tas!(b"bex") => Some(jet_bex),
         tas!(b"can") => Some(jet_can),
         tas!(b"cat") => Some(jet_cat),
@@ -77,6 +82,9 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"mix") => Some(jet_mix),
         //
         tas!(b"mug") => Some(jet_mug),
+        //
+        // Not currently in any pill
+        // tas!(b"scow") => Some(jet_scow),
         //
         tas!(b"mink") => Some(jet_mink),
         _ => {

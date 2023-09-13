@@ -1,21 +1,17 @@
 ::  A working pill that grows towards arvo.hoon. Requires playpen.hoon from this
 ::  scaffolding directory.
 ::
-/+  cradle
+/+  playpen
 !.
 =/  core
-  =>  cradle
+  =>  playpen
   !=
   =>
   |%
-  +$  card  (cask)
   ++  cask  |$  [a]  (pair mark a)
-  +$  knot  @ta
-  ++  list  |$  [item]  $@(~ [i=item t=(list item)])
   +$  mark  @tas
+  +$  card  (cask)
   +$  ovum  [=wire =card]
-  ++  pair  |$  [head tail]  [p=head q=tail]
-  +$  path  (list knot)
   +$  wire  path
   ::  mutually recursive Ackermann functions
   ::  test turning %spot hints on/off
@@ -74,4 +70,4 @@
     arvo  .*([arvo -.epic] [%9 2 %10 [6 %0 3] %0 2])
   ==
 --
-[%pill %baby [aeon .*(cradle core) ~] ~ ~]
+[%pill %toddler [aeon .*(playpen core) ~] ~ ~]

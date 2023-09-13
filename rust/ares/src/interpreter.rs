@@ -948,14 +948,17 @@ fn match_hint_pre_nock(
 
     match tag.data() {
         tas!(b"slog") => {
+            // eprintln!("serf -> %slog start");
             let slog_cell = res?.cell()?;
             let pri = slog_cell.head().direct()?.data();
             let tank = slog_cell.tail();
             if let Some(not) = newt {
+                // eprintln!("serf -> %slog hit newt");
                 not.slog(stack, pri, tank);
             } else {
-                println!("raw slog: {} {}", pri, tank);
+                eprintln!("raw slog: {} {}", pri, tank);
             }
+            // eprintln!("serf -> %slog end");
         }
         tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
             let trace = Cell::new(stack, tag.as_noun(), res?).as_noun();
@@ -986,7 +989,7 @@ fn match_hint_pre_nock(
 
             if let Ok(Ok(toon)) = mook(stack, newt, tone, true).map(|t| t.as_cell()) {
                 if unsafe { !toon.head().raw_equals(D(2)) } {
-                    // Print jet errors and punt to Nock
+                    // Print jet error and punt to Nock
                     eprintln!("\r%hela failed: toon not %2");
                     return None;
                 }

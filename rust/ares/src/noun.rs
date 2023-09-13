@@ -454,6 +454,9 @@ impl IndirectAtom {
     }
 }
 
+// XX: Need a version that either:
+//      a) allocates on the NockStack directly for creating a tape (or even a string?)
+//      b) disables no-allocation, creates a string, utilitzes it (eprintf or generate tape), and then deallocates
 impl fmt::Display for IndirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x")?;

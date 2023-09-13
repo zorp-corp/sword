@@ -58,6 +58,7 @@ use either::Either;
 use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
 use std::ptr::copy_nonoverlapping;
+use std::slice::from_raw_parts_mut;
 
 crate::gdb!();
 
@@ -80,13 +81,20 @@ impl Newt {
      * problem.
      */
     fn write_noun(&mut self, stack: &mut NockStack, noun: Noun) {
+        // eprintln!("serf -> writing noun: {}", noun);
         let atom = jam(stack, noun);
+        // eprintln!("serf -> jammed noun: {}", atom);
         let size = atom.size() << 3;
-        let mut buf = vec![0u8; size + 5];
+        // eprintln!("serf -> buffer size: {}", size);
+        // let mut buf = vec![0u8; size + 5];
+        // XX: checked add?
+        let buf = unsafe { from_raw_parts_mut(stack.struct_alloc::<u8>(size + 5), size + 5) };
+        // eprintln!("serf -> heap allocation?");
         buf[1] = size as u8;
         buf[2] = (size >> 8) as u8;
         buf[3] = (size >> 16) as u8;
         buf[4] = (size >> 24) as u8;
+        // eprintln!("serf -> matching atom");
         match atom.as_either() {
             Either::Left(direct) => unsafe {
                 copy_nonoverlapping(
@@ -105,10 +113,12 @@ impl Newt {
             },
         };
         self.output.write_all(&buf).unwrap();
+        // eprintln!("serf -> done writing noun");
     }
 
     /** Send %ripe, the first event. */
     pub fn ripe(&mut self, stack: &mut NockStack, eve: u64, mug: u64) {
+        // eprintln!("serf -> ripe");
         let version = T(
             stack,
             &[
@@ -123,42 +133,50 @@ impl Newt {
 
     /** Send %live, acknowledging. */
     pub fn live(&mut self, stack: &mut NockStack) {
+        // eprintln!("serf -> live");
         let live = T(stack, &[D(tas!(b"live")), D(0)]);
         self.write_noun(stack, live);
     }
 
     /** Send %slog, pretty-printed debug output. */
     pub fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
+        // eprintln!("serf -> starting slog");
         let slog = T(stack, &[D(tas!(b"slog")), D(pri), tank]);
         self.write_noun(stack, slog);
+        // eprintln!("serf -> ending slog");
     }
 
     /** Send %flog, raw debug output. */
     pub fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
+        // eprintln!("serf -> flog");
         let flog = T(stack, &[D(tas!(b"flog")), cord]);
         self.write_noun(stack, flog);
     }
 
     /** Send %peek %done, successfully scried. */
     pub fn peek_done(&mut self, stack: &mut NockStack, dat: Noun) {
+        // eprintln!("serf -> peek done");
         let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"done")), dat]);
         self.write_noun(stack, peek);
     }
 
     /** Send %peek %bail, unsuccessfully scried. */
     pub fn peek_bail(&mut self, stack: &mut NockStack, dud: Noun) {
+        // eprintln!("serf -> peek bail");
         let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"bail")), dud]);
         self.write_noun(stack, peek);
     }
 
     /** Send %play %done, successfully replayed events. */
     pub fn play_done(&mut self, stack: &mut NockStack, mug: u64) {
+        // eprintln!("serf -> play done");
         let play = T(stack, &[D(tas!(b"play")), D(tas!(b"done")), D(mug)]);
         self.write_noun(stack, play);
     }
 
     /** Send %play %bail, failed to replay events. */
     pub fn play_bail(&mut self, stack: &mut NockStack, eve: u64, mug: u64, dud: Noun) {
+        // eprintln!("serf -> play bail");
         let play = T(
             stack,
             &[D(tas!(b"play")), D(tas!(b"bail")), D(eve), D(mug), dud],
@@ -168,6 +186,7 @@ impl Newt {
 
     /** Send %work %done, successfully ran event. */
     pub fn work_done(&mut self, stack: &mut NockStack, eve: u64, mug: u64, fec: Noun) {
+        // eprintln!("serf -> work done");
         let work = T(
             stack,
             &[D(tas!(b"work")), D(tas!(b"done")), D(eve), D(mug), fec],
@@ -177,6 +196,7 @@ impl Newt {
 
     /** Send %work %swap, successfully replaced failed event. */
     pub fn work_swap(&mut self, stack: &mut NockStack, eve: u64, mug: u64, job: Noun, fec: Noun) {
+        // eprintln!("serf -> work swap");
         let work = T(
             stack,
             &[D(tas!(b"work")), D(tas!(b"swap")), D(eve), D(mug), job, fec],
@@ -186,6 +206,7 @@ impl Newt {
 
     /** Send %work %bail, failed to run event. */
     pub fn work_bail(&mut self, stack: &mut NockStack, lud: Noun) {
+        // eprintln!("serf -> work bail");
         let work = T(stack, &[D(tas!(b"work")), D(tas!(b"bail")), lud]);
         self.write_noun(stack, work);
     }

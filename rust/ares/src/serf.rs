@@ -44,13 +44,16 @@ pub fn serf() -> io::Result<()> {
     let (_epoch, mut event_number, mut arvo) = snap.load(stack).unwrap_or((0, 0, D(0)));
     let mug = mug_u32(stack, arvo);
 
+    // eprintln!("serf -> something is happening");
     newt.ripe(stack, event_number, mug as u64);
-
+    
     // Can't use for loop because it borrows newt
     while let Some(writ) = newt.next(stack) {
+        // eprintln!("serf -> loop has begun");
         let tag = slot(writ, 2)?.as_direct().unwrap();
         match tag.data() {
             tas!(b"live") => {
+                // eprintln!("serf -> incoming %live");
                 let inner = slot(writ, 6)?.as_direct().unwrap();
                 match inner.data() {
                     tas!(b"cram") => eprintln!("cram"),
@@ -67,12 +70,14 @@ pub fn serf() -> io::Result<()> {
                 newt.live(stack);
             }
             tas!(b"peek") => {
+                // eprintln!("serf -> incoming %peek");
                 let sam = slot(writ, 7)?;
                 let res = slam(stack, newt, arvo, PEEK_AXIS, sam)
                     .expect("peek error handling unimplemented");
                 newt.peek_done(stack, res);
             }
             tas!(b"play") => {
+                // eprintln!("serf -> incoming %play");
                 let run = if event_number == 0 {
                     // apply lifecycle to first batch
                     let lit = slot(writ, 7)?;
@@ -107,6 +112,7 @@ pub fn serf() -> io::Result<()> {
                 newt.play_done(stack, 0);
             }
             tas!(b"work") => {
+                // eprintln!("serf -> incoming %work");
                 let ovo = slot(writ, 7)?;
                 let res = slam(stack, newt, arvo, POKE_AXIS, ovo)
                     .expect("work error handling unimplemented")
