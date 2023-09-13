@@ -277,21 +277,22 @@ pub fn interpret(
     // ```
     //
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
-    assert_no_alloc(|| unsafe {
+//    assert_no_alloc(||
+    unsafe {
         loop {
             let work: NockWork = *stack.top();
             match work {
                 NockWork::Done => {
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
-//                    stack.preserve(&mut cold);
+                    stack.preserve(&mut cold);
                     stack.frame_pop();
                     break;
                 }
                 NockWork::Ret => {
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
-//                    stack.preserve(&mut cold);
+                    stack.preserve(&mut cold);
                     stack.frame_pop();
                 }
                 NockWork::WorkCons(mut cons) => match cons.todo {
@@ -567,7 +568,7 @@ pub fn interpret(
                 },
             };
         }
-    });
+    }//);
     res
 }
 
@@ -944,8 +945,8 @@ fn match_post_hint(
             let _hooks = clue.tail().as_cell()?.tail();
             //TODO it doesn't seem right to compute the core here, isnt it
             // already hanging around somewhere?
-            let mut core = interpret(stack, newt, subject, body);
-            cold.register(stack, &mut core, &mut chum, &parent_axis);
+            let mut core = raw_slot(subject, 1); //interpret(stack, newt, subject, body);
+            cold.register(stack, &mut core, &mut chum, parent_axis);
             Err(())
         },
         _ => Err(()),

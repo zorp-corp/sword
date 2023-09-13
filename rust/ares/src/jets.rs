@@ -156,7 +156,7 @@ impl Cold {
         };
         cold
     }
-//
+
     /** For import from a portable snapshot, restore the cold state from a cued portable snapshot
      */
     fn from_portable_snapshot(snapshot: &mut Noun, stack: &mut NockStack) -> Self {
@@ -167,9 +167,9 @@ impl Cold {
     //TODO why are core, chum, parent mutable?
 //    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent: &mut Atom) -> Warm {
 //    TODO should i actually return warm state?
-    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent_axis: &Atom)
+    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent_axis: Atom)
                     -> Result<Warm, JetErr> {
-        //TODO why do i need permit_alloc here? slot allocs?
+        //TODO why do i need permit_alloc here?
         permit_alloc(|| {
             println!("{} chum: {:?}", "register()".green(), chum);
              //TODO when I register a jet, I guess I check the parent to see if its also registered, etc?
