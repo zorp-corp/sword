@@ -451,9 +451,8 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                 if traversal_depth == 0 {
                     break;
                 }
-                let Some((stem, mut position)) = traversal_stack[traversal_depth - 1] else {
-                    panic!("Attempted to access uninitialized array element");
-                };
+                let (stem, mut position) = traversal_stack[traversal_depth - 1]
+                    .expect("Attempted to access uninitialized array element");
                 // can we loop over the size and count leading 0s remaining in the bitmap?
                 'preserve_stem: loop {
                     if position >= 32 {
