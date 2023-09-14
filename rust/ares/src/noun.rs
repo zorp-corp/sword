@@ -229,8 +229,9 @@ pub fn T<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> Noun {
 
 /// Create $tape Noun from ASCII string
 pub fn tape<A: NounAllocator>(allocator: &mut A, text: &str) -> Noun {
+    //  XX: Needs unit tests
     let mut res = D(0);
-    // XX: Need deferred Cell allocation, like u3i_defcons in Vere
+    //  XX: Switch to using Cell::new_raw_mut
     for c in text.bytes().rev() {
         res = T(allocator, &[D(c as u64), res])
     }
@@ -493,7 +494,7 @@ impl Cell {
         (self.0 << 3) as *const CellMemory
     }
 
-    unsafe fn to_raw_pointer_mut(&mut self) -> *mut CellMemory {
+    pub unsafe fn to_raw_pointer_mut(&mut self) -> *mut CellMemory {
         (self.0 << 3) as *mut CellMemory
     }
 

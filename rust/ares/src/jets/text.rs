@@ -1,18 +1,14 @@
+use crate::jets::util::slot;
 /** Text processing jets
  */
 use crate::jets::Result;
-use crate::jets::util::slot;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Noun, D};
 
 crate::gdb!();
 
-pub fn jet_lent(
-    _stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun
-) -> Result {
+pub fn jet_lent(_stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
     let tape = slot(subject, 6)?;
     util::lent(tape).map(|x| D(x as u64))
 }
@@ -32,7 +28,6 @@ pub mod util {
                     return Err(JetErr::Deterministic);
                 }
             }
-    
             let cell = list.as_cell()?;
             // don't need checked_add or indirect atom result: 2^63-1 atoms would be 64 ebibytes
             len += 1;
@@ -45,8 +40,8 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::JetErr;
     use crate::jets::util::test::{assert_jet, assert_jet_err, init_stack};
+    use crate::jets::JetErr;
     use crate::noun::{D, T};
 
     #[test]

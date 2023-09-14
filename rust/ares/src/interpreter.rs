@@ -4,7 +4,7 @@ use crate::jets::nock::util::mook;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, Slots, D, T};
+use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
 use ares_macros::tas;
 use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
@@ -186,7 +186,7 @@ enum Todo11D {
 #[derive(Copy, Clone)]
 struct Nock11D {
     todo: Todo11D,
-    tag: DirectAtom,
+    tag: Atom,
     hint: Noun,
     body: Noun,
 }
@@ -200,7 +200,7 @@ enum Todo11S {
 #[derive(Copy, Clone)]
 struct Nock11S {
     todo: Todo11S,
-    tag: DirectAtom,
+    tag: Atom,
     body: Noun,
 }
 
@@ -362,7 +362,8 @@ pub fn interpret(
                             res = inc(stack, atom).as_noun();
                             stack.pop::<NockWork>();
                         } else {
-                            break Err(NockErr::Error(D(2))); // Cannot increment (Nock 4) a cell
+                            // Cannot increment (Nock 4) a cell
+                            break Err(NockErr::Error(D(2)));
                         }
                     }
                 },
@@ -402,10 +403,12 @@ pub fn interpret(
                             } else if direct.data() == 1 {
                                 push_formula(stack, cond.once, cond.tail)?;
                             } else {
-                                break Err(NockErr::Error(D(3))); // Test branch of Nock 6 must return 0 or 1
+                                // Test branch of Nock 6 must return 0 or 1
+                                break Err(NockErr::Error(D(3)));
                             }
                         } else {
-                            break Err(NockErr::Error(D(4))); // Test branch of Nock 6 must return a direct atom
+                            // Test branch of Nock 6 must return a direct atom
+                            break Err(NockErr::Error(D(4)));
                         }
                     }
                 },
@@ -746,19 +749,14 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                 if let Ok(arg_cell) = formula_cell.tail().as_cell() {
                                     match arg_cell.head().as_either_atom_cell() {
                                         Left(tag_atom) => {
-                                            if let Ok(direct_tag_atom) = tag_atom.as_direct() {
-                                                *stack.push() = NockWork::Work11S(Nock11S {
-                                                    todo: Todo11S::ComputeResult,
-                                                    tag: direct_tag_atom,
-                                                    body: arg_cell.tail(),
-                                                });
-                                            } else {
-                                                // Hint tag must be direct atom
-                                                return Err(NockErr::Error(D(112)));
-                                            }
+                                            *stack.push() = NockWork::Work11S(Nock11S {
+                                                todo: Todo11S::ComputeResult,
+                                                tag: tag_atom,
+                                                body: arg_cell.tail(),
+                                            });
                                         }
                                         Right(hint_cell) => {
-                                            if let Ok(tag_atom) = hint_cell.head().as_direct() {
+                                            if let Ok(tag_atom) = hint_cell.head().as_atom() {
                                                 *stack.push() = NockWork::Work11D(Nock11D {
                                                     todo: Todo11D::ComputeHint,
                                                     tag: tag_atom,
@@ -766,7 +764,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                                     body: arg_cell.tail(),
                                                 });
                                             } else {
-                                                // Hint tag must be direct atom
+                                                // Hint tag must be an atom
                                                 return Err(NockErr::Error(D(112)));
                                             }
                                         }
@@ -886,11 +884,12 @@ fn match_hint_pre_hint(
     newt: &mut Option<&mut Newt>,
     cache: &Hamt<Noun>,
     subject: Noun,
-    tag: DirectAtom,
+    tag: Atom,
     hint: Noun,
     body: Noun,
 ) -> Option<Noun> {
-    match tag.data() {
+    //  XX: handle IndirectAtom tags
+    match tag.direct()?.data() {
         // %sham hints are scaffolding until we have a real jet dashboard
         tas!(b"sham") => {
             let jet_formula = hint.cell()?;
@@ -939,26 +938,24 @@ fn match_hint_pre_nock(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,
     _subject: Noun,
-    tag: DirectAtom,
+    tag: Atom,
     _hint: Option<Noun>,
     _body: Noun,
     res: Option<Noun>,
 ) -> Option<Noun> {
-    // XX: assert Some(res) <=> Some(hint)
+    //  XX: assert Some(res) <=> Some(hint)
 
-    match tag.data() {
+    //  XX: handle IndirectAtom tags
+    match tag.direct()?.data() {
         tas!(b"slog") => {
-            // eprintln!("serf -> %slog start");
             let slog_cell = res?.cell()?;
             let pri = slog_cell.head().direct()?.data();
             let tank = slog_cell.tail();
             if let Some(not) = newt {
-                // eprintln!("serf -> %slog hit newt");
                 not.slog(stack, pri, tank);
             } else {
                 eprintln!("raw slog: {} {}", pri, tank);
             }
-            // eprintln!("serf -> %slog end");
         }
         tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
             let trace = Cell::new(stack, tag.as_noun(), res?).as_noun();
@@ -1005,7 +1002,7 @@ fn match_hint_pre_nock(
                         // XX: %hela priority is configurable, but I'm not sure how
                         not.slog(stack, 0, cell.head());
                     } else {
-                        println!("raw slog: {} {}", 0, cell.head());
+                        eprintln!("raw slog: {} {}", 0, cell.head());
                     }
 
                     list = cell.tail();
@@ -1027,12 +1024,13 @@ fn match_hint_post_nock(
     stack: &mut NockStack,
     cache: &mut Hamt<Noun>,
     subject: Noun,
-    tag: DirectAtom,
+    tag: Atom,
     _hint: Option<Noun>,
     body: Noun,
     res: Noun,
 ) -> Option<Noun> {
-    match tag.data() {
+    //  XX: handle IndirectAtom tags
+    match tag.direct()?.data() {
         tas!(b"memo") => {
             let mut key = Cell::new(stack, subject, body).as_noun();
             *cache = cache.insert(stack, &mut key, res);

@@ -22,6 +22,7 @@ pub fn jet_mink(
     let v_formula = slot(arg, 5)?;
     let _scry = slot(arg, 3)?;
 
+    //  XX: NonDeterministic errors need to bail here, too
     match interpret(stack, newt, v_subject, v_formula) {
         Ok(res) => Ok(T(stack, &[D(0), res])),
         Err(err) => match err {
@@ -32,12 +33,12 @@ pub fn jet_mink(
 }
 
 pub mod util {
-    use crate::jets::util::rip;
     use crate::jets::{JetErr, Result, jet_mink};
     use crate::jets::form::util::scow;
+    use crate::jets::util::rip;
     use crate::mem::NockStack;
     use crate::newt::Newt;
-    use crate::noun::{Noun, Cell, D, T, tape};
+    use crate::noun::{tape, Cell, Noun, D, T};
     use ares_macros::tas;
 
     const LEAF: Noun = D(tas!(b"leaf"));
@@ -45,6 +46,7 @@ pub mod util {
 
     /** Consume $tone, produce $toon
      */
+    //  XX: should write a jet_mook wrapper for this function
     pub fn mook(
         stack: &mut NockStack,
         newt: &mut Option<&mut Newt>,
@@ -97,23 +99,12 @@ pub mod util {
                         }
                     }
                     tas!(b"spot") => {
-                        // let subj = T(stack, &[D(0), dat, D(0)]);
-                        // let tone = jet_mink(stack, newt, subj)?.as_cell()?;
-                        // eprintln!("dat = {}", dat);
-                        // eprintln!("tone = {}", tone);
-                        // if unsafe { !tone.head().raw_equals(D(0)) } {
-                            //     // XX test this in Vere
-                            //     // if the formula in dat crashes, we produce leaf+"mook.spot"
-                            //     let msg = tape(stack, "mook.spot");
-                            //     T(stack, &[LEAF, msg])
-                            // } else {
-                                // let spot = tone.tail().as_cell()?;
                         let spot = dat.as_cell()?;
                         let pint = spot.tail().as_cell()?;
                         let pstr = pint.head().as_cell()?;
                         let pend = pint.tail().as_cell()?;
 
-                        let colo = T(stack, &[D(tas!(b":")), D(0)]);
+                        let colo = T(stack, &[D(b':' as u64), D(0)]);
                         let trel = T(stack, &[colo, D(0), D(0)]);
 
                         let smyt = smyt(stack, spot.head())?;
@@ -134,7 +125,7 @@ pub mod util {
                                 list = list.tail().as_cell()?;
                             }
                             // "{end_col}]>"
-                            let p4 = T(stack, &[D(93), D(62), D(0)]);
+                            let p4 = T(stack, &[D(b']' as u64), D(b'>' as u64), D(0)]);
                             (*list.tail_as_mut()) = p4;
 
                             list = end_lin.as_cell()?;
@@ -145,7 +136,7 @@ pub mod util {
                                 list = list.tail().as_cell()?;
                             }
                             // "{end_lin} {end_col}]>"
-                            let p3 = T(stack, &[D(32), end_col]);
+                            let p3 = T(stack, &[D(b' ' as u64), end_col]);
                             (*list.tail_as_mut()) = p3;
 
                             list = str_col.as_cell()?;
@@ -155,8 +146,11 @@ pub mod util {
                                 }
                                 list = list.tail().as_cell()?;
                             }
-                            // "{str_col}.{end_lin} {end_col}]>"
-                            let p2 = T(stack, &[D(46), end_lin]);
+                            // "{str_col}].[{end_lin} {end_col}]>"
+                            let p2 = T(
+                                stack,
+                                &[D(b']' as u64), D(b'.' as u64), D(b'[' as u64), end_lin],
+                            );
                             (*list.tail_as_mut()) = p2;
 
                             list = str_lin.as_cell()?;
@@ -166,17 +160,16 @@ pub mod util {
                                 }
                                 list = list.tail().as_cell()?;
                             }
-                            // "{str_lin} {str_col}.{end_lin} {end_col}]>"
-                            let p1 = T(stack, &[D(32), str_col]);
+                            // "{str_lin} {str_col}].[{end_lin} {end_col}]>"
+                            let p1 = T(stack, &[D(b' ' as u64), str_col]);
                             (*list.tail_as_mut()) = p1;
 
-                            // "<[{str_lin} {str_col}.{end_lin} {end_col}]>"
-                            let tape = T(stack, &[D(91), D(60), str_lin]);
+                            // "<[{str_lin} {str_col}].[{end_lin} {end_col}]>"
+                            let tape = T(stack, &[D(b'<' as u64), D(b'[' as u64), str_lin]);
                             let finn = T(stack, &[LEAF, tape]);
-                            
-                            T(stack, &[ROSE, trel, smyt, finn])
+
+                            T(stack, &[ROSE, trel, smyt, finn, D(0)])
                         }
-                        // }
                     }
                     _ => {
                         let tape = rip(stack, 3, 1, tag.as_atom())?;
@@ -201,10 +194,11 @@ pub mod util {
                 list = cell.tail();
             }
 
-            let ress = T(stack, &[D(2), res]);
-            Ok(ress)
+            let toon = T(stack, &[D(2), res]);
+            Ok(toon)
         } else {
-            // XX: need non-tail recursive helper to build +mook without +flop, because no helper in noun.rs to allocate Cell and set tail later (like u3i_defcons in Vere)
+            //  XX: need to build toon forwardly using Cell::new_raw_mut
+            //      Required to hook up to +slam
             Ok(T(stack, &[D(2), D(0)]))
         }
     }
