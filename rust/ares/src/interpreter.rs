@@ -1,6 +1,6 @@
 use crate::hamt::Hamt;
 use crate::jets;
-use crate::jets::{Cold, Warm};
+use crate::jets::{Cold, Hot, Warm};
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -259,8 +259,8 @@ pub fn interpret(
 ) -> Noun {
     let mut res = unsafe { DirectAtom::new_unchecked(0).as_atom().as_noun() };
     stack.frame_push(0);
-    //TODO this is not how to do cold state
     let mut cold = Cold::new();
+    let mut hot = Hot::new(stack);
     let mut warm = Warm::new();
     let mut cache = Hamt::<Noun>::new();
     unsafe {
@@ -534,7 +534,7 @@ pub fn interpret(
                     Todo11D::ComputeResult => {
                         dint.todo = Todo11D::Done;
                         let hint = Cell::new(stack, dint.tag.as_noun(), dint.hint).as_noun();
-                        if let Ok(found) = match_post_hint(stack, newt, subject, hint, res, &mut cold, &mut warm) {
+                        if let Ok(found) = match_post_hint(stack, newt, subject, hint, res, &mut cold, &mut warm, &hot) {
                             res = found;
                             stack.pop::<NockWork>();
                         } else {
@@ -553,7 +553,7 @@ pub fn interpret(
                     Todo11S::ComputeResult => {
                         sint.todo = Todo11S::Done;
                         if let Ok(found) =
-                            match_post_hint(stack, newt, subject, sint.tag.as_noun(), res, &mut cold, &mut warm)
+                            match_post_hint(stack, newt, subject, sint.tag.as_noun(), res, &mut cold, &mut warm, &hot)
                         {
                             res = found;
                             stack.pop::<NockWork>();
@@ -913,6 +913,7 @@ fn match_post_hint(
     res: Noun,
     cold: &mut Cold,
     warm: &mut Warm,
+    hot: &Hot,
 ) -> Result<Noun, ()> {
     let direct = hint.as_cell()?.head().as_direct()?;
     match direct.data() {
@@ -931,6 +932,7 @@ fn match_post_hint(
             permit_alloc(|| {
                 eprintln!("{}", "match_post_hint() fast".green());
             });
+
             //TODO checking to see if a fast jet is already registered should be
             // done first
             //  ++  clue  (trel chum nock (list (pair term nock))
@@ -950,11 +952,18 @@ fn match_post_hint(
             // already hanging around somewhere?
             let mut core = raw_slot(subject, 1);
 
+            let mut formula = raw_slot(core, 2);
+            if let Some(jet) = warm.get_jet(stack, &mut formula, subject) {
+                if let Ok(mut jet_res) = jet(stack, subject) {
+                    return Ok(jet_res)
+                }
+            }
+
             // let parent_core = slot(core, parent_axis.as_bitslice());
             // let mut parent_core_battery = raw_slot(parent_core, 2);
             // if let Some(parent_core_path) = cold.battery_to_paths.lookup(stack, &mut parent_core_battery) else {
 
-            *warm = cold.register(stack, &mut core, &mut chum, parent_axis).unwrap();
+            cold.register(stack, &mut core, &mut chum, &parent_axis, &hot, warm);
             Err(())
         },
         _ => Err(()),

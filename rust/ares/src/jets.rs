@@ -4,7 +4,8 @@ use crate::interpreter::{slot, raw_slot};
 use crate::jets::math::*;
 use crate::mem::NockStack;
 use crate::mem::Preserve;
-use crate::noun::{self, Noun, Cell, Atom, D};
+use crate::mug::mug_u32;
+use crate::noun::{self, Noun, Cell, Atom, D, T};
 use crate::hamt::Hamt;
 use ares_macros::tas;
 use assert_no_alloc::{assert_no_alloc, permit_alloc};
@@ -163,59 +164,175 @@ impl Cold {
         todo!()
     }
 
+    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent_axis: &Atom, hot: &Hot, warm: &mut Warm) {
+        let mut battery = raw_slot(*core, 2);
+        let path_frag = T(stack, &[parent_axis.as_noun(), *chum]);
+
+        if parent_axis.is_direct() {
+            if parent_axis.as_direct().unwrap().data() == 0 {
+                // root
+                let mut path = T(stack, &[path_frag, D(0)]);
+                //TODO allow multiples?
+                self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
+                self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
+                //TODO do return
+                return ()
+            };
+        };
+
+        let parent_core = slot(*core, parent_axis.as_bitslice());
+        let mut parent_battery = raw_slot(parent_core, 2);
+        let Some(parent_core_path) = self.battery_to_paths.lookup(stack, &mut parent_battery) else {
+            println!("{}", "missing parent core path".yellow());
+            //TODO do return
+            return ()
+        };
+
+        let mut path = T(stack, &[path_frag, parent_core_path]);
+        println!("path {:?}", path);
+        println!("battery {:?}", battery);
+        //TODO allow multiples
+        self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
+        self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
+
+        self.warm_add(stack, hot, &mut path, core, warm);
+    }
+
     /** Register a core */
     //TODO why are core, chum, parent mutable?
 //    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent: &mut Atom) -> Warm {
 //    TODO should i actually return warm state?
-    pub fn register(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent_axis: Atom)
-                    -> Result<Warm, JetErr> {
-        //TODO why do i need permit_alloc here?
-        permit_alloc(|| {
-            println!("{} chum: {:?}", "register()".green(), chum);
-             //TODO when I register a jet, I guess I check the parent to see if its also registered, etc?
-            let mut battery = raw_slot(*core, 2);
-            if parent_axis.is_direct() {
-                if parent_axis.as_direct()?.data() == 0 {
-                    // root
-                    let mut path = Cell::new(stack, *chum, D(0)).as_noun(); // single element path
-                    self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
-                    self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
-                    //TODO figure out the return
-        //            return Ok(Warm::new())
-                    return Ok(self.warm_add(stack, &mut path))
-                };
+//     pub fn register_old(&mut self, stack: &mut NockStack, core: &mut Noun, chum: &mut Noun, parent_axis: Atom)
+//                     -> Result<Warm, JetErr> {
+//         //TODO why do i need permit_alloc here?
+//         permit_alloc(|| {
+//             println!("{} chum: {:?}", "register()".green(), chum);
+//              //TODO when I register a jet, I guess I check the parent to see if its also registered, etc?
+//             let mut battery = Cell::new(stack, parent_axis.as_noun(), raw_slot(*core, 2)).as_noun(); // [axis-of-parent, battery]
+//             let mut path = T(stack, &[*chum]);
+//             // while let Some(parent_battery) = Self::get_parent_battery(stack, core, parent_axis) {
+//             //     path = T(stack, &[path, parent_battery]);
+//             //     core = &mut slot(*core, parent_axis.as_bitslice());
+//             // }
+
+//             if parent_axis.is_direct() {
+//                 if parent_axis.as_direct()?.data() == 0 {
+//                     // root
+//                     let mut path = Cell::new(stack, *chum, D(0)).as_noun(); // single element path
+//                     //TODO make this check if there are already path(s) at this key
+//                     self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
+//                     //TODO make this check if there already battery(s) at this key
+//                     self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
+//                     //TODO figure out the return
+//         //            return Ok(Warm::new())
+//                     return Ok(self.warm_add(stack, &mut path))
+//                 };
+//             };
+//             let parent_core = slot(*core, parent_axis.as_bitslice());
+//             let mut parent_core_battery = raw_slot(parent_core, 2);
+//             let Some(parent_core_path) = self.battery_to_paths.lookup(stack, &mut parent_core_battery) else {
+//                 println!("{}", "missing parent core path".yellow());
+//                 //TODO figure out the return
+//                 return Ok(Warm::new())
+//             };
+//             println!("{}: {:?}", "parent_core_path".red(), parent_core_path);
+//             let mut path = Cell::new(stack, *chum, parent_core_path).as_noun();
+//             //TODO maek this check if there are already path(s) at this key
+//             self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
+//             //TODO make this check if there are already battery(s) at this key
+//             self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
+//             Ok(self.warm_add(stack, &mut path))
+// //            Ok(Warm::new())
+//         })
+//     }
+
+    // Retrieves the parent battery, returns None if the core is a root
+    fn get_parent_battery(stack: &mut NockStack, core: &mut Noun, parent_axis: Atom) -> Option<Noun> {
+        if parent_axis.is_direct() {
+            if parent_axis.as_direct().unwrap().data() == 0 {
+                return None
             };
-            let parent_core = slot(*core, parent_axis.as_bitslice());
-            let mut parent_core_battery = raw_slot(parent_core, 2);
-            let Some(parent_core_path) = self.battery_to_paths.lookup(stack, &mut parent_core_battery) else {
-                println!("{}", "missing parent core path".yellow());
-                return Ok(Warm::new())
-            };
-            println!("{}: {:?}", "parent_core_path".red(), parent_core_path);
-            let mut path = Cell::new(stack, *chum, parent_core_path).as_noun();
-            self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
-            // TODO I don't want just the battery, i want a list of batteries, derived from the parent and its parent etc
-            self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
-            Ok(self.warm_add(stack, &mut path))
-//            Ok(Warm::new())
-        })
+        };
+        let parent_core = slot(*core, parent_axis.as_bitslice());
+        Some(raw_slot(parent_core, 2))
     }
 
-    /** Partially regenerate warm state based on one new cold registration */
-    fn warm_add(&mut self, stack: &mut NockStack, path: &mut Noun) -> Warm {
-        let hot = Hot::new(stack);
+    // fn warm_add(&self, stack: &mut NockStack, hot: &Hot, path: &mut Noun, core: &mut Noun) -> Warm {
+    //     if let Some(hot_entry) = hot.jets.lookup(stack, path) {
+    //         let formula = slot(*core, hot_entry.axis.as_bitslice());
+    //         let battery = raw_slot(*core, 2);
+    //         let parent_path: Option<Noun> = if path.is_cell() {
+    //             Some(path.as_cell().unwrap().tail())
+    //         } else {
+    //             None
+    //         };
+    //         if let Some(parent_battery) = self.path_to_batteries.lookup(parent_path) {
+
+    //         }
+
+
+
+    //         let path_list = HList::from(*path);
+    //         while let path =
+    //         for path_frag in path_list.into_iter() {
+
+    //         }
+
+    //         Warm::new()
+    //     } else {
+    //         Warm::new()
+    //     }
+    // }
+
+    // /** Partially regenerate warm state based on one new cold registration */
+    // fn warm_add_old(&mut self, stack: &mut NockStack, path: &mut Noun) -> Warm {
+    //     let hot = Hot::new(stack);
+    //     if let Some(hot_entry) = hot.jets.lookup(stack, path) {
+    //         let warm_entry = WarmEntry {
+    //             jet: hot_entry.jet,
+    //             batteries: self.path_to_batteries.lookup(stack, path).unwrap(),
+    //             next: None,
+    //         };
+    //         let mut warm = Warm::new();
+    //         warm.jets = warm.jets.insert(stack, path, warm_entry);
+    //         println!("warm add");
+    //         return warm
+    //     }
+    //     Warm::new()
+    // }
+    //
+
+    fn warm_add(&self, stack: &mut NockStack, hot: &Hot, path: &mut Noun, core: &mut Noun, warm: &mut Warm) {
         if let Some(hot_entry) = hot.jets.lookup(stack, path) {
+            let mut battery_vec: Vec<Noun> = vec![];
+            let mut path = *path;
+
+            // construct formula
+            let mut formula = slot(*core, hot_entry.axis.as_bitslice());
+
+            // construct nested batteries
+            let mut battery: Noun;
+            while path.is_cell() {
+                battery = self.path_to_batteries.lookup(stack, &mut path).unwrap();
+                let axis = path.as_cell().unwrap().head().as_cell().unwrap().head();
+                let axis_battery = T(stack, &[axis, battery]);
+                battery_vec.push(axis_battery);
+                path = path.as_cell().unwrap().tail();
+            }
+
+            let mut batteries: Noun = D(0);
+            for bat in battery_vec.into_iter().rev() {
+                batteries = T(stack, &[bat, batteries]);
+            }
+
             let warm_entry = WarmEntry {
                 jet: hot_entry.jet,
-                batteries: self.path_to_batteries.lookup(stack, path).unwrap(),
-                next: None,
+                batteries,
+                next: None
             };
-            let mut warm = Warm::new();
-            warm.jets = warm.jets.insert(stack, path, warm_entry);
-            println!("warm add");
-            return warm
+
+            warm.jets = warm.jets.insert(stack, &mut formula, warm_entry);
         }
-        Warm::new()
     }
 
     /** Regenerate warm state */
@@ -224,7 +341,7 @@ impl Cold {
     }
 }
 
-#[repr(packed)]
+//#[repr(packed)]
 #[derive(Copy,Clone)]
 struct HotEntry {
     axis: Atom,
@@ -238,28 +355,27 @@ pub struct Hot {
 
 impl Hot {
     pub fn new(stack: &mut NockStack) -> Self {
-        let null = D(0);
-        let l1 = Cell::new(stack, D(107), D(139)).as_noun();
-        let l2 = D(tas!(b"one"));
-        let l3 = D(tas!(b"dec"));
+        let k_139 = T(stack, &[D(0), D(tas!(b"k")), D(139)]);
+        let one = T(stack, &[D(3), D(tas!(b"one"))]);
+        let dec = T(stack, &[D(7), D(tas!(b"dec"))]);
 
-        let m1 = Cell::new(stack, l1, null).as_noun();
-        let m2 = Cell::new(stack, l2, m1).as_noun();
-        let mut path = Cell::new(stack, l3, m2).as_noun();
+        let mut dec_path = T(stack, &[dec, one, k_139, D(0)]);
 
+        println!("dec_path: {:?}", dec_path);
         let dec_jet = HotEntry {
             axis: D(2).as_atom().unwrap(),
             jet: jet_dec,
         };
-        let j: Hamt<HotEntry> = Hamt::new();
-        let j = j.insert(stack, &mut path, dec_jet);
-        Self { jets: j }
+
+        let mut jets: Hamt<HotEntry> = Hamt::new();
+        jets = jets.insert(stack, &mut dec_path, dec_jet);
+        Self { jets }
     }
 }
 
-#[repr(packed)]
+//#[repr(packed)]
 #[derive(Copy,Clone)]
-struct WarmEntry {
+pub struct WarmEntry {
     jet: Jet,
     batteries: Noun,
     next: Option<*mut WarmEntry>
@@ -287,7 +403,7 @@ impl Preserve for WarmEntry {
 
 #[repr(packed)]
 pub struct Warm {
-    jets: Hamt<WarmEntry>,
+    pub jets: Hamt<WarmEntry>,
 }
 
 impl Preserve for Warm {
@@ -301,8 +417,73 @@ impl Warm {
         Self { jets: Hamt::new() }
     }
 
-    pub fn get_jet(&mut self, stack: &mut NockStack, formula: &mut Noun, subject: &mut Noun) -> Option<Jet> {
-        todo!()
+    pub fn get_jet(&mut self, stack: &mut NockStack, formula: &mut Noun, subject: Noun) -> Option<Jet> {
+        if let Some(warm_entry) = self.jets.lookup(stack, formula) {
+            println!("{}", "MATCH!".red());
+
+            println!("{}: {:?}\n", "subject".yellow(), subject);
+
+            let mut our_subject = subject;
+
+            let mut try_batteries = warm_entry.batteries;
+            let try_ab = try_batteries.as_cell().unwrap().head().as_cell().unwrap();
+            let try_axis = try_ab.head();
+            let try_battery_mug = mug_u32(stack, try_ab.tail());
+            let our_battery_mug = mug_u32(stack, raw_slot(our_subject, 2));
+            if try_battery_mug == our_battery_mug {
+                println!("i win");
+            };
+            our_subject = slot(our_subject, try_axis.as_atom().unwrap().as_bitslice());
+            try_batteries = try_batteries.as_cell().unwrap().tail();
+            println!("our_subject: {:?}", our_subject);
+
+
+            while try_batteries.is_cell() {
+                let try_ab = try_batteries.as_cell().unwrap().head().as_cell().unwrap();
+                let try_axis = try_ab.head();
+                if try_axis.is_direct() {
+                    if try_axis.as_direct().unwrap().data() == 0 {
+                        println!("root");
+                        return Some(warm_entry.jet);
+                    }
+                }
+                let try_battery = try_ab.tail();
+                let our_battery = raw_slot(our_subject, 2);
+
+                if mug_u32(stack, try_battery) == mug_u32(stack, our_battery) {
+                    println!("{}", "mug match".red());
+                } else {
+                    println!("jet mismatch");
+                    return None
+                }
+
+                our_subject = slot(our_subject, try_axis.as_atom().unwrap().as_bitslice());
+                try_batteries = try_batteries.as_cell().unwrap().tail();
+            }
+
+            // let axis_battery = warm_entry.batteries.as_cell().unwrap().head().as_cell().unwrap();
+            // let try_axis = axis_battery.head();
+            // println!("try_axis: {:?}", try_axis);
+            // let try_battery = axis_battery.tail();
+            // println!("{}: {:?}", "try_battery".yellow(), try_battery);
+            // let our_battery = raw_slot(subject, 2);
+            // println!("{}: {:?}", "our_battery".yellow(), our_battery);
+
+            // let axis_battery_2 = warm_entry.batteries.as_cell().unwrap().tail().as_cell().unwrap().head().as_cell().unwrap();
+            // let try_axis_2 = axis_battery_2.head();
+            // println!("try_axis: {:?}", try_axis_2);
+            // let try_battery_2 = axis_battery_2.tail();
+            // println!("{}: {:?}", "try_battery".yellow(), try_battery_2);
+            // let our_battery_2 = raw_slot(slot(subject, try_axis.as_atom().unwrap().as_bitslice()), 2);
+            // println!("{}: {:?}", "our_battery".yellow(), our_battery_2);
+
+            // let try_battery_mug = mug_u32(stack, try_battery);
+            // let our_battery = raw_slot(slot(subject, try_axis.as_atom().unwrap().as_bitslice()), 2);
+            // println!("our_battery: {:?}", our_battery);
+            // let our_battery_mug = mug_u32(stack, our_battery);
+            // println!("mug1: {try_battery_mug}, mug2: {our_battery_mug}");
+        }
+        None
     }
 }
 
