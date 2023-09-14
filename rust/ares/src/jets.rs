@@ -207,6 +207,39 @@ impl Cold {
 
 #[repr(packed)]
 #[derive(Copy,Clone)]
+struct HotEntry {
+    axis: Atom,
+    jet: Jet,
+}
+
+#[repr(packed)]
+pub struct Hot {
+    jets: Hamt<HotEntry>,
+}
+
+impl Hot {
+    pub fn new(stack: &mut NockStack) -> Self {
+        let null = D(0);
+        let l1 = Cell::new(stack, D(107), D(139)).as_noun();
+        let l2 = D(tas!(b"one"));
+        let l3 = D(tas!(b"dec"));
+
+        let m1 = Cell::new(stack, l1, null).as_noun();
+        let m2 = Cell::new(stack, l2, m1).as_noun();
+        let mut path = Cell::new(stack, l3, m2).as_noun();
+
+        let dec_jet = HotEntry {
+            axis: D(2).as_atom().unwrap(),
+            jet: jet_dec,
+        };
+        let j: Hamt<HotEntry> = Hamt::new();
+        let j = j.insert(stack, &mut path, dec_jet);
+        Self { jets: j }
+    }
+}
+
+#[repr(packed)]
+#[derive(Copy,Clone)]
 struct WarmEntry {
     jet: Jet,
     batteries: Noun,
