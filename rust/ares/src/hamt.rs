@@ -437,17 +437,25 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
             let dest_buffer = stack.struct_alloc_in_previous_frame(self.0.size());
             copy_nonoverlapping(self.0.buffer, dest_buffer, self.0.size());
             self.0.buffer = dest_buffer;
-            *(stack.push::<(Stem<T>, u32)>()) = (self.0, 0);
+            // Here we're using the Rust stack since the array is a fixed
+            // size. Thus it will be cleaned up if the Rust thread running
+            // this is killed, and is therefore not an issue vs. if it were allocated
+            // on the heap.
+            //
+            // In the past, this traversal stack was allocated in NockStack, but
+            // exactly the right way to do this is less clear with the split stack.
+            let mut traversal_stack: [Option<(Stem<T>, u32)>; 6] = [None; 6];
+            traversal_stack[0] = Some((self.0, 0));
             let mut traversal_depth = 1;
             'preserve: loop {
                 if traversal_depth == 0 {
                     break;
                 }
-                let (stem, mut position) = *(stack.top::<(Stem<T>, u32)>());
+                let (stem, mut position) = traversal_stack[traversal_depth - 1]
+                    .expect("Attempted to access uninitialized array element");
                 // can we loop over the size and count leading 0s remaining in the bitmap?
                 'preserve_stem: loop {
                     if position >= 32 {
-                        stack.pop::<(Stem<T>, u32)>();
                         traversal_depth -= 1;
                         continue 'preserve;
                     }
@@ -472,8 +480,8 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                 };
                                 *(stem.buffer.add(idx) as *mut Entry<T>) = Entry { stem: new_stem };
                                 assert!(traversal_depth <= 5); // will increment
-                                (*(stack.top::<(Stem<T>, u32)>())).1 = position + 1;
-                                *(stack.push::<(Stem<T>, u32)>()) = (new_stem, 0);
+                                traversal_stack[traversal_depth - 1].unwrap().1 = position + 1;
+                                traversal_stack[traversal_depth] = Some((new_stem, 0));
                                 traversal_depth += 1;
                                 continue 'preserve;
                             } else {
