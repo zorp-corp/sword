@@ -181,7 +181,8 @@ impl Cold {
                     self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
                     self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
                     //TODO figure out the return
-                    return Ok(Warm::new())
+        //            return Ok(Warm::new())
+                    return Ok(self.warm_add(stack, &mut path))
                 };
             };
             let parent_core = slot(*core, parent_axis.as_bitslice());
@@ -195,12 +196,30 @@ impl Cold {
             self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
             // TODO I don't want just the battery, i want a list of batteries, derived from the parent and its parent etc
             self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
-            Ok(Warm::new())
+            Ok(self.warm_add(stack, &mut path))
+//            Ok(Warm::new())
         })
     }
 
+    /** Partially regenerate warm state based on one new cold registration */
+    fn warm_add(&mut self, stack: &mut NockStack, path: &mut Noun) -> Warm {
+        let hot = Hot::new(stack);
+        if let Some(hot_entry) = hot.jets.lookup(stack, path) {
+            let warm_entry = WarmEntry {
+                jet: hot_entry.jet,
+                batteries: self.path_to_batteries.lookup(stack, path).unwrap(),
+                next: None,
+            };
+            let mut warm = Warm::new();
+            warm.jets = warm.jets.insert(stack, path, warm_entry);
+            println!("warm add");
+            return warm
+        }
+        Warm::new()
+    }
+
     /** Regenerate warm state */
-    fn warm(&mut self, stack: &mut NockStack) -> Warm {
+    fn warm(&mut self, stack: &mut NockStack, hot: Hot) -> Warm {
         todo!()
     }
 }

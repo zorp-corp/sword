@@ -1,6 +1,6 @@
 use crate::hamt::Hamt;
 use crate::jets;
-use crate::jets::Cold;
+use crate::jets::{Cold, Warm};
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -261,6 +261,7 @@ pub fn interpret(
     stack.frame_push(0);
     //TODO this is not how to do cold state
     let mut cold = Cold::new();
+    let mut warm = Warm::new();
     let mut cache = Hamt::<Noun>::new();
     unsafe {
         *stack.push() = NockWork::Done;
@@ -286,6 +287,7 @@ pub fn interpret(
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.preserve(&mut cold);
+                    stack.preserve(&mut warm);
                     stack.frame_pop();
                     break;
                 }
@@ -293,6 +295,7 @@ pub fn interpret(
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
                     stack.preserve(&mut cold);
+                    stack.preserve(&mut warm);
                     stack.frame_pop();
                 }
                 NockWork::WorkCons(mut cons) => match cons.todo {
@@ -531,7 +534,7 @@ pub fn interpret(
                     Todo11D::ComputeResult => {
                         dint.todo = Todo11D::Done;
                         let hint = Cell::new(stack, dint.tag.as_noun(), dint.hint).as_noun();
-                        if let Ok(found) = match_post_hint(stack, newt, subject, hint, res, &mut cold, dint.body) {
+                        if let Ok(found) = match_post_hint(stack, newt, subject, hint, res, &mut cold, &mut warm) {
                             res = found;
                             stack.pop::<NockWork>();
                         } else {
@@ -550,7 +553,7 @@ pub fn interpret(
                     Todo11S::ComputeResult => {
                         sint.todo = Todo11S::Done;
                         if let Ok(found) =
-                            match_post_hint(stack, newt, subject, sint.tag.as_noun(), res, &mut cold, sint.body)
+                            match_post_hint(stack, newt, subject, sint.tag.as_noun(), res, &mut cold, &mut warm)
                         {
                             res = found;
                             stack.pop::<NockWork>();
@@ -909,7 +912,7 @@ fn match_post_hint(
     hint: Noun,
     res: Noun,
     cold: &mut Cold,
-    body: Noun,
+    warm: &mut Warm,
 ) -> Result<Noun, ()> {
     let direct = hint.as_cell()?.head().as_direct()?;
     match direct.data() {
@@ -945,8 +948,13 @@ fn match_post_hint(
             let _hooks = clue.tail().as_cell()?.tail();
             //TODO it doesn't seem right to compute the core here, isnt it
             // already hanging around somewhere?
-            let mut core = raw_slot(subject, 1); //interpret(stack, newt, subject, body);
-            cold.register(stack, &mut core, &mut chum, parent_axis);
+            let mut core = raw_slot(subject, 1);
+
+            // let parent_core = slot(core, parent_axis.as_bitslice());
+            // let mut parent_core_battery = raw_slot(parent_core, 2);
+            // if let Some(parent_core_path) = cold.battery_to_paths.lookup(stack, &mut parent_core_battery) else {
+
+            *warm = cold.register(stack, &mut core, &mut chum, parent_axis).unwrap();
             Err(())
         },
         _ => Err(()),
