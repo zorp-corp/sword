@@ -22,9 +22,9 @@
     ::  %mean hint
     ~_  [%leaf "I am a %mean hint via ~_ from +wack"]
     ::  %hela hint
-    ~>  %hela
-    :: ::  %memo hint
-    :: ~+
+    :: ~>  %hela
+    ::  %memo hint
+    ~+
     ?~  m  +(n)
     ?~  n
       (tack (dec m) 1)
@@ -34,9 +34,9 @@
     !.
     |=  [m=@ud n=@ud]
     ::  %hela hint
-    ~>  %hela
-    :: ::  %memo hint
-    :: ~+
+    :: ~>  %hela
+    ::  %memo hint
+    ~+
     ?~  m  +(n)
     ?~  n
       (wack (dec m) 1)
@@ -50,13 +50,7 @@
   ++  poke
     |=  [now=@da ovo=ovum]
     ^-  ^
-    ~>  %slog.[0 (add '0' (wack 2 1))]
-    :: ~>  %slog.[0 [(add '0' (wack 2 1)) ~]]
-    :: ~>  %slog.[0 (add '0' 4)]
-    :: ~>  %slog.[0 '8']
-    :: ~>  %slog.[0 "8"]
-    :: ~>  %slog.[0 'test']
-    :: ~>  %slog.[0 "test"]
+    ~>  %slog.[0 leaf+(scow %ud (wack 2 1))]
     [~ ..poke]
   --
   ::

@@ -7,6 +7,7 @@ pub mod text;
 pub mod tree;
 
 use crate::jets::bits::*;
+use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
@@ -83,8 +84,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         //
         tas!(b"mug") => Some(jet_mug),
         //
-        // Not currently in any pill
-        // tas!(b"scow") => Some(jet_scow),
+        tas!(b"scow") => Some(jet_scow),
         //
         tas!(b"mink") => Some(jet_mink),
         _ => {

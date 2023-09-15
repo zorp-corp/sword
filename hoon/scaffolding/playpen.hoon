@@ -783,4 +783,90 @@
     =+  d=(get b)
     (~(put by a) b (~(put in d) c))
   --
+::
+::  Parsing
+::
+++  ne
+  |_  tig=@
+  ++  d  (add tig '0')
+  --
+::
+::  Atom printing
+::
+++  co
+  !:
+  ~%  %co  ..co  ~
+  =<  |_  lot=coin
+      ++  rend
+        ^-  tape
+        ~+
+        ?.  ?=(%$ -.lot)  !!
+        =+  [yed=(end 3 p.p.lot) hay=(cut 3 [1 1] p.p.lot)]
+        |-  ^-  tape
+        ?+    yed  !!
+            %ud
+          ::
+          =/  gam=tape
+            ((ox-co [10 3] |=(a=@ ~(d ne a))) q.p.lot)
+          ?:  =(0 q.p.lot)
+            ['0' ~]
+          gam
+        ==
+      --
+  =|  rep=tape
+  |%
+  ::  +em-co: format in numeric base
+  ::
+  ::    in .bas, format .min digits of .hol with .par
+  ::
+  ::    - .hol is processed least-significant digit first
+  ::    - all available digits in .hol will be processed, but
+  ::      .min digits can exceed the number available in .hol
+  ::    - .par handles all accumulated output on each call,
+  ::      and can edit it, prepend or append digits, &c
+  ::    - until .hol is exhausted, .par's sample is [| digit output],
+  ::      subsequently, it's [& 0 output]
+  ::
+  ++  em-co
+    |=  [[bas=@ min=@] par=$-([? @ tape] tape)]
+    |=  hol=@
+    ^-  tape
+    ?:  &(=(0 hol) =(0 min))
+      rep
+    =/  [dar=@ rad=@]  (dvr hol bas)
+    %=  $
+      min  ?:(=(0 min) 0 (dec min))
+      hol  dar
+      rep  (par =(0 dar) rad rep)
+    ==
+  ::
+  ::  +ox-co: format '.'-separated digit sequences in numeric base
+  ::
+  ::    in .bas, format each digit of .hol with .dug,
+  ::    with '.' separators every .gop digits.
+  ::
+  ::    - .hol is processed least-significant digit first
+  ::    - .dug handles individual digits, output is prepended
+  ::    - every segment but the last is zero-padded to .gop
+  ::
+  ++  ox-co
+    |=  [[bas=@ gop=@] dug=$-(@ @)]
+    %+  em-co
+      [(pow bas gop) 0]
+    |=  [top=? seg=@ res=tape]
+    %+  weld
+      ?:(top ~ `tape`['.' ~])
+    %.  seg
+    %+  em-co(rep res)
+      [bas ?:(top 0 gop)]
+    |=([? b=@ c=tape] [(dug b) c])
+  --
+::
+::  Formatting functions
+::
+++  scow
+  ~/  %scow
+  |=  mol=dime
+  ~>  %sham.%scow
+  ~(rend co %$ mol)
 --
