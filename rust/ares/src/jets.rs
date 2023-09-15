@@ -14,6 +14,7 @@ use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots};
 use ares_macros::tas;
 use std::cmp;
+use ibig::{UBig, ubig};
 
 crate::gdb!();
 
@@ -132,51 +133,6 @@ pub mod util {
         }
     }
 
-    /**
-     * Value-based size operations.
-     * Up to 64 bits are allowed, then it's a UBig.
-     */
-    const MAX_BIT_LENGTH: u64 = (1 << 63) - 1;
-
-    /// Performs addition that returns UBig on Noun size overflow
-    pub fn safe_add(a: u64, b: u64) -> result::Either<u64, UBig> {
-        if a <= (crate::noun::DIRECT_MAX - b) {
-            a + b
-        } else {
-            ubig!(a) + ubig!(b)
-        }
-    }
-
-    /// Performs multiplication that returns UBig on Noun size overflow
-    pub fn safe_mul(a: u64, b: u64) -> result::Either<u64, UBig> {
-        if a == 0 || b == 0 {
-            return 0;
-        }
-        if a == 1 {
-            return b;
-        }
-        if b == 1 {
-            return a;
-        }
-        
-        if a <= (crate::noun::DIRECT_MAX / b) {
-            a * b
-        } else {
-            ubig!(a) * ubig!(b)
-        }
-    }
-
-    /// Performs left-shift that returns UBig on Noun size overflow
-    /// Must be smaller than crate::noun::DIRECT_BITS, which is 62
-    /// bits (not 63), thus the decrement
-    pub fn safe_shl(a: u64, b: u64) -> result::Either<u64, UBig> {
-        if b <= (a.leading_zeros() - 1) {
-            a << b
-        } else {
-            ubig!(a) << ubig!(b)
-        }
-    }
-
     /// Convert length in bits to length in 64-bit words
     pub fn bits_to_word(a: usize) -> result::Result<usize, JetErr> {
         checked_add(a, 63).map(|x| x >> 6)
@@ -260,7 +216,7 @@ pub mod util {
             Ok(Atom::from_ubig(stack, &res))
         }
     }
-    
+
     /// Subtraction
     pub fn sub(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
