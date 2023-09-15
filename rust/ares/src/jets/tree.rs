@@ -87,13 +87,9 @@ pub fn jet_peg(
         let d = c - 1;
         let e = d << 1;
         let f = b.as_direct()?.data() - e;  // left or right child
-        let g = d << a; // can overflow in which case use ubig
-        // checked_left_shift, checked_add only good for usize 2^{47} max size but for values okay to 2^{64}
-        // wrappers on checked_add, checked_sub native to numbers
-        // no native ch_lsh in Rust---should have version for values, other for addresses
-        // so you could rewrite to just use other jets
-        let h = checked_add(f, g);
-    
+        let g = safe_shl(d, a);
+        let h = safe_add(f, g);
+
         //  XX MAY RETURN INDIRECT ATOM
         D(h)
     } else {
@@ -110,10 +106,10 @@ pub fn jet_peg(
 
         let c = met(0, b);
         let d = c - 1;
-        let e = checked_left_shift(d, 1);
+        let e = safe_shl(d, 1);
         let f = b_big - e;  // left or right child
-        let g = checked_left_shift(d, a);
-        let h = checked_add(f, g);
+        let g = safe_shl(d, a);
+        let h = safe_add(f, g);
 
         Ok(Atom::from_ubig(stack, &h).as_noun())
     }
