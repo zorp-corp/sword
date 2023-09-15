@@ -367,6 +367,7 @@ impl NockStack {
 
     unsafe fn copy(&mut self, noun: &mut Noun) {
         self.pre_copy();
+        assert!(self.stack_is_empty());
         let noun_ptr = noun as *mut Noun;
         // Add two slots to the lightweight stack
         // Set the first new slot to the noun to be copied
@@ -463,6 +464,7 @@ impl NockStack {
                 && (*(self.prev_stack_pointer_pointer())).is_null()
                 && (*(self.prev_frame_pointer_pointer())).is_null()
         );
+        assert!(self.stack_is_empty());
         let noun_ptr = noun as *mut Noun;
         *(self.push::<Noun>()) = *noun;
         *(self.push::<*mut Noun>()) = noun_ptr;
