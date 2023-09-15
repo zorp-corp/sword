@@ -53,7 +53,6 @@
       =.  nose  (~(uni by nose) cads)
       $(wurk t.wurk)
     =/  queu  ~(tap in (~(dif by new) nose))
-    ?<  =(~ queu)
     =|  back=(list bell)
     =|  done=(set bell)
     =|  toil=(list bell)
@@ -75,12 +74,12 @@
     |=  toil=(list bell)
     ^-  _this
     ?^  toil
-      =|  gen=[will=(map bile blob) sans=@stir redo=(list bile)]
+      =|  gen=[will=(map bile blob) sans=@uvre redo=(list bile)]
       =/  =goal  [%done ~]  
       =/  fax  1
       |^
         =^  dire=next  gen  cuts
-        =^  [wish=bile sire=@stir]  gen  (kerf dire)
+        =^  [wish=bile sire=@uvre]  gen  (kerf dire)
         %=  ^$
             toil  t.toil
             redo  [[i.toil redo.gen] redo]
@@ -164,7 +163,7 @@
               ?:  ?=(%done -.goal)
                 =^  dune  gen  (emit 0 %dune ~ %lnt sofa fora)
                 [[dune [%this sofa] [%this fora]] gen]
-              =^  [fine=bile rare=@stir]  gen  (kerf goal)
+              =^  [fine=bile rare=@uvre]  gen  (kerf goal)
               =^  dunk  gen  (emit 0 %dunk ~ %lnk sofa fora rare fine)
               [[dunk [%this sofa] [%this fora]] gen]
             =/  hull  (~(get by hill) u.bull)
@@ -177,21 +176,21 @@
                 =^  dawn  gen  (emit 0 %dawn [%con sofa hoof soap]~ %hop dude)
                 =.  redo.gen  [dude redo.gen]
                 [[dawn [%this sofa] [%this hoof]] gen]
-              =^  [fine=bile rare=@stir]  gen  (kerf goal)
+              =^  [fine=bile rare=@uvre]  gen  (kerf goal)
               =^  deed  gen  (emit 0 %deed ~ %cal u.bull soap ~[sofa] rare fine)
               =^  deem  gen  (emit 0 %deem [%con sofa hoof soap]~ %hop deed)
               =.  redo.gen  [deed redo.gen]
               [[deem [%this sofa] [%this hoof]] gen]
             ::  direct with registerization
             ?:  ?=(%done -.goal)
-              =^  [kilt=next soap=@stir]  gen  (cane want.u.hull u.bull ~)
+              =^  [kilt=next soap=@uvre]  gen  (cane want.u.hull u.bull ~)
               =^  hose  gen  rain
               =^  hoof  gen  rain
               =^  down  gen
                 (emit 0 %down [%con hose hoof soap]~ %hop then.kilt)
               =^  cops  gen  (copy down what.kilt [%this hose])
               [[then.cops what.cops [%this hoof]] gen]
-            =^  [kilt=next soap=@stir]  gen  (cane want.u.hull u.bull `goal)
+            =^  [kilt=next soap=@uvre]  gen  (cane want.u.hull u.bull `goal)
             =^  hose  gen  rain
             =^  hoof  gen  rain
             =^  doom  gen
@@ -476,7 +475,7 @@
             $(goal [%next [%this flip] heft])
           ::
               %next
-            =^  [weft=bile good=@stir]  gen  (kerf goal)
+            =^  [weft=bile good=@uvre]  gen  (kerf goal)
             =^  home  gen  rain
             =^  path  gen  rain
             =^  show  gen  (emit 0 %show ~ %spy home path good weft)
@@ -507,7 +506,7 @@
         [[%next [%none ~] drop] gen]
       ::  get a new SSA register
       ++  rain
-        ^-  [@stir _gen]
+        ^-  [@uvre _gen]
         [sans.gen gen(sans +(sans.gen))]
       ::  combine two needs
       ++  copy
@@ -679,11 +678,11 @@
       ::  split a register to a need
       ++  kerf
         |=  next
-        ^-  [[bile @stir] _gen]
+        ^-  [[bile @uvre] _gen]
         =/  tack=(list (unit need))  ~[`what]
-        =|  salt=(list @stir)
+        =|  salt=(list @uvre)
         =|  pose=(list pole)
-        |-  ^-  [[bile @stir] _gen]
+        |-  ^-  [[bile @uvre] _gen]
         ?^  tack
           ?~  i.tack
             ?>  ?=(^ salt)
@@ -712,7 +711,7 @@
         =|  bail=@
         =/  benz=site  [%hop then]
         =|  bock=(list pole)
-        |-  ^-  [[bile @stir] _gen]
+        |-  ^-  [[bile @uvre] _gen]
         ?^  pose
           ?:  ?=(%hed -.i.pose)
             =^  beer  gen  (emit bail %beer [i.pose bock] benz)
@@ -736,11 +735,11 @@
       ::  fresh variables for a call
       ++  cane
         |=  [=need =bell nuts=(unit next)]
-        ^-  [[next @stir] _gen]
-        =|  rear=(list @stir)
+        ^-  [[next @uvre] _gen]
+        =|  rear=(list @uvre)
         =/  tack=(list (unit ^need))  ~[`need]
         =|  news=(list ^need)
-        |-  ^-  [[next @stir] _gen]
+        |-  ^-  [[next @uvre] _gen]
         ?^  tack
           ?~  i.tack
             ?>  ?=(^ news)
@@ -762,7 +761,7 @@
         =^  kale  gen
           ?~  nuts
             (emit 0 %cave ~ %jmp bell sofa rear)
-          =^  [bill=bile rats=@stir]  gen  (kerf u.nuts)
+          =^  [bill=bile rats=@uvre]  gen  (kerf u.nuts)
           (emit 0 %kale ~ %cal bell sofa rear rats bill)
         [[[%next i.news kale] sofa] gen]
       ::  fresh variables for a phi node
@@ -824,7 +823,7 @@
                 ?:  ?=(%this -.f.u.i.note)
                   [sass.f.u.i.note gen]
                 rain
-              =/  spit=(list [n=need r=@stir])  [t.u.i.note tare]~
+              =/  spit=(list [n=need r=@uvre])  [t.u.i.note tare]~
               |-  ^-  [[need bile bile] _gen]
               ?^  spit
                 ?-  -.n.i.spit
@@ -851,7 +850,7 @@
                 ?:  ?=(%this -.t.u.i.note)
                   [sass.t.u.i.note gen]
                 rain
-              =/  spit=(list [n=need r=@stir])  [f.u.i.note tare]~
+              =/  spit=(list [n=need r=@uvre])  [f.u.i.note tare]~
               |-  ^-  [[need bile bile] _gen]
               ?^  spit
                 ?-  -.n.i.spit
@@ -951,8 +950,8 @@
           =/  sill  +>+<.bend.bock :: so that we don't overconstrain the type
           ?>  ?=(^ sill)
           ?>  =(~ t.sill)
-          =/  tack=(list [r=@stir n=need])  [i.sill want:(~(got by hill) coil)]~
-          =|  args=(list @stir)
+          =/  tack=(list [r=@uvre n=need])  [i.sill want:(~(got by hill) coil)]~
+          =|  args=(list @uvre)
           =|  pose=(list pole)
           |-  ^-  _this  :: 
           ?^  tack 
@@ -1012,8 +1011,8 @@
           =/  sill  +>+.bend.bock :: so that we don't overconstrain the type
           ?>  ?=(^ sill)
           ?>  =(~ t.sill)
-          =/  tack=(list [r=@stir n=need])  [i.sill want:(~(got by hill) coil)]~
-          =|  args=(list @stir)
+          =/  tack=(list [r=@uvre n=need])  [i.sill want:(~(got by hill) coil)]~
+          =|  args=(list @uvre)
           =|  pose=(list pole)
           |-  ^-  _this  :: 
           ?^  tack 

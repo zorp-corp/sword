@@ -7,7 +7,7 @@
 +$  bile  [%bile axe=@ tis=@ thus=@tas bell]
 ::  ssa shape of a noun
 +$  need
-  $%  [%this sass=@stir]
+  $%  [%this sass=@uvre]
       [%both left=need rite=need]
       [%none ~]
   ==
@@ -20,48 +20,48 @@
   ==
 ::  instructions in a block
 +$  pole
-  $%  [%imm * @stir]            :: Write a noun to an SSA value
-      [%mov @stir @stir]        :: Copy an SSA value
-      [%phi (list @stir) @stir] :: Choose whichever SSA value is defined
-      [%inc @stir @stir]        :: Define second SSA register as increment of first
-      [%con @stir @stir @stir]  :: Construct a cell, first SSA head, second SSA tail, third SSA result
-      [%hed @stir @stir]        :: Take the head of first SSA and place in second.
+  $%  [%imm * @uvre]            :: Write a noun to an SSA value
+      [%mov @uvre @uvre]        :: Copy an SSA value
+      [%phi (list @uvre) @uvre] :: Choose whichever SSA value is defined
+      [%inc @uvre @uvre]        :: Define second SSA register as increment of first
+      [%con @uvre @uvre @uvre]  :: Construct a cell, first SSA head, second SSA tail, third SSA result
+      [%hed @uvre @uvre]        :: Take the head of first SSA and place in second.
                                 ::  Undefined if first SSA not a cell
-      [%tal @stir @stir]        :: Take tail head of first SSA and place in second.
+      [%tal @uvre @uvre]        :: Take tail head of first SSA and place in second.
                                 ::  Undefined if first SSA not a cell
-      [%men @stir]              :: Push onto the mean stack
+      [%men @uvre]              :: Push onto the mean stack
       [%man ~]                  :: Pop from the mean stack
-      [%hit @stir]              :: Profiling hit counter
-      [%slg @stir]              :: Debugging print
-      [%mew @stir @stir @stir @stir]  :: Cache write - cache key - subject - formula - result
+      [%hit @uvre]              :: Profiling hit counter
+      [%slg @uvre]              :: Debugging print
+      [%mew @uvre @uvre @uvre @uvre]  :: Cache write - cache key - subject - formula - result
       [%tim ~]                  :: Start timer
       [%tom ~]                  :: Stop timer 
       [%mem ~]                  :: Print memory usage
   ==
 +$  pool
-  $%  [%hed @stir]
-      [%tal @stir]
+  $%  [%hed @uvre]
+      [%tal @uvre]
   ==
 ::  instructions ending a block
 +$  site
-  $%  [%clq @stir bile bile]                    :: Branch left if the SSA value is a cell, right otherwise
-      [%eqq @stir @stir bile bile]              :: Branch left if SSA registers are equal, right otherwise
-      [%brn @stir bile bile bile]               :: Branch 1st - not loobean, 2nd - 0, 3rd - 1
+  $%  [%clq @uvre bile bile]                    :: Branch left if the SSA value is a cell, right otherwise
+      [%eqq @uvre @uvre bile bile]              :: Branch left if SSA registers are equal, right otherwise
+      [%brn @uvre bile bile bile]               :: Branch 1st - not loobean, 2nd - 0, 3rd - 1
       [%hop bile]                               :: Go to bile unconditionally (local direct jump)
-      [%lnk @stir @stir @stir bile]             :: Call formula in first SSA register with subject in second,
+      [%lnk @uvre @uvre @uvre bile]             :: Call formula in first SSA register with subject in second,
                                                 ::   result in third, return to bile
-      [%cal bell @stir (list @stir) @stir bile] :: Call arm given by bell, 
+      [%cal bell @uvre (list @uvre) @uvre bile] :: Call arm given by bell, 
                                                 ::   subject/formula pair in register
                                                 ::   subject in SSA register list,
                                                 ::   result to register, return to bile
-      [%lnt @stir @stir]                        :: Jump to formula in first SSA register with subject in second
-      [%jmp bell @stir (list @stir)]            :: Jump to the code at the label in tail position,
+      [%lnt @uvre @uvre]                        :: Jump to formula in first SSA register with subject in second
+      [%jmp bell @uvre (list @uvre)]            :: Jump to the code at the label in tail position,
                                                 ::   subject/formula pair in SSA register,
                                                 ::   subject in register list
-      [%spy @stir @stir @stir bile]             :: Scry with the ref/path pair in the first 2 SSA registers
+      [%spy @uvre @uvre @uvre bile]             :: Scry with the ref/path pair in the first 2 SSA registers
                                                 ::   define the third as the result
-      [%mer @stir @stir @stir @stir bile bile]  :: Cache read: key - subject - formula - hit - miss
-      [%don @stir]                              :: Finish the procedure, returning the value in the SSA
+      [%mer @uvre @uvre @uvre @uvre bile bile]  :: Cache read: key - subject - formula - hit - miss
+      [%don @uvre]                              :: Finish the procedure, returning the value in the SSA
       [%pun ~]                                  :: Punt to tree-walking nock, with a saved mean stack, subject, and formula
       [%bom ~]                                  :: Crash immediately without punting
   ==
@@ -72,9 +72,9 @@
   $:  long=bile  :: starting label for direct calls
       want=need  :: input registers for direct calls
       wish=bile  :: starting label for indirect calls
-      sire=@stir :: input register for indirect calls
+      sire=@uvre :: input register for indirect calls
       will=(map bile blob)
-      sans=@stir ::  next SSA register
+      sans=@uvre ::  next SSA register
   ==
 ::  code table
 +$  hill  (map bell pile)

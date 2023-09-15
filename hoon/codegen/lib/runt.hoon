@@ -1,7 +1,11 @@
 /-  *noir
+/-  gene
 /+  sack
+/+  line
 =*  moan  moan.sack
 =*  cole  cole.sack
+=/  lena  (lean:line moan)
+=*  hill  hill.lena
 =>
 ::  "jets"
 |%
@@ -21,6 +25,244 @@
 ::  warm state: label->jet matching
 =|  warm=(map [sock *] [p=path q=$-(* (unit))])
 |%
+++  lane
+  |=  [s=* f=*]
+  =*  this  .
+  ^-  (unit *)
+  =|  tack=(list [salt=@ turn=bile:gene s=* f=* mean=(list ^) stir=(map @uvre *) dirt=pile:gene])
+  =<
+  =^  tear  this  (dyn s f)
+  ?:  ?=(%| -.tear)
+    (q.p.tear s)
+  =/  fram=[stir=(map @ *) dirt=pile:gene]  [*(map @ *) p.tear]
+  =|  mean=(list ^)
+  =/  [todo=(list pole:gene) then=site:gene]  (~(got by will.dirt.fram) wish.dirt.fram)
+  =.  stir.fram  (~(put by stir.fram) sire.dirt.fram s)
+  |-  ^-  (unit *)
+  =>  |%  ++  r  |=(a=@uvre (~(got by stir.fram) a))  --
+  ?^  todo
+    ~&  i.todo
+    =>  |%  ++  go  $(todo t.todo)  --
+    ?+  -.i.todo  ~&("skip/todo: {<i.todo>}" go)
+        %imm
+      =.  stir.fram  (~(put by stir.fram) +>.i.todo +<.i.todo)
+      go
+    ::
+        %mov
+      =.  stir.fram  (~(put by stir.fram) +>.i.todo (r +<.i.todo))
+      go
+    ::
+        %phi
+      |-  ^-  (unit *)
+      ?~  +<.i.todo  !!
+      =/  v  (~(get by stir.fram) i.+<.i.todo)
+      ?~  v  $(+<.i.todo t.+<.i.todo)
+      =.  stir.fram  (~(put by stir.fram) +>.i.todo u.v)
+      go
+    ::
+        %inc
+      =/  a  (r +<.i.todo)
+      ?^  a  ~
+      =.  stir.fram  (~(put by stir.fram) +>.i.todo .+(a))
+      go
+    ::
+        %con
+      =.  stir.fram  (~(put by stir.fram) +>+.i.todo [(r +<.i.todo) (r +>-.i.todo)])
+      go
+    ::
+        %hed
+      =.  stir.fram  (~(put by stir.fram) +>.i.todo -:(r +<.i.todo))
+      go
+    ::
+        %tal
+      =.  stir.fram  (~(put by stir.fram) +>.i.todo +:(r +<.i.todo))
+      go
+    ==
+  ~&  then
+  =>  |%
+      ++  go  |=(b=bile:gene =+((~(got by will.dirt.fram) b) ^$(todo body, then bend)))
+      ++  ar
+        |=  [a=(list @uvre) n=need:gene]
+        =/  nack=(list need:gene)  ~[n]
+        =|  whip=(map @uvre *)
+        |-  ^-  (map @uvre *)
+        ?^  nack
+          ?-  -.i.nack
+              %none  $(nack t.nack)
+              %both  $(nack [left.i.nack rite.i.nack t.nack])
+              %this
+            ?>  ?=(^ a)
+            $(whip (~(put by whip) sass.i.nack (r i.a)), a t.a, nack t.nack)
+          ==
+        whip
+      ++  re
+        |=  x=*
+        ?^  tack
+          =.  stir.i.tack  (~(put by stir.i.tack) salt.i.tack x)
+          =/  post  (~(got by will.dirt.i.tack) turn.i.tack)
+          %=  ^$
+            tack  t.tack
+            stir.fram  stir.i.tack
+            dirt.fram  dirt.i.tack
+            s  s.i.tack
+            f  f.i.tack
+            mean  mean.i.tack
+            todo  body.post
+            then  bend.post
+          ==
+        `x
+      --
+  ?-  -.then
+      %clq
+    ?^  (r +<.then)
+      (go +>-.then)
+    (go +>+.then)
+  ::
+      %eqq
+    ?:  =((r +<.then) (r +>-.then)) 
+      (go +>+<.then)
+    (go +>+>.then)
+  ::
+      %brn
+    =/  c  (r +<.then)
+    ?:  =(0 c)
+      (go +>+<.then)
+    ?:  =(1 c)
+      (go +>+>.then)
+    (go +>-.then)
+  ::
+      %hop
+    (go +.then)
+  ::
+      %lnk
+    =/  s  (r +<.then)
+    =/  f  (r +>-.then)
+    =^  tear  this  (dyn s f)
+    ?:  ?=(%| -.tear)
+      =/  silt  (q.p.tear s)
+      ?~  silt  ~
+      =.  stir.fram  (~(put by stir.fram) +>+<.then u.silt)
+      (go +>+>.then)
+    =/  wish  (~(got by will.p.tear) wish.p.tear)
+    %=  $
+      tack  [[+>+<.then +>+>.then ^s ^f mean fram] tack]
+      s  s
+      f  f
+      dirt.fram  p.tear
+      stir.fram  (~(put by *(map @ *)) sire.p.tear s)
+      mean  ~
+      todo  body.wish
+      then  bend.wish
+    ==
+  ::
+      %cal
+    =/  s  (r +>-.then)
+    =/  f  +<+.then
+    =/  jute  (~(get by warm) +<.then)
+    ?^  jute
+      =/  silt  (q.u.jute s)
+      ?~  silt  ~
+      =.  stir.fram  (~(put by stir.fram) +>+>-.then u.silt)
+      (go +>+>+.then)
+    =/  pill  (~(got by hill) +<.then)
+    =/  long  (~(got by will.pill) long.pill)
+    %=  $
+      tack  [[+>+>-.then +>+>+.then ^s ^f mean fram] tack]
+      s  s
+      f  f
+      stir.fram  (ar +>+<.then want.pill)
+      dirt.fram  pill
+      mean  ~
+      todo  body.long
+      then  bend.long
+    ==
+  ::
+      %lnt
+    =/  s  (r +<.then)
+    =/  f  (r +>.then)
+    =^  tear  this  (dyn s f)
+    ?:  ?=(%| -.tear)
+      =/  silt  (q.p.tear s)
+      ?~  silt  ~
+      (re u.silt)
+    =/  wish  (~(got by will.p.tear) wish.p.tear)
+    %=  $
+      s  s
+      f  f
+      dirt.fram  p.tear
+      stir.fram  (~(put by *(map @ *)) sire.p.tear s)
+      todo  body.wish
+      then  bend.wish
+    ==
+  ::
+      %jmp
+    =/  s  (r +>-.then)
+    =/  f  +<+.then
+    =/  jute  (~(get by warm) +<.then)
+    ?^  jute
+      =/  silt  (q.u.jute s)
+      ?~  silt  ~
+      (re u.silt)
+    =/  pill  (~(got by hill) +<.then)
+    =/  long  (~(got by will.pill) long.pill)
+    %=  $
+      s  s
+      f  f
+      stir.fram  (ar +>+.then want.pill)
+      dirt.fram  pill
+      todo  body.long
+      then  bend.long
+    ==
+  ::
+      %spy
+    ~&  'todo: spy'  ~
+  ::
+      %mer
+    ~&  'todo: mer'  (go +>+>+>.then)
+  ::
+      %don  (re (r +.then))
+      %bom  ~
+      %pun  ~&  'todo: punt'  ~
+  ==
+  |%
+  ++  dyn
+    |=  [s=* f=*]
+    ^-  [(each pile:gene [p=path q=$-(* (unit))]) _this]
+    =/  mile  (fin s f)
+    ?^  mile  [u.mile this]
+    =.  sack  (rout:sack [& s] f)
+    =.  warm  wag
+    =.  lena  (lena moan)
+    =/  milt  (fin s f)
+    ?>  ?=(^ milt)
+    [u.milt this]
+  ++  fin  |=([s=* f=*] (fan [& s] f))
+  ++  fan
+    |=  [s=sock f=*]
+    ^-  (unit (each pile:gene [p=path q=$-(* (unit))]))
+    =/  huns  (~(get ja moan) f)
+    |-  ^-  (unit (each pile:gene [p=path q=$-(* (unit))]))
+    ?~  huns  ~
+    ?:  (~(huge so:sack soot.i.huns) s)
+      =/  jute  (~(get by warm) [soot.i.huns f])
+      ?^  jute  `[%| u.jute]
+      =/  mile  (~(get by hill) [soot.i.huns f])
+      ?~  mile  ~
+      `[%& u.mile]
+    $(huns t.huns)
+  ++  wag
+    ^-  _warm
+    =/  jets  ~(tap by heat)
+    =.  warm  ~
+    |-  ^-  _warm
+    ?^  jets
+      =/  labs  ~(tap in (~(get ju call.cole) -.i.jets))
+      |-  ^-  _warm
+      ?^  labs
+        $(warm (~(put by warm) i.labs [-< +]:i.jets), labs t.labs)
+      ^$(jets t.jets)
+    warm
+  --
 ++  morn
   |=  [s=* f=*]
   =*  this  .
