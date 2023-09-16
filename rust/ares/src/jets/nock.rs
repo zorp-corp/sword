@@ -34,9 +34,9 @@ pub fn jet_mink(
 
 pub mod util {
     use crate::jets;
-    use crate::jets::{JetErr, jet_mink};
     use crate::jets::form::util::scow;
     use crate::jets::util::rip;
+    use crate::jets::{jet_mink, JetErr};
     use crate::mem::NockStack;
     use crate::newt::Newt;
     use crate::noun::{tape, Cell, Noun, D, T};
@@ -63,7 +63,7 @@ pub mod util {
         } else if tag.data() > 2 {
             return Err(JetErr::Deterministic);
         }
-        
+
         if unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
         } else if let Some(_) = original_list.atom() {

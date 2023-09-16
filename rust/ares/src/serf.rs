@@ -4,7 +4,7 @@ use crate::jets::text::util::lent;
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
-use crate::noun::{Noun, Cell, Slots, D, T};
+use crate::noun::{Cell, Noun, Slots, D, T};
 use crate::snapshot::{self, Snapshot};
 use ares_macros::tas;
 use std::fs::create_dir_all;
@@ -49,7 +49,7 @@ pub fn serf() -> io::Result<()> {
     let mut current_mug = loaded_mug;
 
     newt.ripe(stack, current_event_num, loaded_mug as u64);
-    
+
     // Can't use for loop because it borrows newt
     while let Some(writ) = newt.next(stack) {
         let tag = slot(writ, 2)?.as_direct().unwrap();
@@ -85,8 +85,10 @@ pub fn serf() -> io::Result<()> {
                     //  XX: TODO
                     match interpret(stack, &mut Some(newt), eve, lyf) {
                         Ok(gat) => {
-                            arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
-                            current_event_num = lent(eve).expect("serf: play: boot event number failure") as u64;
+                            arvo = slot(gat, 7)
+                                .expect("serf: play: lifecycle didn't return initial Arvo");
+                            current_event_num =
+                                lent(eve).expect("serf: play: boot event number failure") as u64;
                             current_mug = mug_u32(stack, arvo);
                         }
                         Err(NockErr::Error(trace)) => {
@@ -108,7 +110,7 @@ pub fn serf() -> io::Result<()> {
                     let mut lit = slot(writ, 7)?;
                     while let Ok(cell) = lit.as_cell() {
                         let ovo = cell.head();
-                        
+
                         match slam(stack, newt, arvo, POKE_AXIS, ovo) {
                             Ok(res) => {
                                 let cell = res.as_cell().expect("serf: play: +slam returned atom");
@@ -145,10 +147,10 @@ pub fn serf() -> io::Result<()> {
                         let fec = cell.head();
                         arvo = cell.tail();
                         snap.save(stack, &mut arvo);
-                        
+
                         current_mug = mug_u32(stack, arvo);
                         current_event_num += 1;
-        
+
                         newt.work_done(stack, current_event_num, current_mug as u64, fec);
                     }
                     Err(NockErr::Error(trace)) => {

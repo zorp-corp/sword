@@ -1,7 +1,7 @@
+use crate::jets::util::*;
 /** Hash jets
  */
 use crate::jets::Result;
-use crate::jets::util::*;
 use crate::mem::NockStack;
 use crate::mug::mug;
 use crate::newt::Newt;
