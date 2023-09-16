@@ -982,9 +982,9 @@ fn match_hint_pre_nock(
             //     pretty sure we should be bailing on error
             //     might need to switch return type to Result<Option<Noun>, NockErr>
             let stak = stack.get_mean_stack();
-            let tone = T(stack, &[D(2), stak]);
+            let tone = Cell::new(stack, D(2), stak);
 
-            if let Ok(Ok(toon)) = mook(stack, newt, tone, true).map(|t| t.as_cell()) {
+            if let Ok(toon) = mook(stack, newt, tone, true) {
                 if unsafe { !toon.head().raw_equals(D(2)) } {
                     // Print jet error and punt to Nock
                     eprintln!("\r%hela failed: toon not %2");

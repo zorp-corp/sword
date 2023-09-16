@@ -1,8 +1,10 @@
 use crate::interpreter::{interpret, NockErr};
+use crate::jets::nock::util::mook;
+use crate::jets::text::util::lent;
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
-use crate::noun::{Noun, Slots, D, T};
+use crate::noun::{Noun, Cell, Slots, D, T};
 use crate::snapshot::{self, Snapshot};
 use ares_macros::tas;
 use std::fs::create_dir_all;
@@ -41,10 +43,12 @@ pub fn serf() -> io::Result<()> {
     let stack = &mut NockStack::new(96 << 10 << 10, 0);
     let newt = &mut Newt::new();
 
-    let (_epoch, mut event_number, mut arvo) = snap.load(stack).unwrap_or((0, 0, D(0)));
-    let mug = mug_u32(stack, arvo);
+    let (_epoch, loaded_event_num, mut arvo) = snap.load(stack).unwrap_or((0, 0, D(0)));
+    let mut current_event_num = loaded_event_num;
+    let loaded_mug = mug_u32(stack, arvo);
+    let mut current_mug = loaded_mug;
 
-    newt.ripe(stack, event_number, mug as u64);
+    newt.ripe(stack, current_event_num, loaded_mug as u64);
     
     // Can't use for loop because it borrows newt
     while let Some(writ) = newt.next(stack) {
@@ -58,7 +62,7 @@ pub fn serf() -> io::Result<()> {
                     tas!(b"save") => {
                         // XX what is eve for?
                         eprintln!("save");
-                        snap.sync(stack, 0, event_number);
+                        snap.sync(stack, 0, current_event_num);
                     }
                     tas!(b"meld") => eprintln!("meld"),
                     tas!(b"pack") => eprintln!("pack"),
@@ -73,52 +77,83 @@ pub fn serf() -> io::Result<()> {
                 newt.peek_done(stack, res);
             }
             tas!(b"play") => {
-                let run = if event_number == 0 {
-                    // apply lifecycle to first batch
-                    let lit = slot(writ, 7)?;
+                // apply lifecycle to first batch
+                if current_event_num == 0 {
+                    let eve = slot(writ, 7)?;
                     let sub = T(stack, &[D(0), D(3)]);
                     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
-                    let gat = interpret(stack, &mut Some(newt), lit, lyf)
+                    //  XX: TODO
+                    let gat = interpret(stack, &mut Some(newt), eve, lyf)
                         .expect("play error handling unimplemented");
+
                     arvo = slot(gat, 7)?;
-                    false
+                    current_event_num = lent(eve).expect("TODO: handle fail here") as u64;
+                    current_mug = mug_u32(stack, arvo);
                 } else {
-                    true
+                    // do we need to assert something here?
+                    // current_event_num = slot(writ, 6)?.as_direct().unwrap().data();
+
+                    let mut lit = slot(writ, 7)?;
+                    while let Ok(cell) = lit.as_cell() {
+                        let ovo = cell.head();
+                        
+                        match slam(stack, newt, arvo, POKE_AXIS, ovo) {
+                            Ok(res) => {
+                                let cell = res.as_cell().expect("serf: play: +slam returned atom");
+                                arvo = cell.tail();
+                                current_mug = mug_u32(stack, arvo);
+                                current_event_num += 1;
+                            }
+                            Err(NockErr::Error(trace)) => {
+                                let tone = Cell::new(stack, D(2), trace);
+                                let tang = mook(stack, &mut Some(newt), tone, true)
+                                    .expect("serf: play: +mook crashed on bail")
+                                    .tail();
+                                let goof = T(stack, &[D(tas!(b"exit")), tang]);
+                                newt.play_bail(stack, current_event_num, current_mug as u64, goof);
+                            }
+                            Err(NockErr::Blocked(_)) => {
+                                panic!("play: blocked err handling unimplemented")
+                            }
+                        }
+
+                        lit = cell.tail();
+                    }
                 };
 
-                // do we need to assert something here?
-                // event_number = slot(writ, 6)?.as_direct().unwrap().data();
-
-                let mut lit = slot(writ, 7)?;
-                while let Ok(cell) = lit.as_cell() {
-                    if run {
-                        let ovo = cell.head();
-                        let res = slam(stack, newt, arvo, POKE_AXIS, ovo)
-                            .expect("play error handling unimplemented")
-                            .as_cell()
-                            .unwrap();
-                        arvo = res.tail();
-                    }
-                    event_number += 1;
-                    lit = cell.tail();
-                }
-
                 snap.save(stack, &mut arvo);
-                newt.play_done(stack, 0);
+                newt.play_done(stack, current_mug as u64);
             }
             tas!(b"work") => {
-                let ovo = slot(writ, 7)?;
-                let res = slam(stack, newt, arvo, POKE_AXIS, ovo)
-                    .expect("work error handling unimplemented")
-                    .as_cell()
-                    .unwrap();
-                let fec = res.head();
-                arvo = res.tail();
-                snap.save(stack, &mut arvo);
-
-                event_number += 1;
-
-                newt.work_done(stack, event_number, 0, fec);
+                //  XX: what is in slot 6? it's mil_w in Vere Serf
+                let job = slot(writ, 7)?;
+                match slam(stack, newt, arvo, POKE_AXIS, job) {
+                    Ok(res) => {
+                        let cell = res.as_cell().expect("serf: work: +slam returned atom");
+                        let fec = cell.head();
+                        arvo = cell.tail();
+                        snap.save(stack, &mut arvo);
+                        
+                        current_mug = mug_u32(stack, arvo);
+                        current_event_num += 1;
+        
+                        newt.work_done(stack, current_event_num, current_mug as u64, fec);
+                    }
+                    Err(NockErr::Error(trace)) => {
+                        //  XX: Our Arvo can't currently handle %crud, so just bail
+                        let tone = Cell::new(stack, D(2), trace);
+                        let tang = mook(stack, &mut Some(newt), tone, true)
+                            .expect("serf: play: +mook crashed on bail")
+                            .tail();
+                        let goof = T(stack, &[D(tas!(b"exit")), tang]);
+                        //  lud = (list goof)
+                        let lud = T(stack, &[goof, D(0)]);
+                        newt.work_bail(stack, lud);
+                    }
+                    Err(NockErr::Blocked(_)) => {
+                        panic!("play: blocked err handling unimplemented")
+                    }
+                }
             }
             _ => panic!("got message with unknown tag {}", tag),
         };

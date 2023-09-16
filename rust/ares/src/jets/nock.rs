@@ -33,13 +33,15 @@ pub fn jet_mink(
 }
 
 pub mod util {
-    use crate::jets::{JetErr, Result, jet_mink};
+    use crate::jets;
+    use crate::jets::{JetErr, jet_mink};
     use crate::jets::form::util::scow;
     use crate::jets::util::rip;
     use crate::mem::NockStack;
     use crate::newt::Newt;
-    use crate::noun::{tape, Cell, Noun, D, T};
+    use crate::noun::{tape, Cell, CellMemory, Noun, D, T};
     use ares_macros::tas;
+    use std::result;
 
     const LEAF: Noun = D(tas!(b"leaf"));
     const ROSE: Noun = D(tas!(b"rose"));
@@ -50,24 +52,29 @@ pub mod util {
     pub fn mook(
         stack: &mut NockStack,
         newt: &mut Option<&mut Newt>,
-        tone: Noun,
+        tone: Cell,
         flop: bool,
-    ) -> Result {
-        let temp = tone.as_cell()?;
-        let tag = temp.head().as_direct()?;
-        let original_list = temp.tail();
+    ) -> result::Result<Cell, JetErr> {
+        let tag = tone.head().as_direct()?;
+        let original_list = tone.tail();
 
         if tag.data() < 2 {
             return Ok(tone);
         } else if tag.data() > 2 {
             return Err(JetErr::Deterministic);
         }
+        
+        if unsafe { original_list.raw_equals(D(0)) } {
+            return Ok(tone);
+        } else if let Some(_) = original_list.atom() {
+            return Err(JetErr::Deterministic);
+        }
 
         // XX: trim traces longer than 1024 frames
 
+        let mut res = D(0);
+        let mut list = original_list;
         if flop {
-            let mut list = original_list;
-            let mut res = D(0);
             loop {
                 if unsafe { list.raw_equals(D(0)) } {
                     break;
@@ -194,16 +201,149 @@ pub mod util {
                 list = cell.tail();
             }
 
-            let toon = T(stack, &[D(2), res]);
+            let toon = Cell::new(stack, D(2), res);
             Ok(toon)
-        } else {
-            //  XX: need to build toon forwardly using Cell::new_raw_mut
-            //      Required to hook up to +slam
-            Ok(T(stack, &[D(2), D(0)]))
-        }
+        } else { unsafe {
+            let (mut new_cell, mut new_memory) = Cell::new_raw_mut(stack);
+            let mut memory: *mut CellMemory = new_memory;
+
+            // loop guaranteed to run at least once
+            loop {
+                if list.raw_equals(D(0)) {
+                    break;
+                } else if res.raw_equals(D(0)) {
+                    res = new_cell.as_noun();
+                } else {
+                    (new_cell, new_memory) = Cell::new_raw_mut(stack);
+                    (*memory).tail = new_cell.as_noun();
+                    memory = new_memory
+                }
+
+                let cell = list.as_cell()?;
+                let trace = cell.head().as_cell()?;
+                let tag = trace.head().as_direct()?;
+                let dat = trace.tail();
+
+                let tank: Noun = match tag.data() {
+                    tas!(b"mean") => {
+                        if let Ok(atom) = dat.as_atom() {
+                            let tape = rip(stack, 3, 1, atom)?;
+                            T(stack, &[LEAF, tape])
+                        } else {
+                            let virt = T(stack, &[dat, dat.as_cell()?.head()]);
+                            let load = T(stack, &[virt, D(0)]);
+                            let subj = T(stack, &[D(0), load, D(0)]);
+                            let tone = jet_mink(stack, newt, subj)?.as_cell()?;
+                            if !tone.head().raw_equals(D(0)) {
+                                let tape = tape(stack, "####");
+                                T(stack, &[LEAF, tape])
+                            } else {
+                                // XX: need to check that this is actually a tank
+                                //     return leaf+"mean.mook" if not
+                                tone.tail()
+                            }
+                        }
+                    }
+                    tas!(b"spot") => {
+                        let spot = dat.as_cell()?;
+                        let pint = spot.tail().as_cell()?;
+                        let pstr = pint.head().as_cell()?;
+                        let pend = pint.tail().as_cell()?;
+
+                        let colo = T(stack, &[D(b':' as u64), D(0)]);
+                        let trel = T(stack, &[colo, D(0), D(0)]);
+
+                        let smyt = smyt(stack, spot.head())?;
+
+                        let aura = D(tas!(b"ud")).as_direct()?;
+                        let str_lin = scow(stack, aura, pstr.head().as_atom()?)?;
+                        let str_col = scow(stack, aura, pstr.tail().as_atom()?)?;
+                        let end_lin = scow(stack, aura, pend.head().as_atom()?)?;
+                        let end_col = scow(stack, aura, pend.tail().as_atom()?)?;
+
+                        let mut list: Cell = end_col.as_cell()?;
+                        loop {
+                            if let Some(_) = list.tail().atom() {
+                                break;
+                            }
+                            list = list.tail().as_cell()?;
+                        }
+                        // "{end_col}]>"
+                        let p4 = T(stack, &[D(b']' as u64), D(b'>' as u64), D(0)]);
+                        (*list.tail_as_mut()) = p4;
+
+                        list = end_lin.as_cell()?;
+                        loop {
+                            if let Some(_) = list.tail().atom() {
+                                break;
+                            }
+                            list = list.tail().as_cell()?;
+                        }
+                        // "{end_lin} {end_col}]>"
+                        let p3 = T(stack, &[D(b' ' as u64), end_col]);
+                        (*list.tail_as_mut()) = p3;
+
+                        list = str_col.as_cell()?;
+                        loop {
+                            if let Some(_) = list.tail().atom() {
+                                break;
+                            }
+                            list = list.tail().as_cell()?;
+                        }
+                        // "{str_col}].[{end_lin} {end_col}]>"
+                        let p2 = T(
+                            stack,
+                            &[D(b']' as u64), D(b'.' as u64), D(b'[' as u64), end_lin],
+                        );
+                        (*list.tail_as_mut()) = p2;
+
+                        list = str_lin.as_cell()?;
+                        loop {
+                            if let Some(_) = list.tail().atom() {
+                                break;
+                            }
+                            list = list.tail().as_cell()?;
+                        }
+                        // "{str_lin} {str_col}].[{end_lin} {end_col}]>"
+                        let p1 = T(stack, &[D(b' ' as u64), str_col]);
+                        (*list.tail_as_mut()) = p1;
+
+                        // "<[{str_lin} {str_col}].[{end_lin} {end_col}]>"
+                        let tape = T(stack, &[D(b'<' as u64), D(b'[' as u64), str_lin]);
+                        let finn = T(stack, &[LEAF, tape]);
+
+                        T(stack, &[ROSE, trel, smyt, finn, D(0)])
+                    }
+                    _ => {
+                        let tape = rip(stack, 3, 1, tag.as_atom())?;
+                        T(
+                            stack,
+                            &[
+                                D(tas!(b"m")),
+                                D(tas!(b"o")),
+                                D(tas!(b"o")),
+                                D(tas!(b"k")),
+                                D(tas!(b".")),
+                                tape,
+                            ],
+                        )
+                    } // XX: TODO
+                      //  %hand
+                      //  %hunk
+                      //  %lose
+                };
+
+                (*memory).head = tank;
+                list = cell.tail();
+            }
+            (*memory).tail = D(0);
+
+            let toon = Cell::new(stack, D(2), res);
+            Ok(toon)
+        } }
     }
 
-    pub fn smyt(stack: &mut NockStack, path: Noun) -> Result {
+    pub fn smyt(stack: &mut NockStack, path: Noun) -> jets::Result {
         let lash = D(tas!(b"/"));
         let zero = D(0);
         let sep = T(stack, &[lash, zero]);
@@ -214,7 +354,7 @@ pub mod util {
         Ok(T(stack, &[ROSE, trel, tank]))
     }
 
-    fn smyt_help(stack: &mut NockStack, path: Noun) -> Result {
+    fn smyt_help(stack: &mut NockStack, path: Noun) -> jets::Result {
         // XX: Need deferred Cell allocation, like u3i_defcons in Vere
         if unsafe { path.raw_equals(D(0)) } {
             return Ok(D(0));
