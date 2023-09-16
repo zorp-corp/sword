@@ -83,12 +83,24 @@ pub fn serf() -> io::Result<()> {
                     let sub = T(stack, &[D(0), D(3)]);
                     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
                     //  XX: TODO
-                    let gat = interpret(stack, &mut Some(newt), eve, lyf)
-                        .expect("play error handling unimplemented");
-
-                    arvo = slot(gat, 7)?;
-                    current_event_num = lent(eve).expect("TODO: handle fail here") as u64;
-                    current_mug = mug_u32(stack, arvo);
+                    match interpret(stack, &mut Some(newt), eve, lyf) {
+                        Ok(gat) => {
+                            arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
+                            current_event_num = lent(eve).expect("serf: play: boot event number failure") as u64;
+                            current_mug = mug_u32(stack, arvo);
+                        }
+                        Err(NockErr::Error(trace)) => {
+                            let tone = Cell::new(stack, D(2), trace);
+                            let tang = mook(stack, &mut Some(newt), tone, false)
+                                .expect("serf: play: +mook crashed on bail")
+                                .tail();
+                            let goof = T(stack, &[D(tas!(b"exit")), tang]);
+                            newt.play_bail(stack, 0, 0, goof);
+                        }
+                        Err(NockErr::Blocked(_)) => {
+                            panic!("play: blocked err handling unimplemented")
+                        }
+                    }
                 } else {
                     // do we need to assert something here?
                     // current_event_num = slot(writ, 6)?.as_direct().unwrap().data();
