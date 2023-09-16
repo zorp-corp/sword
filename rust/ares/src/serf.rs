@@ -106,7 +106,7 @@ pub fn serf() -> io::Result<()> {
                             }
                             Err(NockErr::Error(trace)) => {
                                 let tone = Cell::new(stack, D(2), trace);
-                                let tang = mook(stack, &mut Some(newt), tone, true)
+                                let tang = mook(stack, &mut Some(newt), tone, false)
                                     .expect("serf: play: +mook crashed on bail")
                                     .tail();
                                 let goof = T(stack, &[D(tas!(b"exit")), tang]);
@@ -142,7 +142,7 @@ pub fn serf() -> io::Result<()> {
                     Err(NockErr::Error(trace)) => {
                         //  XX: Our Arvo can't currently handle %crud, so just bail
                         let tone = Cell::new(stack, D(2), trace);
-                        let tang = mook(stack, &mut Some(newt), tone, true)
+                        let tang = mook(stack, &mut Some(newt), tone, false)
                             .expect("serf: play: +mook crashed on bail")
                             .tail();
                         let goof = T(stack, &[D(tas!(b"exit")), tang]);
