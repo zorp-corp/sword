@@ -337,13 +337,17 @@ pub fn interpret(
                     }
                     Todo2::ComputeResult => {
                         if let Some(jet) = warm.get_jet(stack, &mut vale.formula, subject) {
-                            println!("{}", "warm match!".red());
+                            println!("{}", "warm match2!".red());
+                            //TODO double check this, havent run into it
                             if let Ok(jet_res) = jet(stack, subject) {
                                 stack.pop::<NockWork>();
-                                subject = vale.subject;
-                                push_formula(stack, jet_res, true); //TODO true?
+                                res = jet_res;
+                                break;
+//                                subject = vale.subject;
+//                                push_formula(stack, jet_res, true); //TODO true?
                             }
-                        } else if vale.tail {
+                        }
+                        if vale.tail {
                             stack.pop::<NockWork>();
                             subject = vale.subject;
                             push_formula(stack, res, true);
@@ -487,14 +491,16 @@ pub fn interpret(
                     Todo9::ComputeResult => {
                         let mut formula = slot(res, kale.axis.as_bitslice());
                         if let Some(jet) = warm.get_jet(stack, &mut formula, subject) {
-                            println!("{}", "warm match!".red());
-                            if let Ok(jet_res) = jet(stack, subject) {
+                            println!("{}", "warm match9!".red());
+                            if let Ok(jet_res) = jet(stack, res) {
                                 stack.pop::<NockWork>();
-                                subject = jet_res;
-                                //TODO this is probably wrong
-                                push_formula(stack, formula, true); //TODO true?
+                                //TODO do i even touch the subject?
+                                // subject = res
+                                res = jet_res;
+                                break;
                             }
-                        } else if kale.tail {
+                        }
+                        if kale.tail {
                             stack.pop::<NockWork>();
                             subject = res;
                             push_formula(stack, formula, true);
@@ -549,7 +555,7 @@ pub fn interpret(
                     Todo11D::ComputeResult => {
                         dint.todo = Todo11D::Done;
                         let hint = Cell::new(stack, dint.tag.as_noun(), dint.hint).as_noun();
-                        if let Ok(found) = match_post_hint(stack, newt, subject, hint, res, &mut cold, &mut warm, &hot) {
+                        if let Ok(found) = match_post_hint(stack, newt, subject, hint, res) {
                             res = found;
                             stack.pop::<NockWork>();
                         } else {
@@ -568,7 +574,7 @@ pub fn interpret(
                     Todo11S::ComputeResult => {
                         sint.todo = Todo11S::Done;
                         if let Ok(found) =
-                            match_post_hint(stack, newt, subject, sint.tag.as_noun(), res, &mut cold, &mut warm, &hot)
+                            match_post_hint(stack, newt, subject, sint.tag.as_noun(), res)
                         {
                             res = found;
                             stack.pop::<NockWork>();
@@ -924,12 +930,9 @@ fn match_pre_hint(
 fn match_post_hint(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,
-    subject: Noun,
+    _subject: Noun,
     hint: Noun,
     res: Noun,
-    cold: &mut Cold,
-    warm: &mut Warm,
-    hot: &Hot,
 ) -> Result<Noun, ()> {
     let direct = hint.as_cell()?.head().as_direct()?;
     match direct.data() {
@@ -976,29 +979,16 @@ fn match_post_hinted(
             //TODO this is only correct for a gate I think?
 //            let mut formula = raw_slot(core, 2);
 //            let mut real_formula = raw_slot(formula, 3);
-            println!("formula: {:?}", formula);
+//            println!("formula: {:?}", formula);
             // Check to see if jet is already registered in warm state
             // else, register the jet
             //TODO checking to see if a fast jet is already registered should be
             // done first
             //  ++  clue  (trel chum nock (list (pair term nock))
-            println!("bweh1");
             let clue = hint.as_cell()?.tail().as_cell()?.tail().as_cell()?;
-            println!("bweh2");
             let mut chum = clue.head();
-            println!("bweh3");
-            println!("clue: {:?}", clue.as_noun());
-
-            // root case
-            if clue.tail().is_atom() {
-                println!("{}", "root".green());
-                let parent_axis = D(0).as_atom().unwrap();
-                cold.register(stack, &mut core, &mut chum, &parent_axis, &hot, warm);
-                return Ok(())
-            }
 
             let parent_formula = clue.tail().as_cell()?.head().as_cell()?;
-            println!("bweh4");
             //TODO every parent formula is either a nock 0 or 1. since we ultimately
             // want an atom, just take the tail of the formula?
             let parent_formula_head = parent_formula.head().as_direct()?.data();
@@ -1009,7 +999,6 @@ fn match_post_hinted(
             };
             let _hooks = clue.tail().as_cell()?.tail();
 
-            println!("bweh?");
             cold.register(stack, &mut core, &mut chum, &parent_axis, &hot, warm);
             Ok(())
         },

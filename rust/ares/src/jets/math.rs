@@ -28,12 +28,10 @@ crate::gdb!();
 pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     println!("jet dec hit!");
     let arg = raw_slot(subject, 6);
-    println!("arg: {:?}", arg);
     if let Ok(atom) = arg.as_atom() {
         match atom.as_either() {
             Left(direct) => {
                 if direct.data() == 0 {
-                    println!("dec 0 crash");
                     Err(Deterministic)
                 } else {
                     Ok(unsafe { DirectAtom::new_unchecked(direct.data() - 1) }.as_noun())
@@ -67,9 +65,7 @@ pub fn jet_dec(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
 
 pub fn jet_add(stack: &mut NockStack, subject: Noun) -> Result<Noun, JetErr> {
     println!("jet add hit!");
-    println!("subject: {:?}", subject);
     let arg = raw_slot(subject, 6);
-    println!("arg: {:?}", arg);
     let a = raw_slot(arg, 2).as_atom()?;
     let b = raw_slot(arg, 3).as_atom()?;
 

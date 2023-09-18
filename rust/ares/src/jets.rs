@@ -147,15 +147,16 @@ impl Cold {
     /** For snapshotting, restore the cold state from a list of path X battery hierarchy pairs */
     fn from_noun(noun: &mut Noun, stack: &mut NockStack) -> Self {
         //  +=  cold        (map battery=^ (pair bash registry))
-        let mut cold = Cold { path_to_batteries: Hamt::new(), battery_to_paths: Hamt::new() };
-        let list = HList::from(*noun).into_iter();
-        for entry in list {
-            let mut bat = entry.as_cell().unwrap().head();
-            let mut pat = entry.as_cell().unwrap().tail();
-            cold.path_to_batteries = cold.path_to_batteries.insert(stack, &mut pat, bat);
-            cold.battery_to_paths = cold.battery_to_paths.insert(stack, &mut bat, pat);
-        };
-        cold
+        // let mut cold = Cold { path_to_batteries: Hamt::new(), battery_to_paths: Hamt::new() };
+        // let list = HList::from(*noun).into_iter();
+        // for entry in list {
+        //     let mut bat = entry.as_cell().unwrap().head();
+        //     let mut pat = entry.as_cell().unwrap().tail();
+        //     cold.path_to_batteries = cold.path_to_batteries.insert(stack, &mut pat, bat);
+        //     cold.battery_to_paths = cold.battery_to_paths.insert(stack, &mut bat, pat);
+        // };
+        // cold
+        todo!()
     }
 
     /** For import from a portable snapshot, restore the cold state from a cued portable snapshot
@@ -282,9 +283,42 @@ impl Hot {
             jet: jet_add,
         };
 
+        let div = T(stack, &[D(7), D(tas!(b"div"))]);
+        let mut div_path = T(stack, &[div, one, k_139, D(0)]);
+        let div_jet = HotEntry {
+            axis: D(2).as_atom().unwrap(),
+            jet: jet_div,
+        };
+
+        let dvr = T(stack, &[D(7), D(tas!(b"dvr"))]);
+        let mut dvr_path = T(stack, &[dvr, one, k_139, D(0)]);
+        let dvr_jet = HotEntry {
+            axis: D(2).as_atom().unwrap(),
+            jet: jet_dvr,
+        };
+
+        let gte = T(stack, &[D(7), D(tas!(b"gte"))]);
+        let mut gte_path = T(stack, &[gte, one, k_139, D(0)]);
+        let gte_jet = HotEntry {
+            axis: D(2).as_atom().unwrap(),
+            jet: jet_gte,
+        };
+
+        let gth = T(stack, &[D(7), D(tas!(b"gth"))]);
+        let mut gth_path = T(stack, &[gth, one, k_139, D(0)]);
+        let gth_jet = HotEntry {
+            axis: D(2).as_atom().unwrap(),
+            jet: jet_gth,
+        };
+
         let mut jets: Hamt<HotEntry> = Hamt::new();
         jets = jets.insert(stack, &mut dec_path, dec_jet);
         jets = jets.insert(stack, &mut add_path, add_jet);
+        jets = jets.insert(stack, &mut div_path, div_jet);
+        jets = jets.insert(stack, &mut dvr_path, dvr_jet);
+        jets = jets.insert(stack, &mut gte_path, gte_jet);
+        jets = jets.insert(stack, &mut gth_path, gth_jet);
+
         Self { jets }
     }
 }
@@ -337,21 +371,17 @@ impl Warm {
         if let Some(warm_entry) = self.jets.lookup(stack, formula) {
             println!("{}", "MATCH!".red());
 
-            println!("{}: {:?}\n", "subject".yellow(), subject);
-
             //TODO this should all fit into one while loop
             let mut our_subject = subject;
 
             let mut try_batteries = warm_entry.batteries;
             let try_ab = try_batteries.as_cell().unwrap().head().as_cell().unwrap();
             let try_axis = try_ab.head();
-            if mug_u32(stack, try_ab.tail()) != mug_u32(stack, raw_slot(our_subject, 2)) {
-                println!("jet mismatch");
+            if mug_u32(stack, try_ab.tail()) != mug_u32(stack, raw_slot(our_subject, 4)) {
+                println!("jet mismatch1");
                 return None
             }
-            our_subject = slot(our_subject, try_axis.as_atom().unwrap().as_bitslice());
             try_batteries = try_batteries.as_cell().unwrap().tail();
-            println!("our_subject: {:?}", our_subject);
 
             while try_batteries.is_cell() {
                 let try_ab = try_batteries.as_cell().unwrap().head().as_cell().unwrap();
@@ -363,12 +393,13 @@ impl Warm {
                     }
                 }
                 let try_battery = try_ab.tail();
-                let our_battery = raw_slot(our_subject, 2);
+                let parent_core = slot(our_subject, try_axis.as_atom().unwrap().as_bitslice());
+                let our_battery = raw_slot(parent_core, 2);
 
                 if mug_u32(stack, try_battery) == mug_u32(stack, our_battery) {
                     println!("{}", "mug match".red());
                 } else {
-                    println!("jet mismatch");
+                    println!("jet mismatch2");
                     return None
                 }
 
