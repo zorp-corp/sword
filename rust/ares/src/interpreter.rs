@@ -577,6 +577,7 @@ pub fn interpret(
 
 fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
     unsafe {
+        //TODO check warm state for formula match?
         if let Ok(formula_cell) = formula.as_cell() {
             // Formula
             match formula_cell.head().as_either_atom_cell() {
@@ -791,7 +792,9 @@ fn edit(
     patch: Noun,
     mut tree: Noun,
 ) -> Noun {
+    println!("edit_axis: {:?}", edit_axis);
     let mut res = patch;
+    println!("patch: {:?}", patch);
     let mut dest: *mut Noun = &mut res;
     let mut cursor = edit_axis
         .last_one()
@@ -933,38 +936,51 @@ fn match_post_hint(
                 eprintln!("{}", "match_post_hint() fast".green());
             });
 
-            //TODO checking to see if a fast jet is already registered should be
-            // done first
-            //  ++  clue  (trel chum nock (list (pair term nock))
-            let clue = res.as_cell()?;
-            let mut chum = clue.head();
-            let parent_formula = clue.tail().as_cell()?.head().as_cell()?;
-            //TODO every parent formula is either a nock 0 or 1. since we ultimately
-            // want an atom, just take the tail of the formula?
-            let parent_formula_head = parent_formula.head().as_direct()?.data();
-            let parent_axis = match parent_formula_head {
-                0 => parent_formula.tail().as_atom()?, // axis
-                1 => Atom::new(stack, 0),              // parent of root is 0 by convention
-                _ => return Err(()),                   // fund
-            };
-            let _hooks = clue.tail().as_cell()?.tail();
-            //TODO it doesn't seem right to compute the core here, isnt it
-            // already hanging around somewhere?
             let mut core = raw_slot(subject, 1);
-
+            //TODO this is only correct for a gate I think?
             let mut formula = raw_slot(core, 2);
+//            let mut real_formula = raw_slot(formula, 3);
+            println!("formula: {:?}", raw_slot(formula, 3));
+            // Check to see if jet is already registered in warm state
             if let Some(jet) = warm.get_jet(stack, &mut formula, subject) {
+                println!("{}", "warm match".green());
                 if let Ok(mut jet_res) = jet(stack, subject) {
                     return Ok(jet_res)
+                } else {
+                    return Err(())
                 }
+            // else, register the jet
+            } else {
+                //TODO checking to see if a fast jet is already registered should be
+                // done first
+                //  ++  clue  (trel chum nock (list (pair term nock))
+                let clue = res.as_cell()?;
+                let mut chum = clue.head();
+                let parent_formula = clue.tail().as_cell()?.head().as_cell()?;
+                //TODO every parent formula is either a nock 0 or 1. since we ultimately
+                // want an atom, just take the tail of the formula?
+                let parent_formula_head = parent_formula.head().as_direct()?.data();
+                let parent_axis = match parent_formula_head {
+                    0 => parent_formula.tail().as_atom()?, // axis
+                    1 => Atom::new(stack, 0),              // parent of root is 0 by convention
+                    _ => return Err(()),                   // fund
+                };
+                let _hooks = clue.tail().as_cell()?.tail();
+
+                cold.register(stack, &mut core, &mut chum, &parent_axis, &hot, warm);
+                //TODO then try to run the jet after registration?
+                if let Some(jet) = warm.get_jet(stack, &mut formula, subject) {
+                    println!("{}", "warm match2".green());
+                    if let Ok(mut jet_res) = jet(stack, subject) {
+                        println!("bweh {:?}", jet_res);
+                        return Ok(jet_res)
+                    } else {
+                        println!("jet not actually running?");
+                        return Err(())
+                    }
+                }
+                Err(())
             }
-
-            // let parent_core = slot(core, parent_axis.as_bitslice());
-            // let mut parent_core_battery = raw_slot(parent_core, 2);
-            // if let Some(parent_core_path) = cold.battery_to_paths.lookup(stack, &mut parent_core_battery) else {
-
-            cold.register(stack, &mut core, &mut chum, &parent_axis, &hot, warm);
-            Err(())
         },
         _ => Err(()),
     }
