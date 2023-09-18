@@ -336,7 +336,14 @@ pub fn interpret(
                         push_formula(stack, vale.formula, false);
                     }
                     Todo2::ComputeResult => {
-                        if vale.tail {
+                        if let Some(jet) = warm.get_jet(stack, &mut vale.formula, subject) {
+                            println!("{}", "warm match!".red());
+                            if let Ok(jet_res) = jet(stack, subject) {
+                                stack.pop::<NockWork>();
+                                subject = vale.subject;
+                                push_formula(stack, jet_res, true); //TODO true?
+                            }
+                        } else if vale.tail {
                             stack.pop::<NockWork>();
                             subject = vale.subject;
                             push_formula(stack, res, true);
@@ -478,8 +485,16 @@ pub fn interpret(
                         push_formula(stack, kale.core, false);
                     }
                     Todo9::ComputeResult => {
-                        let formula = slot(res, kale.axis.as_bitslice());
-                        if kale.tail {
+                        let mut formula = slot(res, kale.axis.as_bitslice());
+                        if let Some(jet) = warm.get_jet(stack, &mut formula, subject) {
+                            println!("{}", "warm match!".red());
+                            if let Ok(jet_res) = jet(stack, subject) {
+                                stack.pop::<NockWork>();
+                                subject = jet_res;
+                                //TODO this is probably wrong
+                                push_formula(stack, formula, true); //TODO true?
+                            }
+                        } else if kale.tail {
                             stack.pop::<NockWork>();
                             subject = res;
                             push_formula(stack, formula, true);
@@ -545,7 +560,7 @@ pub fn interpret(
                     }
                     Todo11D::Done => {
                         let hint = Cell::new(stack, dint.tag.as_noun(), dint.hint).as_noun();
-                        let _ = match_post_hinted(stack, subject, hint, res, &mut cache);
+                        let _ = match_post_hinted(stack, subject, hint, res, &mut cold, &mut warm, &hot, &mut cache);
                         stack.pop::<NockWork>();
                     }
                 },
@@ -565,7 +580,7 @@ pub fn interpret(
                     }
                     Todo11S::Done => {
                         let _ =
-                            match_post_hinted(stack, subject, sint.tag.as_noun(), res, &mut cache);
+                            match_post_hinted(stack, subject, sint.tag.as_noun(), res, &mut cold, &mut warm, &hot, &mut cache);
                         stack.pop::<NockWork>();
                     }
                 },
@@ -792,9 +807,7 @@ fn edit(
     patch: Noun,
     mut tree: Noun,
 ) -> Noun {
-    println!("edit_axis: {:?}", edit_axis);
     let mut res = patch;
-    println!("patch: {:?}", patch);
     let mut dest: *mut Noun = &mut res;
     let mut cursor = edit_axis
         .last_one()
@@ -931,57 +944,6 @@ fn match_post_hint(
             }
             Err(())
         },
-        tas!(b"fast") => {
-            permit_alloc(|| {
-                eprintln!("{}", "match_post_hint() fast".green());
-            });
-
-            let mut core = raw_slot(subject, 1);
-            //TODO this is only correct for a gate I think?
-            let mut formula = raw_slot(core, 2);
-//            let mut real_formula = raw_slot(formula, 3);
-            println!("formula: {:?}", raw_slot(formula, 3));
-            // Check to see if jet is already registered in warm state
-            if let Some(jet) = warm.get_jet(stack, &mut formula, subject) {
-                println!("{}", "warm match".green());
-                if let Ok(mut jet_res) = jet(stack, subject) {
-                    return Ok(jet_res)
-                } else {
-                    return Err(())
-                }
-            // else, register the jet
-            } else {
-                //TODO checking to see if a fast jet is already registered should be
-                // done first
-                //  ++  clue  (trel chum nock (list (pair term nock))
-                let clue = res.as_cell()?;
-                let mut chum = clue.head();
-                let parent_formula = clue.tail().as_cell()?.head().as_cell()?;
-                //TODO every parent formula is either a nock 0 or 1. since we ultimately
-                // want an atom, just take the tail of the formula?
-                let parent_formula_head = parent_formula.head().as_direct()?.data();
-                let parent_axis = match parent_formula_head {
-                    0 => parent_formula.tail().as_atom()?, // axis
-                    1 => Atom::new(stack, 0),              // parent of root is 0 by convention
-                    _ => return Err(()),                   // fund
-                };
-                let _hooks = clue.tail().as_cell()?.tail();
-
-                cold.register(stack, &mut core, &mut chum, &parent_axis, &hot, warm);
-                //TODO then try to run the jet after registration?
-                if let Some(jet) = warm.get_jet(stack, &mut formula, subject) {
-                    println!("{}", "warm match2".green());
-                    if let Ok(mut jet_res) = jet(stack, subject) {
-                        println!("bweh {:?}", jet_res);
-                        return Ok(jet_res)
-                    } else {
-                        println!("jet not actually running?");
-                        return Err(())
-                    }
-                }
-                Err(())
-            }
-        },
         _ => Err(()),
     }
 }
@@ -991,6 +953,9 @@ fn match_post_hinted(
     subject: Noun,
     hint: Noun,
     res: Noun,
+    cold: &mut Cold,
+    warm: &mut Warm,
+    hot: &Hot,
     cache: &mut Hamt<Noun>,
 ) -> Result<(), ()> {
     let direct = hint.as_cell()?.head().as_direct()?;
@@ -1000,7 +965,54 @@ fn match_post_hinted(
             let mut key = Cell::new(stack, subject, formula).as_noun();
             *cache = cache.insert(stack, &mut key, res);
             Ok(())
-        }
-        _ => Err(()),
+        },
+        tas!(b"fast") => {
+            permit_alloc(|| {
+                eprintln!("{}", "match_post_hinted() fast".green());
+            });
+            let mut formula = raw_slot(res, 2);
+
+            let mut core = raw_slot(res, 1);
+            //TODO this is only correct for a gate I think?
+//            let mut formula = raw_slot(core, 2);
+//            let mut real_formula = raw_slot(formula, 3);
+            println!("formula: {:?}", formula);
+            // Check to see if jet is already registered in warm state
+            // else, register the jet
+            //TODO checking to see if a fast jet is already registered should be
+            // done first
+            //  ++  clue  (trel chum nock (list (pair term nock))
+            println!("bweh1");
+            let clue = hint.as_cell()?.tail().as_cell()?.tail().as_cell()?;
+            println!("bweh2");
+            let mut chum = clue.head();
+            println!("bweh3");
+            println!("clue: {:?}", clue.as_noun());
+
+            // root case
+            if clue.tail().is_atom() {
+                println!("{}", "root".green());
+                let parent_axis = D(0).as_atom().unwrap();
+                cold.register(stack, &mut core, &mut chum, &parent_axis, &hot, warm);
+                return Ok(())
+            }
+
+            let parent_formula = clue.tail().as_cell()?.head().as_cell()?;
+            println!("bweh4");
+            //TODO every parent formula is either a nock 0 or 1. since we ultimately
+            // want an atom, just take the tail of the formula?
+            let parent_formula_head = parent_formula.head().as_direct()?.data();
+            let parent_axis = match parent_formula_head {
+                0 => parent_formula.tail().as_atom()?, // axis
+                1 => Atom::new(stack, 0),              // parent of root is 0 by convention
+                _ => return Err(()),                   // fund
+            };
+            let _hooks = clue.tail().as_cell()?.tail();
+
+            println!("bweh?");
+            cold.register(stack, &mut core, &mut chum, &parent_axis, &hot, warm);
+            Ok(())
+        },
+    _ => Err(()),
     }
 }

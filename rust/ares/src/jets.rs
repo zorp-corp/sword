@@ -174,6 +174,7 @@ impl Cold {
             if parent_axis.as_direct().unwrap().data() == 0 {
                 // root
                 let mut path = T(stack, &[path_frag, D(0)]);
+                println!("root path: {:?}", path);
                 //TODO allow multiples?
                 self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
                 self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
@@ -191,8 +192,8 @@ impl Cold {
         };
 
         let mut path = T(stack, &[path_frag, parent_core_path]);
-        println!("path {:?}", path);
-        println!("battery {:?}", battery);
+        println!("{} {:?}", "path".yellow(), path);
+        println!("{} {:?}", "battery".yellow(), battery);
         //TODO allow multiples
         self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
         self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
