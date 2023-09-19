@@ -142,7 +142,7 @@ pub fn serf() -> io::Result<()> {
                 //  XX: what is in slot 6? it's mil_w in Vere Serf
                 //  TODO: assert event numbers are continuous
                 let job = slot(writ, 7)?;
-                match slam(stack, newt, arvo, POKE_AXIS, job) {
+                match soft(stack, newt, arvo, POKE_AXIS, job) {
                     Ok(res) => {
                         let cell = res.as_cell().expect("serf: work: +slam returned atom");
                         let fec = cell.head();
@@ -154,26 +154,18 @@ pub fn serf() -> io::Result<()> {
 
                         newt.work_done(stack, current_event_num, current_mug as u64, fec);
                     }
-                    Err(NockErr::Error(trace)) => {
-                        //  XX: Our Arvo can't currently handle %crud, so just bail
-                        //
+                    Err(goof) => {
                         //  TODO: on decryption failure in aes_siv, should bail as fast as
                         //  possible, without rendering stack trace or injecting crud event.  See
                         //  c3__evil in vere.
                         //
-                        let tone = Cell::new(stack, D(2), trace);
-                        let tang = mook(stack, &mut Some(newt), tone, false)
-                            .expect("serf: work: +mook crashed on bail")
-                            .tail();
-                        let goof = T(stack, &[D(tas!(b"exit")), tang]);
-
-                        //  [+(now) [%$ %arvo ~] [%crud [%exit tang] ovo]]
+                        //  crud = [+(now) [%$ %arvo ~] [%crud goof ovo]]
                         let job_cell = job.as_cell().expect("serf: work: job not a cell");
                         let now = inc(stack, job_cell.head().as_atom().expect("serf: work: now not atom")).as_noun();
                         let wire = T(stack, &[D(0), D(tas!(b"arvo")), D(0)]);
                         let crud = T(stack, &[now, wire, D(tas!(b"crud")), goof, job_cell.tail()]);
 
-                        match slam(stack, newt, arvo, POKE_AXIS, crud) {
+                        match soft(stack, newt, arvo, POKE_AXIS, crud) {
                             Ok(res) => {
                                 let cell = res.as_cell().expect("serf: work: crud +slam returned atom");
                                 let fec = cell.head();
@@ -185,24 +177,12 @@ pub fn serf() -> io::Result<()> {
 
                                 newt.work_swap(stack, current_event_num, current_mug as u64, crud, fec);
                             }
-                            Err(NockErr::Error(trace)) => {
-                                let tone = Cell::new(stack, D(2), trace);
-                                let tang = mook(stack, &mut Some(newt), tone, false)
-                                    .expect("serf: work: crud +mook crashed on bail")
-                                    .tail();
-                                let goof_crud = T(stack, &[D(tas!(b"exit")), tang]);
-
+                            Err(goof_crud) => {
                                 //  lud = (list goof)
                                 let lud = T(stack, &[goof_crud, goof, D(0)]);
                                 newt.work_bail(stack, lud);
                             }
-                            Err(NockErr::Blocked(_)) => {
-                                panic!("work: crud blocked err handling unimplemented")
-                            }
                         }
-                    }
-                    Err(NockErr::Blocked(_)) => {
-                        panic!("work: blocked err handling unimplemented")
                     }
                 }
             }
@@ -227,7 +207,30 @@ pub fn slam(
     interpret(stack, &mut Some(newt), sub, fol)
 }
 
-// pub fn soft()
+/** Run slam, then process stack trace to tang */
+pub fn soft(
+    stack: &mut NockStack,
+    newt: &mut Newt,
+    core: Noun,
+    axis: u64,
+    ovo: Noun,
+) -> Result<Noun, Noun> {
+    match slam(stack, newt, core, axis, ovo) {
+        Ok(res) => Ok(res),
+        Err(NockErr::Error(trace)) => {
+            let tone = Cell::new(stack, D(2), trace);
+            let tang = mook(stack, &mut Some(newt), tone, false)
+                .expect("serf: soft: +mook crashed on bail")
+                .tail();
+            // TODO: shouldn't always be exit, look at the comment by u3m_bail to see how vere
+            // handles this
+            let goof = T(stack, &[D(tas!(b"exit")), tang]);
+            Err(goof)
+        }
+        Err(NockErr::Blocked(_)) => panic!("soft: blocked err handling unimplemented"),
+    }
+}
+
 
 fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
     noun.slot(axis)
