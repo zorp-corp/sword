@@ -1,4 +1,4 @@
-use crate::interpreter::{interpret, NockErr};
+use crate::interpreter::{interpret, NockErr, inc};
 use crate::jets::nock::util::mook;
 use crate::jets::text::util::lent;
 use crate::mem::NockStack;
@@ -140,6 +140,7 @@ pub fn serf() -> io::Result<()> {
             }
             tas!(b"work") => {
                 //  XX: what is in slot 6? it's mil_w in Vere Serf
+                //  TODO: assert event numbers are continuous
                 let job = slot(writ, 7)?;
                 match slam(stack, newt, arvo, POKE_AXIS, job) {
                     Ok(res) => {
@@ -155,17 +156,53 @@ pub fn serf() -> io::Result<()> {
                     }
                     Err(NockErr::Error(trace)) => {
                         //  XX: Our Arvo can't currently handle %crud, so just bail
+                        //
+                        //  TODO: on decryption failure in aes_siv, should bail as fast as
+                        //  possible, without rendering stack trace or injecting crud event.  See
+                        //  c3__evil in vere.
+                        //
                         let tone = Cell::new(stack, D(2), trace);
                         let tang = mook(stack, &mut Some(newt), tone, false)
-                            .expect("serf: play: +mook crashed on bail")
+                            .expect("serf: work: +mook crashed on bail")
                             .tail();
                         let goof = T(stack, &[D(tas!(b"exit")), tang]);
-                        //  lud = (list goof)
-                        let lud = T(stack, &[goof, D(0)]);
-                        newt.work_bail(stack, lud);
+
+                        //  [+(now) [%$ %arvo ~] [%crud [%exit tang] ovo]]
+                        let job_cell = job.as_cell().expect("serf: work: job not a cell");
+                        let now = inc(stack, job_cell.head().as_atom().expect("serf: work: now not atom")).as_noun();
+                        let wire = T(stack, &[D(0), D(tas!(b"arvo")), D(0)]);
+                        let crud = T(stack, &[now, wire, D(tas!(b"crud")), goof, job_cell.tail()]);
+
+                        match slam(stack, newt, arvo, POKE_AXIS, crud) {
+                            Ok(res) => {
+                                let cell = res.as_cell().expect("serf: work: crud +slam returned atom");
+                                let fec = cell.head();
+                                arvo = cell.tail();
+                                snap.save(stack, &mut arvo);
+
+                                current_mug = mug_u32(stack, arvo);
+                                current_event_num += 1;
+
+                                newt.work_swap(stack, current_event_num, current_mug as u64, crud, fec);
+                            }
+                            Err(NockErr::Error(trace)) => {
+                                let tone = Cell::new(stack, D(2), trace);
+                                let tang = mook(stack, &mut Some(newt), tone, false)
+                                    .expect("serf: work: crud +mook crashed on bail")
+                                    .tail();
+                                let goof_crud = T(stack, &[D(tas!(b"exit")), tang]);
+
+                                //  lud = (list goof)
+                                let lud = T(stack, &[goof_crud, goof, D(0)]);
+                                newt.work_bail(stack, lud);
+                            }
+                            Err(NockErr::Blocked(_)) => {
+                                panic!("work: crud blocked err handling unimplemented")
+                            }
+                        }
                     }
                     Err(NockErr::Blocked(_)) => {
-                        panic!("play: blocked err handling unimplemented")
+                        panic!("work: blocked err handling unimplemented")
                     }
                 }
             }
@@ -189,6 +226,8 @@ pub fn slam(
     let sub = T(stack, &[core, ovo]);
     interpret(stack, &mut Some(newt), sub, fol)
 }
+
+// pub fn soft()
 
 fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
     noun.slot(axis)
