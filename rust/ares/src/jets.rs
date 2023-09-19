@@ -176,41 +176,40 @@ impl Cold {
                 // root
                 let mut path = T(stack, &[path_frag, D(0)]);
                 println!("root path: {:?}", path);
-                //TODO allow multiples?
                 self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
                 self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
                 //TODO do return
                 return ()
-            };
+            }
         };
 
         let parent_core = slot(*core, parent_axis.as_bitslice());
         let mut parent_battery = raw_slot(parent_core, 2);
-        let Some(parent_core_path) = self.battery_to_paths.lookup(stack, &mut parent_battery) else {
+        let Some(parent_core_paths) = self.battery_to_paths.lookup(stack, &mut parent_battery) else {
             println!("{}", "missing parent core path".yellow());
             //TODO do return
             return ()
         };
+        let paths_list = HList::from(parent_core_paths);
+        let mut paths = D(0);
+        for path in paths_list.into_iter() {
+            let new_path = T(stack, &[path_frag, path]);
+            if paths.is_direct() {
+                // It is only direct when first initialized, since all path elements are cells of axis and path
+                paths = new_path;
+            } else {
+                paths = T(stack, &[new_path, paths]);
+            }
+        }
 
-        let mut path = T(stack, &[path_frag, parent_core_path]);
-        println!("{} {:?}", "path".yellow(), path);
+        println!("{} {:?}", "paths".yellow(), paths);
         println!("{} {:?}", "battery".yellow(), battery);
-        //TODO allow multiples
-        self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, path);
-        self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
-
-        self.warm_add(stack, hot, &mut path, core, warm);
-    }
-
-    // Retrieves the parent battery, returns None if the core is a root
-    fn get_parent_battery(stack: &mut NockStack, core: &mut Noun, parent_axis: Atom) -> Option<Noun> {
-        if parent_axis.is_direct() {
-            if parent_axis.as_direct().unwrap().data() == 0 {
-                return None
-            };
-        };
-        let parent_core = slot(*core, parent_axis.as_bitslice());
-        Some(raw_slot(parent_core, 2))
+        self.battery_to_paths = self.battery_to_paths.insert(stack, &mut battery, paths);
+        let paths_list_2 = HList::from(paths);
+        for mut path in paths_list_2.into_iter() {
+            self.path_to_batteries = self.path_to_batteries.insert(stack, &mut path, battery);
+            self.warm_add(stack, hot, &mut path, core, warm);
+        }
     }
 
     fn warm_add(&self, stack: &mut NockStack, hot: &Hot, path: &mut Noun, core: &mut Noun, warm: &mut Warm) {
@@ -226,6 +225,7 @@ impl Cold {
             while path.is_cell() {
                 battery = self.path_to_batteries.lookup(stack, &mut path).unwrap();
                 let axis = path.as_cell().unwrap().head().as_cell().unwrap().head();
+                println!("axis: {:?}", axis);
                 let axis_battery = T(stack, &[axis, battery]);
                 battery_vec.push(axis_battery);
                 path = path.as_cell().unwrap().tail();
@@ -235,6 +235,12 @@ impl Cold {
             for bat in battery_vec.into_iter().rev() {
                 batteries = T(stack, &[bat, batteries]);
             }
+            //TODO I think we don't care about the last battery, since if its a gate, this is just
+            // the formula itself, which is already matched against
+            if batteries.is_cell() {
+                batteries = batteries.as_cell().unwrap().tail();
+            }
+            println!("batteries: {:?}", batteries);
 
             let warm_entry = WarmEntry {
                 jet: hot_entry.jet,
@@ -371,39 +377,38 @@ impl Warm {
         if let Some(warm_entry) = self.jets.lookup(stack, formula) {
             println!("{}", "MATCH!".red());
 
-            //TODO this should all fit into one while loop
             let mut our_subject = subject;
-
             let mut try_batteries = warm_entry.batteries;
-            let try_ab = try_batteries.as_cell().unwrap().head().as_cell().unwrap();
-            let try_axis = try_ab.head();
-            if mug_u32(stack, try_ab.tail()) != mug_u32(stack, raw_slot(our_subject, 4)) {
-                println!("jet mismatch1");
-                return None
-            }
-            try_batteries = try_batteries.as_cell().unwrap().tail();
 
             while try_batteries.is_cell() {
+                println!("{}", "loop".red());
                 let try_ab = try_batteries.as_cell().unwrap().head().as_cell().unwrap();
                 let try_axis = try_ab.head();
+                let try_battery = try_ab.tail();
+                println!("try_axis: {:?}", try_axis);
+                println!("try_battery: {:?}", try_battery);
                 if try_axis.is_direct() {
                     if try_axis.as_direct().unwrap().data() == 0 {
+                        //TODO this needs to check that the root matches somehwow
+                        let our_battery = raw_slot(our_subject, 3);
+                        println!("our_battery: {:?}", our_battery);
                         println!("root");
                         return Some(warm_entry.jet);
                     }
                 }
-                let try_battery = try_ab.tail();
                 let parent_core = slot(our_subject, try_axis.as_atom().unwrap().as_bitslice());
                 let our_battery = raw_slot(parent_core, 2);
+                println!("our_battery: {:?}", our_battery);
 
                 if mug_u32(stack, try_battery) == mug_u32(stack, our_battery) {
                     println!("{}", "mug match".red());
                 } else {
-                    println!("jet mismatch2");
+                    println!("jet mismatch");
                     return None
                 }
 
                 our_subject = slot(our_subject, try_axis.as_atom().unwrap().as_bitslice());
+                println!("our_subject: {:?}", raw_slot(our_subject, 3));
                 try_batteries = try_batteries.as_cell().unwrap().tail();
             }
         }
