@@ -227,7 +227,8 @@ enum NockWork {
 #[derive(Debug)]
 pub enum NockErr {
     Blocked(Noun),
-    Error(Noun),
+    DeterministicError(Noun),
+    NonDeterministicError(Noun),
 }
 
 impl From<NockErr> for () {
@@ -887,43 +888,91 @@ fn match_hint_pre_hint(
     tag: Atom,
     hint: Noun,
     body: Noun,
-) -> Option<Noun> {
+// ) -> Result<Option<Noun>, JetErr> {
+//  possible cases:
+//      1. Deterministic error, no trace
+//              jet - nock mismatch
+//              need to add a mean hint, then fail
+//      2. Deterministic error, trace
+//              Deterministic error in jet or nock
+//      3. Nondeterministic error, trace
+//              Nondeterministic error in jet or nock
+//
+//
+//      4. Nondeterministic error, no trace
+//              ??? does this exist?
+//              
+) -> Result<Option<Noun>, NockErr> {
     //  XX: handle IndirectAtom tags
     match tag.direct()?.data() {
         // %sham hints are scaffolding until we have a real jet dashboard
         tas!(b"sham") => {
-            let jet_formula = hint.cell()?;
+            let jet_formula = hint.as_cell()?;
             // XX: what is the head here?
             let jet_name = jet_formula.tail();
 
-            let jet = jets::get_jet(jet_name)?;
-            if let Ok(mut jet_res) = jet(stack, newt, subject) {
-                // if in test mode, check that the jet returns the same result as the raw nock
-                if jets::get_jet_test_mode(jet_name) {
-                    // Throw away trace because we'll regenerate it later, and this is in test mode
-                    // so it's okay if it runs twice
-                    interpret(stack, newt, subject, body)
-                        .ok()
-                        .map(|mut nock_res| {
-                            if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
-                                eprintln!(
-                                    "\rJet {} failed, raw: {}, jetted: {}",
-                                    jet_name, nock_res, jet_res
-                                );
-                                None
-                            } else {
-                                Some(jet_res)
+            if let Some(jet) = jets::get_jet(jet_name) {
+                match jet(stack, newt, subject) {
+                    Ok(mut jet_res) => {
+                        // if in test mode, check that the jet returns the same result as the raw nock
+                        if jets::get_jet_test_mode(jet_name) {
+                            // Throw away trace because we'll regenerate it later, and this is in test mode
+                            // so it's okay if it runs twice
+                            match interpret(stack, newt, subject, body) {
+                                Ok(mut nock_res) => {
+                                    if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
+                                        eprintln!(
+                                            "\rJet {} failed, raw: {}, jetted: {}",
+                                            jet_name, nock_res, jet_res
+                                        );
+                                        Err(Deterministic)
+                                    } else {
+                                        Ok(Some(jet_res))
+                                    }
+                                }
+                                Err(NockErr::DeterministicError(trace)) => {
+                                    
+                                }
                             }
-                        })
-                        .unwrap()
+
+
+                            interpret(stack, newt, subject, body)
+                                .ok()
+                                .map(|mut nock_res| {
+                                    if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
+                                        eprintln!(
+                                            "\rJet {} failed, raw: {}, jetted: {}",
+                                            jet_name, nock_res, jet_res
+                                        );
+                                        None
+                                    } else {
+                                        Some(jet_res)
+                                    }
+                                })
+                                .unwrap()
+                        
+
+
+                        } else {
+                            Ok(Some(jet_res))
+                        }
+                    }
+                }
+
+
+                if let Ok(mut jet_res) = jet(stack, newt, subject) {
+                    
                 } else {
-                    Some(jet_res)
+                    // Print jet errors and punt to Nock
+                    eprintln!("\rJet {} failed: ", jet_name);
+                    None
                 }
             } else {
-                // Print jet errors and punt to Nock
-                eprintln!("\rJet {} failed: ", jet_name);
-                None
+                Ok(None)
             }
+
+
+            
         }
         tas!(b"memo") => {
             let mut key = Cell::new(stack, subject, body).as_noun();
@@ -942,7 +991,7 @@ fn match_hint_pre_nock(
     _hint: Option<Noun>,
     _body: Noun,
     res: Option<Noun>,
-) -> Option<Noun> {
+) -> Result<Option<Noun>, JetErr> {
     //  XX: assert Some(res) <=> Some(hint)
 
     //  XX: handle IndirectAtom tags
@@ -1028,7 +1077,7 @@ fn match_hint_post_nock(
     _hint: Option<Noun>,
     body: Noun,
     res: Noun,
-) -> Option<Noun> {
+) -> Result<Option<Noun>, JetErr> {
     //  XX: handle IndirectAtom tags
     match tag.direct()?.data() {
         tas!(b"memo") => {
