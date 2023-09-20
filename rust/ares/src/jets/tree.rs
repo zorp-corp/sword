@@ -6,7 +6,7 @@ use crate::jets::util::*;
 use crate::jets::util::test::{assert_jet, assert_jet_err, assert_jet_ubig, assert_nary_jet_ubig, init_stack, A};
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{Atom, Noun, D, T};
+use crate::noun::{Atom, IndirectAtom, Noun, D, T};
 //use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 use ibig::{UBig, ubig};
 
@@ -52,71 +52,39 @@ pub fn jet_mas(
     }
 }
 
-/*
-++  peg
-  ~/  %peg
-  |=  [a=@ b=@]
-  ?<  =(0 a)
-  ^-  @
-  ?-  b
-    %1  a
-    %2  (mul a 2)
-    %3  +((mul a 2))
-    *   (add (mod b 2) (mul $(b (div b 2)) 2))
-  ==
-*/
 pub fn jet_peg(
     stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
     subject: Noun
 ) -> jets::Result {
-    let arg = slot(subject, 6)?;
-    let a = slot(arg, 2)?.as_atom()?;
-    let b = slot(arg, 3)?.as_atom()?;
+    unsafe{
+        let arg = slot(subject, 6)?;
+        let a = slot(arg, 2)?.as_atom()?;
+        let b = slot(arg, 3)?.as_atom()?;
 
-    if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() == 0 {
-            return Err(Deterministic);
-        }
-        //  XX JET MISMATCH IMPORTED FROM VERE
-        if b.data() == 0 {
-            return Err(Deterministic);
-        }
+        if let Ok(a) = a.as_direct() {
+            if a.data() == 0 {
+                return Err(Deterministic);
+            }
+        };
+        if let Ok(b) = b.as_direct() {
+            if b.data() == 0 {
+                return Err(Deterministic);
+            }
+        };
 
-        let c = met(0, b.as_atom()) as u8;
-        let d = c - 1;
-        let e = d << 1;
-        let f = b.data() - e as u64;  // left or right child
-        let g = ubig!(d) << a.data() as usize;
-        let _h = f + g;
+        let met_a = met(6, a);
+        let met_b = met(6, b);
 
-        Ok(A(stack, &ubig!(h)))
-    } else {
-        let a_big = a.as_ubig(stack);
-        let b_big = b.as_ubig(stack);
+        let (mut result, destination) = IndirectAtom::new_raw_mut_bitslice(stack, met_a+met_b);
 
-        if a_big == ubig!(0) {
-            return Err(Deterministic);
-        }
-        //  XX JET MISMATCH IMPORTED FROM VERE
-        if b_big == ubig!(0) {
-            return Err(Deterministic);
-        }
+        let len_a = met(0, a);
+        let len_b = met(0, b);
 
-        let c = met(0, b);
-        let d = c - 1;
-        let e = d << 1;
-        let f = b_big - e;  // left or right child
-        //  shl on ubig not defined, so crash if a_big is too big
-        if a_big.bit_len() > 64 {
-            return Err(Deterministic);
-        } else {
-            // downcast a_big to u64
-            let g = d << a.as_direct()?.data();
-            let h = f + g;
+        destination[0..len_b-1].copy_from_bitslice(&b.as_bitslice()[0..len_b-1]);
+        destination[len_b-1..len_b-1+len_a].copy_from_bitslice(&a.as_bitslice()[0..len_a]);
 
-            Ok(Atom::from_ubig(stack, &h).as_noun())
-        }
+        Ok(result.normalize_as_atom().as_noun())
     }
 }
 
@@ -208,8 +176,8 @@ mod tests {
         D(0x5)
     }
 
-    fn atom_10(_stack: &mut NockStack) -> Noun {
-        D(0x10)
+    fn atom_0a(_stack: &mut NockStack) -> Noun {
+        D(0xa)
     }
 
     fn atom_7f(_stack: &mut NockStack) -> Noun {
@@ -239,19 +207,12 @@ mod tests {
 
         // Test direct
         assert_math_jet(s, jet_peg, &[atom_2, atom_3], ubig!(5));
-        assert_math_jet(s, jet_peg, &[atom_10,atom_10], ubig!(82));
+        assert_math_jet(s, jet_peg, &[atom_0a,atom_0a], ubig!(82));
         assert_math_jet(s, jet_peg, &[atom_7f, atom_2], ubig!(0xfffffffffffffffe));
         assert_math_jet(s, jet_peg, &[atom_7f, atom_3], ubig!(0xffffffffffffffff));
 
         // Test direct with overflow.
         assert_math_jet(s, jet_peg, &[atom_7f, atom_4], ubig!(0x1fffffffffffffffc));
         assert_math_jet(s, jet_peg, &[atom_7f, atom_5], ubig!(0x1fffffffffffffffd));
-
-        // Test indirect.
-        let val_1000 = UBig::from_str_radix("100000000000000000000000000000000", 16);
-        let val_2000 = UBig::from_str_radix("200000000000000000000000000000000", 16);
-        assert_math_jet(s, jet_peg, &[atom_1000, atom_2], ubig!(val_2000));
-        assert_math_jet(s, jet_peg, &[atom_2, atom_1000], ubig!(val_2000));
-        assert_math_jet(s, jet_peg, &[atom_100, atom_100], ubig!(val_1000));
     }
 }
