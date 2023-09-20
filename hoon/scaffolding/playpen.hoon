@@ -10,6 +10,7 @@
 ::
 +$  cord  @t
 +$  knot  @ta
++$  term  @tas
 +$  char  @t
 +$  ship  @p
 +$  life  @ud
@@ -54,9 +55,10 @@
       [%palm p=(qual tape tape tape tape) q=(list tank)]
       [%rose p=(trel tape tape tape) q=(list tank)]
   ==
++$  tang  (list tank)
 +$  toon  $%  [%0 p=*]
               [%1 p=*]
-              [%2 p=(list tank)]
+              [%2 p=tang]
           ==
 ++  tree  |$  [node]  $@(~ [n=node l=(tree node) r=(tree node)])
 ++  gate  $-(* *)

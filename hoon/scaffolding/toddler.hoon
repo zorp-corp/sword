@@ -8,11 +8,24 @@
   !=
   =>
   |%
-  ++  cask  |$  [a]  (pair mark a)
-  +$  mark  @tas
   +$  card  (cask)
+  ++  cask  |$  [a]  (pair mark a)
+  +$  goof  [mote=term =tang]
+  +$  mark  @tas
   +$  ovum  [=wire =card]
+  +$  vere  [[non=@ta rev=path] kel=wynn]
   +$  wire  path
+  +$  wasp
+    ::  %crud: reroute $ovum with $goof
+    ::  %wack: iterate entropy
+    ::  %wyrd: check/record runtime kelvin stack
+    ::
+    $%  [%crud =goof =ovum]
+        [%wack p=@uvJ]
+        [%wyrd p=vere]
+    ==
+  +$  weft  [lal=@tas num=@ud]
+  +$  wynn  (list weft)
   ::  mutually recursive Ackermann functions
   ::  test turning %spot hints on/off
   ++  wack
@@ -50,8 +63,22 @@
   ++  poke
     |=  [now=@da ovo=ovum]
     ^-  ^
-    ~>  %slog.[0 leaf+(scow %ud (wack 2 1))]
-    [~ ..poke]
+    ::
+    ?.  ?=(?(%crud %wack %wyrd) p.card.ovo)
+      ~>  %slog.[0 leaf+(scow %ud (wack 1 1))]
+      [~ ..poke]
+    ::
+    =/  buz
+      ~>  %mean.'pith: bad wasp'
+      ;;(wasp card.ovo)
+    ?+  -.buz
+      ~>  %slog.[0 leaf+"default $wasp"]
+      [~ ..poke]
+    ::
+      %crud
+        ~>  %slog.[0 goof.buz]
+        [~ ..poke]
+    ==
   --
   ::
   |=  [now=@da ovo=ovum]

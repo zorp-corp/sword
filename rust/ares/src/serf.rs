@@ -178,7 +178,6 @@ pub fn serf() -> io::Result<()> {
                                 newt.work_swap(stack, current_event_num, current_mug as u64, crud, fec);
                             }
                             Err(goof_crud) => {
-                                //  lud = (list goof)
                                 let lud = T(stack, &[goof_crud, goof, D(0)]);
                                 newt.work_bail(stack, lud);
                             }
@@ -207,7 +206,7 @@ pub fn slam(
     interpret(stack, &mut Some(newt), sub, fol)
 }
 
-/** Run slam, then process stack trace to tang */
+/** Run slam, process stack trace to tang if error */
 pub fn soft(
     stack: &mut NockStack,
     newt: &mut Newt,
