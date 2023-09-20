@@ -1,13 +1,11 @@
 pub mod math;
 pub mod tree;
-pub mod crypto;
 pub mod bits;
 pub mod hash;
 pub mod mink;
 
 use crate::jets::math::*;
 use crate::jets::tree::*;
-use crate::jets::crypto::*;
 use crate::jets::bits::*;
 use crate::jets::hash::*;
 use crate::jets::mink::*;
