@@ -1,4 +1,4 @@
-use crate::interpreter::{interpret, NockErr, inc};
+use crate::interpreter::{inc, interpret, Tone};
 use crate::jets::nock::util::mook;
 use crate::jets::text::util::lent;
 use crate::mem::NockStack;
@@ -82,7 +82,6 @@ pub fn serf() -> io::Result<()> {
                     let eve = slot(writ, 7)?;
                     let sub = T(stack, &[D(0), D(3)]);
                     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
-                    //  XX: TODO
                     match interpret(stack, &mut Some(newt), eve, lyf) {
                         Ok(gat) => {
                             arvo = slot(gat, 7)
@@ -91,7 +90,7 @@ pub fn serf() -> io::Result<()> {
                                 lent(eve).expect("serf: play: boot event number failure") as u64;
                             current_mug = mug_u32(stack, arvo);
                         }
-                        Err(NockErr::Error(trace)) => {
+                        Err(Tone::Error(_, trace)) => {
                             let tone = Cell::new(stack, D(2), trace);
                             let tang = mook(stack, &mut Some(newt), tone, false)
                                 .expect("serf: play: +mook crashed on bail")
@@ -99,7 +98,7 @@ pub fn serf() -> io::Result<()> {
                             let goof = T(stack, &[D(tas!(b"exit")), tang]);
                             newt.play_bail(stack, 0, 0, goof);
                         }
-                        Err(NockErr::Blocked(_)) => {
+                        Err(Tone::Blocked(_)) => {
                             panic!("play: blocked err handling unimplemented")
                         }
                     }
@@ -118,7 +117,7 @@ pub fn serf() -> io::Result<()> {
                                 current_mug = mug_u32(stack, arvo);
                                 current_event_num += 1;
                             }
-                            Err(NockErr::Error(trace)) => {
+                            Err(Tone::Error(_, trace)) => {
                                 let tone = Cell::new(stack, D(2), trace);
                                 let tang = mook(stack, &mut Some(newt), tone, false)
                                     .expect("serf: play: +mook crashed on bail")
@@ -126,7 +125,7 @@ pub fn serf() -> io::Result<()> {
                                 let goof = T(stack, &[D(tas!(b"exit")), tang]);
                                 newt.play_bail(stack, current_event_num, current_mug as u64, goof);
                             }
-                            Err(NockErr::Blocked(_)) => {
+                            Err(Tone::Blocked(_)) => {
                                 panic!("play: blocked err handling unimplemented")
                             }
                         }
@@ -161,13 +160,18 @@ pub fn serf() -> io::Result<()> {
                         //
                         //  crud = [+(now) [%$ %arvo ~] [%crud goof ovo]]
                         let job_cell = job.as_cell().expect("serf: work: job not a cell");
-                        let now = inc(stack, job_cell.head().as_atom().expect("serf: work: now not atom")).as_noun();
+                        let now = inc(
+                            stack,
+                            job_cell.head().as_atom().expect("serf: work: now not atom"),
+                        )
+                        .as_noun();
                         let wire = T(stack, &[D(0), D(tas!(b"arvo")), D(0)]);
                         let crud = T(stack, &[now, wire, D(tas!(b"crud")), goof, job_cell.tail()]);
 
                         match soft(stack, newt, arvo, POKE_AXIS, crud) {
                             Ok(res) => {
-                                let cell = res.as_cell().expect("serf: work: crud +slam returned atom");
+                                let cell =
+                                    res.as_cell().expect("serf: work: crud +slam returned atom");
                                 let fec = cell.head();
                                 arvo = cell.tail();
                                 snap.save(stack, &mut arvo);
@@ -175,7 +179,13 @@ pub fn serf() -> io::Result<()> {
                                 current_mug = mug_u32(stack, arvo);
                                 current_event_num += 1;
 
-                                newt.work_swap(stack, current_event_num, current_mug as u64, crud, fec);
+                                newt.work_swap(
+                                    stack,
+                                    current_event_num,
+                                    current_mug as u64,
+                                    crud,
+                                    fec,
+                                );
                             }
                             Err(goof_crud) => {
                                 let lud = T(stack, &[goof_crud, goof, D(0)]);
@@ -198,7 +208,7 @@ pub fn slam(
     core: Noun,
     axis: u64,
     ovo: Noun,
-) -> Result<Noun, NockErr> {
+) -> Result<Noun, Tone> {
     let pul = T(stack, &[D(9), D(axis), D(0), D(2)]);
     let sam = T(stack, &[D(6), D(0), D(7)]);
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
@@ -216,7 +226,7 @@ pub fn soft(
 ) -> Result<Noun, Noun> {
     match slam(stack, newt, core, axis, ovo) {
         Ok(res) => Ok(res),
-        Err(NockErr::Error(trace)) => {
+        Err(Tone::Error(_, trace)) => {
             let tone = Cell::new(stack, D(2), trace);
             let tang = mook(stack, &mut Some(newt), tone, false)
                 .expect("serf: soft: +mook crashed on bail")
@@ -226,10 +236,9 @@ pub fn soft(
             let goof = T(stack, &[D(tas!(b"exit")), tang]);
             Err(goof)
         }
-        Err(NockErr::Blocked(_)) => panic!("soft: blocked err handling unimplemented"),
+        Err(Tone::Blocked(_)) => panic!("soft: blocked err handling unimplemented"),
     }
 }
-
 
 fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
     noun.slot(axis)

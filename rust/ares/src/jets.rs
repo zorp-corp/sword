@@ -172,7 +172,7 @@ pub mod util {
             let step = cell.tail().as_direct()?.data() as usize;
             Ok((bloq, step))
         } else {
-            bloq(a).map(|x| (x, 1 as usize))
+            bloq(a).map(|x| (x, 1_usize))
         }
     }
 

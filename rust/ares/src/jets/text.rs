@@ -22,7 +22,7 @@ pub mod util {
         let mut list = tape;
         loop {
             if let Some(atom) = list.atom() {
-                if let None = atom.as_bitslice().first_one() {
+                if atom.as_bitslice().first_one().is_none() {
                     break;
                 } else {
                     return Err(JetErr::Deterministic);

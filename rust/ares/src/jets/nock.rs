@@ -1,8 +1,9 @@
 /** Virtualization jets
  */
-use crate::interpreter::{interpret, NockErr};
+use crate::interpreter::{interpret, NockErr, Tone};
 use crate::jets;
 use crate::jets::util::slot;
+use crate::jets::JetErr;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Noun, D, T};
@@ -22,12 +23,14 @@ pub fn jet_mink(
     let v_formula = slot(arg, 5)?;
     let _scry = slot(arg, 3)?;
 
-    //  XX: NonDeterministic errors need to bail here, too
     match interpret(stack, newt, v_subject, v_formula) {
         Ok(res) => Ok(T(stack, &[D(0), res])),
         Err(err) => match err {
-            NockErr::Blocked(block) => Ok(T(stack, &[D(1), block])),
-            NockErr::Error(error) => Ok(T(stack, &[D(2), error])),
+            Tone::Blocked(block) => Ok(T(stack, &[D(1), block])),
+            Tone::Error(err, trace) => match err {
+                NockErr::Deterministic => Ok(T(stack, &[D(2), trace])),
+                NockErr::NonDeterministic => Err(JetErr::NonDeterministic),
+            },
         },
     }
 }
@@ -58,15 +61,20 @@ pub mod util {
         let tag = tone.head().as_direct()?;
         let original_list = tone.tail();
 
-        if tag.data() < 2 {
-            return Ok(tone);
-        } else if tag.data() > 2 {
-            return Err(JetErr::Deterministic);
-        }
+        // if tag.data() < 2 {
+        //     return Ok(tone);
+        // } else if tag.data() > 2 {
+        //     return Err(JetErr::Deterministic);
+        // }
+        match tag.data() {
+            x if x < 2 => return Ok(tone),
+            x if x > 2 => return Err(JetErr::Deterministic),
+            _ => {}
+        };
 
         if unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
-        } else if let Some(_) = original_list.atom() {
+        } else if original_list.atom().is_some() {
             return Err(JetErr::Deterministic);
         }
 
@@ -135,7 +143,7 @@ pub mod util {
 
                         let mut list = end_col.as_cell()?;
                         loop {
-                            if let Some(_) = list.tail().atom() {
+                            if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
@@ -146,7 +154,7 @@ pub mod util {
 
                         list = end_lin.as_cell()?;
                         loop {
-                            if let Some(_) = list.tail().atom() {
+                            if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
@@ -157,7 +165,7 @@ pub mod util {
 
                         list = str_col.as_cell()?;
                         loop {
-                            if let Some(_) = list.tail().atom() {
+                            if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
@@ -171,7 +179,7 @@ pub mod util {
 
                         list = str_lin.as_cell()?;
                         loop {
-                            if let Some(_) = list.tail().atom() {
+                            if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;

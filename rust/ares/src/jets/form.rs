@@ -29,13 +29,13 @@ pub mod util {
     ) -> jets::Result {
         match aura.data() {
             tas!(b"ud") => {
-                if let None = atom.as_bitslice().first_one() {
+                if atom.as_bitslice().first_one().is_none() {
                     return Ok(T(stack, &[D(b'0' as u64), D(0)]));
                 }
 
                 let mut root = D(0);
                 let mut lent = 0;
-                if let Some(_) = atom.direct() {
+                if atom.direct().is_some() {
                     let mut n = atom.as_direct()?.data();
 
                     while n != 0 {

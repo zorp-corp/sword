@@ -107,11 +107,11 @@ impl Newt {
                 );
             },
         };
-        self.output.write_all(&buf).unwrap();
+        self.output.write_all(buf).unwrap();
     }
 
     /** Send %ripe, the first event.
-     * 
+     *
      * eve  =   event number
      * mug  =   mug of Arvo after above event
      */
@@ -135,7 +135,7 @@ impl Newt {
     }
 
     /** Send %slog, pretty-printed debug output.
-     * 
+     *
      * pri  =   debug priority
      * tank =   output as tank
      */
@@ -157,7 +157,7 @@ impl Newt {
     }
 
     /** Send %peek %bail, unsuccessfully scried.
-     * 
+     *
      * dud  =   goof
      */
     pub fn peek_bail(&mut self, stack: &mut NockStack, dud: Noun) {
@@ -166,7 +166,7 @@ impl Newt {
     }
 
     /** Send %play %done, successfully replayed events.
-     * 
+     *
      * mug  =   mug of Arvo after full replay
      */
     pub fn play_done(&mut self, stack: &mut NockStack, mug: u64) {
@@ -175,7 +175,7 @@ impl Newt {
     }
 
     /** Send %play %bail, failed to replay events.
-     * 
+     *
      * eve  =   last good event number
      * mug  =   mug of Arvo after above event
      * dud  =   goof when trying next event
@@ -189,7 +189,7 @@ impl Newt {
     }
 
     /** Send %work %done, successfully ran event.
-     * 
+     *
      * eve  =   new event number
      * mug  =   mug of Arvo after above event
      * fec  =   list of effects
@@ -203,7 +203,7 @@ impl Newt {
     }
 
     /** Send %work %swap, successfully replaced failed event.
-     * 
+     *
      * eve  =   new event number
      * mug  =   mug of Arvo after above event
      * job  =   event performed instead of the one given to serf by king
@@ -218,7 +218,7 @@ impl Newt {
     }
 
     /** Send %work %bail, failed to run event.
-     * 
+     *
      * lud  =   list of goof
      */
     pub fn work_bail(&mut self, stack: &mut NockStack, lud: Noun) {
