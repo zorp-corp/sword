@@ -32,7 +32,7 @@ fn _nan_unify(
 ) -> float32_t {
     unsafe {
         if _nan_test(a) {
-            return ui32_to_f32(SINGNAN);
+            return softfloat_sys::float32_t { v: SINGNAN };
         }
         a
     }
@@ -324,7 +324,7 @@ mod tests {
             eprintln!("sbj: {:?}", sbj);
             std::io::stderr().flush().unwrap();
             let jet_res = jet(stack, &mut None, sbj).unwrap();
-            eprintln!("jet: {:x}\n", jet_res.as_atom().expect("msg").as_direct().expect("msg").data());
+            eprintln!("jet: {:x}\n", jet_res.as_atom().expect("").as_direct().expect("").data());
             std::io::stderr().flush().unwrap();
             assert_noun_eq(stack, jet_res, res);
         }
@@ -501,7 +501,4 @@ mod tests {
         assert_jet_in_door(s, jet_rs_gth, &[atom_0, atom_1], &[atom_0, r_sample_n, atom_0], NO);
         assert_jet_in_door(s, jet_rs_gth, &[atom_1, atom_1], &[atom_0, r_sample_n, atom_0], NO);
     }
-
-
-
 }
