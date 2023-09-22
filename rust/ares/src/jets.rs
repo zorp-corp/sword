@@ -3,8 +3,9 @@ pub mod tree;
 pub mod bits;
 pub mod hash;
 pub mod mink;
-pub mod float_rs;
 pub mod float_rh;
+pub mod float_rs;
+pub mod float_rd;
 
 use crate::jets::math::*;
 use crate::jets::tree::*;
@@ -13,6 +14,7 @@ use crate::jets::hash::*;
 use crate::jets::mink::*;
 use crate::jets::float_rh::*;
 use crate::jets::float_rs::*;
+use crate::jets::float_rd::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots};
