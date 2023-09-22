@@ -255,6 +255,7 @@ assert_eq_size!(&[(Noun, ())], Leaf<()>);
 // Our custom stem type is the same size as a fat pointer to `Entry`s
 assert_eq_size!(&[Entry<()>], Stem<()>);
 
+#[derive(Copy, Clone)]
 pub struct Hamt<T: Copy>(Stem<T>);
 
 impl<T: Copy> Hamt<T> {

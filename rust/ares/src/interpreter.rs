@@ -726,28 +726,29 @@ pub fn raw_slot(noun: Noun, axis: u64) -> Noun {
     slot(noun, DirectAtom::new(axis).unwrap().as_bitslice())
 }
 
-pub fn slot(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
+pub fn slot_result(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Result<Noun, ()> {
     let mut cursor = if let Some(x) = axis.last_one() {
-        x
+        Ok(x)
     } else {
-        panic!("0 is not allowed as an axis")
-    };
+        Err(())
+    }?;
     loop {
         if cursor == 0 {
             break;
         };
         cursor -= 1;
-        if let Ok(cell) = noun.as_cell() {
-            if axis[cursor] {
-                noun = cell.tail();
-            } else {
-                noun = cell.head();
-            }
+        let cell = noun.as_cell()?;
+        if axis[cursor] {
+            noun = cell.tail();
         } else {
-            panic!("Axis tried to descend through atom: {}", noun);
+            noun = cell.head();
         };
     }
-    noun
+    Ok(noun)
+}
+
+pub fn slot(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
+    slot_result(noun, axis).expect("Invalid axis into noun.")
 }
 
 fn edit(
