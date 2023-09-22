@@ -747,7 +747,7 @@ pub fn slot_result(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Result<Noun, (
     Ok(noun)
 }
 
-pub fn slot(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
+pub fn slot(noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Noun {
     slot_result(noun, axis).expect("Invalid axis into noun.")
 }
 

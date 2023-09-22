@@ -1,4 +1,4 @@
-use crate::hamt::{Hamt};
+use crate::hamt::Hamt;
 use crate::interpreter::slot_result;
 use crate::mem::{unifying_equality, NockStack, Preserve};
 use crate::noun::{Atom, DirectAtom, Noun, D, T};
@@ -68,7 +68,7 @@ impl Batteries {
                     };
                 };
             };
-            if let Ok(mut core_battery) = slot_result(core, BitSlice::from_element(&2u64)) {
+            if let Ok(_core_battery) = slot_result(core, BitSlice::from_element(&2u64)) {
                 if unsafe { !unifying_equality(stack, &mut core, battery) } {
                     return false;
                 };
@@ -136,7 +136,7 @@ impl Iterator for BatteriesList {
 }
 
 impl BatteriesList {
-    fn matches(self, stack: &mut NockStack, mut core: Noun) -> Option<Batteries> {
+    fn matches(self, stack: &mut NockStack, core: Noun) -> Option<Batteries> {
         for batteries in self {
             if batteries.matches(stack, core) {
                 return Some(batteries);
@@ -241,8 +241,8 @@ impl Cold {
                 if parent_axis_direct.data() == 0 {
                     let mut root_path = T(stack, &[chum, D(0)]);
                     if let Some(paths) = (*(self.0)).root_to_paths.lookup(stack, &mut core) {
-                        for mut a_path in paths {
-                            if unsafe { unifying_equality(stack, &mut root_path, a_path) } {
+                        for a_path in paths {
+                            if unifying_equality(stack, &mut root_path, a_path) {
                                 return Ok(false); // it's already in here
                             }
                         }
@@ -319,10 +319,10 @@ impl Cold {
 
             let mut path_to_batteries = (*(self.0)).path_to_batteries;
             let mut battery_to_paths = (*(self.0)).battery_to_paths;
-            let mut root_to_paths = (*(self.0)).root_to_paths;
+            let root_to_paths = (*(self.0)).root_to_paths;
 
             if let Some(paths) = battery_to_paths.lookup(stack, &mut parent_battery) {
-                for mut a_path in paths {
+                for a_path in paths {
                     // path is a reserved word lol
                     let battery_list = path_to_batteries
                         .lookup(stack, &mut *a_path)
@@ -371,7 +371,7 @@ impl Cold {
             };
 
             if let Some(paths) = root_to_paths.lookup(stack, &mut parent) {
-                for mut a_path in paths {
+                for a_path in paths {
                     // path is a reserved word lol
                     let battery_list = path_to_batteries
                         .lookup(stack, &mut *a_path)
@@ -431,4 +431,3 @@ impl Cold {
         }
     }
 }
-
