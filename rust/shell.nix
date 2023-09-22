@@ -14,5 +14,6 @@ pkgs.mkShell {
     ])
     cargo-watch
     gdb
+    secp256k1
   ];
 }

@@ -25,6 +25,7 @@ ibig = { path = "../ibig-rs" }
 assert_no_alloc = "1.1.2"
 
 [build-dependencies]
+autotools = "0.2.6"
 cc = "1.0.79"
 
 [[bin]]

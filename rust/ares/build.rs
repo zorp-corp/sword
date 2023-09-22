@@ -1,3 +1,5 @@
+use autotools;
+
 fn main() {
     use std::env;
     let profile = env::var("PROFILE").unwrap();
@@ -42,6 +44,11 @@ fn debug() {
         .flag("-Wnested-externs")
         .flag("-Wmissing-include-dirs")
         .compile("pma_malloc");
+
+    let _urcrypt = autotools::Config::new("./src/urcrypt")
+        .disable_static()
+        .disable_shared()
+        .build();
 }
 
 fn release() {
