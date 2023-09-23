@@ -26,13 +26,15 @@ impl Preserve for Batteries {
         let mut ptr: *mut *mut BatteriesMem = &mut self.0;
         loop {
             if stack.is_in_frame(*ptr) {
+                (**ptr).battery.preserve(stack);
                 (**ptr).parent_axis.preserve(stack);
                 let dest_mem: *mut BatteriesMem = stack.struct_alloc_in_previous_frame(1);
                 copy_nonoverlapping(*ptr, dest_mem, 1);
                 if (*dest_mem).parent_batteries.0.is_null() {
                     break;
                 };
-                ptr = &mut ((*dest_mem).parent_batteries.0);
+                *ptr = dest_mem;
+                ptr = &mut ((**ptr).parent_batteries.0);
             } else {
                 break;
             }
@@ -65,11 +67,11 @@ impl Batteries {
                 if d.data() == 0 {
                     if unsafe { !unifying_equality(stack, &mut core, battery) } {
                         return false;
-                    };
+                    } else { continue; };
                 };
             };
-            if let Ok(_core_battery) = slot_result(core, BitSlice::from_element(&2u64)) {
-                if unsafe { !unifying_equality(stack, &mut core, battery) } {
+            if let Ok(mut core_battery) = slot_result(core, BitSlice::from_element(&2u64)) {
+                if unsafe { !unifying_equality(stack, &mut core_battery, battery) } {
                     return false;
                 };
                 if let Ok(core_parent) = slot_result(core, parent_axis.as_bitslice()) {
@@ -111,7 +113,8 @@ impl Preserve for BatteriesList {
                 if (*dest_mem).next.0.is_null() {
                     break;
                 };
-                ptr = &mut ((*dest_mem).next.0);
+                *ptr = dest_mem;
+                ptr = &mut ((**ptr).next.0);
             } else {
                 break;
             }
@@ -162,7 +165,7 @@ impl Preserve for NounList {
         if self.0.is_null() {
             return;
         };
-        let mut ptr: *mut *mut NounListMem = &mut (*self).0;
+        let mut ptr: *mut *mut NounListMem = &mut (self.0);
         loop {
             if stack.is_in_frame(*ptr) {
                 (**ptr).element.preserve(stack);
@@ -171,7 +174,8 @@ impl Preserve for NounList {
                 if (*dest_mem).next.0.is_null() {
                     break;
                 };
-                ptr = &mut ((*dest_mem).next.0);
+                *ptr = dest_mem;
+                ptr = &mut ((**ptr).next.0);
             } else {
                 break;
             }
@@ -252,7 +256,6 @@ impl Cold {
         mut chum: Noun,
     ) -> Result<bool, ()> {
         let mut battery = slot_result(core, BitSlice::from_element(&2u64))?;
-        let mut parent = slot_result(core, parent_axis.as_bitslice())?;
 
         unsafe {
             // Are we registering a root?
@@ -315,6 +318,7 @@ impl Cold {
                 }
             }
 
+            let mut parent = slot_result(core, parent_axis.as_bitslice())?;
             // Check if we already registered this core
             if let Some(paths) = (*(self.0)).battery_to_paths.lookup(stack, &mut battery) {
                 for path in paths {
@@ -346,7 +350,7 @@ impl Cold {
                     let battery_list = path_to_batteries
                         .lookup(stack, &mut *a_path)
                         .unwrap_or(BATTERIES_LIST_NIL);
-                    if let Some(parent_batteries) = battery_list.matches(stack, core) {
+                    if let Some(parent_batteries) = battery_list.matches(stack, parent) {
                         let mut my_path = T(stack, &[chum, *a_path]);
 
                         let batteries_mem_ptr: *mut BatteriesMem = stack.struct_alloc(1);
@@ -395,7 +399,7 @@ impl Cold {
                     let battery_list = path_to_batteries
                         .lookup(stack, &mut *a_path)
                         .unwrap_or(BATTERIES_LIST_NIL);
-                    if let Some(parent_batteries) = battery_list.matches(stack, core) {
+                    if let Some(parent_batteries) = battery_list.matches(stack, parent) {
                         let mut my_path = T(stack, &[chum, *a_path]);
 
                         let batteries_mem_ptr: *mut BatteriesMem = stack.struct_alloc(1);

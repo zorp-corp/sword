@@ -8,7 +8,7 @@ use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D, T};
 use ares_macros::tas;
-use assert_no_alloc::assert_no_alloc;
+use assert_no_alloc::{assert_no_alloc};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 
@@ -510,7 +510,7 @@ pub fn interpret(
                     Todo11D::ComputeHint => {
                         let hint_cell = Cell::new(stack, dint.tag.as_noun(), dint.hint);
                         if let Ok(found) =
-                            match_pre_hint(stack, newt, cold, warm, hot, subject, hint_cell, formula, &cache)
+                            match_pre_hint(stack, newt, subject, hint_cell, formula, &cache)
                         {
                             res = found;
                             stack.pop::<NockWork>();
@@ -853,9 +853,6 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 fn match_pre_hint(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,
-    cold: &mut Cold,
-    warm: &mut Warm,
-    hot: Hot,
     subject: Noun,
     cell: Cell,
     formula: Noun,
@@ -864,6 +861,7 @@ fn match_pre_hint(
     let direct = cell.head().as_direct()?;
     match direct.data() {
         // %sham hints are scaffolding until we have a real jet dashboard
+        /*
         tas!(b"sham") => {
             let jet_formula = cell.tail().as_cell()?;
             let jet_name = jet_formula.tail();
@@ -886,7 +884,7 @@ fn match_pre_hint(
                 eprintln!("\rJet {} failed", jet_name);
                 Err(())
             }
-        }
+        }*/
         tas!(b"memo") => {
             let formula = unsafe { *stack.local_noun_pointer(2) };
             let mut key = Cell::new(stack, subject, formula).as_noun();
@@ -944,7 +942,7 @@ fn match_post_hinted(
             Ok(())
         },
         tas!(b"fast") => {
-            let clue = raw_slot_result(hint, 2)?;
+            let clue = raw_slot_result(hint, 7)?;
             let chum = raw_slot_result(clue, 2)?;
             let parent_formula_op = raw_slot_result(clue, 12)?.as_atom()?.as_direct()?;
             let parent_formula_ax = raw_slot_result(clue, 13)?.as_atom()?;
