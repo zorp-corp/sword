@@ -1,4 +1,7 @@
 use ares::interpreter::interpret;
+use ares::jets::cold::Cold;
+use ares::jets::warm::Warm;
+use ares::jets::hot::Hot;
 use ares::mem::NockStack;
 use ares::noun::IndirectAtom;
 use ares::serf::serf;
@@ -39,6 +42,9 @@ fn main() -> io::Result<()> {
     let f = File::open(filename)?;
     let in_len = f.metadata()?.len();
     let mut stack = NockStack::new(8 << 10 << 10, 0);
+    let mut cold = Cold::new(&mut stack);
+    let mut warm = Warm::new();
+    let hot = Hot::init(&mut stack);
     let jammed_input = unsafe {
         let in_map = Mmap::map(&f)?;
         let word_len = (in_len + 7) >> 3;
@@ -52,7 +58,7 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let result = interpret(&mut stack, &mut None, input_cell.head(), input_cell.tail());
+    let result = interpret(&mut stack, &mut None, &mut cold, &mut warm, hot, input_cell.head(), input_cell.tail());
     if let Ok(atom) = result.as_atom() {
         println!("Result: {}", atom);
     }

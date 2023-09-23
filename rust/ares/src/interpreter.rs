@@ -1,5 +1,8 @@
 use crate::hamt::Hamt;
 use crate::jets;
+use crate::jets::cold::Cold;
+use crate::jets::warm::Warm;
+use crate::jets::hot::Hot;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -227,6 +230,9 @@ enum NockWork {
 pub fn interpret(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>, // For printing slogs; if None, print to stdout
+    cold: &mut Cold,
+    warm: &mut Warm,
+    hot: Hot,
     mut subject: Noun,
     formula: Noun,
 ) -> Noun {
@@ -255,12 +261,16 @@ pub fn interpret(
                 NockWork::Done => {
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
+                    stack.preserve(cold);
+                    stack.preserve(warm);
                     stack.frame_pop();
                     break;
                 }
                 NockWork::Ret => {
                     stack.preserve(&mut cache);
                     stack.preserve(&mut res);
+                    stack.preserve(cold);
+                    stack.preserve(warm);
                     stack.frame_pop();
                 }
                 NockWork::WorkCons(mut cons) => match cons.todo {
@@ -301,6 +311,13 @@ pub fn interpret(
                         push_formula(stack, vale.formula, false);
                     }
                     Todo2::ComputeResult => {
+                        if let Some(jet) = warm.find_jet(stack, &mut vale.subject, &mut res) { // a jet match
+                            if let Ok(jet_res) = jet(stack, vale.subject) { // XX TODO: nondeterministic errors
+                                res = jet_res;
+                                stack.pop::<NockWork>();
+                                continue;
+                            }
+                        };
                         if vale.tail {
                             stack.pop::<NockWork>();
                             subject = vale.subject;
@@ -443,7 +460,14 @@ pub fn interpret(
                         push_formula(stack, kale.core, false);
                     }
                     Todo9::ComputeResult => {
-                        let formula = slot(res, kale.axis.as_bitslice());
+                        let mut formula = slot(res, kale.axis.as_bitslice());
+                        if let Some(jet) = warm.find_jet(stack, &mut res, &mut formula) { // a jet match
+                            if let Ok(jet_res) = jet(stack, res) { // XX TODO: nondeterministic errors
+                                res = jet_res;
+                                stack.pop::<NockWork>();
+                                continue;
+                            };
+                        };
                         if kale.tail {
                             stack.pop::<NockWork>();
                             subject = res;
@@ -486,7 +510,7 @@ pub fn interpret(
                     Todo11D::ComputeHint => {
                         let hint_cell = Cell::new(stack, dint.tag.as_noun(), dint.hint);
                         if let Ok(found) =
-                            match_pre_hint(stack, newt, subject, hint_cell, formula, &cache)
+                            match_pre_hint(stack, newt, cold, warm, hot, subject, hint_cell, formula, &cache)
                         {
                             res = found;
                             stack.pop::<NockWork>();
@@ -510,7 +534,7 @@ pub fn interpret(
                     }
                     Todo11D::Done => {
                         let hint = Cell::new(stack, dint.tag.as_noun(), dint.hint).as_noun();
-                        let _ = match_post_hinted(stack, subject, hint, res, &mut cache);
+                        let _ = match_post_hinted(stack, subject, hint, res, &mut cache, cold, warm, hot);
                         stack.pop::<NockWork>();
                     }
                 },
@@ -530,7 +554,7 @@ pub fn interpret(
                     }
                     Todo11S::Done => {
                         let _ =
-                            match_post_hinted(stack, subject, sint.tag.as_noun(), res, &mut cache);
+                            match_post_hinted(stack, subject, sint.tag.as_noun(), res, &mut cache, cold, warm, hot);
                         stack.pop::<NockWork>();
                     }
                 },
@@ -723,7 +747,11 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
 
 /** Note: axis must fit in a direct atom */
 pub fn raw_slot(noun: Noun, axis: u64) -> Noun {
-    slot(noun, DirectAtom::new(axis).unwrap().as_bitslice())
+    slot(noun, &BitSlice::from_element(&axis))
+}
+
+pub fn raw_slot_result(noun: Noun, axis: u64) -> Result<Noun, ()> {
+    slot_result(noun, &BitSlice::from_element(&axis))
 }
 
 pub fn slot_result(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Result<Noun, ()> {
@@ -825,6 +853,9 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 fn match_pre_hint(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,
+    cold: &mut Cold,
+    warm: &mut Warm,
+    hot: Hot,
     subject: Noun,
     cell: Cell,
     formula: Noun,
@@ -836,12 +867,11 @@ fn match_pre_hint(
         tas!(b"sham") => {
             let jet_formula = cell.tail().as_cell()?;
             let jet_name = jet_formula.tail();
-
             let jet = jets::get_jet(jet_name).ok_or(())?;
             if let Ok(mut jet_res) = jet(stack, subject) {
                 // if in test mode, check that the jet returns the same result as the raw nock
                 if jets::get_jet_test_mode(jet_name) {
-                    let mut nock_res = interpret(stack, newt, subject, formula);
+                    let mut nock_res = interpret(stack, newt, cold, warm, hot, subject, formula);
                     if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
                         eprintln!(
                             "\rJet {} failed, raw: {}, jetted: {}",
@@ -901,6 +931,9 @@ fn match_post_hinted(
     hint: Noun,
     res: Noun,
     cache: &mut Hamt<Noun>,
+    cold: &mut Cold,
+    warm: &mut Warm,
+    hot: Hot
 ) -> Result<(), ()> {
     let direct = hint.as_cell()?.head().as_direct()?;
     match direct.data() {
@@ -909,6 +942,25 @@ fn match_post_hinted(
             let mut key = Cell::new(stack, subject, formula).as_noun();
             *cache = cache.insert(stack, &mut key, res);
             Ok(())
+        },
+        tas!(b"fast") => {
+            let clue = raw_slot_result(hint, 2)?;
+            let chum = raw_slot_result(clue, 2)?;
+            let parent_formula_op = raw_slot_result(clue, 12)?.as_atom()?.as_direct()?;
+            let parent_formula_ax = raw_slot_result(clue, 13)?.as_atom()?;
+            if parent_formula_op.data() == 1 {
+                if parent_formula_ax.as_direct()?.data() == 0 {
+                   let changed = cold.register(stack, res, parent_formula_ax, chum)?;
+                   if changed { *warm = Warm::init(stack, cold, hot); }
+                   Ok(())
+                } else {
+                    Err(())
+                }
+            } else {
+                let changed = cold.register(stack, res, parent_formula_ax, chum)?;
+                if changed { *warm = Warm::init(stack, cold, hot); }
+                Ok(())
+            }
         }
         _ => Err(()),
     }

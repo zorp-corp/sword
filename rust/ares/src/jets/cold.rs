@@ -87,7 +87,7 @@ impl Batteries {
 }
 
 #[derive(Copy, Clone)]
-struct BatteriesList(*mut BatteriesListMem);
+pub struct BatteriesList(*mut BatteriesListMem);
 
 const BATTERIES_LIST_NIL: BatteriesList = BatteriesList(null_mut());
 
@@ -221,6 +221,25 @@ impl Preserve for Cold {
 }
 
 impl Cold {
+    pub fn new(stack: &mut NockStack) -> Self {
+        let battery_to_paths = Hamt::new();
+        let root_to_paths = Hamt::new();
+        let path_to_batteries = Hamt::new();
+        unsafe {
+            let cold_mem_ptr: *mut ColdMem = stack.struct_alloc(1);
+            *cold_mem_ptr = ColdMem {
+                battery_to_paths: battery_to_paths,
+                root_to_paths: root_to_paths,
+                path_to_batteries: path_to_batteries,
+            };
+            Cold(cold_mem_ptr)
+        }
+    }
+
+    pub fn find(&mut self, stack: &mut NockStack, path: &mut Noun) -> BatteriesList {
+        unsafe { (*(self.0)).path_to_batteries.lookup(stack, path).unwrap_or(BATTERIES_LIST_NIL) }
+    }
+
     /// register a core, return a boolean of whether we actually needed to register (false ->
     /// already registered)
     ///

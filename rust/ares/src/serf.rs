@@ -1,4 +1,7 @@
 use crate::interpreter::{interpret, raw_slot};
+use crate::jets::cold::Cold;
+use crate::jets::warm::Warm;
+use crate::jets::hot::Hot;
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
@@ -38,6 +41,9 @@ pub fn serf() -> io::Result<()> {
     let snap = &mut snapshot::double_jam::DoubleJam::new(snap_path);
 
     let stack = &mut NockStack::new(96 << 10 << 10, 0);
+    let mut cold = Cold::new(stack);
+    let mut warm = Warm::new();
+    let hot = Hot::init(stack);
     let newt = &mut Newt::new();
 
     let (_epoch, mut event_number, mut arvo) = snap.load(stack).unwrap_or((0, 0, D(0)));
@@ -67,7 +73,7 @@ pub fn serf() -> io::Result<()> {
             }
             tas!(b"peek") => {
                 let sam = raw_slot(writ, 7);
-                let res = slam(stack, newt, arvo, PEEK_AXIS, sam);
+                let res = slam(stack, newt, &mut cold, &mut warm, hot, arvo, PEEK_AXIS, sam);
                 newt.peek_done(stack, res);
             }
             tas!(b"play") => {
@@ -76,7 +82,7 @@ pub fn serf() -> io::Result<()> {
                     let lit = raw_slot(writ, 7);
                     let sub = T(stack, &[D(0), D(3)]);
                     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
-                    let gat = interpret(stack, &mut Some(newt), lit, lyf);
+                    let gat = interpret(stack, &mut Some(newt), &mut cold, &mut warm, hot, lit, lyf);
                     arvo = raw_slot(gat, 7);
                     false
                 } else {
@@ -90,7 +96,7 @@ pub fn serf() -> io::Result<()> {
                 while let Ok(cell) = lit.as_cell() {
                     if run {
                         let ovo = cell.head();
-                        let res = slam(stack, newt, arvo, POKE_AXIS, ovo).as_cell().unwrap();
+                        let res = slam(stack, newt, &mut cold, &mut warm, hot, arvo, POKE_AXIS, ovo).as_cell().unwrap();
                         arvo = res.tail();
                     }
                     event_number += 1;
@@ -102,7 +108,7 @@ pub fn serf() -> io::Result<()> {
             }
             tas!(b"work") => {
                 let ovo = raw_slot(writ, 7);
-                let res = slam(stack, newt, arvo, POKE_AXIS, ovo).as_cell().unwrap();
+                let res = slam(stack, newt, &mut cold, &mut warm, hot, arvo, POKE_AXIS, ovo).as_cell().unwrap();
                 let fec = res.head();
                 arvo = res.tail();
                 snap.save(stack, &mut arvo);
@@ -118,10 +124,10 @@ pub fn serf() -> io::Result<()> {
     Ok(())
 }
 
-pub fn slam(stack: &mut NockStack, newt: &mut Newt, core: Noun, axis: u64, ovo: Noun) -> Noun {
+pub fn slam(stack: &mut NockStack, newt: &mut Newt, cold: &mut Cold, warm: &mut Warm, hot: Hot, core: Noun, axis: u64, ovo: Noun) -> Noun {
     let pul = T(stack, &[D(9), D(axis), D(0), D(2)]);
     let sam = T(stack, &[D(6), D(0), D(7)]);
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[core, ovo]);
-    interpret(stack, &mut Some(newt), sub, fol)
+    interpret(stack, &mut Some(newt), cold, warm, hot, sub, fol)
 }

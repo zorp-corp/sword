@@ -37,7 +37,7 @@ const HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
 ];
 
 #[derive(Copy, Clone)]
-struct Hot(*mut HotMem);
+pub struct Hot(*mut HotMem);
 
 impl Hot {
     pub fn init(stack: &mut NockStack) -> Self {
