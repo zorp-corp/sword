@@ -431,6 +431,14 @@ impl IndirectAtom {
         }
     }
 
+    pub unsafe fn as_u64(self) -> Result<u64> {
+        if self.size() == 1 {
+            Ok(*(self.data_pointer()))
+        } else {
+            Err(Error::NotRepresentable)
+        }
+    }
+
     pub fn as_atom(self) -> Atom {
         Atom { indirect: self }
     }
@@ -628,6 +636,16 @@ impl Atom {
 
     pub fn is_indirect(&self) -> bool {
         unsafe { is_indirect_atom(self.raw) }
+    }
+
+    pub fn as_u64(self) -> Result<u64> {
+        if self.is_direct() {
+            Ok(unsafe { self.direct.data() })
+        } else {
+            unsafe {
+                self.indirect.as_u64()
+            }
+        }
     }
 
     pub fn as_direct(&self) -> Result<DirectAtom> {
