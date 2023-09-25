@@ -35,7 +35,7 @@
     ::  %mean hint
     ~_  [%leaf "I am a %mean hint via ~_ from +wack"]
     ::  %hela hint
-    :: ~>  %hela
+    ~>  %hela
     ::  %memo hint
     ~+
     ?~  m  +(n)
@@ -47,13 +47,23 @@
     !.
     |=  [m=@ud n=@ud]
     ::  %hela hint
-    :: ~>  %hela
+    ~>  %hela
     ::  %memo hint
     ~+
     ?~  m  +(n)
     ?~  n
       (wack (dec m) 1)
     (wack (dec m) $(n (dec n)))
+  ++  slow
+    |=  x=@ud
+    !:
+    (slow-help x 0)
+  ++  slow-help
+    |=  [x=@ud y=@ud]
+    !.
+    ?:  .=  x  y
+      x
+    $(y .+(y))
   --  =>
   ::
   |%
@@ -65,19 +75,23 @@
     ^-  ^
     ::
     ?.  ?=(?(%crud %wack %wyrd) p.card.ovo)
-      ~>  %slog.[0 leaf+(scow %ud (wack 1 1))]
+      ~>  %slog.[0 leaf+(scow %ud (slow (bex 23)))]
       [~ ..poke]
     ::
     =/  buz
       ~>  %mean.'pith: bad wasp'
       ;;(wasp card.ovo)
     ?+  -.buz
-      ~>  %slog.[0 leaf+"default $wasp"]
+      ~>  %slog.[0 leaf+(scow %ud (wack 1 1))]
       [~ ..poke]
     ::
       %crud
-        ~>  %slog.[0 goof.buz]
-        [~ ..poke]
+        =/  tang  tang.goof.buz
+        |-
+        ?~  tang
+          [~ ..poke]
+        ~>  %slog.[0 -.tang]
+        $(tang +.tang)
     ==
   --
   ::

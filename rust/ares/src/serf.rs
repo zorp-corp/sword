@@ -7,12 +7,14 @@ use crate::newt::Newt;
 use crate::noun::{Cell, Noun, Slots, D, T};
 use crate::snapshot::{self, Snapshot};
 use ares_macros::tas;
+use signal_hook;
+use signal_hook::consts::SIGINT;
 use std::fs::create_dir_all;
 use std::io;
 use std::path::PathBuf;
 use std::result::Result;
-use std::thread::sleep;
-use std::time;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 crate::gdb!();
 
@@ -23,12 +25,20 @@ const POKE_AXIS: u64 = 23;
 #[allow(dead_code)]
 const WISH_AXIS: u64 = 10;
 
+// Necessary because Arc::new is not const
+lazy_static! {
+    pub static ref TERMINATOR: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+}
+
 /**
  * This is suitable for talking to the king process.  To test, change the arg_c[0] line in
  * u3_lord_init in vere to point at this binary and start vere like normal.
  */
 pub fn serf() -> io::Result<()> {
-    sleep(time::Duration::from_secs(0));
+    // Register SIGTERM signal hook to set flag first time, shutdown second time
+    signal_hook::flag::register_conditional_shutdown(SIGINT, 1, Arc::clone(&TERMINATOR))?;
+    signal_hook::flag::register(SIGINT, Arc::clone(&TERMINATOR))?;
+
     let snap_path_string = std::env::args()
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
@@ -157,7 +167,9 @@ pub fn serf() -> io::Result<()> {
                         //  TODO: on decryption failure in aes_siv, should bail as fast as
                         //  possible, without rendering stack trace or injecting crud event.  See
                         //  c3__evil in vere.
-                        //
+
+                        clear_interrupt();
+
                         //  crud = [+(now) [%$ %arvo ~] [%crud goof ovo]]
                         let job_cell = job.as_cell().expect("serf: work: job not a cell");
                         let now = inc(
@@ -197,6 +209,8 @@ pub fn serf() -> io::Result<()> {
             }
             _ => panic!("got message with unknown tag {}", tag),
         };
+
+        clear_interrupt();
     }
 
     Ok(())
@@ -231,8 +245,9 @@ pub fn soft(
             let tang = mook(stack, &mut Some(newt), tone, false)
                 .expect("serf: soft: +mook crashed on bail")
                 .tail();
-            // TODO: shouldn't always be exit, look at the comment by u3m_bail to see how vere
-            // handles this
+            //  XX: noun::Tone or noun::NockErr should use a bail enum system similar to u3m_bail motes;
+            //      might be able to replace NockErr with mote and map determinism to individual motes;
+            //      for, always set to %exit
             let goof = T(stack, &[D(tas!(b"exit")), tang]);
             Err(goof)
         }
@@ -243,4 +258,8 @@ pub fn soft(
 fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
     noun.slot(axis)
         .map_err(|_e| io::Error::new(io::ErrorKind::InvalidInput, "Bad axis"))
+}
+
+fn clear_interrupt() {
+    (*TERMINATOR).store(false, Ordering::Relaxed);
 }

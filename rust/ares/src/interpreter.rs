@@ -7,10 +7,13 @@ use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun;
 use crate::noun::{tape, Atom, Cell, IndirectAtom, Noun, Slots, D, T};
+use crate::serf::TERMINATOR;
 use ares_macros::tas;
 use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 crate::gdb!();
 
@@ -265,10 +268,12 @@ pub fn interpret(
     mut subject: Noun,
     formula: Noun,
 ) -> Result<Noun, Tone> {
+    let terminator = Arc::clone(&TERMINATOR);
     let mut res: Noun = D(0);
     let mut cache = Hamt::<Noun>::new();
     // XX: Should this come after initial frame_push()?
     let virtual_frame = stack.get_frame_pointer();
+    let virtual_trace = stack.get_mean_stack();
 
     stack.frame_push(0);
     unsafe {
@@ -323,6 +328,7 @@ pub fn interpret(
                         res = noun;
                         stack.pop::<NockWork>();
                     } else {
+                        // Axis invalid for input Noun
                         break Err(NockErr::Deterministic);
                     }
                 }
@@ -330,37 +336,43 @@ pub fn interpret(
                     res = once.noun;
                     stack.pop::<NockWork>();
                 }
-                NockWork::Work2(mut vale) => match vale.todo {
-                    Todo2::ComputeSubject => {
-                        vale.todo = Todo2::ComputeFormula;
-                        *stack.top() = NockWork::Work2(vale);
-                        push_formula(stack, vale.subject, false)?;
+                NockWork::Work2(mut vale) => {
+                    if (*terminator).load(Ordering::Relaxed) {
+                        break Err(NockErr::NonDeterministic);
                     }
-                    Todo2::ComputeFormula => {
-                        vale.todo = Todo2::ComputeResult;
-                        vale.subject = res;
-                        *stack.top() = NockWork::Work2(vale);
-                        push_formula(stack, vale.formula, false)?;
-                    }
-                    Todo2::ComputeResult => {
-                        if vale.tail {
-                            stack.pop::<NockWork>();
-                            subject = vale.subject;
-                            push_formula(stack, res, true)?;
-                        } else {
-                            vale.todo = Todo2::RestoreSubject;
-                            std::mem::swap(&mut vale.subject, &mut subject);
+
+                    match vale.todo {
+                        Todo2::ComputeSubject => {
+                            vale.todo = Todo2::ComputeFormula;
                             *stack.top() = NockWork::Work2(vale);
-                            stack.frame_push(0);
-                            *stack.push() = NockWork::Ret;
-                            push_formula(stack, res, true)?;
+                            push_formula(stack, vale.subject, false)?;
+                        }
+                        Todo2::ComputeFormula => {
+                            vale.todo = Todo2::ComputeResult;
+                            vale.subject = res;
+                            *stack.top() = NockWork::Work2(vale);
+                            push_formula(stack, vale.formula, false)?;
+                        }
+                        Todo2::ComputeResult => {
+                            if vale.tail {
+                                stack.pop::<NockWork>();
+                                subject = vale.subject;
+                                push_formula(stack, res, true)?;
+                            } else {
+                                vale.todo = Todo2::RestoreSubject;
+                                std::mem::swap(&mut vale.subject, &mut subject);
+                                *stack.top() = NockWork::Work2(vale);
+                                stack.frame_push(0);
+                                *stack.push() = NockWork::Ret;
+                                push_formula(stack, res, true)?;
+                            }
+                        }
+                        Todo2::RestoreSubject => {
+                            subject = vale.subject;
+                            stack.pop::<NockWork>();
                         }
                     }
-                    Todo2::RestoreSubject => {
-                        subject = vale.subject;
-                        stack.pop::<NockWork>();
-                    }
-                },
+                }
                 NockWork::Work3(mut thee) => match thee.todo {
                     Todo3::ComputeChild => {
                         thee.todo = Todo3::ComputeType;
@@ -481,37 +493,43 @@ pub fn interpret(
                         stack.pop::<NockWork>();
                     }
                 },
-                NockWork::Work9(mut kale) => match kale.todo {
-                    Todo9::ComputeCore => {
-                        kale.todo = Todo9::ComputeResult;
-                        *stack.top() = NockWork::Work9(kale);
-                        push_formula(stack, kale.core, false)?;
+                NockWork::Work9(mut kale) => {
+                    if (*terminator).load(Ordering::Relaxed) {
+                        break Err(NockErr::NonDeterministic);
                     }
-                    Todo9::ComputeResult => {
-                        if let Ok(formula) = res.slot_atom(kale.axis) {
-                            if kale.tail {
-                                stack.pop::<NockWork>();
-                                subject = res;
-                                push_formula(stack, formula, true)?;
+
+                    match kale.todo {
+                        Todo9::ComputeCore => {
+                            kale.todo = Todo9::ComputeResult;
+                            *stack.top() = NockWork::Work9(kale);
+                            push_formula(stack, kale.core, false)?;
+                        }
+                        Todo9::ComputeResult => {
+                            if let Ok(formula) = res.slot_atom(kale.axis) {
+                                if kale.tail {
+                                    stack.pop::<NockWork>();
+                                    subject = res;
+                                    push_formula(stack, formula, true)?;
+                                } else {
+                                    kale.todo = Todo9::RestoreSubject;
+                                    kale.core = subject;
+                                    *stack.top() = NockWork::Work9(kale);
+                                    subject = res;
+                                    stack.frame_push(0);
+                                    *stack.push() = NockWork::Ret;
+                                    push_formula(stack, formula, true)?;
+                                }
                             } else {
-                                kale.todo = Todo9::RestoreSubject;
-                                kale.core = subject;
-                                *stack.top() = NockWork::Work9(kale);
-                                subject = res;
-                                stack.frame_push(0);
-                                *stack.push() = NockWork::Ret;
-                                push_formula(stack, formula, true)?;
+                                // Axis into core must be atom
+                                break Err(NockErr::Deterministic);
                             }
-                        } else {
-                            // Axis into core must be atom
-                            break Err(NockErr::Deterministic);
+                        }
+                        Todo9::RestoreSubject => {
+                            subject = kale.core;
+                            stack.pop::<NockWork>();
                         }
                     }
-                    Todo9::RestoreSubject => {
-                        subject = kale.core;
-                        stack.pop::<NockWork>();
-                    }
-                },
+                }
                 NockWork::Work10(mut diet) => {
                     match diet.todo {
                         Todo10::ComputeTree => {
@@ -623,7 +641,13 @@ pub fn interpret(
 
     match nock {
         Ok(res) => Ok(res),
-        Err(err) => Err(exit_early(stack, &mut cache, virtual_frame, err)),
+        Err(err) => Err(exit_early(
+            stack,
+            &mut cache,
+            virtual_frame,
+            virtual_trace,
+            err,
+        )),
     }
 }
 
@@ -830,6 +854,7 @@ pub fn exit_early(
     stack: &mut NockStack,
     cache: &mut Hamt<Noun>,
     virtual_frame: *const u64,
+    virtual_trace: Noun,
     error: NockErr,
 ) -> Tone {
     let mut trace = stack.get_mean_stack();
@@ -838,6 +863,9 @@ pub fn exit_early(
             stack.preserve(&mut trace);
             stack.preserve(cache);
             stack.frame_pop();
+        }
+        while !stack.get_mean_stack().raw_equals(virtual_trace) {
+            stack.trace_pop();
         }
     };
     Tone::Error(error, trace)
@@ -1026,6 +1054,11 @@ fn match_hint_pre_nock(
             Ok(None)
         }
         tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
+            let terminator = Arc::clone(&TERMINATOR);
+            if (*terminator).load(Ordering::Relaxed) {
+                return Err(NockErr::NonDeterministic);
+            }
+
             let trace = T(stack, &[tag.as_noun(), res.ok_or(NockErr::Deterministic)?]);
             stack.trace_push(trace);
             Ok(None)
