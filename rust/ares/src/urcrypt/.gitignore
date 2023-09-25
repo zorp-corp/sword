@@ -1,5 +1,6 @@
 *.pc
 config.h
+config.log
 config.status
 libtool
 
@@ -27,10 +28,12 @@ build-aux/compile
 /config.cache
 build-aux/config.guess
 /config.h.in
+/config.h.in~
 build-aux/config.log
 build-aux/config.status
 build-aux/config.sub
 /configure
+/configure~
 /configure.scan
 build-aux/depcomp
 build-aux/install-sh
@@ -54,3 +57,4 @@ build-aux/m4/lt~obsolete.m4
 # can automatically generate from config.status script
 # (which is called by configure script))
 Makefile
+

@@ -1,11 +1,10 @@
-use autotools;
-
 fn main() {
     use std::env;
     let profile = env::var("PROFILE").unwrap();
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=./src/pma");
+    println!("cargo:rerun-if-changed=./src/urcrypt");
 
     match profile.as_ref() {
         "debug" => debug(),
@@ -46,8 +45,9 @@ fn debug() {
         .compile("pma_malloc");
 
     let _urcrypt = autotools::Config::new("./src/urcrypt")
+        .reconf("-if")
+        .enable_shared()
         .disable_static()
-        .disable_shared()
         .build();
 }
 

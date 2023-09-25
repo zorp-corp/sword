@@ -56,18 +56,21 @@ AC_PROG_CC
 
 # Checks for pkg-config capable libraries
 PKG_CHECK_MODULES([LIBSECP256K1], [libsecp256k1])
+ac_save_CPPFLAGS=$CPPFLAGS
+CPPFLAGS="$CPPFLAGS $LIBSECP256K1_CFLAGS"
 AC_CHECK_HEADER([secp256k1_recovery.h], [],
                 [AC_MSG_ERROR([libsecp256k1 must have recovery enabled.])])
 AC_CHECK_HEADER([secp256k1_schnorrsig.h], [],
                 [AC_MSG_ERROR([libsecp256k1 must have Schnorr signatures enabled.])])
+CPPFLAGS=$ac_save_CPPFLAGS
 PKG_CHECK_MODULES([LIBCRYPTO], [libcrypto])
 
 AS_IF([test "$enable_shared" == "yes"],
   [# ensure crypto will be shared for shared object (see README.md)
-   save_LDFLAGS=$LDFLAGS
-   save_CLAGS=$CFLAGS
-   LDFLAGS=$LIBCRYPTO_LIBS
-   CFLAGS=$LIBCRYPTO_CFLAGS
+   save_LIBS=$LIBS
+   save_CFLAGS=$CFLAGS
+   LIBS="$LIBCRYPTO_LIBS $LIBS"
+   CFLAGS="$LIBCRYPTO_CFLAGS $CFLAGS"
    AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <openssl/sha.h>],
                                    [[unsigned char sha[32];
                                      SHA256("hello", 5, sha);]])],
@@ -79,7 +82,7 @@ AS_IF([test "$enable_shared" == "yes"],
         [AC_MSG_RESULT([yes])],
         [AC_MSG_ERROR([cannot find shared object for libcrypto.])])],
      [AC_MSG_ERROR([unable to link libcrypto.])])
-     LDFLAGS=$save_LDFLAGS
+     LIBS=$save_LIBS
      CFLAGS=$save_CFLAGS])
 
 # Checks for non pkg-config libraries
