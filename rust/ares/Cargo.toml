@@ -23,6 +23,7 @@ criterion = "0.4"
 static_assertions = "1.1.0"
 ibig = { path = "../ibig-rs" }
 assert_no_alloc = "1.1.2"
+softfloat_sys = "0.1.3"
 
 [build-dependencies]
 cc = "1.0.79"
