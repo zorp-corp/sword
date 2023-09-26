@@ -26,14 +26,26 @@ jobs:
       #
       - name: Install dependencies
         run: |
+          # install apt packages
           sudo apt-get install -y \
             libcrypto++-dev       \
             openssl               \
             cmake                 \
             libsecp256k1-dev &&
+
+          # install libaes_siv
           git clone https://github.com/dfoxfranke/libaes_siv.git &&
           cd libaes_siv &&
           cmake . &&
+          make &&
+          sudo make install
+
+          # install urcrypt
+          cd .. &&
+          git clone https://github.com/urbit/urcrypt.git &&
+          cd urcrypt &&
+          ./autogen.sh &&
+          ./configure --enable-shared &&
           make &&
           sudo make install
 
