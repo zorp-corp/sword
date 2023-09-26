@@ -4,7 +4,6 @@ fn main() {
 
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=./src/pma");
-    println!("cargo:rerun-if-changed=./src/urcrypt");
 
     match profile.as_ref() {
         "debug" => debug(),
@@ -43,12 +42,6 @@ fn debug() {
         .flag("-Wnested-externs")
         .flag("-Wmissing-include-dirs")
         .compile("pma_malloc");
-
-    let _urcrypt = autotools::Config::new("./src/urcrypt")
-        .reconf("-if")
-        .enable_shared()
-        .disable_static()
-        .build();
 }
 
 fn release() {
