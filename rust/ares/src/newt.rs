@@ -107,7 +107,7 @@ impl Newt {
                 );
             },
         };
-        self.output.write_all(&buf).unwrap();
+        self.output.write_all(buf).unwrap();
     }
 
     /** Send %ripe, the first event. */

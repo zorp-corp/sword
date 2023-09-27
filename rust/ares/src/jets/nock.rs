@@ -58,15 +58,15 @@ pub mod util {
         let tag = tone.head().as_direct()?;
         let original_list = tone.tail();
 
-        if tag.data() < 2 {
-            return Ok(tone);
-        } else if tag.data() > 2 {
-            return Err(JetErr::Deterministic);
+        match tag.data() {
+            x if x < 2 => return Ok(tone),
+            x if x > 2 => return Err(JetErr::Deterministic),
+            _ => {}
         }
 
         if unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
-        } else if let Some(_) = original_list.atom() {
+        } else if original_list.atom().is_some() {
             return Err(JetErr::Deterministic);
         }
 
@@ -135,7 +135,7 @@ pub mod util {
 
                         let mut list = end_col.as_cell()?;
                         loop {
-                            if let Some(_) = list.tail().atom() {
+                            if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
@@ -146,7 +146,7 @@ pub mod util {
 
                         list = end_lin.as_cell()?;
                         loop {
-                            if let Some(_) = list.tail().atom() {
+                            if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
@@ -157,7 +157,7 @@ pub mod util {
 
                         list = str_col.as_cell()?;
                         loop {
-                            if let Some(_) = list.tail().atom() {
+                            if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
@@ -171,7 +171,7 @@ pub mod util {
 
                         list = str_lin.as_cell()?;
                         loop {
-                            if let Some(_) = list.tail().atom() {
+                            if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;

@@ -231,9 +231,7 @@ pub enum NockErr {
 }
 
 impl From<NockErr> for () {
-    fn from(_: NockErr) -> Self {
-        ()
-    }
+    fn from(_: NockErr) -> Self {}
 }
 
 /** Interpret nock */
