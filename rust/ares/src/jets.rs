@@ -308,10 +308,21 @@ pub mod util {
             assert!(eq, "got: {}, need: {}", a, b);
         }
 
+        pub fn assert_noun_neq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
+            let neq = unsafe { !unifying_equality(stack, &mut a, &mut b) };
+            assert!(neq, "got: {}, need not: {}", a, b);
+        }
+
         pub fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
             let sam = T(stack, &[D(0), sam, D(0)]);
             let jet_res = assert_no_alloc(|| jet(stack, &mut None, sam).unwrap());
             assert_noun_eq(stack, jet_res, res);
+        }
+
+        pub fn assert_jet_neq(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
+            let sam = T(stack, &[D(0), sam, D(0)]);
+            let jet_res = assert_no_alloc(|| jet(stack, &mut None, sam).unwrap());
+            assert_noun_neq(stack, jet_res, res);
         }
 
         pub fn assert_jet_ubig(stack: &mut NockStack, jet: Jet, sam: Noun, res: UBig) {

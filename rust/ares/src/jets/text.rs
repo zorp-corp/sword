@@ -51,7 +51,7 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, assert_jet_err, init_stack, A};
+    use crate::jets::util::test::{assert_jet, assert_jet_err, assert_jet_neq, init_stack, A};
     use crate::jets::JetErr;
     use crate::noun::{tape, D, T};
     use ibig::ubig;
@@ -90,5 +90,8 @@ mod tests {
         assert_jet(s, jet_trip, sam, ret);
         let sam = T(s, &[D(1), D(2), D(3), D(0)]);
         assert_jet_err(s, jet_trip, sam, JetErr::Deterministic);
+        let sam = D(97); //  (trip 97) -> "a"
+        let ret = tape(s, "b");
+        assert_jet_neq(s, jet_trip, sam, ret);
     }
 }
