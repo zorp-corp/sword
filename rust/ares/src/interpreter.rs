@@ -539,7 +539,7 @@ pub fn interpret(
                     Todo11D::Done => {
                         let hint = Cell::new(stack, dint.tag.as_noun(), dint.hint).as_noun();
                         let _ = match_post_hinted(
-                            stack, subject, hint, res, &mut cache, cold, warm, hot,
+                            stack, subject, dint.body, hint, res, &mut cache, cold, warm, hot,
                         );
                         stack.pop::<NockWork>();
                     }
@@ -562,6 +562,7 @@ pub fn interpret(
                         let _ = match_post_hinted(
                             stack,
                             subject,
+                            sint.body,
                             sint.tag.as_noun(),
                             res,
                             &mut cache,
@@ -871,7 +872,7 @@ fn match_pre_hint(
     _newt: &mut Option<&mut Newt>,
     subject: Noun,
     cell: Cell,
-    _formula: Noun,
+    formula: Noun,
     cache: &Hamt<Noun>,
 ) -> Result<Noun, ()> {
     let direct = cell.head().as_direct()?;
@@ -902,7 +903,6 @@ fn match_pre_hint(
             }
         }*/
         tas!(b"memo") => {
-            let formula = unsafe { *stack.local_noun_pointer(2) };
             let mut key = Cell::new(stack, subject, formula).as_noun();
             if let Some(res) = cache.lookup(stack, &mut key) {
                 Ok(res)
@@ -944,6 +944,7 @@ fn match_post_hint(
 fn match_post_hinted(
     stack: &mut NockStack,
     subject: Noun,
+    formula: Noun,
     hint: Noun,
     res: Noun,
     cache: &mut Hamt<Noun>,
@@ -954,7 +955,6 @@ fn match_post_hinted(
     let direct = hint.as_cell()?.head().as_direct()?;
     match direct.data() {
         tas!(b"memo") => {
-            let formula = unsafe { *stack.local_noun_pointer(2) };
             let mut key = Cell::new(stack, subject, formula).as_noun();
             *cache = cache.insert(stack, &mut key, res);
             Ok(())
