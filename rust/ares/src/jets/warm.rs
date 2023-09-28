@@ -84,6 +84,7 @@ impl Iterator for WarmEntry {
 }
 
 impl Warm {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Warm(Hamt::new())
     }
@@ -100,9 +101,9 @@ impl Warm {
         unsafe {
             let warm_entry_mem_ptr: *mut WarmEntryMem = stack.struct_alloc(1);
             *warm_entry_mem_ptr = WarmEntryMem {
-                batteries: batteries,
-                jet: jet,
-                path: path,
+                batteries,
+                jet,
+                path,
                 next: current_warm_entry,
             };
             self.0 = self.0.insert(stack, formula, WarmEntry(warm_entry_mem_ptr));
@@ -115,7 +116,7 @@ impl Warm {
             let batteries_list = cold.find(stack, &mut path);
             for batteries in batteries_list {
                 let mut batteries_tmp = batteries;
-                let (mut battery, _parent_axis) = batteries_tmp
+                let (battery, _parent_axis) = batteries_tmp
                     .next()
                     .expect("IMPOSSIBLE: empty battery entry in cold state");
                 if let Ok(mut formula) = unsafe { slot_result(*battery, axis.as_bitslice()) } {
@@ -131,7 +132,7 @@ impl Warm {
 
     pub fn find_jet(&mut self, stack: &mut NockStack, s: &mut Noun, f: &mut Noun) -> Option<Jet> {
         let warm_it = self.0.lookup(stack, f)?;
-        for (path, batteries, jet) in warm_it {
+        for (_path, batteries, jet) in warm_it {
             if batteries.matches(stack, *s) {
                 return Some(jet);
             }

@@ -130,6 +130,7 @@ pub fn serf() -> io::Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn slam(
     stack: &mut NockStack,
     newt: &mut Newt,

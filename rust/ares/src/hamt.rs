@@ -455,7 +455,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                         position += 1;
                         continue 'check_stem;
                     }
-                    Some((Left(next_stem), idx)) => {
+                    Some((Left(next_stem), _idx)) => {
                         stack.struct_is_in(next_stem.buffer, next_stem.size());
                         assert!(traversal_depth <= 5); // will increment
                         traversal_stack[traversal_depth - 1].as_mut().unwrap().1 = position + 1;
@@ -463,7 +463,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                         traversal_depth += 1;
                         continue 'check;
                     }
-                    Some((Right(leaf), idx)) => {
+                    Some((Right(leaf), _idx)) => {
                         stack.struct_is_in(leaf.buffer, leaf.len);
                         for pair in leaf.to_mut_slice().iter() {
                             pair.0.assert_in_stack(stack);

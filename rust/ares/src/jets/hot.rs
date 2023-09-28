@@ -7,6 +7,7 @@ use std::ptr::null_mut;
 const A_50: Either<u64, (u64, u64)> = Right((tas!(b"a"), 50));
 
 // This is the const state all in one spot as literals
+#[allow(clippy::complexity)]
 const HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (&[A_50, Left(tas!(b"dec"))], 1, jet_dec),
     (&[A_50, Left(tas!(b"add"))], 1, jet_add),
@@ -68,10 +69,10 @@ impl Hot {
                 let axis = DirectAtom::new_panic(*axe).as_atom();
                 let hot_mem_ptr: *mut HotMem = stack.struct_alloc(1);
                 *hot_mem_ptr = HotMem {
-                    a_path: a_path,
-                    axis: axis,
+                    a_path,
+                    axis,
                     jet: *jet,
-                    next: next,
+                    next,
                 };
                 next = Hot(hot_mem_ptr);
             }

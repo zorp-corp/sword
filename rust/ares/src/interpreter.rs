@@ -1,5 +1,5 @@
 use crate::hamt::Hamt;
-use crate::jets;
+
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::warm::Warm;
@@ -761,13 +761,15 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) {
 
 /** Note: axis must fit in a direct atom */
 pub fn raw_slot(noun: Noun, axis: u64) -> Noun {
-    slot(noun, &BitSlice::from_element(&axis))
+    slot(noun, BitSlice::from_element(&axis))
 }
 
+#[allow(clippy::result_unit_err)]
 pub fn raw_slot_result(noun: Noun, axis: u64) -> Result<Noun, ()> {
-    slot_result(noun, &BitSlice::from_element(&axis))
+    slot_result(noun, BitSlice::from_element(&axis))
 }
 
+#[allow(clippy::result_unit_err)]
 pub fn slot_result(mut noun: Noun, axis: &BitSlice<u64, Lsb0>) -> Result<Noun, ()> {
     let mut cursor = if let Some(x) = axis.last_one() {
         Ok(x)
@@ -866,10 +868,10 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 /** Match hints which apply before the formula is evaluated */
 fn match_pre_hint(
     stack: &mut NockStack,
-    newt: &mut Option<&mut Newt>,
+    _newt: &mut Option<&mut Newt>,
     subject: Noun,
     cell: Cell,
-    formula: Noun,
+    _formula: Noun,
     cache: &Hamt<Noun>,
 ) -> Result<Noun, ()> {
     let direct = cell.head().as_direct()?;
@@ -913,6 +915,7 @@ fn match_pre_hint(
 }
 
 /** Match static hints and dynamic hints after they're evaluated */
+#[allow(clippy::too_many_arguments)]
 fn match_post_hint(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,
@@ -937,6 +940,7 @@ fn match_post_hint(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn match_post_hinted(
     stack: &mut NockStack,
     subject: Noun,

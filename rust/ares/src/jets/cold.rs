@@ -170,13 +170,8 @@ impl Iterator for BatteriesList {
 }
 
 impl BatteriesList {
-    fn matches(self, stack: &mut NockStack, core: Noun) -> Option<Batteries> {
-        for batteries in self {
-            if batteries.matches(stack, core) {
-                return Some(batteries);
-            }
-        }
-        None
+    fn matches(mut self, stack: &mut NockStack, core: Noun) -> Option<Batteries> {
+        self.find(|&batteries| batteries.matches(stack, core))
     }
 }
 
@@ -283,9 +278,9 @@ impl Cold {
         unsafe {
             let cold_mem_ptr: *mut ColdMem = stack.struct_alloc(1);
             *cold_mem_ptr = ColdMem {
-                battery_to_paths: battery_to_paths,
-                root_to_paths: root_to_paths,
-                path_to_batteries: path_to_batteries,
+                battery_to_paths,
+                root_to_paths,
+                path_to_batteries,
             };
             Cold(cold_mem_ptr)
         }
@@ -304,6 +299,7 @@ impl Cold {
     /// already registered)
     ///
     /// XX TODO validate chum
+    #[allow(clippy::result_unit_err)]
     pub fn register(
         &mut self,
         stack: &mut NockStack,
@@ -411,9 +407,9 @@ impl Cold {
 
                         let batteries_mem_ptr: *mut BatteriesMem = stack.struct_alloc(1);
                         *batteries_mem_ptr = BatteriesMem {
-                            battery: battery,
-                            parent_axis: parent_axis,
-                            parent_batteries: parent_batteries,
+                            battery,
+                            parent_axis,
+                            parent_batteries,
                         };
 
                         let current_batteries_list = path_to_batteries
@@ -460,9 +456,9 @@ impl Cold {
 
                         let batteries_mem_ptr: *mut BatteriesMem = stack.struct_alloc(1);
                         *batteries_mem_ptr = BatteriesMem {
-                            battery: battery,
-                            parent_axis: parent_axis,
-                            parent_batteries: parent_batteries,
+                            battery,
+                            parent_axis,
+                            parent_batteries,
                         };
 
                         let current_batteries_list = path_to_batteries
@@ -500,9 +496,9 @@ impl Cold {
 
             let cold_mem_ptr: *mut ColdMem = stack.struct_alloc(1);
             *cold_mem_ptr = ColdMem {
-                battery_to_paths: battery_to_paths,
-                root_to_paths: root_to_paths,
-                path_to_batteries: path_to_batteries,
+                battery_to_paths,
+                root_to_paths,
+                path_to_batteries,
             };
 
             *self = Cold(cold_mem_ptr);
