@@ -32,7 +32,7 @@ impl Preserve for Batteries {
                 break;
             };
             cursor = (*cursor.0).parent_batteries;
-        };
+        }
     }
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if self.0.is_null() {
@@ -130,7 +130,6 @@ impl Preserve for BatteriesList {
             };
             cursor = (*cursor.0).next;
         }
-
     }
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if self.0.is_null() {

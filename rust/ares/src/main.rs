@@ -1,7 +1,7 @@
 use ares::interpreter::interpret;
 use ares::jets::cold::Cold;
-use ares::jets::warm::Warm;
 use ares::jets::hot::Hot;
+use ares::jets::warm::Warm;
 use ares::mem::NockStack;
 use ares::noun::IndirectAtom;
 use ares::serf::serf;
@@ -58,7 +58,15 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let result = interpret(&mut stack, &mut None, &mut cold, &mut warm, hot, input_cell.head(), input_cell.tail());
+    let result = interpret(
+        &mut stack,
+        &mut None,
+        &mut cold,
+        &mut warm,
+        hot,
+        input_cell.head(),
+        input_cell.tail(),
+    );
     if let Ok(atom) = result.as_atom() {
         println!("Result: {}", atom);
     }

@@ -434,47 +434,47 @@ impl<T: Copy + Preserve> Default for Hamt<T> {
 
 impl<T: Copy + Preserve> Preserve for Hamt<T> {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
-           stack.struct_is_in(self.0.buffer, self.0.size());
-           let mut traversal_stack: [Option<(Stem<T>, u32)>; 6] = [None; 6];
-            traversal_stack[0] = Some((self.0, 0));
-            let mut traversal_depth = 1;
-            'check: loop {
-                if traversal_depth == 0 {
-                    break;
+        stack.struct_is_in(self.0.buffer, self.0.size());
+        let mut traversal_stack: [Option<(Stem<T>, u32)>; 6] = [None; 6];
+        traversal_stack[0] = Some((self.0, 0));
+        let mut traversal_depth = 1;
+        'check: loop {
+            if traversal_depth == 0 {
+                break;
+            }
+            let (stem, mut position) = traversal_stack[traversal_depth - 1]
+                .expect("Attempted to access uninitialized array element");
+            // can we loop over the size and count leading 0s remaining in the bitmap?
+            'check_stem: loop {
+                if position >= 32 {
+                    traversal_depth -= 1;
+                    continue 'check;
                 }
-                let (stem, mut position) = traversal_stack[traversal_depth - 1]
-                    .expect("Attempted to access uninitialized array element");
-                // can we loop over the size and count leading 0s remaining in the bitmap?
-                'check_stem: loop {
-                    if position >= 32 {
-                        traversal_depth -= 1;
+                match stem.entry(position) {
+                    None => {
+                        position += 1;
+                        continue 'check_stem;
+                    }
+                    Some((Left(next_stem), idx)) => {
+                        stack.struct_is_in(next_stem.buffer, next_stem.size());
+                        assert!(traversal_depth <= 5); // will increment
+                        traversal_stack[traversal_depth - 1].as_mut().unwrap().1 = position + 1;
+                        traversal_stack[traversal_depth] = Some((next_stem, 0));
+                        traversal_depth += 1;
                         continue 'check;
                     }
-                    match stem.entry(position) {
-                        None => {
-                            position += 1;
-                            continue 'check_stem;
+                    Some((Right(leaf), idx)) => {
+                        stack.struct_is_in(leaf.buffer, leaf.len);
+                        for pair in leaf.to_mut_slice().iter() {
+                            pair.0.assert_in_stack(stack);
+                            pair.1.assert_in_stack(stack);
                         }
-                        Some((Left(next_stem), idx)) => {
-                            stack.struct_is_in(next_stem.buffer, next_stem.size());
-                            assert!(traversal_depth <= 5); // will increment
-                            traversal_stack[traversal_depth - 1].as_mut().unwrap().1 = position + 1;
-                            traversal_stack[traversal_depth] = Some((next_stem, 0));
-                            traversal_depth += 1;
-                            continue 'check;
-                        }
-                        Some((Right(leaf), idx)) => {
-                            stack.struct_is_in(leaf.buffer, leaf.len);
-                            for pair in leaf.to_mut_slice().iter() {
-                                pair.0.assert_in_stack(stack);
-                                pair.1.assert_in_stack(stack);
-                            }
-                            position += 1;
-                            continue 'check_stem;
-                        }
+                        position += 1;
+                        continue 'check_stem;
                     }
                 }
             }
+        }
     }
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if stack.is_in_frame(self.0.buffer) {

@@ -441,7 +441,7 @@ impl NockStack {
         assert_acyclic!(*noun);
     }
 
-    pub unsafe fn struct_is_in<T>(&self, ptr: *const T, count: usize ) {
+    pub unsafe fn struct_is_in<T>(&self, ptr: *const T, count: usize) {
         let ap = (if self.pc {
             *(self.prev_alloc_pointer_pointer())
         } else {
@@ -458,7 +458,13 @@ impl NockStack {
         } else if (ptr as usize) >= hi && (ptr.add(count) as usize) > hi {
             return;
         }
-        panic!("Use after free: allocation from {:#x} to {:#x}, free space from {:#x} to {:#x}", ptr as usize, ptr.add(count) as usize, low, hi);
+        panic!(
+            "Use after free: allocation from {:#x} to {:#x}, free space from {:#x} to {:#x}",
+            ptr as usize,
+            ptr.add(count) as usize,
+            low,
+            hi
+        );
     }
 
     unsafe fn noun_in(&self, noun: Noun) {
@@ -480,7 +486,7 @@ impl NockStack {
                 if let Ok(a) = subnoun.as_allocated() {
                     let np = a.to_raw_pointer() as usize;
                     if np >= low && np < hi {
-                        panic!("noun not in {:?}: {:?}", (low,hi), subnoun);
+                        panic!("noun not in {:?}: {:?}", (low, hi), subnoun);
                     }
                     if let Right(c) = a.as_either() {
                         dbg_stack.push(c.tail());
