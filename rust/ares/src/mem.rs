@@ -454,7 +454,8 @@ impl NockStack {
         }) as usize;
         let (low, hi) = if ap > sp { (sp, ap) } else { (ap, sp) };
         if ((ptr as usize) < low && (ptr.add(count) as usize) <= low)
-           || ((ptr as usize) >= hi && (ptr.add(count) as usize) > hi) {
+            || ((ptr as usize) >= hi && (ptr.add(count) as usize) > hi)
+        {
             return;
         }
         panic!(
