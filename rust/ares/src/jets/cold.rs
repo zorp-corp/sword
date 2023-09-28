@@ -19,6 +19,21 @@ struct BatteriesMem {
 }
 
 impl Preserve for Batteries {
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        if self.0.is_null() {
+            return;
+        };
+        let mut cursor = *self;
+        loop {
+            stack.struct_is_in(cursor.0, 1);
+            (*cursor.0).battery.assert_in_stack(stack);
+            (*cursor.0).parent_axis.assert_in_stack(stack);
+            if (*cursor.0).parent_batteries.0.is_null() {
+                break;
+            };
+            cursor = (*cursor.0).parent_batteries;
+        };
+    }
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if self.0.is_null() {
             return;
@@ -30,11 +45,11 @@ impl Preserve for Batteries {
                 (**ptr).parent_axis.preserve(stack);
                 let dest_mem: *mut BatteriesMem = stack.struct_alloc_in_previous_frame(1);
                 copy_nonoverlapping(*ptr, dest_mem, 1);
+                *ptr = dest_mem;
+                ptr = &mut ((**ptr).parent_batteries.0);
                 if (*dest_mem).parent_batteries.0.is_null() {
                     break;
                 };
-                *ptr = dest_mem;
-                ptr = &mut ((**ptr).parent_batteries.0);
             } else {
                 break;
             }
@@ -67,7 +82,9 @@ impl Batteries {
                 if d.data() == 0 {
                     if unsafe { !unifying_equality(stack, &mut core, battery) } {
                         return false;
-                    } else { continue; };
+                    } else {
+                        continue;
+                    };
                 };
             };
             if let Ok(mut core_battery) = slot_result(core, BitSlice::from_element(&2u64)) {
@@ -100,6 +117,21 @@ struct BatteriesListMem {
 }
 
 impl Preserve for BatteriesList {
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        if self.0.is_null() {
+            return;
+        }
+        let mut cursor = *self;
+        loop {
+            stack.struct_is_in(cursor.0, 1);
+            (*cursor.0).batteries.assert_in_stack(stack);
+            if (*cursor.0).next.0.is_null() {
+                break;
+            };
+            cursor = (*cursor.0).next;
+        }
+
+    }
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if self.0.is_null() {
             return;
@@ -110,11 +142,11 @@ impl Preserve for BatteriesList {
                 (**ptr).batteries.preserve(stack);
                 let dest_mem: *mut BatteriesListMem = stack.struct_alloc_in_previous_frame(1);
                 copy_nonoverlapping(*ptr, dest_mem, 1);
+                *ptr = dest_mem;
+                ptr = &mut ((**ptr).next.0);
                 if (*dest_mem).next.0.is_null() {
                     break;
                 };
-                *ptr = dest_mem;
-                ptr = &mut ((**ptr).next.0);
             } else {
                 break;
             }
@@ -161,21 +193,35 @@ struct NounListMem {
 }
 
 impl Preserve for NounList {
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        if self.0.is_null() {
+            return;
+        };
+        let mut cursor = *self;
+        loop {
+            stack.struct_is_in(cursor.0, 1);
+            (*cursor.0).element.assert_in_stack(stack);
+            if (*cursor.0).next.0.is_null() {
+                break;
+            };
+            cursor = (*cursor.0).next;
+        }
+    }
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if self.0.is_null() {
             return;
         };
-        let mut ptr: *mut *mut NounListMem = &mut (self.0);
+        let mut ptr: *mut NounList = self;
         loop {
-            if stack.is_in_frame(*ptr) {
-                (**ptr).element.preserve(stack);
+            if stack.is_in_frame((*ptr).0) {
+                (*(*ptr).0).element.preserve(stack);
                 let dest_mem: *mut NounListMem = stack.struct_alloc_in_previous_frame(1);
-                copy_nonoverlapping(*ptr, dest_mem, 1);
+                copy_nonoverlapping((*ptr).0, dest_mem, 1);
+                *ptr = NounList(dest_mem);
+                ptr = &mut ((*(*ptr).0).next);
                 if (*dest_mem).next.0.is_null() {
                     break;
                 };
-                *ptr = dest_mem;
-                ptr = &mut ((**ptr).next.0);
             } else {
                 break;
             }
@@ -214,6 +260,12 @@ struct ColdMem {
 }
 
 impl Preserve for Cold {
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        stack.struct_is_in(self.0, 1);
+        (*self.0).battery_to_paths.assert_in_stack(stack);
+        (*self.0).root_to_paths.assert_in_stack(stack);
+        (*self.0).path_to_batteries.assert_in_stack(stack);
+    }
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         (*(self.0)).battery_to_paths.preserve(stack);
         (*(self.0)).root_to_paths.preserve(stack);
@@ -241,7 +293,12 @@ impl Cold {
     }
 
     pub fn find(&mut self, stack: &mut NockStack, path: &mut Noun) -> BatteriesList {
-        unsafe { (*(self.0)).path_to_batteries.lookup(stack, path).unwrap_or(BATTERIES_LIST_NIL) }
+        unsafe {
+            (*(self.0))
+                .path_to_batteries
+                .lookup(stack, path)
+                .unwrap_or(BATTERIES_LIST_NIL)
+        }
     }
 
     /// register a core, return a boolean of whether we actually needed to register (false ->
