@@ -1,6 +1,6 @@
 use crate::mem::{word_size_of, NockStack};
 use bitvec::prelude::{BitSlice, Lsb0};
-use either::Either;
+use either::{Either, Left, Right};
 use ibig::{Stack, UBig};
 use intmap::IntMap;
 use std::fmt;
@@ -61,8 +61,8 @@ pub fn acyclic_noun(noun: Noun) -> bool {
 
 fn acyclic_noun_go(noun: Noun, seen: &mut IntMap<()>) -> bool {
     match noun.as_either_atom_cell() {
-        Either::Left(_atom) => true,
-        Either::Right(cell) => {
+        Left(_atom) => true,
+        Right(cell) => {
             if seen.get(cell.0).is_some() {
                 false
             } else {
@@ -225,6 +225,17 @@ pub const fn D(n: u64) -> Noun {
 #[allow(non_snake_case)]
 pub fn T<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> Noun {
     Cell::new_tuple(allocator, tup).as_noun()
+}
+
+/// Create $tape Noun from ASCII string
+pub fn tape<A: NounAllocator>(allocator: &mut A, text: &str) -> Noun {
+    //  XX: Needs unit tests
+    let mut res = D(0);
+    //  XX: Switch to using Cell::new_raw_mut
+    for c in text.bytes().rev() {
+        res = T(allocator, &[D(c as u64), res])
+    }
+    res
 }
 
 /** An indirect atom.
@@ -444,6 +455,9 @@ impl IndirectAtom {
     }
 }
 
+// XX: Need a version that either:
+//      a) allocates on the NockStack directly for creating a tape (or even a string?)
+//      b) disables no-allocation, creates a string, utilitzes it (eprintf or generate tape), and then deallocates
 impl fmt::Display for IndirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x")?;
@@ -480,7 +494,7 @@ impl Cell {
         (self.0 << 3) as *const CellMemory
     }
 
-    unsafe fn to_raw_pointer_mut(&mut self) -> *mut CellMemory {
+    pub unsafe fn to_raw_pointer_mut(&mut self) -> *mut CellMemory {
         (self.0 << 3) as *mut CellMemory
     }
 
@@ -575,6 +589,27 @@ impl fmt::Display for Cell {
     }
 }
 
+impl Slots for Cell {}
+impl private::RawSlots for Cell {
+    fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
+        let mut noun: Noun = self.as_noun();
+        let mut cursor = axis.last_one().expect("raw_slow somehow by-passed 0 check");
+
+        while cursor != 0 {
+            cursor -= 1;
+
+            // Returns Err if axis tried to descend through atom
+            if axis[cursor] {
+                noun = noun.as_cell()?.tail();
+            } else {
+                noun = noun.as_cell()?.head();
+            }
+        }
+
+        Ok(noun)
+    }
+}
+
 /**
  * Memory representation of the contents of a cell
  */
@@ -648,9 +683,9 @@ impl Atom {
 
     pub fn as_either(&self) -> Either<DirectAtom, IndirectAtom> {
         if self.is_indirect() {
-            unsafe { Either::Right(self.indirect) }
+            unsafe { Right(self.indirect) }
         } else {
-            unsafe { Either::Left(self.direct) }
+            unsafe { Left(self.direct) }
         }
     }
 
@@ -678,24 +713,40 @@ impl Atom {
         }
     }
 
+    pub fn direct(&self) -> Option<DirectAtom> {
+        if self.is_direct() {
+            unsafe { Some(self.direct) }
+        } else {
+            None
+        }
+    }
+
+    pub fn indirect(&self) -> Option<IndirectAtom> {
+        if self.is_indirect() {
+            unsafe { Some(self.indirect) }
+        } else {
+            None
+        }
+    }
+
     pub fn size(&self) -> usize {
         match self.as_either() {
-            Either::Left(_direct) => 1,
-            Either::Right(indirect) => indirect.size(),
+            Left(_direct) => 1,
+            Right(indirect) => indirect.size(),
         }
     }
 
     pub fn bit_size(&self) -> usize {
         match self.as_either() {
-            Either::Left(direct) => direct.bit_size(),
-            Either::Right(indirect) => indirect.bit_size(),
+            Left(direct) => direct.bit_size(),
+            Right(indirect) => indirect.bit_size(),
         }
     }
 
     pub fn data_pointer(&self) -> *const u64 {
         match self.as_either() {
-            Either::Left(_direct) => (self as *const Atom) as *const u64,
-            Either::Right(indirect) => indirect.data_pointer(),
+            Left(_direct) => (self as *const Atom) as *const u64,
+            Right(indirect) => indirect.data_pointer(),
         }
     }
 
@@ -750,8 +801,8 @@ impl Allocated {
 
     pub unsafe fn forwarding_pointer(&self) -> Option<Allocated> {
         match self.as_either() {
-            Either::Left(indirect) => indirect.forwarding_pointer().map(|i| i.as_allocated()),
-            Either::Right(cell) => cell.forwarding_pointer().map(|c| c.as_allocated()),
+            Left(indirect) => indirect.forwarding_pointer().map(|i| i.as_allocated()),
+            Right(cell) => cell.forwarding_pointer().map(|c| c.as_allocated()),
         }
     }
 
@@ -765,9 +816,9 @@ impl Allocated {
 
     pub fn as_either(&self) -> Either<IndirectAtom, Cell> {
         if self.is_indirect() {
-            unsafe { Either::Left(self.indirect) }
+            unsafe { Left(self.indirect) }
         } else {
-            unsafe { Either::Right(self.cell) }
+            unsafe { Right(self.cell) }
         }
     }
 
@@ -868,17 +919,57 @@ impl Noun {
 
     pub fn as_either_atom_cell(&self) -> Either<Atom, Cell> {
         if self.is_cell() {
-            unsafe { Either::Right(self.cell) }
+            unsafe { Right(self.cell) }
         } else {
-            unsafe { Either::Left(self.atom) }
+            unsafe { Left(self.atom) }
         }
     }
 
     pub fn as_either_direct_allocated(&self) -> Either<DirectAtom, Allocated> {
         if self.is_direct() {
-            unsafe { Either::Left(self.direct) }
+            unsafe { Left(self.direct) }
         } else {
-            unsafe { Either::Right(self.allocated) }
+            unsafe { Right(self.allocated) }
+        }
+    }
+
+    pub fn atom(&self) -> Option<Atom> {
+        if self.is_atom() {
+            unsafe { Some(self.atom) }
+        } else {
+            None
+        }
+    }
+
+    pub fn cell(&self) -> Option<Cell> {
+        if self.is_cell() {
+            unsafe { Some(self.cell) }
+        } else {
+            None
+        }
+    }
+
+    pub fn direct(&self) -> Option<DirectAtom> {
+        if self.is_direct() {
+            unsafe { Some(self.direct) }
+        } else {
+            None
+        }
+    }
+
+    pub fn indirect(&self) -> Option<IndirectAtom> {
+        if self.is_indirect() {
+            unsafe { Some(self.indirect) }
+        } else {
+            None
+        }
+    }
+
+    pub fn allocated(&self) -> Option<Allocated> {
+        if self.is_allocated() {
+            unsafe { Some(self.allocated) }
+        } else {
+            None
         }
     }
 
@@ -936,8 +1027,8 @@ impl Noun {
                 if allocated.get_metadata() & (1 << 32) == 0 {
                     allocated.set_metadata(allocated.get_metadata() | (1 << 32));
                     match allocated.as_either() {
-                        Either::Left(indirect) => indirect.size() + 2,
-                        Either::Right(cell) => {
+                        Left(indirect) => indirect.size() + 2,
+                        Right(cell) => {
                             word_size_of::<CellMemory>()
                                 + cell.head().mass_wind(inside)
                                 + cell.tail().mass_wind(inside)
@@ -959,7 +1050,7 @@ impl Noun {
         if let Ok(allocated) = self.as_allocated() {
             if inside(allocated.to_raw_pointer()) {
                 allocated.set_metadata(allocated.get_metadata() & !(1 << 32));
-                if let Either::Right(cell) = allocated.as_either() {
+                if let Right(cell) = allocated.as_either() {
                     cell.head().mass_unwind(inside);
                     cell.tail().mass_unwind(inside);
                 }
@@ -996,6 +1087,16 @@ impl fmt::Display for Noun {
     }
 }
 
+impl Slots for Noun {}
+impl private::RawSlots for Noun {
+    fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
+        match self.as_either_atom_cell() {
+            Right(cell) => cell.raw_slot(axis),
+            Left(_atom) => Err(Error::NotCell), // Axis tried to descend through atom
+        }
+    }
+}
+
 /**
  * An allocation object (probably a mem::NockStack) which can allocate a memory buffer sized to
  * a certain number of nouns
@@ -1009,4 +1110,55 @@ pub trait NounAllocator: Sized {
 
     /** Allocate memory for a cell */
     unsafe fn alloc_cell(&mut self) -> *mut CellMemory;
+}
+
+/**
+ * Implementing types allow component Nouns to be retreived by numeric axis
+ */
+pub trait Slots: private::RawSlots {
+    /**
+     * Retrieve component Noun at given axis, or fail with descriptive error
+     */
+    fn slot(&self, axis: u64) -> Result<Noun> {
+        if axis == 0 {
+            // 0 is not allowed as an axis
+            Err(Error::NotRepresentable)
+        } else {
+            self.raw_slot(BitSlice::from_element(&axis))
+        }
+    }
+
+    /**
+     * Retrieve component Noun at axis given as Atom, or fail with descriptive error
+     */
+    fn slot_atom(&self, atom: Atom) -> Result<Noun> {
+        atom.as_either().either(
+            |d| self.slot(d.data()),
+            |i| {
+                if unsafe { i.as_noun().raw_equals(D(0)) } {
+                    // 0 is not allowed as an axis
+                    Err(Error::NotRepresentable)
+                } else {
+                    self.raw_slot(i.as_bitslice())
+                }
+            },
+        )
+    }
+}
+
+/**
+ * Implementation methods that should not be made available to derived crates
+ */
+mod private {
+    use crate::noun::{BitSlice, Lsb0, Noun, Result};
+
+    /**
+     * Implementation of the Slots trait
+     */
+    pub trait RawSlots {
+        /**
+         * Actual logic of retreiving Noun object at some axis
+         */
+        fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun>;
+    }
 }
