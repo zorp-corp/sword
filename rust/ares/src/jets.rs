@@ -1,4 +1,5 @@
 pub mod bits;
+pub mod crypto;
 pub mod form;
 pub mod hash;
 pub mod math;
@@ -7,6 +8,7 @@ pub mod text;
 pub mod tree;
 
 use crate::jets::bits::*;
+use crate::jets::crypto::*;
 use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::math::*;
@@ -87,6 +89,10 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"scow") => Some(jet_scow),
         //
         tas!(b"mink") => Some(jet_mink),
+        //
+        // tas!(b"shas") => Some(jet_shas),
+        // tas!(b"shax") => Some(jet_shax),
+        tas!(b"shay") => Some(jet_shay),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None

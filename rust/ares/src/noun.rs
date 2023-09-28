@@ -186,6 +186,14 @@ impl DirectAtom {
     pub fn as_bitslice_mut(&mut self) -> &mut BitSlice<u64, Lsb0> {
         BitSlice::from_element_mut(&mut self.0)
     }
+
+    pub fn as_byteslice(&self) -> &[u8] {
+        unsafe { from_raw_parts(&self.0 as *const u64 as *const u8, word_size_of::<Self>()) }
+    }
+
+    pub fn as_byteslice_mut(&mut self) -> &mut [u8] {
+        unsafe { from_raw_parts_mut(&mut self.0 as *mut u64 as *mut u8, word_size_of::<Self>()) }
+    }
 }
 
 impl fmt::Display for DirectAtom {
@@ -760,6 +768,22 @@ impl Atom {
 
     pub fn as_noun(self) -> Noun {
         Noun { atom: self }
+    }
+
+    pub fn word(self, a: u64) -> u64 {
+        if self.is_direct() {
+            if a > 0 {
+                0
+            } else {
+                self.as_direct().unwrap().data()
+            }
+        } else {
+            if (a as usize) > self.size() {
+                0
+            } else {
+                unsafe { *(self.data_pointer().add(a as usize)) }
+            }
+        }
     }
 }
 
