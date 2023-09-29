@@ -192,10 +192,6 @@ impl DirectAtom {
         &bytes[..]
     }
 
-    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
-        let bytes: &mut [u8; 8] = unsafe { std::mem::transmute(self.0) };
-        &mut bytes[..]
-    }
 }
 
 impl fmt::Display for DirectAtom {
@@ -401,11 +397,6 @@ impl IndirectAtom {
     pub fn as_bytes(&self) -> &[u8] {
         unsafe { from_raw_parts(self.data_pointer() as *const u8, self.size() << 3) }
     }
-
-    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
-        unsafe { from_raw_parts_mut(self.data_pointer_mut() as *mut u8, self.size() << 3) }
-    }
-
 
     /** BitSlice view on an indirect atom, with lifetime tied to reference to indirect atom. */
     pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
@@ -734,13 +725,6 @@ impl Atom {
         }
     }
 
-    pub fn as_bytes_mut(&mut self) -> &mut [u8] {
-        if self.is_direct() {
-            unsafe { self.direct.as_bytes_mut() }
-        } else {
-            unsafe { self.indirect.as_bytes_mut() }
-        }
-    }
 }
 
 impl fmt::Display for Atom {
