@@ -66,7 +66,7 @@ pub mod util {
             x if x < 2 => return Ok(tone),
             x if x > 2 => return Err(JetErr::Deterministic),
             _ => {}
-        };
+        }
 
         if unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
