@@ -22,7 +22,7 @@
     ::  %mean hint
     ~_  [%leaf "I am a %mean hint via ~_ from +wack"]
     ::  %hela hint
-    :: ~>  %hela
+    ~>  %hela
     ::  %memo hint
     ~+
     ?~  m  +(n)
@@ -34,7 +34,7 @@
     !.
     |=  [m=@ud n=@ud]
     ::  %hela hint
-    :: ~>  %hela
+    ~>  %hela
     ::  %memo hint
     ~+
     ?~  m  +(n)

@@ -189,6 +189,7 @@ struct Nock11D {
     tag: Atom,
     hint: Noun,
     body: Noun,
+    tail: bool,
 }
 
 #[derive(Copy, Clone)]
@@ -202,6 +203,7 @@ struct Nock11S {
     todo: Todo11S,
     tag: Atom,
     body: Noun,
+    tail: bool,
 }
 
 #[derive(Copy, Clone)]
@@ -242,16 +244,18 @@ pub fn interpret(
     formula: Noun,
 ) -> Result<Noun, NockErr> {
     let mut res: Noun = D(0);
-    let mut trace: Noun;
     let mut cache = Hamt::<Noun>::new();
-    // XX: Should this come after initial frame_push()?
     let virtual_frame = stack.get_frame_pointer();
 
-    stack.frame_push(0);
+    // Setup stack for Nock computation
     unsafe {
+        stack.frame_push(1);
+        // Bottom of mean stack
+        *(stack.local_noun_pointer(0)) = D(0);
         *stack.push() = NockWork::Done;
+        push_formula(stack, formula, true)?;
     };
-    push_formula(stack, formula, true)?;
+
     // DO NOT REMOVE THIS ASSERTION
     //
     // If you need to allocate for debugging, wrap the debugging code in
@@ -328,7 +332,7 @@ pub fn interpret(
                             vale.todo = Todo2::RestoreSubject;
                             std::mem::swap(&mut vale.subject, &mut subject);
                             *stack.top() = NockWork::Work2(vale);
-                            stack.frame_push(0);
+                            mean_frame_push(stack, 0);
                             *stack.push() = NockWork::Ret;
                             push_formula(stack, res, true)?;
                         }
@@ -475,7 +479,7 @@ pub fn interpret(
                                 kale.core = subject;
                                 *stack.top() = NockWork::Work9(kale);
                                 subject = res;
-                                stack.frame_push(0);
+                                mean_frame_push(stack, 0);
                                 *stack.push() = NockWork::Ret;
                                 push_formula(stack, formula, true)?;
                             }
@@ -536,8 +540,12 @@ pub fn interpret(
                             stack.pop::<NockWork>();
                         } else {
                             dint.todo = Todo11D::Done;
-                            *stack.top() = NockWork::Work11D(dint);
-                            push_formula(stack, dint.body, false)?;
+                            if dint.tail {
+                                stack.pop::<NockWork>();
+                            } else {
+                                *stack.top() = NockWork::Work11D(dint);
+                            }
+                            push_formula(stack, dint.body, dint.tail)?;
                         }
                     }
                     Todo11D::Done => {
@@ -565,8 +573,12 @@ pub fn interpret(
                             stack.pop::<NockWork>();
                         } else {
                             sint.todo = Todo11S::Done;
-                            *stack.top() = NockWork::Work11S(sint);
-                            push_formula(stack, sint.body, false)?;
+                            if sint.tail {
+                                stack.pop::<NockWork>();
+                            } else {
+                                *stack.top() = NockWork::Work11S(sint);
+                            }
+                            push_formula(stack, sint.body, sint.tail)?;
                         }
                     }
                     Todo11S::Done => {
@@ -584,11 +596,7 @@ pub fn interpret(
 
     match tone {
         Ok(res) => Ok(res),
-        Err(_err) => {
-            trace = stack.get_mean_stack();
-            exit_early(stack, virtual_frame, &mut trace, &mut cache);
-            Err(NockErr::Error(trace))
-        }
+        Err(_err) => Err(exit_early(stack, virtual_frame, &mut cache)),
     }
 }
 
@@ -751,6 +759,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                                 todo: Todo11S::ComputeResult,
                                                 tag: tag_atom,
                                                 body: arg_cell.tail(),
+                                                tail: tail && is_hint_tail(tag_atom),
                                             });
                                         }
                                         Right(hint_cell) => {
@@ -760,6 +769,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                                     tag: tag_atom,
                                                     hint: hint_cell.tail(),
                                                     body: arg_cell.tail(),
+                                                    tail: tail && is_hint_tail(tag_atom),
                                                 });
                                             } else {
                                                 // Hint tag must be an atom
@@ -791,18 +801,46 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
     Ok(())
 }
 
-pub fn exit_early(
-    stack: &mut NockStack,
-    virtual_frame: *const u64,
-    trace: &mut Noun,
-    cache: &mut Hamt<Noun>,
-) {
+fn exit_early(stack: &mut NockStack, virtual_frame: *const u64, cache: &mut Hamt<Noun>) -> NockErr {
     unsafe {
+        let mut trace = *(stack.local_noun_pointer(0));
         while stack.get_frame_pointer() != virtual_frame {
-            stack.preserve(trace);
+            stack.preserve(&mut trace);
             stack.preserve(cache);
             stack.frame_pop();
         }
+        NockErr::Error(trace)
+    }
+}
+
+/** Push frame onto NockStack while preserving the mean stack.
+ */
+fn mean_frame_push(stack: &mut NockStack, slots: usize) {
+    unsafe {
+        let trace = *(stack.local_noun_pointer(0));
+        stack.frame_push(slots + 1);
+        *(stack.local_noun_pointer(0)) = trace;
+    }
+}
+
+/** Push onto the mean stack.
+ */
+fn mean_push(stack: &mut NockStack, noun: Noun) {
+    unsafe {
+        let cur_trace = *(stack.local_noun_pointer(0));
+        let new_trace = T(stack, &[noun, cur_trace]);
+        *(stack.local_noun_pointer(0)) = new_trace;
+    }
+}
+
+/** Pop off of the mean stack.
+ */
+fn mean_pop(stack: &mut NockStack) {
+    unsafe {
+        *(stack.local_noun_pointer(0)) = (*(stack.local_noun_pointer(0)))
+            .as_cell()
+            .expect("serf: unexpected end of mean stack\r")
+            .tail();
     }
 }
 
@@ -873,6 +911,19 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
                 }
             }
         }
+    }
+}
+
+fn is_hint_tail(tag: Atom) -> bool {
+    //  XX: handle IndirectAtom tags
+    match tag.direct() {
+        #[allow(clippy::match_like_matches_macro)]
+        Some(dtag) => match dtag.data() {
+            tas!(b"fast") => false,
+            tas!(b"memo") => false,
+            _ => true,
+        },
+        None => true,
     }
 }
 
@@ -956,30 +1007,14 @@ fn match_hint_pre_nock(
             }
         }
         tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
-            let trace = Cell::new(stack, tag.as_noun(), res?).as_noun();
-            stack.trace_push(trace);
+            let noun = T(stack, &[tag.as_noun(), res?]);
+            mean_push(stack, noun);
         }
-        //
-        //      u3_serf_writ -> u3_serf_work -> _serf_work -> _serf_poke -> u3m_soft -> u3dc -> u3v_do -> u3v_wish -> +wish in Arvo
-        //                                                                               |
-        //                                                                               V
-        //                                                                              mook
-        //
-        //  No +wish in toy Arvo; missing +slap and a ton of parsing functions needed by +ream
-        //
-        //      u3t_slog        = print on thing directly
-        //      u3t_slog_trace  = print stack trace             = - convert tone to toon
-        //                                                        - presume toon is [%2 tang]
-        //                                                        - print each tank in tang one at at time using u3t_slog
-        //      u3t_slog_hela   = print entire stack trace      = - weld stacks from all roads together
-        //                                                        - call u3t_slog_trace on combined stack
-        //      u3t_slog_nara   = print home road stack trace   = call u3t_slog_trace on home road stack
-        //
         tas!(b"hela") => {
             // XX: should this be virtualized?
             //     pretty sure we should be bailing on error
             //     might need to switch return type to Result<Option<Noun>, NockErr>
-            let stak = stack.get_mean_stack();
+            let stak = unsafe { *(stack.local_noun_pointer(0)) };
             let tone = Cell::new(stack, D(2), stak);
 
             if let Ok(toon) = mook(stack, newt, tone, true) {
@@ -1034,8 +1069,7 @@ fn match_hint_post_nock(
             *cache = cache.insert(stack, &mut key, res);
         }
         tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
-            // In the future, we should only do this if 11 is not in tail position
-            stack.trace_pop();
+            mean_pop(stack);
         }
         _ => {}
     }

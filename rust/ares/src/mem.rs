@@ -1,5 +1,5 @@
 use crate::assert_acyclic;
-use crate::noun::{Atom, Cell, CellMemory, DirectAtom, IndirectAtom, Noun, NounAllocator};
+use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use crate::snapshot::pma::{pma_in_arena, pma_malloc_w};
 use either::Either::{self, Left, Right};
 use ibig::Stack;
@@ -46,8 +46,6 @@ pub struct NockStack {
     stack_pointer: *mut u64,
     /** Alloc pointer for the current stack frame. */
     alloc_pointer: *mut u64,
-    /** Pointer to top of mean stack; mean stack references previous frames */
-    mean_stack: *mut Noun,
     /** MMap which must be kept alive as long as this NockStack is */
     memory: MmapMut,
     /** Whether or not pre_copy() has been called on the current stack frame. */
@@ -68,16 +66,13 @@ impl NockStack {
         let memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
         let start = memory.as_ptr() as *const u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
-        let frame_pointer = unsafe { start.add(RESERVED + top_slots + 1) } as *mut u64;
+        let frame_pointer = unsafe { start.add(RESERVED + top_slots) } as *mut u64;
         let stack_pointer = frame_pointer;
         let alloc_pointer = unsafe { start.add(size) } as *mut u64;
-        // The extra 1 in frame_pointer is for the base of the mean stack
-        let mean_stack = start as *mut Noun;
         unsafe {
             *frame_pointer.sub(1) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
             *frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
             *frame_pointer.sub(ALLOC + 1) = start as u64; // "alloc pointer" from "previous" frame
-            *mean_stack = DirectAtom::new_unchecked(0).as_noun();
         };
         NockStack {
             start,
@@ -85,7 +80,6 @@ impl NockStack {
             frame_pointer,
             stack_pointer,
             alloc_pointer,
-            mean_stack,
             memory,
             pc: false,
         }
@@ -94,11 +88,6 @@ impl NockStack {
     /** Current frame pointer of this NockStack */
     pub fn get_frame_pointer(&self) -> *const u64 {
         self.frame_pointer
-    }
-
-    /** Current frame pointer of this NockStack */
-    pub fn get_mean_stack(&self) -> Noun {
-        unsafe { *self.mean_stack }
     }
 
     /** Checks if the current stack frame has West polarity */
@@ -675,23 +664,6 @@ impl NockStack {
             unsafe { self.stack_pointer == self.alloc_pointer.sub(RESERVED + 1) }
         } else {
             unsafe { self.stack_pointer == self.alloc_pointer.add(RESERVED) }
-        }
-    }
-
-    /** Push onto the mean stack (for tracing) */
-    pub fn trace_push(&mut self, mon: Noun) {
-        unsafe {
-            *(self.mean_stack) = Cell::new(self, mon, *self.mean_stack).as_noun();
-        }
-    }
-
-    /** Pop from the mean stack (for tracing) */
-    pub fn trace_pop(&mut self) {
-        unsafe {
-            *(self.mean_stack) = (*self.mean_stack)
-                .as_cell()
-                .expect("mean stack should be non-null when popped")
-                .tail();
         }
     }
 }
