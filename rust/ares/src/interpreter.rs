@@ -591,8 +591,8 @@ pub fn interpret(
                             }
                         }
                         Todo9::RestoreSubject => {
-                            stack.assert_no_junior_pointers(res);
                             subject = kale.core;
+                            stack.assert_no_junior_pointers(subject);
                             subject.assert_no_forwarding_pointers();
                             stack.pop::<NockWork>();
                         }
