@@ -11,7 +11,7 @@ edition = "2018"
 
 [dependencies]
 ares_macros = { path = "../ares_macros" }
-assert_no_alloc = "1.1.2"
+assert_no_alloc = { version = "1.1.2", features = [ "warn_debug" ] }
 bitvec = "1.0.0"
 criterion = "0.4"
 either = "1.9.0"
@@ -34,7 +34,7 @@ name = "ares"
 path = "src/main.rs"
 
 [profile.dev]
-opt-level = 3
+opt-level = 0
 
 [profile.dev.package."*"]
 opt-level = 3

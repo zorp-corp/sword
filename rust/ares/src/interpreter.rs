@@ -294,6 +294,8 @@ pub fn interpret(
         *stack.push() = NockWork::Done;
     };
 
+    let mut last_work = NockWork::Done;
+
     // DO NOT REMOVE THIS ASSERTION
     //
     // If you need to allocate for debugging, wrap the debugging code in
@@ -310,12 +312,15 @@ pub fn interpret(
 
         loop {
             let work: NockWork = *stack.top();
+            last_work = work;
             match work {
                 NockWork::Done => {
                     permit_alloc(|| { assert_acyclic!(subject); });
                     stack.preserve(&mut cache);
                     permit_alloc(|| { assert_acyclic!(subject); });
+                    stack.assert_no_junior_pointers(res);
                     stack.preserve(&mut res);
+                    stack.assert_no_junior_pointers(res);
                     permit_alloc(|| { assert_acyclic!(subject); });
                     // eprintln!("\rserf: interpreter done pre-pop:");
                     // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
@@ -332,7 +337,9 @@ pub fn interpret(
                     permit_alloc(|| { assert_acyclic!(subject); });
                     stack.preserve(&mut cache);
                     permit_alloc(|| { assert_acyclic!(subject); });
+                    stack.assert_no_junior_pointers(res);
                     stack.preserve(&mut res);
+                    stack.assert_no_junior_pointers(res);
                     permit_alloc(|| { assert_acyclic!(subject); });
                     // eprintln!("\rserf: interpreter ret pre-pop:");
                     // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
@@ -500,12 +507,14 @@ pub fn interpret(
                     Todo7::ComputeResult => {
                         if pose.tail {
                             stack.pop::<NockWork>();
+                            stack.assert_no_junior_pointers(res);
                             subject = res;
                             push_formula(stack, pose.formula, true)?;
                         } else {
                             pose.todo = Todo7::RestoreSubject;
                             pose.subject = subject;
                             *stack.top() = NockWork::Work7(pose);
+                            stack.assert_no_junior_pointers(res);
                             subject = res;
                             push_formula(stack, pose.formula, false)?;
                         }
@@ -523,6 +532,7 @@ pub fn interpret(
                     }
                     Todo8::ComputeResult => {
                         if pins.tail {
+                            stack.assert_no_junior_pointers(res);
                             subject = T(stack, &[res, subject]);
                             stack.pop::<NockWork>();
                             push_formula(stack, pins.formula, true)?;
@@ -530,6 +540,7 @@ pub fn interpret(
                             pins.todo = Todo8::RestoreSubject;
                             pins.pin = subject;
                             *stack.top() = NockWork::Work8(pins);
+                            stack.assert_no_junior_pointers(res);
                             subject = T(stack, &[res, subject]);
                             push_formula(stack, pins.formula, false)?;
                         }
@@ -560,6 +571,7 @@ pub fn interpret(
                                     kale.todo = Todo9::RestoreSubject;
                                     kale.core = subject;
                                     *stack.top() = NockWork::Work9(kale);
+                                    stack.assert_no_junior_pointers(res);
                                     subject = res;
                                     // eprintln!("\rserf: interpreter 9 pre-push:");
                                     // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
@@ -579,7 +591,9 @@ pub fn interpret(
                             }
                         }
                         Todo9::RestoreSubject => {
+                            stack.assert_no_junior_pointers(res);
                             subject = kale.core;
+                            subject.assert_no_forwarding_pointers();
                             stack.pop::<NockWork>();
                         }
                     }

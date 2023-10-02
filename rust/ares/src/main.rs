@@ -12,8 +12,15 @@ use std::io;
 use std::mem;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::write_bytes;
+use libc::{kill, SIGSTOP};
+use std::process;
 
 fn main() -> io::Result<()> {
+    eprintln!("serf: pid {}", process::id());
+    if unsafe { kill(process::id() as i32, SIGSTOP) } != 0 {
+        panic!("Could not stop ourselves.");
+    };
+
     let filename = env::args().nth(1).expect("Must provide input filename");
 
     if filename == "see gdb! definition in lib.rs about this" {

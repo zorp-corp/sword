@@ -410,6 +410,7 @@ impl NockStack {
 
                                         *next_dest =
                                             IndirectAtom::from_raw_pointer(alloc).as_noun();
+                                        let foo = 123;
                                     }
                                     Either::Right(mut cell) => {
                                         // Make space for the cell
@@ -429,6 +430,7 @@ impl NockStack {
                                         cell.set_forwarding_pointer(alloc);
 
                                         *next_dest = Cell::from_raw_pointer(alloc).as_noun();
+                                        let foo = 123;
                                     }
                                 }
                             } else {
@@ -662,6 +664,55 @@ impl NockStack {
         } else {
             unsafe { self.stack_pointer == self.alloc_pointer.add(RESERVED) }
         }
+    }
+
+    pub unsafe fn no_junior_pointers(&self, noun: Noun) -> bool {
+        let mut dbg_stack = Vec::new();
+        dbg_stack.push((noun, self.frame_pointer, self.stack_pointer, self.alloc_pointer));
+        loop {
+            if let Some((n, mut fp, mut sp, mut ap)) = dbg_stack.pop() {
+                let (lo,hi) = if sp < ap { (sp, ap) } else { (ap, sp) };
+                if let Ok(a) = n.as_allocated() {
+                    let ptr = a.to_raw_pointer();
+                    if  ptr >= lo && ptr < hi {
+                        eprintln!("Found a junior pointer in noun {:#x}", noun.raw);
+                        break false;
+                    };
+                    if let Right(c) = a.as_either() {
+                        loop { // walk up the stack and if we still enclose then keep walking
+                            let (nfp, nsp, nap) =
+                                if sp < ap {
+                                    ( (*fp.sub(FRAME + 1)) as *mut u64,
+                                      (*fp.sub(STACK + 1)) as *mut u64,
+                                      (*fp.sub(ALLOC + 1)) as *mut u64
+                                    )
+                                } else {
+                                    ( (*fp.add(FRAME)) as *mut u64,
+                                      (*fp.add(STACK)) as *mut u64,
+                                      (*fp.add(ALLOC)) as *mut u64
+                                    )
+                                };
+                            if nfp.is_null() { break; }
+                            let (nlo, nhi) = if nsp < nap { (nsp, nap) } else { (nap, nsp) };
+                            if ptr >= nlo && ptr < nhi {
+                                break;
+                            }
+                            fp = nfp;
+                            sp = nsp;
+                            ap = nap;
+                        };
+                        dbg_stack.push((c.tail(), fp, sp, ap));
+                        dbg_stack.push((c.head(), fp, sp, ap));
+                    }
+                }
+            } else {
+                break true;
+            }
+        }
+    }
+
+    pub fn assert_no_junior_pointers(&self, noun: Noun) {
+        assert!(unsafe { self.no_junior_pointers(noun) });
     }
 }
 
