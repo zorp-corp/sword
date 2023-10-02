@@ -1,5 +1,5 @@
 use crate::hamt::Hamt;
-
+use crate::jets;
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::warm::Warm;
@@ -514,7 +514,7 @@ pub fn interpret(
                     Todo11D::ComputeHint => {
                         let hint_cell = Cell::new(stack, dint.tag.as_noun(), dint.hint);
                         if let Ok(found) =
-                            match_pre_hint(stack, newt, subject, hint_cell, formula, &cache)
+                            match_pre_hint(stack, newt, cold, warm, hot, subject, hint_cell, formula, &cache)
                         {
                             res = found;
                             stack.pop::<NockWork>();
@@ -869,7 +869,10 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 /** Match hints which apply before the formula is evaluated */
 fn match_pre_hint(
     stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
+    newt: &mut Option<&mut Newt>,
+    cold: &mut Cold,
+    warm: &mut Warm,
+    hot: Hot,
     subject: Noun,
     cell: Cell,
     formula: Noun,
@@ -877,31 +880,33 @@ fn match_pre_hint(
 ) -> Result<Noun, ()> {
     let direct = cell.head().as_direct()?;
     match direct.data() {
-        // %sham hints are scaffolding until we have a real jet dashboard
-        /*
         tas!(b"sham") => {
-            let jet_formula = cell.tail().as_cell()?;
-            let jet_name = jet_formula.tail();
-            let jet = jets::get_jet(jet_name).ok_or(())?;
-            if let Ok(mut jet_res) = jet(stack, subject) {
-                // if in test mode, check that the jet returns the same result as the raw nock
-                if jets::get_jet_test_mode(jet_name) {
-                    let mut nock_res = interpret(stack, newt, cold, warm, hot, subject, formula);
-                    if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
-                        eprintln!(
-                            "\rJet {} failed, raw: {}, jetted: {}",
-                            jet_name, nock_res, jet_res
-                        );
-                        return Err(());
+            if cfg!(feature="sham_hints")  {
+                let jet_formula = cell.tail().as_cell()?;
+                let jet_name = jet_formula.tail();
+                let jet = jets::get_jet(jet_name).ok_or(())?;
+                if let Ok(mut jet_res) = jet(stack, subject) {
+                    // if in test mode, check that the jet returns the same result as the raw nock
+                    if jets::get_jet_test_mode(jet_name) {
+                        let mut nock_res = interpret(stack, newt, cold, warm, hot, subject, formula);
+                        if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
+                            eprintln!(
+                                "\rJet {} failed, raw: {}, jetted: {}",
+                                jet_name, nock_res, jet_res
+                            );
+                            return Err(());
+                        }
                     }
+                    Ok(jet_res)
+                } else {
+                    // Print jet errors and punt to Nock
+                    eprintln!("\rJet {} failed", jet_name);
+                    Err(())
                 }
-                Ok(jet_res)
             } else {
-                // Print jet errors and punt to Nock
-                eprintln!("\rJet {} failed", jet_name);
-                Err(())
+                Err(()) // sham jets disabled
             }
-        }*/
+        }
         tas!(b"memo") => {
             let mut key = Cell::new(stack, subject, formula).as_noun();
             if let Some(res) = cache.lookup(stack, &mut key) {

@@ -39,3 +39,4 @@ opt-level = 3
 
 [features]
 check_acyclic=[]
+sham_hints=[]
