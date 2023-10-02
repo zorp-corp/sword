@@ -40,7 +40,7 @@ const FORWARDING_MASK: u64 = CELL_MASK;
 pub const YES: Noun = D(0);
 pub const NO: Noun = D(1);
 
-#[cfg(feature = "check_acyclic")]
+// #[cfg(feature = "check_acyclic")]
 #[macro_export]
 macro_rules! assert_acyclic {
     ( $x:expr ) => {
@@ -48,11 +48,12 @@ macro_rules! assert_acyclic {
     };
 }
 
-#[cfg(not(feature = "check_acyclic"))]
-#[macro_export]
-macro_rules! assert_acyclic {
-    ( $x:expr ) => {};
-}
+// #[cfg(not(feature = "check_acyclic"))]
+// #[macro_export]
+// macro_rules! assert_acyclic {
+//     ( $x:expr ) => {
+//         eprintln!("\rserf: acyclic ignored");};
+// }
 
 pub fn acyclic_noun(noun: Noun) -> bool {
     let mut seen = IntMap::new();

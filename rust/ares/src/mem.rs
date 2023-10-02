@@ -1,4 +1,3 @@
-use crate::assert_acyclic;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use crate::snapshot::pma::{pma_in_arena, pma_malloc_w};
 use either::Either::{self, Left, Right};
@@ -37,19 +36,19 @@ fn indirect_raw_size(atom: IndirectAtom) -> usize {
 #[allow(dead_code)] // We need the memory field to keep our memory from being unmapped
 pub struct NockStack {
     /** The base pointer */
-    start: *const u64,
+    pub start: *const u64,
     /** The size of the memory region */
     size: usize,
     /** Base pointer for the current stack frame. Accesses to slots are computed from this base. */
-    frame_pointer: *mut u64,
+    pub frame_pointer: *mut u64,
     /** Stack pointer for the current stack frame. */
-    stack_pointer: *mut u64,
+    pub stack_pointer: *mut u64,
     /** Alloc pointer for the current stack frame. */
-    alloc_pointer: *mut u64,
+    pub alloc_pointer: *mut u64,
     /** MMap which must be kept alive as long as this NockStack is */
     memory: MmapMut,
     /** Whether or not pre_copy() has been called on the current stack frame. */
-    pc: bool,
+    pub pc: bool,
 }
 
 impl NockStack {
@@ -442,7 +441,6 @@ impl NockStack {
             }
         }
         // Set saved previous allocation pointer its new value after this allocation
-        assert_acyclic!(*noun);
     }
 
     pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
@@ -516,7 +514,6 @@ impl NockStack {
                 },
             }
         }
-        assert_acyclic!(*noun);
     }
 
     pub unsafe fn frame_pop(&mut self) {
@@ -788,8 +785,6 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         }
     }
     stack.frame_pop();
-    assert_acyclic!(*a);
-    assert_acyclic!(*b);
     (*a).raw_equals(*b)
 }
 

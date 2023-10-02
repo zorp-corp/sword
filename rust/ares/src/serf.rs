@@ -16,6 +16,10 @@ use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+// use crate::assert_acyclic;
+// use assert_no_alloc::permit_alloc;
+use either::{Left, Right};
+
 crate::gdb!();
 
 #[allow(dead_code)]
@@ -50,7 +54,7 @@ pub fn serf() -> io::Result<()> {
     // let snap = &mut snapshot::pma::Pma::new(snap_path);
     let snap = &mut snapshot::double_jam::DoubleJam::new(snap_path);
 
-    let stack = &mut NockStack::new(96 << 10 << 10, 0);
+    let stack = &mut NockStack::new(256 << 10 << 10, 0);
     let newt = &mut Newt::new();
 
     let (_epoch, loaded_event_num, mut arvo) = snap.load(stack).unwrap_or((0, 0, D(0)));
@@ -168,6 +172,7 @@ pub fn serf() -> io::Result<()> {
                         //  possible, without rendering stack trace or injecting crud event.  See
                         //  c3__evil in vere.
 
+                        // unsafe { draw_noun(0, &goof) };
                         clear_interrupt();
 
                         //  crud = [+(now) [%$ %arvo ~] [%crud goof ovo]]
@@ -180,11 +185,18 @@ pub fn serf() -> io::Result<()> {
                         let wire = T(stack, &[D(0), D(tas!(b"arvo")), D(0)]);
                         let crud = T(stack, &[now, wire, D(tas!(b"crud")), goof, job_cell.tail()]);
 
+                        // permit_alloc(|| { assert_acyclic!(crud); });
                         match soft(stack, newt, arvo, POKE_AXIS, crud) {
                             Ok(res) => {
-                                let cell =
-                                    res.as_cell().expect("serf: work: crud +slam returned atom");
+                                let cell = res.as_cell().expect("serf: work: crud +slam returned atom");
                                 let fec = cell.head();
+                                unsafe { draw_noun(0, &goof) };
+                                // permit_alloc(|| { assert_acyclic!(fec); });
+                                // permit_alloc(|| { assert_acyclic!(now); });
+                                // permit_alloc(|| { assert_acyclic!(wire); });
+                                // permit_alloc(|| { assert_acyclic!(goof); });
+                                // permit_alloc(|| { assert_acyclic!(job_cell.tail()); });
+                                // permit_alloc(|| { assert_acyclic!(crud); });
                                 arvo = cell.tail();
                                 snap.save(stack, &mut arvo);
 
@@ -216,6 +228,36 @@ pub fn serf() -> io::Result<()> {
     Ok(())
 }
 
+unsafe fn draw_noun(depth: u64, noun: *const Noun) {
+    eprint!("\r");
+
+    let mut x: u64 = 0;
+    loop {
+        if x == depth {
+            break;
+        } else {
+            eprint!(".");
+            x += 1;
+        }
+    }
+
+    match (*noun).as_either_atom_cell() {
+        Left(atom) => match atom.as_either() {
+            Left(_direct) => {
+                eprintln!(" {:p}", noun);
+            }
+            Right(indirect) => {
+                eprintln!(" {:p} -> {:p}", noun, indirect.to_raw_pointer());
+            }
+        }
+        Right(cell) => {
+            eprintln!(" {:p} = Cell", noun);
+            draw_noun(depth + 1, &((*(cell.to_raw_pointer())).head));
+            draw_noun(depth + 1, &((*(cell.to_raw_pointer())).tail));
+        }
+    }
+}
+
 pub fn slam(
     stack: &mut NockStack,
     newt: &mut Newt,
@@ -239,8 +281,14 @@ pub fn soft(
     ovo: Noun,
 ) -> Result<Noun, Noun> {
     match slam(stack, newt, core, axis, ovo) {
-        Ok(res) => Ok(res),
+        Ok(res) => {
+            Ok(res)
+        }
         Err(Tone::Error(_, trace)) => {
+            // eprintln!("\rserf: pre-goof:");
+            // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+            // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+            // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
             let tone = Cell::new(stack, D(2), trace);
             let tang = mook(stack, &mut Some(newt), tone, false)
                 .expect("serf: soft: +mook crashed on bail")
@@ -249,6 +297,10 @@ pub fn soft(
             //      might be able to replace NockErr with mote and map determinism to individual motes;
             //      for, always set to %exit
             let goof = T(stack, &[D(tas!(b"exit")), tang]);
+            // eprintln!("\rserf: post-goof:");
+            // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+            // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+            // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
             Err(goof)
         }
         Err(Tone::Blocked(_)) => panic!("soft: blocked err handling unimplemented"),

@@ -41,3 +41,4 @@ opt-level = 3
 
 [features]
 check_acyclic=[]
+check_allocated=[]

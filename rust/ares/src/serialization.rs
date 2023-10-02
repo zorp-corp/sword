@@ -1,4 +1,3 @@
-use crate::assert_acyclic;
 use crate::hamt::MutHamt;
 use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
@@ -34,7 +33,6 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     loop {
         if stack.stack_is_empty() {
             let mut result = unsafe { *stack.local_noun_pointer(0) };
-            assert_acyclic!(result);
             unsafe {
                 stack.preserve(&mut result);
                 stack.frame_pop();
@@ -53,12 +51,10 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
                         let reffed_noun = backref_map
                             .lookup(stack, &mut backref_noun)
                             .expect("Invalid backref in cue");
-                        assert_acyclic!(reffed_noun);
                         if let Ok(indirect) = reffed_noun.as_indirect() {
                             debug_assert!(indirect.size() > 0);
                         }
                         *dest_ptr = reffed_noun;
-                        assert_acyclic!(reffed_noun);
                         stack.pop::<*mut Noun>();
                     }
                     continue;

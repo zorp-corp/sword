@@ -104,7 +104,7 @@ impl<T: Copy> MutHamt<T> {
                 mug >>= 5;
                 match (*stem).entry(chunk) {
                     None => {
-                        let new_leaf_buffer = stack.struct_alloc(1);
+                        let new_leaf_buffer = stack.struct_alloc::<(Noun, T)>(1);
                         *new_leaf_buffer = (*n, t);
                         (*stem).bitmap |= chunk_to_bit(chunk);
                         (*stem).typemap &= !chunk_to_bit(chunk);
@@ -480,7 +480,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                 };
                                 *(stem.buffer.add(idx) as *mut Entry<T>) = Entry { stem: new_stem };
                                 assert!(traversal_depth <= 5); // will increment
-                                traversal_stack[traversal_depth - 1].unwrap().1 = position + 1;
+                                traversal_stack[traversal_depth - 1] = Some((stem, position + 1));
                                 traversal_stack[traversal_depth] = Some((new_stem, 0));
                                 traversal_depth += 1;
                                 continue 'preserve;

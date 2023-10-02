@@ -15,6 +15,9 @@ use either::Either::*;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+use crate::assert_acyclic;
+use assert_no_alloc::permit_alloc;
+
 crate::gdb!();
 
 #[derive(Copy, Clone)]
@@ -277,7 +280,15 @@ pub fn interpret(
 
     // Setup stack for Nock computation
     unsafe {
+        // eprintln!("\rserf: interpreter start pre-push:");
+        // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+        // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+        // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
         stack.frame_push(1);
+        // eprintln!("\rserf: interpreter start post-push:");
+        // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+        // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+        // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
         // Bottom of mean stack
         *(stack.local_noun_pointer(0)) = D(0);
         *stack.push() = NockWork::Done;
@@ -301,15 +312,37 @@ pub fn interpret(
             let work: NockWork = *stack.top();
             match work {
                 NockWork::Done => {
+                    permit_alloc(|| { assert_acyclic!(subject); });
                     stack.preserve(&mut cache);
+                    permit_alloc(|| { assert_acyclic!(subject); });
                     stack.preserve(&mut res);
+                    permit_alloc(|| { assert_acyclic!(subject); });
+                    // eprintln!("\rserf: interpreter done pre-pop:");
+                    // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+                    // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+                    // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
                     stack.frame_pop();
+                    // eprintln!("\rserf: interpreter done post-pop:");
+                    // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+                    // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+                    // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
                     break Ok(res);
                 }
                 NockWork::Ret => {
+                    permit_alloc(|| { assert_acyclic!(subject); });
                     stack.preserve(&mut cache);
+                    permit_alloc(|| { assert_acyclic!(subject); });
                     stack.preserve(&mut res);
+                    permit_alloc(|| { assert_acyclic!(subject); });
+                    // eprintln!("\rserf: interpreter ret pre-pop:");
+                    // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+                    // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+                    // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
                     stack.frame_pop();
+                    // eprintln!("\rserf: interpreter ret post-pop:");
+                    // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+                    // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+                    // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
                 }
                 NockWork::WorkCons(mut cons) => match cons.todo {
                     TodoCons::ComputeHead => {
@@ -367,8 +400,16 @@ pub fn interpret(
                                 vale.todo = Todo2::RestoreSubject;
                                 std::mem::swap(&mut vale.subject, &mut subject);
                                 *stack.top() = NockWork::Work2(vale);
+                                // eprintln!("\rserf: interpreter 2 pre-push:");
+                                // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+                                // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+                                // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
                                 mean_frame_push(stack, 0);
                                 *stack.push() = NockWork::Ret;
+                                // eprintln!("\rserf: interpreter 2 post-push:");
+                                // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+                                // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+                                // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
                                 push_formula(stack, res, true)?;
                             }
                         }
@@ -520,8 +561,16 @@ pub fn interpret(
                                     kale.core = subject;
                                     *stack.top() = NockWork::Work9(kale);
                                     subject = res;
+                                    // eprintln!("\rserf: interpreter 9 pre-push:");
+                                    // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+                                    // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+                                    // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
                                     mean_frame_push(stack, 0);
                                     *stack.push() = NockWork::Ret;
+                                    // eprintln!("\rserf: interpreter 9 post-push:");
+                                    // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+                                    // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+                                    // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
                                     push_formula(stack, formula, true)?;
                                 }
                             } else {
@@ -867,10 +916,18 @@ pub fn exit_early(
 ) -> Tone {
     unsafe {
         let mut trace = *(stack.local_noun_pointer(0));
+        // eprintln!("\rserf: interrupted:");
+        // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+        // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+        // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
         while stack.get_frame_pointer() != virtual_frame {
             stack.preserve(&mut trace);
             stack.preserve(cache);
             stack.frame_pop();
+            // eprintln!("\rserf: popped:");
+            // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+            // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+            // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
         }
         Tone::Error(error, trace)
     }

@@ -1,4 +1,3 @@
-use crate::assert_acyclic;
 use crate::mem::*;
 use crate::noun::{Allocated, Atom, DirectAtom, Noun};
 use either::Either::*;
@@ -119,7 +118,6 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
     if let Some(mug) = get_mug(noun) {
         return mug;
     }
-    assert_acyclic!(noun);
     stack.frame_push(0);
     unsafe {
         *(stack.push()) = noun;

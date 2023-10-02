@@ -60,6 +60,9 @@ use std::os::unix::prelude::FromRawFd;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts_mut;
 
+// use crate::assert_acyclic;
+// use assert_no_alloc::permit_alloc;
+
 crate::gdb!();
 
 pub struct Newt {
@@ -81,7 +84,17 @@ impl Newt {
      * problem.
      */
     fn write_noun(&mut self, stack: &mut NockStack, noun: Noun) {
+        // eprintln!("\rserf: pre-jam:");
+        // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+        // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+        // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
+        // permit_alloc(|| { assert_acyclic!(noun); });
         let atom = jam(stack, noun);
+        // eprintln!("\rserf: post-jam:");
+        // eprintln!("\rserf: NockStack frame pointer = {:p}", stack.frame_pointer);
+        // eprintln!("\rserf: NockStack stack pointer = {:p}", stack.stack_pointer);
+        // eprintln!("\rserf: NockStack alloc pointer = {:p}", stack.alloc_pointer);
+        // permit_alloc(|| { assert_acyclic!(noun); });
         let size = atom.size() << 3;
         // XX: checked add?
         let buf = unsafe { from_raw_parts_mut(stack.struct_alloc::<u8>(size + 5), size + 5) };
