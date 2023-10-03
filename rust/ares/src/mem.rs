@@ -833,7 +833,7 @@ unsafe fn senior_pointer_first<T>(
                         // previous allocation pointer
                         high_pointer = alloc_pointer as *const T;
                         // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
-                        low_pointer = (frame_pointer.add(STACK)) as *const T;
+                        low_pointer = *(frame_pointer.add(STACK)) as *const T;
                         continue;
                     } else if stack_pointer > alloc_pointer {
                         stack_pointer = *(frame_pointer.add(STACK)) as *const u64;
@@ -842,7 +842,7 @@ unsafe fn senior_pointer_first<T>(
                         // previous allocation pointer
                         low_pointer = alloc_pointer as *const T;
                         // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
-                        high_pointer = (frame_pointer.sub(STACK + 1)) as *const T;
+                        high_pointer = *(frame_pointer.sub(STACK + 1)) as *const T;
                     } else {
                         panic!("senior_pointer_first: stack_pointer == alloc_pointer");
                     }
