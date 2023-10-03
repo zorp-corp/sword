@@ -825,6 +825,7 @@ unsafe fn senior_pointer_first<T>(
             (false, true) => break (a, b), // b is in the frame, a is not, so a is senior
             (false, false) => {
                 // test to see if the frame under consideration is a west frame
+                #[allow(clippy::comparison_chain)]
                 if stack_pointer < alloc_pointer {
                     stack_pointer = *(frame_pointer.sub(STACK + 1)) as *const u64;
                     alloc_pointer = *(frame_pointer.sub(ALLOC + 1)) as *const u64;
