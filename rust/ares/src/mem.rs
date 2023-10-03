@@ -70,9 +70,9 @@ impl NockStack {
         let stack_pointer = frame_pointer;
         let alloc_pointer = unsafe { start.add(size) } as *mut u64;
         unsafe {
-            *frame_pointer = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
+            *frame_pointer.sub(FRAME) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
             *frame_pointer.sub(STACK) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
-            *frame_pointer.sub(ALLOC) = start as u64; // "alloc pointer" from "previous" frame
+            *frame_pointer.sub(ALLOC) = ptr::null::<u64>() as u64; // "alloc pointer" from "previous" frame
         };
         NockStack {
             start,
@@ -811,6 +811,11 @@ unsafe fn senior_pointer_first<T>(
     };
 
     loop {
+        if low_pointer.is_null() || high_pointer.is_null() {
+            // we found the top of the stack
+            break (a, b); // both are in the bottom frame, pick arbitrarily
+        }
+
         match (
             a < high_pointer && a >= low_pointer,
             b < high_pointer && b >= low_pointer,
@@ -819,33 +824,26 @@ unsafe fn senior_pointer_first<T>(
             (true, false) => break (b, a), // a is in the frame, b is not, so b is senior
             (false, true) => break (a, b), // b is in the frame, a is not, so a is senior
             (false, false) => {
-                // chase up the stack
-                #[allow(clippy::comparison_chain)]
-                if frame_pointer.is_null() {
-                    // we found the top of the stack
-                    break (a, b); // both are in the bottom frame, pick arbitrarily
+                // test to see if the frame under consideration is a west frame
+                if stack_pointer < alloc_pointer {
+                    stack_pointer = *(frame_pointer.sub(STACK + 1)) as *const u64;
+                    alloc_pointer = *(frame_pointer.sub(ALLOC + 1)) as *const u64;
+                    frame_pointer = *(frame_pointer.sub(FRAME + 1)) as *const u64;
+                    // previous allocation pointer
+                    high_pointer = alloc_pointer as *const T;
+                    // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
+                    low_pointer = *(frame_pointer.add(STACK)) as *const T;
+                    continue;
+                } else if stack_pointer > alloc_pointer {
+                    stack_pointer = *(frame_pointer.add(STACK)) as *const u64;
+                    alloc_pointer = *(frame_pointer.add(ALLOC)) as *const u64;
+                    frame_pointer = *(frame_pointer.add(FRAME)) as *const u64;
+                    // previous allocation pointer
+                    low_pointer = alloc_pointer as *const T;
+                    // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
+                    high_pointer = *(frame_pointer.sub(STACK + 1)) as *const T;
                 } else {
-                    // test to see if the frame under consideration is a west frame
-                    if stack_pointer < alloc_pointer {
-                        stack_pointer = *(frame_pointer.sub(STACK + 1)) as *const u64;
-                        alloc_pointer = *(frame_pointer.sub(ALLOC + 1)) as *const u64;
-                        frame_pointer = *(frame_pointer.sub(FRAME + 1)) as *const u64;
-                        // previous allocation pointer
-                        high_pointer = alloc_pointer as *const T;
-                        // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
-                        low_pointer = *(frame_pointer.add(STACK)) as *const T;
-                        continue;
-                    } else if stack_pointer > alloc_pointer {
-                        stack_pointer = *(frame_pointer.add(STACK)) as *const u64;
-                        alloc_pointer = *(frame_pointer.add(ALLOC)) as *const u64;
-                        frame_pointer = *(frame_pointer.add(FRAME)) as *const u64;
-                        // previous allocation pointer
-                        low_pointer = alloc_pointer as *const T;
-                        // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
-                        high_pointer = *(frame_pointer.sub(STACK + 1)) as *const T;
-                    } else {
-                        panic!("senior_pointer_first: stack_pointer == alloc_pointer");
-                    }
+                    panic!("senior_pointer_first: stack_pointer == alloc_pointer");
                 }
             }
         }
