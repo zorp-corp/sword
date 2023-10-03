@@ -433,8 +433,8 @@ impl<T: Copy> Default for Hamt<T> {
 
 impl<T: Copy + Preserve> Preserve for Hamt<T> {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        if stack.is_in_frame(self.0.buffer) {
-            let dest_buffer = stack.struct_alloc_in_previous_frame(self.0.size());
+        if stack.needs_copy(self.0.buffer) {
+            let dest_buffer = stack.struct_alloc(self.0.size());
             copy_nonoverlapping(self.0.buffer, dest_buffer, self.0.size());
             self.0.buffer = dest_buffer;
             // Here we're using the Rust stack since the array is a fixed
@@ -465,9 +465,9 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                             continue 'preserve_stem;
                         }
                         Some((Left(next_stem), idx)) => {
-                            if stack.is_in_frame(next_stem.buffer) {
+                            if stack.needs_copy(next_stem.buffer) {
                                 let dest_buffer =
-                                    stack.struct_alloc_in_previous_frame(next_stem.size());
+                                    stack.struct_alloc(next_stem.size());
                                 copy_nonoverlapping(
                                     next_stem.buffer,
                                     dest_buffer,
@@ -490,8 +490,8 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                             }
                         }
                         Some((Right(leaf), idx)) => {
-                            if stack.is_in_frame(leaf.buffer) {
-                                let dest_buffer = stack.struct_alloc_in_previous_frame(leaf.len);
+                            if stack.needs_copy(leaf.buffer) {
+                                let dest_buffer = stack.struct_alloc(leaf.len);
                                 copy_nonoverlapping(leaf.buffer, dest_buffer, leaf.len);
                                 let new_leaf = Leaf {
                                     len: leaf.len,

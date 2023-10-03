@@ -167,7 +167,8 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
         }
     }
     unsafe {
-        stack.frame_pop();
+        stack.frame_pop_start();
+        stack.frame_pop_finish();
     }
     get_mug(noun).expect("Noun should have a mug once it is mugged.")
 }

@@ -34,8 +34,9 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
         if stack.stack_is_empty() {
             let mut result = unsafe { *stack.local_noun_pointer(0) };
             unsafe {
+                stack.frame_pop_start();
                 stack.preserve(&mut result);
-                stack.frame_pop();
+                stack.frame_pop_finish();
             }
             break result;
         } else {
@@ -217,8 +218,9 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
     }
     unsafe {
         let mut result = state.atom.normalize_as_atom();
+        stack.frame_pop_start();
         stack.preserve(&mut result);
-        stack.frame_pop();
+        stack.frame_pop_finish();
         result
     }
 }
