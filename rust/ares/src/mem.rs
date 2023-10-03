@@ -70,9 +70,9 @@ impl NockStack {
         let stack_pointer = frame_pointer;
         let alloc_pointer = unsafe { start.add(size) } as *mut u64;
         unsafe {
-            *frame_pointer = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
+            *frame_pointer.sub(FRAME) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
             *frame_pointer.sub(STACK) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
-            *frame_pointer.sub(ALLOC) = start as u64; // "alloc pointer" from "previous" frame
+            *frame_pointer.sub(ALLOC) = ptr::null::<u64>() as u64; // "alloc pointer" from "previous" frame
         };
         NockStack {
             start,
@@ -805,6 +805,11 @@ unsafe fn senior_pointer_first(
     };
 
     loop {
+        if low_pointer.is_null() || high_pointer.is_null() {
+            // we found the top of the stack
+            break (a, b); // both are in the bottom frame, pick arbitrarily
+        }
+
         match (
             a < high_pointer && a >= low_pointer,
             b < high_pointer && b >= low_pointer,
