@@ -613,6 +613,7 @@ pub fn interpret(
                         }
                         Todo10::Edit => {
                             res = edit(stack, diet.axis.as_bitslice(), res, diet.tree);
+                            stack.assert_no_junior_pointers(res);
                             stack.pop::<NockWork>();
                         }
                     }
@@ -624,6 +625,7 @@ pub fn interpret(
                         ) {
                             Ok(Some(found)) => {
                                 res = found;
+                                stack.assert_no_junior_pointers(res);
                                 stack.pop::<NockWork>();
                             }
                             Ok(None) => {
@@ -648,6 +650,7 @@ pub fn interpret(
                         ) {
                             Ok(Some(found)) => {
                                 res = found;
+                                stack.assert_no_junior_pointers(res);
                                 stack.pop::<NockWork>();
                             }
                             Ok(None) => {
@@ -675,6 +678,7 @@ pub fn interpret(
                             res,
                         ) {
                             res = found;
+                            stack.assert_no_junior_pointers(res);
                         }
                         stack.pop::<NockWork>();
                     }

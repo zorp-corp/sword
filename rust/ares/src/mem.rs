@@ -355,6 +355,7 @@ impl NockStack {
 
     unsafe fn copy(&mut self, noun: &mut Noun) {
         self.pre_copy();
+        self.assert_no_junior_pointers(*noun);
         assert!(self.stack_is_empty());
         let noun_ptr = noun as *mut Noun;
         // Add two slots to the lightweight stack
@@ -443,6 +444,7 @@ impl NockStack {
             }
         }
         // Set saved previous allocation pointer its new value after this allocation
+        self.assert_no_junior_pointers(*noun);
     }
 
     pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
@@ -681,18 +683,32 @@ impl NockStack {
                     if let Right(c) = a.as_either() {
                         loop { // walk up the stack and if we still enclose then keep walking
                             let (nfp, nsp, nap) =
-                                if sp < ap {
-                                    ( (*fp.sub(FRAME + 1)) as *mut u64,
-                                      (*fp.sub(STACK + 1)) as *mut u64,
-                                      (*fp.sub(ALLOC + 1)) as *mut u64
-                                    )
+                                if !self.pc {
+                                    if sp < ap {
+                                        ( (*fp.sub(FRAME + 1)) as *mut u64,
+                                          (*fp.sub(STACK + 1)) as *mut u64,
+                                          (*fp.sub(ALLOC + 1)) as *mut u64
+                                        )
+                                    } else {
+                                        ( (*fp.add(FRAME)) as *mut u64,
+                                          (*fp.add(STACK)) as *mut u64,
+                                          (*fp.add(ALLOC)) as *mut u64
+                                        )
+                                    }
                                 } else {
-                                    ( (*fp.add(FRAME)) as *mut u64,
-                                      (*fp.add(STACK)) as *mut u64,
-                                      (*fp.add(ALLOC)) as *mut u64
-                                    )
+                                    if sp < ap {
+                                        ( (*ap.sub(FRAME + 1)) as *mut u64,
+                                          (*ap.sub(STACK + 1)) as *mut u64,
+                                          (*ap.sub(ALLOC + 1)) as *mut u64
+                                        )
+                                    } else {
+                                        ( (*ap.add(FRAME)) as *mut u64,
+                                          (*ap.add(STACK)) as *mut u64,
+                                          (*ap.add(ALLOC)) as *mut u64
+                                        )
+                                    }
                                 };
-                            if nfp.is_null() { break; }
+                            if nfp.is_null() || nap.is_null() { break; }
                             let (nlo, nhi) = if nsp < nap { (nsp, nap) } else { (nap, nsp) };
                             if ptr >= nlo && ptr < nhi {
                                 break;
@@ -741,6 +757,8 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
      * into more junior frames, which would result in incorrect operation of the copier.
      */
     // If the nouns are already word-equal we have nothing to do
+    stack.assert_no_junior_pointers(*a);
+    stack.assert_no_junior_pointers(*b);
     if (*a).raw_equals(*b) {
         return true;
     };
@@ -836,6 +854,8 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         }
     }
     stack.frame_pop();
+    stack.assert_no_junior_pointers(*a);
+    stack.assert_no_junior_pointers(*b);
     (*a).raw_equals(*b)
 }
 
