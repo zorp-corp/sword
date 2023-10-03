@@ -5,7 +5,7 @@ use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D, T};
 use ares_macros::tas;
-use assert_no_alloc::assert_no_alloc;
+use assert_no_alloc::{assert_no_alloc, permit_alloc};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
 
@@ -886,7 +886,9 @@ fn match_post_hint(
             if let Some(not) = newt {
                 not.slog(stack, pri, tank);
             } else {
-                println!("slog: {} {}", pri, tank);
+                permit_alloc(|| {
+                    println!("slog: {} {}", pri, tank);
+                });
             }
             Err(())
         }
