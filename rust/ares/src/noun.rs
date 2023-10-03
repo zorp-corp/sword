@@ -411,6 +411,10 @@ impl IndirectAtom {
         unsafe { from_raw_parts(self.data_pointer() as *const u8, self.size() << 3) }
     }
 
+    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
+        unsafe { from_raw_parts_mut(self.data_pointer_mut() as *mut u8, self.size() << 3) }
+    }
+
     /** BitSlice view on an indirect atom, with lifetime tied to reference to indirect atom. */
     pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         BitSlice::from_slice(self.as_slice())
