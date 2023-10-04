@@ -231,7 +231,6 @@ pub fn T<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> Noun {
 pub fn tape<A: NounAllocator>(allocator: &mut A, text: &str) -> Noun {
     //  XX: Needs unit tests
     let mut res = D(0);
-    //  XX: Switch to using Cell::new_raw_mut
     for c in text.bytes().rev() {
         res = T(allocator, &[D(c as u64), res])
     }
