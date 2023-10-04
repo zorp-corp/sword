@@ -1,8 +1,6 @@
 use crate::hamt::Hamt;
-use crate::interpreter::slot_result;
 use crate::mem::{unifying_equality, NockStack, Preserve};
-use crate::noun::{Atom, DirectAtom, Noun, D, T};
-use bitvec::prelude::BitSlice;
+use crate::noun::{Atom, DirectAtom, Noun, D, T, Slots};
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
 
@@ -87,11 +85,11 @@ impl Batteries {
                     };
                 };
             };
-            if let Ok(mut core_battery) = slot_result(core, BitSlice::from_element(&2u64)) {
+            if let Ok(mut core_battery) = core.slot(2) {
                 if unsafe { !unifying_equality(stack, &mut core_battery, battery) } {
                     return false;
                 };
-                if let Ok(core_parent) = slot_result(core, parent_axis.as_bitslice()) {
+                if let Ok(core_parent) = core.slot_atom(parent_axis) {
                     core = core_parent;
                     continue;
                 } else {
@@ -307,7 +305,7 @@ impl Cold {
         parent_axis: Atom,
         mut chum: Noun,
     ) -> Result<bool, ()> {
-        let mut battery = slot_result(core, BitSlice::from_element(&2u64))?;
+        let mut battery = core.slot(2)?;
 
         unsafe {
             // Are we registering a root?
@@ -370,7 +368,7 @@ impl Cold {
                 }
             }
 
-            let mut parent = slot_result(core, parent_axis.as_bitslice())?;
+            let mut parent = core.slot_atom(parent_axis)?;
             // Check if we already registered this core
             if let Some(paths) = (*(self.0)).battery_to_paths.lookup(stack, &mut battery) {
                 for path in paths {
@@ -388,7 +386,7 @@ impl Cold {
                 }
             }
 
-            let mut parent_battery = slot_result(parent, BitSlice::from_element(&2u64))?;
+            let mut parent_battery = parent.slot(2)?;
 
             let mut ret: Result<bool, ()> = Err(()); // err until we actually found a parent
 

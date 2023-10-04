@@ -58,22 +58,22 @@ impl NockStack {
      * The initial frame is a west frame. When the stack is initialized, a number of slots is given.
      * We add three extra slots to store the “previous” frame, stack, and allocation pointer. For the
      * initial frame, the previous allocation pointer is set to the beginning (low boundary) of the
-     * arena, the previous frame pointer is set to NULL, and the previous stack pointer is set to XX */
+     * arena, the previous frame pointer is set to NULL, and the previous stack pointer is set to NULL */
 
-    /** Size is in 64 bit words.
+    /** size is in 64-bit (i.e. 8-byte) words.
      * top_slots is how many slots to allocate to the top stack frame.
      */
     pub fn new(size: usize, top_slots: usize) -> NockStack {
         let memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
         let start = memory.as_ptr() as *const u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
-        let frame_pointer = unsafe { start.add(top_slots + RESERVED) } as *mut u64;
+        let frame_pointer = unsafe { start.add(RESERVED + top_slots) } as *mut u64;
         let stack_pointer = frame_pointer;
         let alloc_pointer = unsafe { start.add(size) } as *mut u64;
         unsafe {
-            *frame_pointer = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
-            *frame_pointer.sub(STACK) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
-            *frame_pointer.sub(ALLOC) = start as u64; // "alloc pointer" from "previous" frame
+            *frame_pointer.sub(1) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
+            *frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
+            *frame_pointer.sub(ALLOC + 1) = start as u64; // "alloc pointer" from "previous" frame
         };
         NockStack {
             start,
@@ -84,6 +84,11 @@ impl NockStack {
             memory,
             pc: false,
         }
+    }
+
+    /** Current frame pointer of this NockStack */
+    pub fn get_frame_pointer(&self) -> *const u64 {
+        self.frame_pointer
     }
 
     /** Checks if the current stack frame has West polarity */
