@@ -8,6 +8,42 @@ use urcrypt_sys::*;
 
 crate::gdb!();
 
+pub fn jet_sha1(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let wid = slot(sam, 2)?.as_atom()?;
+    let dat = slot(sam, 3)?.as_atom()?;
+
+    let mut wdc: DirectAtom;
+    let width = match wid.as_either() {
+        Left(direct) => {
+            wdc = direct.clone();
+            wdc.as_byteslice_mut()
+        }
+        Right(_) => {
+            return Err(JetErr::NonDeterministic);
+        }
+    };
+
+    let mut dat_direct_clone: DirectAtom;
+    let mut dat_indirect_clone: IndirectAtom;
+    let message = match dat.as_either() {
+        Left(direct) => {
+            dat_direct_clone = direct.clone();
+            dat_direct_clone.as_byteslice_mut()
+        }
+        Right(indirect) => {
+            dat_indirect_clone = indirect.clone();
+            dat_indirect_clone.as_mut_bytes()
+        }
+    };
+
+    unsafe {
+        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
+        urcrypt_sha1(message.as_mut_ptr(), width.len(), out.as_mut_ptr());
+        Ok(ida.normalize_as_atom().as_noun())
+    }
+}
+
 pub fn jet_shal(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let wid = slot(sam, 2)?.as_atom()?;
@@ -274,6 +310,46 @@ mod tests {
         assert_jet_err(
             s,
             jet_shal,
+            sam,
+            JetErr::NonDeterministic
+        );
+    }
+
+    #[test]
+    fn test_sha1() {
+        let s = &mut init_stack();
+
+        let sam = T(s, &[D(1), D(1)]);
+        assert_jet_ubig(
+            s,
+            jet_sha1,
+            sam,
+            ubig!(_0xbf8b4530d8d246dd74ac53a13471bba17941dff7)
+        );
+
+        let sam = T(s, &[D(1), D(2)]);
+        assert_jet_ubig(
+            s,
+            jet_sha1,
+            sam,
+            ubig!(_0xc4ea21bb365bbeeaf5f2c654883e56d11e43c44e)
+        );
+
+        let wid = A(s, &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72));
+        let dat = A(s, &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73));
+        let sam = T(s, &[wid, dat]);
+        assert_jet_err(
+            s,
+            jet_sha1,
+            sam,
+            JetErr::NonDeterministic
+        );
+
+        let wid = A(s, &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72));
+        let sam = T(s, &[wid, D(1)]);
+        assert_jet_err(
+            s,
+            jet_sha1,
             sam,
             JetErr::NonDeterministic
         );
