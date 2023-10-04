@@ -191,7 +191,6 @@ impl DirectAtom {
         let bytes: &[u8; 8] = unsafe { std::mem::transmute(self.0) };
         &bytes[..]
     }
-
 }
 
 impl fmt::Display for DirectAtom {
@@ -724,7 +723,6 @@ impl Atom {
             unsafe { self.indirect.as_bytes() }
         }
     }
-
 }
 
 impl fmt::Display for Atom {
