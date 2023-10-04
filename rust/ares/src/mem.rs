@@ -70,9 +70,9 @@ impl NockStack {
         let stack_pointer = frame_pointer;
         let alloc_pointer = unsafe { start.add(size) } as *mut u64;
         unsafe {
-            *frame_pointer.sub(1) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
+            *frame_pointer.sub(FRAME + 1) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
             *frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
-            *frame_pointer.sub(ALLOC + 1) = start as u64; // "alloc pointer" from "previous" frame
+            *frame_pointer.sub(ALLOC + 1) = ptr::null::<u64>() as u64; // "alloc pointer" from "previous" frame
         };
         NockStack {
             start,
@@ -810,17 +810,19 @@ unsafe fn senior_pointer_first(
     };
 
     loop {
+        if low_pointer.is_null() || high_pointer.is_null() {
+            // we found the bottom of the stack; check entirety of the stack
+            low_pointer = stack.start;
+            high_pointer = stack.start.add(stack.size);
+        }
+
         match (
             a < high_pointer && a >= low_pointer,
             b < high_pointer && b >= low_pointer,
         ) {
             (true, true) => {
                 // both pointers are in the same frame, pick arbitrarily (lower in mem)
-                if a < b {
-                    break (a, b);
-                } else {
-                    break (b, a);
-                };
+                break lower_pointer_first(a, b);
             }
             (true, false) => break (b, a), // a is in the frame, b is not, so b is senior
             (false, true) => break (a, b), // b is in the frame, a is not, so a is senior
@@ -833,30 +835,23 @@ unsafe fn senior_pointer_first(
                     alloc_pointer = *(frame_pointer.sub(ALLOC + 1)) as *const u64;
                     frame_pointer = *(frame_pointer.sub(FRAME + 1)) as *const u64;
 
+                    // both pointers are in the PMA, pick arbitrarily (lower in mem)
                     if frame_pointer.is_null() {
-                        if a < b {
-                            break (a, b);
-                        } else {
-                            break (b, a);
-                        }
+                        break lower_pointer_first(a, b);
                     };
 
                     // previous allocation pointer
                     high_pointer = alloc_pointer;
                     // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
                     low_pointer = *(frame_pointer.add(STACK)) as *const u64;
-                    continue;
                 } else if stack_pointer > alloc_pointer {
                     stack_pointer = *(frame_pointer.add(STACK)) as *const u64;
                     alloc_pointer = *(frame_pointer.add(ALLOC)) as *const u64;
                     frame_pointer = *(frame_pointer.add(FRAME)) as *const u64;
 
+                    // both pointers are in the PMA, pick arbitrarily (lower in mem)
                     if frame_pointer.is_null() {
-                        if a < b {
-                            break (a, b);
-                        } else {
-                            break (b, a);
-                        }
+                        break lower_pointer_first(a, b);
                     };
 
                     // previous allocation pointer
@@ -868,6 +863,14 @@ unsafe fn senior_pointer_first(
                 }
             }
         }
+    }
+}
+
+fn lower_pointer_first(a: *const u64, b: *const u64) -> (*const u64, *const u64) {
+    if a < b {
+        (a, b)
+    } else {
+        (b, a)
     }
 }
 
