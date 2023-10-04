@@ -14,12 +14,21 @@ use std::ptr::copy_nonoverlapping;
 use std::ptr::write_bytes;
 
 fn main() -> io::Result<()> {
+    // eprintln!("serf: pid {}", std::process::id());
+    // if unsafe { libc::kill(std::process::id() as i32, libc::SIGSTOP) } != 0 {
+    //     panic!("Could not stop ourselves.");
+    // };
+
     let filename = env::args().nth(1).expect("Must provide input filename");
 
     if filename == "see gdb! definition in lib.rs about this" {
         ares::interpreter::use_gdb();
         ares::jets::use_gdb();
+        ares::jets::bits::use_gdb();
+        ares::jets::hash::use_gdb();
         ares::jets::math::use_gdb();
+        ares::jets::nock::use_gdb();
+        ares::jets::tree::use_gdb();
         ares::mem::use_gdb();
         ares::mug::use_gdb();
         ares::newt::use_gdb();
@@ -52,7 +61,8 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let result = interpret(&mut stack, &mut None, input_cell.head(), input_cell.tail());
+    let result = interpret(&mut stack, &mut None, input_cell.head(), input_cell.tail())
+        .expect("nock failed");
     if let Ok(atom) = result.as_atom() {
         println!("Result: {}", atom);
     }
