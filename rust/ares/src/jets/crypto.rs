@@ -8,6 +8,42 @@ use urcrypt_sys::*;
 
 crate::gdb!();
 
+pub fn jet_shal(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let wid = slot(sam, 2)?.as_atom()?;
+    let dat = slot(sam, 3)?.as_atom()?;
+
+    let mut wdc: DirectAtom;
+    let width = match wid.as_either() {
+        Left(direct) => {
+            wdc = direct.clone();
+            wdc.as_byteslice_mut()
+        }
+        Right(_) => {
+            return Err(JetErr::NonDeterministic);
+        }
+    };
+
+    let dat_direct_clone: DirectAtom;
+    let dat_indirect_clone: IndirectAtom;
+    let message = match dat.as_either() {
+        Left(direct) => {
+            dat_direct_clone = direct.clone();
+            dat_direct_clone.as_byteslice()
+        }
+        Right(indirect) => {
+            dat_indirect_clone = indirect.clone();
+            dat_indirect_clone.as_bytes()
+        }
+    };
+
+    unsafe {
+        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        urcrypt_shal(message.as_ptr(), width.len(), out.as_mut_ptr());
+        Ok(ida.normalize_as_atom().as_noun())
+    }
+}
+
 pub fn jet_shas(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let sal = slot(sam, 2)?.as_atom()?;
@@ -200,6 +236,46 @@ mod tests {
             jet_shas,
             sam,
             ubig!(_0xf7569a89650553ef13f9a8f0bb751fd42b70a4821be6bc1cbe197af33ce4843c)
+        );
+    }
+
+    #[test]
+    fn test_shal() {
+        let s = &mut init_stack();
+
+        let sam = T(s, &[D(1), D(1)]);
+        assert_jet_ubig(
+            s,
+            jet_shal,
+            sam,
+            ubig!(_0x39e3d936c6e31eaac08fcfcfe7bb443460c61c0bd5b74408c8bcc35a6b8d6f5700bdcddeaa4b466ae65f8fb67f67ca62dc34149e1d44d213ddfbc13668b6547b)
+        );
+
+        let sam = T(s, &[D(1), D(2)]);
+        assert_jet_ubig(
+            s,
+            jet_shal,
+            sam,
+            ubig!(_0xcadc698fca01cf2935f760278554b4e61f35453975a5bb45389003159bc8485b7018dd8152d9cc23b6e9dd91b107380b9d14ddbf9cc037ee53a857b6c948b8fa)
+        );
+
+        let wid = A(s, &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72));
+        let dat = A(s, &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73));
+        let sam = T(s, &[wid, dat]);
+        assert_jet_err(
+            s,
+            jet_shal,
+            sam,
+            JetErr::NonDeterministic
+        );
+
+        let wid = A(s, &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72));
+        let sam = T(s, &[wid, D(1)]);
+        assert_jet_err(
+            s,
+            jet_shal,
+            sam,
+            JetErr::NonDeterministic
         );
     }
 }
