@@ -28,32 +28,16 @@
   +$  wynn  (list weft)
   ::  mutually recursive Ackermann functions
   ::  test turning %spot hints on/off
-  ++  wack
+  ++  ack
     ::  re-enable %spot hints
     !:
     |=  [m=@ud n=@ud]
-    ::  %mean hint
-    ~_  [%leaf "I am a %mean hint via ~_ from +wack"]
-    ::  %hela hint
-    ~>  %hela
     ::  %memo hint
     ~+
     ?~  m  +(n)
     ?~  n
-      (tack (dec m) 1)
-    (tack (dec m) $(n (dec n)))
-  ++  tack
-    ::  disable %spot hints
-    !.
-    |=  [m=@ud n=@ud]
-    ::  %hela hint
-    ~>  %hela
-    ::  %memo hint
-    ~+
-    ?~  m  +(n)
-    ?~  n
-      (wack (dec m) 1)
-    (wack (dec m) $(n (dec n)))
+      (ack (dec m) 1)
+    (ack (dec m) $(n (dec n)))
   ++  slow
     |=  x=@ud
     !:
@@ -82,7 +66,7 @@
       ~>  %mean.'pith: bad wasp'
       ;;(wasp card.ovo)
     ?+  -.buz
-      ~>  %slog.[0 leaf+(scow %ud (wack 1 1))]
+      ~>  %slog.[0 leaf+(scow %ud (ack 2 1))]
       [~ ..poke]
     ::
       %crud
