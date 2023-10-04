@@ -253,7 +253,6 @@ pub fn interpret(
         // Bottom of mean stack
         *(stack.local_noun_pointer(0)) = D(0);
         *stack.push() = NockWork::Done;
-        push_formula(stack, formula, true)?;
     };
 
     // DO NOT REMOVE THIS ASSERTION
@@ -268,6 +267,8 @@ pub fn interpret(
     //
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     let tone = assert_no_alloc(|| unsafe {
+        push_formula(stack, formula, true)?;
+
         loop {
             let work: NockWork = *stack.top();
             match work {

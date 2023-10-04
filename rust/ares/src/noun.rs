@@ -593,6 +593,7 @@ impl Slots for Cell {}
 impl private::RawSlots for Cell {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         let mut noun: Noun = self.as_noun();
+        // Panic because all of the logic to guard against this is in Noun::RawSlots, Noun::Slots
         let mut cursor = axis.last_one().expect("raw_slow somehow by-passed 0 check");
 
         while cursor != 0 {
@@ -1092,7 +1093,12 @@ impl private::RawSlots for Noun {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         match self.as_either_atom_cell() {
             Right(cell) => cell.raw_slot(axis),
-            Left(_atom) => Err(Error::NotCell), // Axis tried to descend through atom
+            Left(_atom) => if axis.last_one() == 0 {
+                Ok(self)
+            } else {
+                // Axis tried to descend through atom
+                Err(Error::NotCell)
+            }
         }
     }
 }
@@ -1132,17 +1138,7 @@ pub trait Slots: private::RawSlots {
      * Retrieve component Noun at axis given as Atom, or fail with descriptive error
      */
     fn slot_atom(&self, atom: Atom) -> Result<Noun> {
-        atom.as_either().either(
-            |d| self.slot(d.data()),
-            |i| {
-                if unsafe { i.as_noun().raw_equals(D(0)) } {
-                    // 0 is not allowed as an axis
-                    Err(Error::NotRepresentable)
-                } else {
-                    self.raw_slot(i.as_bitslice())
-                }
-            },
-        )
+        self.raw_slot(atom.as_bitslice())
     }
 }
 
