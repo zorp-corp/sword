@@ -1,8 +1,8 @@
 use crate::interpreter::{interpret, NockErr};
-use crate::jets::nock::util::mook;
-use crate::jets::text::util::lent;
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
+use crate::jets::nock::util::mook;
+use crate::jets::text::util::lent;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::mug::mug_u32;

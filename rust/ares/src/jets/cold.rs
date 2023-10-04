@@ -1,6 +1,6 @@
 use crate::hamt::Hamt;
 use crate::mem::{unifying_equality, NockStack, Preserve};
-use crate::noun::{Atom, DirectAtom, Noun, D, T, Slots};
+use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
 

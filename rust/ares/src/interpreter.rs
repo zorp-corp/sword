@@ -2,8 +2,8 @@ use crate::hamt::Hamt;
 use crate::jets;
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
-use crate::jets::warm::Warm;
 use crate::jets::nock::util::mook;
+use crate::jets::warm::Warm;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -544,7 +544,8 @@ pub fn interpret(
                 NockWork::Work11D(mut dint) => match dint.todo {
                     Todo11D::ComputeHint => {
                         if let Some(found) = match_hint_pre_hint(
-                            stack, newt, cold, warm, hot, &cache, subject, dint.tag, dint.hint, dint.body,
+                            stack, newt, cold, warm, hot, &cache, subject, dint.tag, dint.hint,
+                            dint.body,
                         ) {
                             res = found;
                             stack.pop::<NockWork>();
@@ -615,7 +616,8 @@ pub fn interpret(
                     }
                     Todo11S::Done => {
                         if let Some(found) = match_hint_post_nock(
-                            stack, &mut cache, cold, warm, hot, subject, sint.tag, None, sint.body, res,
+                            stack, &mut cache, cold, warm, hot, subject, sint.tag, None, sint.body,
+                            res,
                         ) {
                             res = found;
                         }
@@ -977,7 +979,7 @@ fn match_hint_pre_hint(
     match tag.direct()?.data() {
         // %sham hints are scaffolding until we have a real jet dashboard
         tas!(b"sham") => {
-            if cfg!(feature="sham_hints") {
+            if cfg!(feature = "sham_hints") {
                 let jet_formula = hint.cell()?;
                 // XX: what is the head here?
                 let jet_name = jet_formula.tail();
@@ -991,17 +993,18 @@ fn match_hint_pre_hint(
                         interpret(stack, newt, cold, warm, hot, subject, body)
                             .ok()
                             .map(|mut nock_res| {
-                                if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
+                                if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) }
+                                {
                                     eprintln!(
                                         "\rJet {} failed, raw: {}, jetted: {}",
                                         jet_name, nock_res, jet_res
-                                        );
+                                    );
                                     None
                                 } else {
                                     Some(jet_res)
                                 }
                             })
-                        .unwrap()
+                            .unwrap()
                     } else {
                         Some(jet_res)
                     }

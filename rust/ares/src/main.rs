@@ -67,8 +67,16 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let result = interpret(&mut stack, &mut None, &mut cold, &mut warm, hot, input_cell.head(), input_cell.tail())
-        .expect("nock failed");
+    let result = interpret(
+        &mut stack,
+        &mut None,
+        &mut cold,
+        &mut warm,
+        hot,
+        input_cell.head(),
+        input_cell.tail(),
+    )
+    .expect("nock failed");
     if let Ok(atom) = result.as_atom() {
         println!("Result: {}", atom);
     }
