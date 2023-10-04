@@ -1105,11 +1105,13 @@ impl private::RawSlots for Noun {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         match self.as_either_atom_cell() {
             Right(cell) => cell.raw_slot(axis),
-            Left(_atom) => if axis.last_one() == 0 {
-                Ok(self)
-            } else {
-                // Axis tried to descend through atom
-                Err(Error::NotCell)
+            Left(_atom) => {
+                if axis.last_one() == Some(0) {
+                    Ok(*self)
+                } else {
+                    // Axis tried to descend through atom
+                    Err(Error::NotCell)
+                }
             }
         }
     }
