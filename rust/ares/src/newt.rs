@@ -58,6 +58,7 @@ use either::Either;
 use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
 use std::ptr::copy_nonoverlapping;
+use std::slice::from_raw_parts_mut;
 
 crate::gdb!();
 
@@ -82,7 +83,9 @@ impl Newt {
     fn write_noun(&mut self, stack: &mut NockStack, noun: Noun) {
         let atom = jam(stack, noun);
         let size = atom.size() << 3;
-        let mut buf = vec![0u8; size + 5];
+        // XX: checked add?
+        let buf = unsafe { from_raw_parts_mut(stack.struct_alloc::<u8>(size + 5), size + 5) };
+        buf[0] = 0u8;
         buf[1] = size as u8;
         buf[2] = (size >> 8) as u8;
         buf[3] = (size >> 16) as u8;
@@ -104,7 +107,7 @@ impl Newt {
                 );
             },
         };
-        self.output.write_all(&buf).unwrap();
+        self.output.write_all(buf).unwrap();
     }
 
     /** Send %ripe, the first event. */

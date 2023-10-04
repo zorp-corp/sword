@@ -1,4 +1,6 @@
-::  A trivial working pill which requires no jets
+::  A trivial working pill which requires no jets. Requires cradle.hoon
+::  from this scaffolding directory.
+::
 /+  cradle
 !.
 =/  core
