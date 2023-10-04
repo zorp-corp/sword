@@ -528,6 +528,16 @@ impl NockStack {
         self.stack_pointer = prev_stack_ptr;
         self.alloc_pointer = prev_alloc_ptr;
 
+        if self.frame_pointer.is_null()
+            || self.stack_pointer.is_null()
+            || self.alloc_pointer.is_null()
+        {
+            panic!(
+                "serf: frame_pop: null NockStack pointer f={:p} s={:p} a={:p}",
+                self.frame_pointer, self.stack_pointer, self.alloc_pointer
+            );
+        }
+
         self.pc = false;
     }
 
@@ -738,7 +748,6 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         ) == 0
                     {
                         let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
-                        // unify
                         if x_as_ptr == junior {
                             *x = *y;
                         } else {
