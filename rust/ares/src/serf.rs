@@ -50,7 +50,7 @@ pub fn serf() -> io::Result<()> {
     // let snap = &mut snapshot::pma::Pma::new(snap_path);
     let snap = &mut snapshot::double_jam::DoubleJam::new(snap_path);
 
-    let stack = &mut NockStack::new(96 << 10 << 10, 0);
+    let stack = &mut NockStack::new(256 << 10 << 10, 0);
     let newt = &mut Newt::new();
 
     let (_epoch, loaded_event_num, mut arvo) = snap.load(stack).unwrap_or((0, 0, D(0)));
