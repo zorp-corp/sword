@@ -550,6 +550,7 @@ pub fn interpret(
                         }
                     }
                     Todo11D::Done => {
+<<<<<<< HEAD
                         if let Some(found) = match_hint_post_nock(
                             stack,
                             &mut cache,
@@ -561,6 +562,10 @@ pub fn interpret(
                         ) {
                             res = found;
                         }
+=======
+                        let hint = Cell::new(stack, dint.tag.as_noun(), dint.hint).as_noun();
+                        let _ = match_post_hinted(stack, subject, hint, res, dint.body, &mut cache);
+>>>>>>> status
                         stack.pop::<NockWork>();
                     }
                 },
@@ -915,6 +920,7 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
     }
 }
 
+<<<<<<< HEAD
 fn is_hint_tail(tag: Atom) -> bool {
     //  XX: handle IndirectAtom tags
     match tag.direct() {
@@ -925,6 +931,53 @@ fn is_hint_tail(tag: Atom) -> bool {
             _ => true,
         },
         None => true,
+=======
+/** Match hints which apply before the formula is evaluated */
+fn match_pre_hint(
+    stack: &mut NockStack,
+    newt: &mut Option<&mut Newt>,
+    subject: Noun,
+    cell: Cell,
+    formula: Noun,
+    cache: &Hamt<Noun>,
+) -> Result<Noun, ()> {
+    let direct = cell.head().as_direct()?;
+    match direct.data() {
+        // %sham hints are scaffolding until we have a real jet dashboard
+        tas!(b"sham") => {
+            let jet_formula = cell.tail().as_cell()?;
+            let jet_name = jet_formula.tail();
+
+            let jet = jets::get_jet(jet_name).ok_or(())?;
+            if let Ok(mut jet_res) = jet(stack, subject) {
+                // if in test mode, check that the jet returns the same result as the raw nock
+                if jets::get_jet_test_mode(jet_name) {
+                    let mut nock_res = interpret(stack, newt, subject, formula);
+                    if unsafe { !unifying_equality(stack, &mut nock_res, &mut jet_res) } {
+                        eprintln!(
+                            "\rJet {} failed, raw: {}, jetted: {}",
+                            jet_name, nock_res, jet_res
+                        );
+                        return Err(());
+                    }
+                }
+                Ok(jet_res)
+            } else {
+                // Print jet errors and punt to Nock
+                eprintln!("\rJet {} failed", jet_name);
+                Err(())
+            }
+        }
+        tas!(b"memo") => {
+            let mut key = Cell::new(stack, subject, formula).as_noun();
+            if let Some(res) = cache.lookup(stack, &mut key) {
+                Ok(res)
+            } else {
+                Err(())
+            }
+        }
+        _ => Err(()),
+>>>>>>> status
     }
 }
 
@@ -1056,6 +1109,13 @@ fn match_hint_pre_nock(
 /** Match static and dynamic hints after the nock formula is evaluated */
 fn match_hint_post_nock(
     stack: &mut NockStack,
+<<<<<<< HEAD
+=======
+    subject: Noun,
+    hint: Noun,
+    formula: Noun,
+    res: Noun,
+>>>>>>> status
     cache: &mut Hamt<Noun>,
     subject: Noun,
     tag: Atom,
@@ -1066,7 +1126,11 @@ fn match_hint_post_nock(
     //  XX: handle IndirectAtom tags
     match tag.direct()?.data() {
         tas!(b"memo") => {
+<<<<<<< HEAD
             let mut key = Cell::new(stack, subject, body).as_noun();
+=======
+            let mut key = Cell::new(stack, subject, formula).as_noun();
+>>>>>>> status
             *cache = cache.insert(stack, &mut key, res);
         }
         tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {

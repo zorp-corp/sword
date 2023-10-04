@@ -186,6 +186,11 @@ impl DirectAtom {
     pub fn as_bitslice_mut(&mut self) -> &mut BitSlice<u64, Lsb0> {
         BitSlice::from_element_mut(&mut self.0)
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        let bytes: &[u8; 8] = unsafe { std::mem::transmute(self.0) };
+        &bytes[..]
+    }
 }
 
 impl fmt::Display for DirectAtom {
@@ -760,6 +765,14 @@ impl Atom {
 
     pub fn as_noun(self) -> Noun {
         Noun { atom: self }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        if self.is_direct() {
+            unsafe { self.direct.as_bytes() }
+        } else {
+            unsafe { self.indirect.as_bytes() }
+        }
     }
 }
 
