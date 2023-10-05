@@ -194,6 +194,11 @@ impl DirectAtom {
     pub fn as_byteslice_mut(&mut self) -> &mut [u8] {
         unsafe { from_raw_parts_mut(&mut self.0 as *mut u64 as *mut u8, word_size_of::<Self>()) }
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        let bytes: &[u8; 8] = unsafe { std::mem::transmute(self.0) };
+        &bytes[..]
+    }
 }
 
 impl fmt::Display for DirectAtom {
@@ -239,7 +244,6 @@ pub fn T<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> Noun {
 pub fn tape<A: NounAllocator>(allocator: &mut A, text: &str) -> Noun {
     //  XX: Needs unit tests
     let mut res = D(0);
-    //  XX: Switch to using Cell::new_raw_mut
     for c in text.bytes().rev() {
         res = T(allocator, &[D(c as u64), res])
     }
@@ -605,6 +609,7 @@ impl Slots for Cell {}
 impl private::RawSlots for Cell {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         let mut noun: Noun = self.as_noun();
+        // Panic because all of the logic to guard against this is in Noun::RawSlots, Noun::Slots
         let mut cursor = axis.last_one().expect("raw_slow somehow by-passed 0 check");
 
         while cursor != 0 {
@@ -774,19 +779,11 @@ impl Atom {
         Noun { atom: self }
     }
 
-    pub fn word(self, a: u64) -> u64 {
+    pub fn as_bytes(&self) -> &[u8] {
         if self.is_direct() {
-            if a > 0 {
-                0
-            } else {
-                self.as_direct().unwrap().data()
-            }
+            unsafe { self.direct.as_bytes() }
         } else {
-            if (a as usize) > self.size() {
-                0
-            } else {
-                unsafe { *(self.data_pointer().add(a as usize)) }
-            }
+            unsafe { self.indirect.as_bytes() }
         }
     }
 }
@@ -1120,7 +1117,14 @@ impl private::RawSlots for Noun {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         match self.as_either_atom_cell() {
             Right(cell) => cell.raw_slot(axis),
-            Left(_atom) => Err(Error::NotCell), // Axis tried to descend through atom
+            Left(_atom) => {
+                if axis.last_one() == Some(0) {
+                    Ok(*self)
+                } else {
+                    // Axis tried to descend through atom
+                    Err(Error::NotCell)
+                }
+            }
         }
     }
 }
@@ -1160,17 +1164,7 @@ pub trait Slots: private::RawSlots {
      * Retrieve component Noun at axis given as Atom, or fail with descriptive error
      */
     fn slot_atom(&self, atom: Atom) -> Result<Noun> {
-        atom.as_either().either(
-            |d| self.slot(d.data()),
-            |i| {
-                if unsafe { i.as_noun().raw_equals(D(0)) } {
-                    // 0 is not allowed as an axis
-                    Err(Error::NotRepresentable)
-                } else {
-                    self.raw_slot(i.as_bitslice())
-                }
-            },
-        )
+        self.raw_slot(atom.as_bitslice())
     }
 }
 
