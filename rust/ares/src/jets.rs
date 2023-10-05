@@ -3,6 +3,7 @@ pub mod form;
 pub mod hash;
 pub mod math;
 pub mod nock;
+pub mod order;
 pub mod text;
 pub mod tree;
 
@@ -11,6 +12,7 @@ use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
+use crate::jets::order::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
 use crate::mem::NockStack;
@@ -87,6 +89,10 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"scow") => Some(jet_scow),
         //
         tas!(b"mink") => Some(jet_mink),
+        //
+        tas!(b"dor") => Some(jet_dor),
+        tas!(b"gor") => Some(jet_gor),
+        tas!(b"mor") => Some(jet_mor),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None

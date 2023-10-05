@@ -303,6 +303,29 @@ pub fn jet_sub(
     Ok(sub(stack, a, b)?.as_noun())
 }
 
+pub mod util {
+    use crate::noun::{Atom, Noun, YES, NO};
+    use crate::mem::NockStack;
+
+    pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            if a.data() < b.data() {
+                YES
+            } else {
+                NO
+            }
+        } else if a.bit_size() < b.bit_size() {
+            YES
+        } else if a.bit_size() > b.bit_size() {
+            NO
+        } else if a.as_ubig(stack) < b.as_ubig(stack) {
+            YES
+        } else {
+            NO
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
