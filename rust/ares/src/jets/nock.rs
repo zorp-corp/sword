@@ -1,15 +1,16 @@
 /** Virtualization jets
  */
-use crate::interpreter::{interpret, NockErr};
+use crate::interpreter::{interpret, NockErr, Tone};
 use crate::jets;
 use crate::jets::util::slot;
+use crate::jets::JetErr;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Noun, D, T};
 
 crate::gdb!();
 
-// XX: interpret should accept optional scry function and potentially produce blocked
+//  XX: interpret should accept optional scry function and potentially produce blocked
 pub fn jet_mink(
     stack: &mut NockStack,
     newt: &mut Option<&mut Newt>,
@@ -22,12 +23,15 @@ pub fn jet_mink(
     let v_formula = slot(arg, 5)?;
     let _scry = slot(arg, 3)?;
 
-    //  XX: NonDeterministic errors need to bail here, too
+    //  XX: no partial traces; all of our traces go down to the "home road"
     match interpret(stack, newt, v_subject, v_formula) {
         Ok(res) => Ok(T(stack, &[D(0), res])),
         Err(err) => match err {
-            NockErr::Blocked(block) => Ok(T(stack, &[D(1), block])),
-            NockErr::Error(error) => Ok(T(stack, &[D(2), error])),
+            Tone::Blocked(block) => Ok(T(stack, &[D(1), block])),
+            Tone::Error(err, trace) => match err {
+                NockErr::Deterministic => Ok(T(stack, &[D(2), trace])),
+                NockErr::NonDeterministic => Err(JetErr::NonDeterministic),
+            },
         },
     }
 }
@@ -252,6 +256,21 @@ pub mod util {
 mod tests {
     use super::*;
     use crate::jets::util::test::{assert_jet, init_stack};
+    use crate::serf::TERMINATOR;
+    use std::sync::Arc;
+
+    #[test]
+    fn init() {
+        // This needs to be done because TERMINATOR is lazy allocated, and if you don't
+        // do it before you call the unit tests it'll get allocated on the Rust heap
+        // inside an assert_no_alloc block.
+        //
+        // Also Rust has no primitive for pre-test setup / post-test teardown, so we
+        // do it in a test that we rely on being called before any other in this file,
+        // since we're already using single-threaded test mode to avoid race conditions
+        // (because Rust doesn't support test order dependencies either).
+        let _ = Arc::clone(&TERMINATOR);
+    }
 
     #[test]
     fn test_mink_success() {
