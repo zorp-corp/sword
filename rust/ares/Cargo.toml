@@ -9,6 +9,7 @@ edition = "2018"
 # [patch.crates-io]
 # ibig = { path = "../ibig-rs" }
 
+# Please keep these alphabetized
 [dependencies]
 ares_macros = { path = "../ares_macros" }
 assert_no_alloc = "1.1.2"
