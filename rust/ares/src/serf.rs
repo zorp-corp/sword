@@ -35,7 +35,7 @@ lazy_static! {
  * u3_lord_init in vere to point at this binary and start vere like normal.
  */
 pub fn serf() -> io::Result<()> {
-    // Register SIGTERM signal hook to set flag first time, shutdown second time
+    // Register SIGINT signal hook to set flag first time, shutdown second time
     signal_hook::flag::register_conditional_shutdown(SIGINT, 1, Arc::clone(&TERMINATOR))?;
     signal_hook::flag::register(SIGINT, Arc::clone(&TERMINATOR))?;
 
