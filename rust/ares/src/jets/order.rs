@@ -92,12 +92,14 @@ pub mod util {
                 if b.is_atom() {
                     Ok(NO)
                 } else {
-                    let a = slot(a, 2).unwrap();
-                    let b = slot(b, 2).unwrap();
-                    if unsafe { a.raw_equals(b) } {
-                        Ok(dor(stack, slot(a, 3)?, slot(b, 3)?)?)
+                    let a_head = slot(a, 2)?;
+                    let b_head = slot(b, 2)?;
+                    let a_tail = slot(a, 3)?;
+                    let b_tail = slot(b, 3)?;
+                    if unsafe { a_head.raw_equals(b_head) } {
+                        Ok(dor(stack, a_tail, b_tail)?)
                     } else {
-                        Ok(dor(stack, slot(a, 2)?, slot(b, 2)?)?)
+                        Ok(dor(stack, a_head, b_head)?)
                     }
                 }
             }
