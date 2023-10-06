@@ -8,13 +8,14 @@ pub mod text;
 pub mod tree;
 
 use crate::jets::bits::*;
-use crate::jets::crypto::*;
 use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
+use crate::jets::crypto::ed::*;
+use crate::jets::crypto::sha::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots};
@@ -89,12 +90,14 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"scow") => Some(jet_scow),
         //
         tas!(b"mink") => Some(jet_mink),
-        //
+        // sha
         tas!(b"sha1") => Some(jet_sha1),
         tas!(b"shal") => Some(jet_shal),
         tas!(b"shas") => Some(jet_shas),
         tas!(b"shax") => Some(jet_shax),
         tas!(b"shay") => Some(jet_shay),
+        // ed
+        tas!(b"puck") => Some(jet_puck),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None
