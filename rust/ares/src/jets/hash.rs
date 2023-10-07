@@ -1,17 +1,16 @@
-use crate::jets::util::*;
 /** Hash jets
  */
+use crate::interpreter::Context;
+use crate::jets::util::*;
 use crate::jets::Result;
-use crate::mem::NockStack;
 use crate::mug::mug;
-use crate::newt::Newt;
 use crate::noun::Noun;
 
 crate::gdb!();
 
-pub fn jet_mug(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+pub fn jet_mug(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
-    Ok(mug(stack, arg).as_noun())
+    Ok(mug(context.stack, arg).as_noun())
 }
 
 #[cfg(test)]
