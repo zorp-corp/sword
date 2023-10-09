@@ -1,5 +1,5 @@
 pub mod bits;
-pub mod crypto;
+pub mod lock;
 pub mod form;
 pub mod hash;
 pub mod math;
@@ -14,8 +14,8 @@ use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
-use crate::jets::crypto::ed::*;
-use crate::jets::crypto::sha::*;
+use crate::jets::lock::ed::*;
+use crate::jets::lock::sha::*;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots};
