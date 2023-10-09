@@ -1,4 +1,4 @@
-/** Ordering jets
+/** Sorting jets
  */
 use crate::jets;
 use crate::jets::util::slot;

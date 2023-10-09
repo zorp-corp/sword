@@ -3,7 +3,7 @@ pub mod form;
 pub mod hash;
 pub mod math;
 pub mod nock;
-pub mod order;
+pub mod sort;
 pub mod text;
 pub mod tree;
 
@@ -12,7 +12,7 @@ use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
-use crate::jets::order::*;
+use crate::jets::sort::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
 use crate::mem::NockStack;
