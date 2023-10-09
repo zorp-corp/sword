@@ -1,7 +1,7 @@
-use crate::jets::util::slot;
 /** Text processing jets
  */
 use crate::jets::Result;
+use crate::jets::util::slot;
 use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{Noun, D};

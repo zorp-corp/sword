@@ -1,8 +1,7 @@
-use crate::jets::util::slot;
-/** Text processing jets
+/** Ordering jets
  */
 use crate::jets;
-use crate::jets::order::util::dor;
+use crate::jets::util::slot;
 use crate::mem::NockStack;
 use crate::mug::mug;
 use crate::newt::Newt;
@@ -26,7 +25,7 @@ pub fn jet_mor(
     let f = mug(stack, d.as_noun());
 
     if e.data() == f.data() {
-        dor(stack, a, b)
+        util::dor(stack, a, b)
     } else {
         if e.data() < f.data() {
             Ok(YES)
@@ -49,7 +48,7 @@ pub fn jet_gor(
     let d = mug(stack, b);
 
     if c.data() == d.data() {
-        dor(stack, a, b)
+        util::dor(stack, a, b)
     } else {
         if c.data() < d.data() {
             Ok(YES)
@@ -68,7 +67,7 @@ pub fn jet_dor(
     let a = slot(sam, 2)?;
     let b = slot(sam, 3)?;
 
-    dor(stack, a, b)
+    util::dor(stack, a, b)
 }
 
 pub mod util {
@@ -84,7 +83,7 @@ pub mod util {
         } else {
             if a.is_atom() {
                 if b.is_atom() {
-                    Ok(lth(stack, a.as_atom()?, b.as_atom()?))
+                    lth(stack, a.as_atom()?, b.as_atom()?)
                 } else {
                     Ok(YES)
                 }
