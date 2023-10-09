@@ -1,10 +1,9 @@
 /** Bit arithmetic & logic jets
  */
-use crate::jets;
+use crate::interpreter::Context;
 use crate::jets::util::*;
 use crate::jets::JetErr::*;
-use crate::mem::NockStack;
-use crate::newt::Newt;
+use crate::jets::Result;
 use crate::noun::{DirectAtom, IndirectAtom, Noun, D};
 use std::cmp;
 
@@ -14,20 +13,12 @@ crate::gdb!();
  * Bit arithmetic
  */
 
-pub fn jet_bex(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_bex(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?.as_direct()?.data() as usize;
-    Ok(bex(stack, arg).as_noun())
+    Ok(bex(context.stack, arg).as_noun())
 }
 
-pub fn jet_can(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_can(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let bloq = bloq(slot(arg, 2)?)?;
     let original_list = slot(arg, 3)?;
@@ -52,7 +43,7 @@ pub fn jet_can(
     } else {
         unsafe {
             let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+                IndirectAtom::new_raw_mut_bitslice(context.stack, bite_to_word(bloq, len)?);
             let mut pos = 0;
             let mut list = original_list;
             loop {
@@ -74,11 +65,7 @@ pub fn jet_can(
     }
 }
 
-pub fn jet_cat(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_cat(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let bloq = bloq(slot(arg, 2)?)?;
     let a = slot(arg, 6)?.as_atom()?;
@@ -91,7 +78,8 @@ pub fn jet_cat(
         Ok(a.as_noun())
     } else {
         unsafe {
-            let (mut new_indirect, new_slice) = IndirectAtom::new_raw_mut_bitslice(stack, new_len);
+            let (mut new_indirect, new_slice) =
+                IndirectAtom::new_raw_mut_bitslice(context.stack, new_len);
             chop(bloq, 0, len_a, 0, new_slice, a.as_bitslice())?;
             chop(bloq, 0, len_b, len_a, new_slice, b.as_bitslice())?;
             Ok(new_indirect.normalize_as_atom().as_noun())
@@ -99,11 +87,7 @@ pub fn jet_cat(
     }
 }
 
-pub fn jet_cut(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_cut(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let bloq = bloq(slot(arg, 2)?)?;
     let start = slot(arg, 12)?.as_direct()?.data() as usize;
@@ -116,18 +100,14 @@ pub fn jet_cut(
 
     let new_indirect = unsafe {
         let (mut new_indirect, new_slice) =
-            IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, run)?);
+            IndirectAtom::new_raw_mut_bitslice(context.stack, bite_to_word(bloq, run)?);
         chop(bloq, start, run, 0, new_slice, atom.as_bitslice())?;
         new_indirect.normalize_as_atom()
     };
     Ok(new_indirect.as_noun())
 }
 
-pub fn jet_end(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_end(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
@@ -139,18 +119,14 @@ pub fn jet_end(
     } else {
         unsafe {
             let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, step)?);
+                IndirectAtom::new_raw_mut_bitslice(context.stack, bite_to_word(bloq, step)?);
             chop(bloq, 0, step, 0, new_slice, a.as_bitslice())?;
             Ok(new_indirect.normalize_as_atom().as_noun())
         }
     }
 }
 
-pub fn jet_lsh(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_lsh(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
@@ -162,17 +138,13 @@ pub fn jet_lsh(
 
     let new_size = bits_to_word(checked_add(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
     unsafe {
-        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(context.stack, new_size);
         chop(bloq, 0, len, step, dest, a.as_bitslice())?;
         Ok(atom.normalize_as_atom().as_noun())
     }
 }
 
-pub fn jet_met(
-    _stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_met(_context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let bloq = bloq(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
@@ -180,11 +152,7 @@ pub fn jet_met(
     Ok(D(met(bloq, a) as u64))
 }
 
-pub fn jet_rap(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_rap(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let bloq = bloq(slot(arg, 2)?)?;
     let original_list = slot(arg, 3)?;
@@ -207,7 +175,7 @@ pub fn jet_rap(
     } else {
         unsafe {
             let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+                IndirectAtom::new_raw_mut_bitslice(context.stack, bite_to_word(bloq, len)?);
             let mut pos = 0;
             let mut list = original_list;
 
@@ -230,11 +198,7 @@ pub fn jet_rap(
     }
 }
 
-pub fn jet_rep(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_rep(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let original_list = slot(arg, 3)?;
@@ -257,7 +221,7 @@ pub fn jet_rep(
     } else {
         unsafe {
             let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+                IndirectAtom::new_raw_mut_bitslice(context.stack, bite_to_word(bloq, len)?);
             let mut pos = 0;
             let mut list = original_list;
             loop {
@@ -277,11 +241,7 @@ pub fn jet_rep(
     }
 }
 
-pub fn jet_rev(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_rev(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let boz = slot(arg, 2)?.as_atom()?.as_direct()?.data();
 
@@ -301,7 +261,7 @@ pub fn jet_rev(
     let mut output = if dat.is_direct() && bits < 64 {
         unsafe { DirectAtom::new_unchecked(0).as_atom() }
     } else {
-        unsafe { IndirectAtom::new_raw(stack, ((bits + 7) / 8) as usize, &0).as_atom() }
+        unsafe { IndirectAtom::new_raw(context.stack, ((bits + 7) / 8) as usize, &0).as_atom() }
     };
 
     let src = dat.as_bitslice();
@@ -317,22 +277,14 @@ pub fn jet_rev(
     Ok(unsafe { output.normalize() }.as_noun())
 }
 
-pub fn jet_rip(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_rip(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let atom = slot(arg, 3)?.as_atom()?;
-    rip(stack, bloq, step, atom)
+    rip(context.stack, bloq, step, atom)
 }
 
-pub fn jet_rsh(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_rsh(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
@@ -344,7 +296,7 @@ pub fn jet_rsh(
 
     let new_size = bits_to_word(checked_sub(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
     unsafe {
-        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(context.stack, new_size);
         chop(bloq, step, len - step, 0, dest, a.as_bitslice())?;
         Ok(atom.normalize_as_atom().as_noun())
     }
@@ -354,23 +306,15 @@ pub fn jet_rsh(
  * Bit logic
  */
 
-pub fn jet_con(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_con(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(con(stack, a, b).as_noun())
+    Ok(con(context.stack, a, b).as_noun())
 }
 
-pub fn jet_dis(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_dis(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -378,7 +322,7 @@ pub fn jet_dis(
     let new_size = cmp::max(a.size(), b.size());
 
     unsafe {
-        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(context.stack, new_size);
         let a_bit = a.as_bitslice();
         dest[..a_bit.len()].copy_from_bitslice(a_bit);
         *dest &= b.as_bitslice();
@@ -386,11 +330,7 @@ pub fn jet_dis(
     }
 }
 
-pub fn jet_mix(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_mix(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -398,7 +338,7 @@ pub fn jet_mix(
     let new_size = cmp::max(a.size(), b.size());
 
     unsafe {
-        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(context.stack, new_size);
         let a_bit = a.as_bitslice();
         dest[..a_bit.len()].copy_from_bitslice(a_bit);
         *dest ^= b.as_bitslice();
