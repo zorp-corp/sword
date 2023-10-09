@@ -60,18 +60,7 @@ pub fn jet_shal(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
         }
     };
 
-    let dat_direct_clone: DirectAtom;
-    let dat_indirect_clone: IndirectAtom;
-    let message = match dat.as_either() {
-        Left(direct) => {
-            dat_direct_clone = direct.clone();
-            dat_direct_clone.as_byteslice()
-        }
-        Right(indirect) => {
-            dat_indirect_clone = indirect.clone();
-            dat_indirect_clone.as_bytes()
-        }
-    };
+    let message = dat.as_bytes();
 
     unsafe {
         let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);

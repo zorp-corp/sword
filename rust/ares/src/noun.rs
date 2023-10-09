@@ -196,8 +196,7 @@ impl DirectAtom {
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        let bytes: &[u8; 8] = unsafe { std::mem::transmute(self.0) };
-        &bytes[..]
+        self.as_byteslice()
     }
 }
 
