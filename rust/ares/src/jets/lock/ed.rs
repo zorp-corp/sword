@@ -7,6 +7,45 @@ use urcrypt_sys::*;
 
 crate::gdb!();
 
+pub fn jet_sign(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let message = slot(sam, 2)?.as_atom()?;
+    let seed = slot(sam, 3)?.as_atom()?;
+
+    unsafe {
+        let mut msg_bytes = message.as_bytes();
+        // TODO: absolutely disgusting
+        // remove the leading/trailing 0s
+        while msg_bytes.len() > 0 && msg_bytes[msg_bytes.len() - 1] == 0 {
+            msg_bytes = &msg_bytes[..msg_bytes.len() - 1];
+        }
+        while msg_bytes.len() > 0 && msg_bytes[0] == 0 {
+            msg_bytes = &msg_bytes[1..];
+        }
+        let msg_len = msg_bytes.len();
+        let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
+        for i in 0..msg_len {
+            msg[i] = msg_bytes[i];
+        }
+
+        let (mut _sed_ida, sed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        let sed_bytes = seed.as_bytes();
+        let sed_len = sed_bytes.len();
+        if sed_len > 32 {
+            return Err(JetErr::Deterministic);
+        }
+        for i in 0..sed_len {
+            sed[i] = sed_bytes[i];
+        }
+
+        let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        urcrypt_ed_sign(msg.as_ptr(), msg_len, sed.as_ptr(), sig.as_mut_ptr());
+        sig.reverse(); // LSB first
+
+        Ok(sig_ida.normalize_as_atom().as_noun())
+    }
+}
+
 pub fn jet_veri(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
     let signature = slot(subject, 12)?.as_atom()?;
     let message = slot(subject, 26)?.as_atom()?;
@@ -168,6 +207,35 @@ mod tests {
 
             let sam = T(s, &[signature, message, public_key]);
             assert_jet(s, jet_veri, sam, YES);
+        }
+    }
+
+    #[test]
+    fn test_sign() {
+        let s = &mut init_stack();
+
+        unsafe {
+            let message = D(0x72);
+
+            let sed_ubig = ubig!(_0x4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb);
+            let sed_bytes = sed_ubig.to_be_bytes();
+            let seed = IndirectAtom::new_raw_bytes(s, sed_bytes.len(), sed_bytes.as_ptr()).as_noun();
+
+            let sam = T(s, &[message, seed]);
+            let ret = A(s, &ubig!(_0x92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00));
+            assert_jet(s, jet_sign, sam, ret);
+
+            let msg_ubig = ubig!(_0xaf82);
+            let msg_bytes = msg_ubig.to_be_bytes();
+            let message = IndirectAtom::new_raw_bytes(s, msg_bytes.len(), msg_bytes.as_ptr()).as_noun();
+
+            let sed_ubig = ubig!(_0xc5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7);
+            let sed_bytes = sed_ubig.to_be_bytes();
+            let seed = IndirectAtom::new_raw_bytes(s, sed_bytes.len(), sed_bytes.as_ptr()).as_noun();
+
+            let sam = T(s, &[message, seed]);
+            let ret = A(s, &ubig!(_0x6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a));
+            assert_jet(s, jet_sign, sam, ret);
         }
     }
 }
