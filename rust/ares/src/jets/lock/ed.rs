@@ -1,4 +1,4 @@
-use crate::jets::util::slot;
+use crate::jets::util::{met,slot};
 use crate::jets::{JetErr, Result};
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -9,37 +9,19 @@ crate::gdb!();
 
 pub fn jet_sign(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
-    let message = slot(sam, 2)?.as_atom()?;
-    let seed = slot(sam, 3)?.as_atom()?;
+    let msg = slot(sam, 2)?.as_atom()?;
+    let sed = slot(sam, 3)?.as_atom()?;
 
     unsafe {
-        let mut msg_bytes = message.as_bytes();
-        // TODO: absolutely disgusting
-        // remove the leading/trailing 0s
-        while msg_bytes.len() > 0 && msg_bytes[msg_bytes.len() - 1] == 0 {
-            msg_bytes = &msg_bytes[..msg_bytes.len() - 1];
-        }
-        while msg_bytes.len() > 0 && msg_bytes[0] == 0 {
-            msg_bytes = &msg_bytes[1..];
-        }
-        let msg_len = msg_bytes.len();
-        let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
-        for i in 0..msg_len {
-            msg[i] = msg_bytes[i];
-        }
+        let msg_bytes = &(msg.as_bytes())[0..met(3, msg)]; // drop trailing zeros
 
-        let (mut _sed_ida, sed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        let sed_bytes = seed.as_bytes();
-        let sed_len = sed_bytes.len();
-        if sed_len > 32 {
-            return Err(JetErr::Deterministic);
-        }
-        for i in 0..sed_len {
-            sed[i] = sed_bytes[i];
-        }
+        let sed_bytes = sed.as_bytes();
+        let (mut _seed_ida, seed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        if sed_bytes.len() > 32 { return Err(JetErr::Deterministic) };
+        seed.copy_from_slice(sed_bytes);
 
         let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        urcrypt_ed_sign(msg.as_ptr(), msg_len, sed.as_ptr(), sig.as_mut_ptr());
+        urcrypt_ed_sign(msg_bytes.as_ptr(), msg_bytes.len(), seed.as_ptr(), sig.as_mut_ptr());
         sig.reverse(); // LSB first
 
         Ok(sig_ida.normalize_as_atom().as_noun())
@@ -47,55 +29,34 @@ pub fn jet_sign(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
 }
 
 pub fn jet_veri(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
-    let signature = slot(subject, 12)?.as_atom()?;
-    let message = slot(subject, 26)?.as_atom()?;
-    let public_key = slot(subject, 27)?.as_atom()?;
+    let sig = slot(subject, 12)?.as_atom()?;
+    let msg = slot(subject, 26)?.as_atom()?;
+    let puk = slot(subject, 27)?.as_atom()?;
 
     unsafe {
-        let (mut _sig_ida, sig) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        let sig_bytes = signature.as_bytes();
-        if sig_bytes.len() > 64 {
-            // vere punts; we should do the same in the future
-            return Err(JetErr::NonDeterministic);
-        }
-        for i in 0..sig_bytes.len() {
-            sig[i] = sig_bytes[i];
-        }
+        let (mut _sig_ida, signature) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        let sig_bytes = sig.as_bytes();
+        // vere punts; we should do the same in the future
+        if sig_bytes.len() > 64 { return Err(JetErr::NonDeterministic) };
+        signature.copy_from_slice(sig_bytes);
 
-        let (mut _pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        let pub_bytes = public_key.as_bytes();
-        if pub_bytes.len() > 32 {
-            // vere punts; we should do the same in the future
-            return Err(JetErr::NonDeterministic);
-        }
-        for i in 0..pub_bytes.len() {
-            pub_key[i] = pub_bytes[i];
-        }
+        let (mut _pub_ida, public_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        let pub_bytes = puk.as_bytes();
+        // vere punts; we should do the same in the future
+        if pub_bytes.len() > 32 { return Err(JetErr::NonDeterministic) };
+        public_key.copy_from_slice(pub_bytes);
 
-        let mut msg_bytes = message.as_bytes();
-        // TODO: absolutely disgusting
-        // remove the leading/trailing 0s
-        while msg_bytes.len() > 0 && msg_bytes[msg_bytes.len() - 1] == 0 {
-            msg_bytes = &msg_bytes[..msg_bytes.len() - 1];
-        }
-        while msg_bytes.len() > 0 && msg_bytes[0] == 0 {
-            msg_bytes = &msg_bytes[1..];
-        }
-        let msg_len = msg_bytes.len();
-        let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
-        for i in 0..msg_len {
-            msg[i] = msg_bytes[i];
-        }
+        let message = &(msg.as_bytes())[0..met(3, msg)]; // drop trailing zeros
 
-        let valid = urcrypt_ed_veri(msg.as_ptr(), msg_len, pub_key.as_ptr(), sig.as_ptr());
+        let valid = urcrypt_ed_veri(message.as_ptr(), message.len(), public_key.as_ptr(), signature.as_ptr());
+
         Ok(if valid { YES } else { NO })
     }
 }
 
 pub fn jet_shar(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
-    let sam = slot(subject, 6)?;
-    let pub_key = slot(sam, 2)?.as_direct()?;
-    let sec_key = slot(sam, 3)?.as_direct()?;
+    let pub_key = slot(subject, 12)?.as_direct()?;
+    let sec_key = slot(subject, 13)?.as_direct()?;
 
     if sec_key.bit_size() > 32 {
         return Err(JetErr::Deterministic);
@@ -112,35 +73,31 @@ pub fn jet_shar(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
         let pub_bytes = pub_key.data().to_le_bytes();
         let sec_bytes = sec_key.data().to_le_bytes();
 
-        for i in 0..pub_bytes.len() {
-            public[i] = pub_bytes[i];
-        }
-        for i in 0..sec_bytes.len() {
-            secret[i] = sec_bytes[i];
-        }
+        public[0..pub_bytes.len()].copy_from_slice(&pub_bytes[..]);
+        secret[0..sec_bytes.len()].copy_from_slice(&sec_bytes[..]);
 
         let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         urcrypt_ed_shar(public.as_ptr(), secret.as_ptr(), shar.as_mut_ptr());
+
         Ok(shar_ida.normalize_as_atom().as_noun())
     }
 }
 
 pub fn jet_puck(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
-    let sam = slot(subject, 6)?.as_direct()?;
+    let sed = slot(subject, 6)?.as_direct()?;
 
-    if sam.bit_size() > 32 {
+    if sed.bit_size() > 32 {
         return Err(JetErr::Deterministic);
     }
 
     unsafe {
         let (mut _seed_ida, seed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        let sam_bytes = sam.data().to_le_bytes();
-        for i in 0..sam_bytes.len() {
-            seed[i] = sam_bytes[i];
-        }
+        let sed_bytes = sed.data().to_le_bytes();
+        seed[0..sed_bytes.len()].copy_from_slice(&sed_bytes[..]);
 
         let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         urcrypt_ed_puck(seed.as_ptr(), pub_key.as_mut_ptr());
+
         Ok(pub_ida.normalize_as_atom().as_noun())
     }
 }

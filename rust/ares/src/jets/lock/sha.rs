@@ -38,7 +38,7 @@ pub fn jet_shal(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
         Err(_) => return Err(JetErr::NonDeterministic),
     };
 
-    let message = dat.as_bytes();
+    let message = &(dat.as_bytes())[0..met(3, dat)]; // drop trailing zeros
 
     unsafe {
         let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
@@ -52,11 +52,11 @@ pub fn jet_shas(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
     let sal = slot(sam, 2)?.as_atom()?;
     let ruz= slot(sam, 3)?.as_atom()?;
 
-    let sal_bytes = sal.as_bytes();
+    let sal_bytes = &(sal.as_bytes())[0..met(3, sal)]; // drop trailing zeros
     let (mut _salt_ida, salt) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
     salt.copy_from_slice(sal_bytes);
 
-    let message = ruz.as_bytes();
+    let message = &(ruz.as_bytes())[0..met(3, ruz)]; // drop trailing zeros
 
     unsafe {
         let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
