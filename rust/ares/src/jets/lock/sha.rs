@@ -1,9 +1,8 @@
-use either::{Left, Right};
 use crate::jets::util::{met, slot};
 use crate::jets::{JetErr, Result};
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{DirectAtom, IndirectAtom, Noun};
+use crate::noun::{IndirectAtom, Noun};
 use urcrypt_sys::*;
 
 crate::gdb!();
@@ -13,34 +12,19 @@ pub fn jet_sha1(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
     let wid = slot(sam, 2)?.as_atom()?;
     let dat = slot(sam, 3)?.as_atom()?;
 
-    let mut wdc: DirectAtom;
-    let width = match wid.as_either() {
-        Left(direct) => {
-            wdc = direct.clone();
-            wdc.as_byteslice_mut()
-        }
-        Right(_) => {
-            return Err(JetErr::NonDeterministic);
-        }
-    };
-
-    let mut dat_direct_clone: DirectAtom;
-    let mut dat_indirect_clone: IndirectAtom;
-    let message = match dat.as_either() {
-        Left(direct) => {
-            dat_direct_clone = direct.clone();
-            dat_direct_clone.as_byteslice_mut()
-        }
-        Right(indirect) => {
-            dat_indirect_clone = indirect.clone();
-            dat_indirect_clone.as_mut_bytes()
-        }
+    let width = match wid.as_direct() {
+        Ok(direct) => direct.data() as usize,
+        Err(_) => return Err(JetErr::NonDeterministic),
     };
 
     unsafe {
-        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
-        urcrypt_sha1(message.as_mut_ptr(), width.len(), out.as_mut_ptr());
-        Ok(ida.normalize_as_atom().as_noun())
+        let msg_bytes = dat.as_bytes();
+        let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
+        msg.copy_from_slice(msg_bytes);
+
+        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
+        urcrypt_sha1(msg.as_mut_ptr(), width, out.as_mut_ptr());
+        Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
 
@@ -49,22 +33,16 @@ pub fn jet_shal(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
     let wid = slot(sam, 2)?.as_atom()?;
     let dat = slot(sam, 3)?.as_atom()?;
 
-    let mut wdc: DirectAtom;
-    let width = match wid.as_either() {
-        Left(direct) => {
-            wdc = direct.clone();
-            wdc.as_byteslice_mut()
-        }
-        Right(_) => {
-            return Err(JetErr::NonDeterministic);
-        }
+    let width = match wid.as_direct() {
+        Ok(direct) => direct.data() as usize,
+        Err(_) => return Err(JetErr::NonDeterministic),
     };
 
     let message = dat.as_bytes();
 
     unsafe {
         let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        urcrypt_shal(message.as_ptr(), width.len(), out.as_mut_ptr());
+        urcrypt_shal(message.as_ptr(), width, out.as_mut_ptr());
         Ok(ida.normalize_as_atom().as_noun())
     }
 }
@@ -74,59 +52,28 @@ pub fn jet_shas(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
     let sal = slot(sam, 2)?.as_atom()?;
     let ruz= slot(sam, 3)?.as_atom()?;
 
-    let mut sdc: DirectAtom;
-    let mut sic: IndirectAtom;
-    let salt = match sal.as_either() {
-        Left(direct) => {
-            sdc = direct.clone();
-            sdc.as_byteslice_mut()
-        }
-        Right(indirect) => {
-            sic = indirect.clone();
-            sic.as_mut_bytes()
-        }
-    };
+    let sal_bytes = sal.as_bytes();
+    let (mut _salt_ida, salt) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
+    salt.copy_from_slice(sal_bytes);
 
-    let mdc: DirectAtom;
-    let mic: IndirectAtom;
-    let message = match ruz.as_either() {
-        Left(direct) => {
-            mdc = direct.clone();
-            mdc.as_byteslice()
-        }
-        Right(indirect) => {
-            mic = indirect.clone();
-            mic.as_bytes()
-        }
-    };
+    let message = ruz.as_bytes();
 
     unsafe {
-        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         urcrypt_shas(salt.as_mut_ptr(), salt.len(), message.as_ptr(), message.len(), out.as_mut_ptr());
-        Ok(ida.normalize_as_atom().as_noun())
+        Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
 
 pub fn jet_shax(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
-    let a = sam.as_atom()?;
-    let len = met(3, a);
+    let msg = sam.as_atom()?;
+    let len = met(3, msg);
 
-    match a.as_either() {
-        Left(direct) => {
-            unsafe {
-                let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-                urcrypt_shay(direct.as_byteslice().as_ptr(), len, out.as_mut_ptr());
-                Ok(ida.normalize_as_atom().as_noun())
-            }
-        }
-        Right(indirect) => {
-            unsafe {
-                let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-                urcrypt_shay(indirect.as_bytes().as_ptr(), len, out.as_mut_ptr());
-                Ok(ida.normalize_as_atom().as_noun())
-            }
-        }
+    unsafe {
+        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        urcrypt_shay(msg.as_bytes().as_ptr(), len, out.as_mut_ptr());
+        Ok(ida.normalize_as_atom().as_noun())
     }
 }
 
@@ -135,27 +82,17 @@ pub fn jet_shay(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
     let wid = slot(sam, 2)?.as_atom()?;
     let dat = slot(sam, 3)?.as_atom()?;
 
-    if let Ok(len) = wid.as_direct() {
-        match dat.as_either() {
-            Left(direct) => {
-                unsafe {
-                    let msg = direct.as_byteslice();
-                    let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-                    urcrypt_shay(msg.as_ptr(), len.data() as usize, out.as_mut_ptr());
-                    Ok(ida.normalize_as_atom().as_noun())
-                }
-            }
-            Right(indirect) => {
-                unsafe {
-                    let msg = indirect.as_bytes();
-                    let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-                    urcrypt_shay(msg.as_ptr(), len.data() as usize, out.as_mut_ptr());
-                    Ok(ida.normalize_as_atom().as_noun())
-                }
-            }
-        }
-    } else {
-        return Err(JetErr::NonDeterministic);
+    let width = match wid.as_direct() {
+        Ok(direct) => direct.data() as usize,
+        Err(_) => return Err(JetErr::NonDeterministic),
+    };
+
+    let message = dat.as_bytes();
+
+    unsafe {
+        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        urcrypt_shay(message.as_ptr(), width, out.as_mut_ptr());
+        Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
 
