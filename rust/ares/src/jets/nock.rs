@@ -32,6 +32,7 @@ pub mod util {
     use crate::mem::NockStack;
     use crate::noun::{tape, Cell, Noun, D, T};
     use ares_macros::tas;
+    use either::{Left, Right};
     use std::result;
 
     const LEAF: Noun = D(tas!(b"leaf"));
@@ -95,22 +96,35 @@ pub mod util {
                 let dat = trace.tail();
 
                 let tank: Noun = match tag.data() {
-                    tas!(b"mean") => {
-                        if let Ok(atom) = dat.as_atom() {
+                    tas!(b"hunk") => match dat.as_either_atom_cell() {
+                        Left(_) => {
+                            let tape = tape(context.stack, "mook.hunk");
+                            T(context.stack, &[LEAF, tape])
+                        }
+                        Right(cell) => {
+                            //  XX: need to check that this is actually a path
+                            //      return leaf+"mook.hunk" if not
+                            let path = cell.tail();
+                            smyt(context.stack, path)?
+                        }
+                    },
+                    tas!(b"mean") => match dat.as_either_atom_cell() {
+                        Left(atom) => {
                             let tape = rip(context.stack, 3, 1, atom)?;
                             T(context.stack, &[LEAF, tape])
-                        } else {
-                            let tone = mink(context, dat, dat.as_cell()?.head())?.as_cell()?;
+                        }
+                        Right(cell) => {
+                            let tone = mink(context, dat, cell.head())?.as_cell()?;
                             if !tone.head().raw_equals(D(0)) {
                                 let tape = tape(context.stack, "####");
                                 T(context.stack, &[LEAF, tape])
                             } else {
-                                // XX: need to check that this is actually a tank
-                                //     return leaf+"mean.mook" if not
+                                //  XX: need to check that this is actually a tank
+                                //      return leaf+"mook.mean" if not
                                 tone.tail()
                             }
                         }
-                    }
+                    },
                     tas!(b"spot") => {
                         let stack = &mut context.stack;
                         let spot = dat.as_cell()?;
@@ -197,7 +211,6 @@ pub mod util {
                         )
                     } // XX: TODO
                       //  %hand
-                      //  %hunk
                       //  %lose
                 };
 
