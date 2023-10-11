@@ -1,3 +1,6 @@
+use crate::assert_acyclic;
+use crate::assert_no_forwarding_pointers;
+use crate::assert_no_junior_pointers;
 use crate::hamt::Hamt;
 use crate::jets::JetErr;
 use crate::mem::unifying_equality;
@@ -269,9 +272,17 @@ impl From<JetErr> for NockErr {
     }
 }
 
+#[allow(unused_variables)]
+fn debug_assertions(stack: &mut NockStack, noun: Noun) {
+    assert_acyclic!(noun);
+    assert_no_forwarding_pointers!(noun);
+    assert_no_junior_pointers!(stack, noun);
+}
+
 /** Interpret nock */
 pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Result<Noun, Tone> {
     let terminator = Arc::clone(&TERMINATOR);
+    let orig_subject = subject; // for debugging
     let virtual_frame: *const u64 = context.stack.get_frame_pointer();
     let mut res: Noun = D(0);
 
@@ -301,15 +312,30 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
             let work: NockWork = *context.stack.top();
             match work {
                 NockWork::Done => {
+                    debug_assertions(context.stack, orig_subject);
+                    debug_assertions(context.stack, subject);
+                    debug_assertions(context.stack, res);
+
                     context.stack.preserve(context.cache);
                     context.stack.preserve(&mut res);
                     context.stack.frame_pop();
+
+                    debug_assertions(context.stack, orig_subject);
+                    debug_assertions(context.stack, res);
+
                     break Ok(res);
                 }
                 NockWork::Ret => {
+                    debug_assertions(context.stack, orig_subject);
+                    debug_assertions(context.stack, subject);
+                    debug_assertions(context.stack, res);
+
                     context.stack.preserve(context.cache);
                     context.stack.preserve(&mut res);
                     context.stack.frame_pop();
+
+                    debug_assertions(context.stack, orig_subject);
+                    debug_assertions(context.stack, res);
                 }
                 NockWork::WorkCons(mut cons) => match cons.todo {
                     TodoCons::ComputeHead => {
@@ -367,6 +393,11 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 vale.todo = Todo2::RestoreSubject;
                                 std::mem::swap(&mut vale.subject, &mut subject);
                                 *context.stack.top() = NockWork::Work2(vale);
+
+                                debug_assertions(context.stack, orig_subject);
+                                debug_assertions(context.stack, subject);
+                                debug_assertions(context.stack, res);
+
                                 mean_frame_push(context.stack, 0);
                                 *context.stack.push() = NockWork::Ret;
                                 push_formula(context.stack, res, true)?;
@@ -375,6 +406,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         Todo2::RestoreSubject => {
                             subject = vale.subject;
                             context.stack.pop::<NockWork>();
+
+                            debug_assertions(context.stack, orig_subject);
+                            debug_assertions(context.stack, subject);
+                            debug_assertions(context.stack, res);
                         }
                     }
                 }
@@ -519,6 +554,11 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     kale.todo = Todo9::RestoreSubject;
                                     kale.core = subject;
                                     *context.stack.top() = NockWork::Work9(kale);
+
+                                    debug_assertions(context.stack, orig_subject);
+                                    debug_assertions(context.stack, subject);
+                                    debug_assertions(context.stack, res);
+
                                     subject = res;
                                     mean_frame_push(context.stack, 0);
                                     *context.stack.push() = NockWork::Ret;
@@ -532,6 +572,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         Todo9::RestoreSubject => {
                             subject = kale.core;
                             context.stack.pop::<NockWork>();
+
+                            debug_assertions(context.stack, orig_subject);
+                            debug_assertions(context.stack, subject);
+                            debug_assertions(context.stack, res);
                         }
                     }
                 }

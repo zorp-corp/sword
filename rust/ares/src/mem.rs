@@ -1,4 +1,6 @@
 use crate::assert_acyclic;
+use crate::assert_no_forwarding_pointers;
+use crate::assert_no_junior_pointers;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use crate::snapshot::pma::{pma_in_arena, pma_malloc_w};
 use assert_no_alloc::permit_alloc;
@@ -356,6 +358,10 @@ impl NockStack {
     }
 
     unsafe fn copy(&mut self, noun: &mut Noun) {
+        assert_acyclic!(*noun);
+        assert_no_forwarding_pointers!(*noun);
+        assert_no_junior_pointers!(self, *noun);
+
         self.pre_copy();
         assert!(self.stack_is_empty());
         let noun_ptr = noun as *mut Noun;
@@ -443,7 +449,10 @@ impl NockStack {
             }
         }
         // Set saved previous allocation pointer its new value after this allocation
+
         assert_acyclic!(*noun);
+        assert_no_forwarding_pointers!(*noun);
+        assert_no_junior_pointers!(self, *noun);
     }
 
     pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
@@ -517,7 +526,6 @@ impl NockStack {
                 },
             }
         }
-        assert_acyclic!(*noun);
     }
 
     pub unsafe fn frame_pop(&mut self) {
@@ -679,6 +687,88 @@ impl NockStack {
             unsafe { self.stack_pointer == self.alloc_pointer.add(RESERVED) }
         }
     }
+
+    pub fn no_junior_pointers(&self, noun: Noun) -> bool {
+        unsafe {
+            if let Ok(c) = noun.as_cell() {
+                let mut fp: *mut u64;
+                let mut sp = self.stack_pointer;
+                let mut ap = self.alloc_pointer;
+                let mut pfp = *(self.prev_frame_pointer_pointer());
+                let mut psp = *(self.prev_stack_pointer_pointer());
+                let mut pap = *(self.prev_alloc_pointer_pointer());
+
+                let mut dbg_stack = Vec::new();
+
+                // Detemine range
+                let (rlo, rhi) = loop {
+                    if psp.is_null() {
+                        psp = ((self.start as u64) + ((self.size << 3) as u64)) as *mut u64;
+                    }
+                    let (lo, hi) = if sp < ap { (ap, psp) } else { (psp, ap) };
+                    let ptr = c.to_raw_pointer() as *mut u64;
+                    if ptr >= lo && ptr < hi {
+                        break if sp < ap { (sp, ap) } else { (ap, sp) };
+                    } else {
+                        fp = pfp;
+                        sp = psp;
+                        ap = pap;
+                        if sp < ap {
+                            pfp = *(fp.sub(FRAME + 1)) as *mut u64;
+                            psp = *(fp.sub(STACK + 1)) as *mut u64;
+                            pap = *(fp.sub(ALLOC + 1)) as *mut u64;
+                        } else {
+                            pfp = *(fp.add(FRAME)) as *mut u64;
+                            psp = *(fp.add(STACK)) as *mut u64;
+                            pap = *(fp.add(ALLOC)) as *mut u64;
+                        }
+                    }
+                };
+
+                dbg_stack.push(c.head());
+                dbg_stack.push(c.tail());
+                while let Some(n) = dbg_stack.pop() {
+                    if let Ok(a) = n.as_allocated() {
+                        let ptr = a.to_raw_pointer();
+                        if ptr >= rlo && ptr < rhi {
+                            eprintln!(
+                                "\rserf: Noun {:x} has Noun {:x} in junior of range {:p}-{:p}",
+                                (noun.raw << 3),
+                                (n.raw << 3),
+                                rlo,
+                                rhi
+                            );
+                            return false;
+                        }
+                        if let Some(c) = a.cell() {
+                            dbg_stack.push(c.tail());
+                            dbg_stack.push(c.head());
+                        }
+                    }
+                }
+
+                true
+            } else {
+                true
+            }
+        }
+    }
+}
+
+#[cfg(feature = "check_junior")]
+#[macro_export]
+macro_rules! assert_no_junior_pointers {
+    ( $x:expr, $y:expr ) => {
+        assert_no_alloc::permit_alloc(|| {
+            assert!($x.no_junior_pointers($y));
+        })
+    };
+}
+
+#[cfg(not(feature = "check_junior"))]
+#[macro_export]
+macro_rules! assert_no_junior_pointers {
+    ( $x:expr, $y:expr ) => {};
 }
 
 pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
@@ -705,6 +795,13 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
      * senior noun, *never vice versa*, to avoid introducing references from more senior frames
      * into more junior frames, which would result in incorrect operation of the copier.
      */
+    assert_acyclic!(*a);
+    assert_acyclic!(*b);
+    assert_no_forwarding_pointers!(*a);
+    assert_no_forwarding_pointers!(*b);
+    assert_no_junior_pointers!(stack, *a);
+    assert_no_junior_pointers!(stack, *b);
+
     // If the nouns are already word-equal we have nothing to do
     if (*a).raw_equals(*b) {
         return true;
@@ -800,8 +897,14 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         }
     }
     stack.frame_pop();
+
     assert_acyclic!(*a);
     assert_acyclic!(*b);
+    assert_no_forwarding_pointers!(*a);
+    assert_no_forwarding_pointers!(*b);
+    assert_no_junior_pointers!(stack, *a);
+    assert_no_junior_pointers!(stack, *b);
+
     (*a).raw_equals(*b)
 }
 
