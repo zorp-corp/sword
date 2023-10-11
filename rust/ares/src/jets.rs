@@ -313,6 +313,7 @@ pub mod util {
                 stack,
                 newt: None,
                 cache: &mut Hamt::<Noun>::new(),
+                scry_stack: D(0),
             };
             let sam = T(context.stack, &[D(0), sam, D(0)]);
             let jet_res = assert_no_alloc(|| jet(&mut context, sam).unwrap());
@@ -334,6 +335,7 @@ pub mod util {
                 stack,
                 newt: None,
                 cache: &mut Hamt::<Noun>::new(),
+                scry_stack: D(0),
             };
             let sam = T(context.stack, &[D(0), sam, D(0)]);
             let jet_res = jet(&mut context, sam);

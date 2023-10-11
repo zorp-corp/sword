@@ -6,6 +6,7 @@ use crate::newt::Newt;
 use crate::noun;
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
 use crate::serf::TERMINATOR;
+use ares_macros::tas;
 use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
@@ -209,6 +210,22 @@ struct Nock11S {
 }
 
 #[derive(Copy, Clone)]
+enum Todo12 {
+    ComputeReff,
+    ComputePath,
+    Scry,
+    Done,
+}
+
+#[derive(Copy, Clone)]
+struct Nock12 {
+    todo: Todo12,
+    reff: Noun,
+    path: Noun,
+    hand: Noun,
+}
+
+#[derive(Copy, Clone)]
 enum NockWork {
     Done,
     Ret,
@@ -226,6 +243,7 @@ enum NockWork {
     Work10(Nock10),
     Work11D(Nock11D),
     Work11S(Nock11S),
+    Work12(Nock12),
 }
 
 pub struct Context<'a, 'b, 'c> {
@@ -235,16 +253,19 @@ pub struct Context<'a, 'b, 'c> {
     // Per-event cache; option to share cache with virtualized events
     pub cache: &'c mut Hamt<Noun>,
     //  XX: persistent memo cache
+    pub scry_stack: Noun,
 }
 
 #[derive(Debug)]
 pub enum Tone {
     Blocked(Noun),
-    Error(NockErr, Noun),
+    Deterministic(Noun),
+    NonDeterministic(Noun),
 }
 
 #[derive(Debug)]
 pub enum NockErr {
+    Blocked(Noun),
     Deterministic,
     NonDeterministic,
 }
@@ -637,6 +658,67 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         context.stack.pop::<NockWork>();
                     }
                 },
+                NockWork::Work12(mut scry) => match scry.todo {
+                    Todo12::ComputeReff => {
+                        scry.todo = Todo12::ComputePath;
+                        *context.stack.top() = NockWork::Work12(scry);
+                        push_formula(context.stack, scry.reff, false)?;
+                    }
+                    Todo12::ComputePath => {
+                        scry.todo = Todo12::Scry;
+                        scry.reff = res;
+                        *context.stack.top() = NockWork::Work12(scry);
+                        push_formula(context.stack, scry.path, false)?;
+                    }
+                    Todo12::Scry => {
+                        if let Some(cell) = context.scry_stack.cell() {
+                            let scry_handler = cell.head();
+                            let scry_gate = scry_handler.as_cell()?;
+                            let payload = T(context.stack, &[scry.reff, res]);
+                            let scry_core = T(
+                                context.stack,
+                                &[
+                                    scry_gate.head(),
+                                    payload,
+                                    scry_gate.tail().as_cell()?.tail(),
+                                ],
+                            );
+                            let scry_form = T(context.stack, &[D(9), D(2), D(1), scry_core]);
+
+                            scry.todo = Todo12::Done;
+                            scry.path = res;
+                            scry.hand = context.scry_stack;
+                            context.scry_stack = cell.tail();
+                            *context.stack.top() = NockWork::Work12(scry);
+                            push_formula(context.stack, scry_form, false)?;
+                        } else {
+                            // No scry handler
+                            break Err(NockErr::Deterministic);
+                        }
+                    }
+                    Todo12::Done => match res.as_either_atom_cell() {
+                        Left(atom) => {
+                            if atom.as_noun().raw_equals(D(0)) {
+                                break Err(NockErr::Blocked(scry.path));
+                            } else {
+                                break Err(NockErr::Deterministic);
+                            }
+                        }
+                        Right(cell) => match cell.tail().as_either_atom_cell() {
+                            Left(_) => {
+                                let hunk =
+                                    T(context.stack, &[D(tas!(b"hunk")), scry.reff, scry.path]);
+                                mean_push(context.stack, hunk);
+                                break Err(NockErr::Deterministic);
+                            }
+                            Right(cell) => {
+                                res = cell.tail();
+                                context.scry_stack = scry.hand;
+                                context.stack.pop::<NockWork>();
+                            }
+                        },
+                    },
+                },
             };
         }
     });
@@ -829,6 +911,19 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                     return Err(NockErr::Deterministic);
                                 };
                             }
+                            12 => {
+                                if let Ok(arg_cell) = formula_cell.tail().as_cell() {
+                                    *stack.push() = NockWork::Work12(Nock12 {
+                                        todo: Todo12::ComputeReff,
+                                        reff: arg_cell.head(),
+                                        path: arg_cell.tail(),
+                                        hand: D(0),
+                                    });
+                                } else {
+                                    // Argument for Nock 12 must be cell
+                                    return Err(NockErr::Deterministic);
+                                }
+                            }
                             _ => {
                                 // Invalid formula opcode
                                 return Err(NockErr::Deterministic);
@@ -856,12 +951,31 @@ pub fn exit_early(
 ) -> Tone {
     unsafe {
         let mut trace = *(stack.local_noun_pointer(0));
-        while stack.get_frame_pointer() != virtual_frame {
-            stack.preserve(&mut trace);
-            stack.preserve(cache);
-            stack.frame_pop();
+        match error {
+            NockErr::Blocked(mut path) => {
+                while stack.get_frame_pointer() != virtual_frame {
+                    stack.preserve(&mut path);
+                    stack.preserve(cache);
+                    stack.frame_pop();
+                }
+                Tone::Blocked(path)
+            }
+            NockErr::Deterministic => {
+                while stack.get_frame_pointer() != virtual_frame {
+                    stack.preserve(&mut trace);
+                    stack.preserve(cache);
+                    stack.frame_pop();
+                }
+                Tone::Deterministic(trace)
+            }
+            NockErr::NonDeterministic => {
+                while stack.get_frame_pointer() != virtual_frame {
+                    stack.preserve(&mut trace);
+                    stack.frame_pop();
+                }
+                Tone::NonDeterministic(trace)
+            }
         }
-        Tone::Error(error, trace)
     }
 }
 
@@ -1034,21 +1148,24 @@ mod hint {
                                             Ok(Some(nock_res))
                                         }
                                     }
-                                    Err(Tone::Error(err, _)) => {
+                                    Err(tone) => {
                                         let stack = &mut context.stack;
                                         //  XX: need string interpolation without allocation, then delete eprintln
                                         // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, err, jet_res);
                                         eprintln!(
                                             "\rjet {} failed, raw: {:?}, jetted: {}",
-                                            jet_name, err, jet_res
+                                            jet_name, tone, jet_res
                                         );
                                         let tape = tape(*stack, "jet mismatch");
                                         let mean = T(*stack, &[D(tas!(b"mean")), tape]);
                                         mean_push(stack, mean);
-                                        Err(err)
-                                    }
-                                    Err(Tone::Blocked(_)) => {
-                                        panic!("jet test mode: no scry handling")
+
+                                        match tone {
+                                            Tone::NonDeterministic(_) => {
+                                                Err(NockErr::NonDeterministic)
+                                            }
+                                            _ => Err(NockErr::Deterministic),
+                                        }
                                     }
                                 }
                             } else {

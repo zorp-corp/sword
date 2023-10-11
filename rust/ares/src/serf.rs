@@ -84,6 +84,7 @@ impl Context {
             stack: &mut self.stack,
             newt: Some(&mut self.newt),
             cache: &mut self.cache,
+            scry_stack: D(0),
         }
     }
 
@@ -270,8 +271,10 @@ fn goof(context: &mut Context, trace: Noun) -> Noun {
 fn soft(context: &mut Context, ovo: Noun) -> Result<Noun, Noun> {
     match slam(context, POKE_AXIS, ovo) {
         Ok(res) => Ok(res),
-        Err(Tone::Error(_, trace)) => Err(goof(context, trace)),
-        Err(Tone::Blocked(_)) => panic!("soft: blocked err handling unimplemented"),
+        Err(tone) => match tone {
+            Tone::Deterministic(trace) | Tone::NonDeterministic(trace) => Err(goof(context, trace)),
+            Tone::Blocked(_) => panic!("serf: soft: .^ invalid outside of virtual Nock"),
+        },
     }
 }
 
@@ -286,13 +289,15 @@ fn play_life(context: &mut Context, eve: Noun) {
             context.event_update(eved, arvo);
             context.play_done();
         }
-        Err(Tone::Error(_, trace)) => {
-            let goof = goof(context, trace);
-            context.play_bail(goof);
-        }
-        Err(Tone::Blocked(_)) => {
-            panic!("play: blocked err handling unimplemented")
-        }
+        Err(tone) => match tone {
+            Tone::Deterministic(trace) | Tone::NonDeterministic(trace) => {
+                let goof = goof(context, trace);
+                context.play_bail(goof);
+            }
+            Tone::Blocked(_) => {
+                panic!("serf: soft: .^ invalid outside of virtual Nock")
+            }
+        },
     }
 }
 

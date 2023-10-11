@@ -3,7 +3,7 @@
 use crate::interpreter::Context;
 use crate::jets::util::slot;
 use crate::jets::Result;
-use crate::noun::Noun;
+use crate::noun::{Noun, T};
 
 crate::gdb!();
 
@@ -14,12 +14,17 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     //             = [[subject formula] scry_namespace]
     let v_subject = slot(arg, 4)?;
     let v_formula = slot(arg, 5)?;
-    let _scry = slot(arg, 3)?;
-    util::mink(context, v_subject, v_formula)
+    let scry_handler = slot(arg, 3)?;
+    let new_scry_stack = T(context.stack, &[scry_handler, context.scry_stack]);
+    context.scry_stack = new_scry_stack;
+
+    let res = util::mink(context, v_subject, v_formula);
+    context.scry_stack = context.scry_stack.as_cell()?.tail();
+    res
 }
 
 pub mod util {
-    use crate::interpreter::{interpret, Context, NockErr, Tone};
+    use crate::interpreter::{interpret, Context, Tone};
     use crate::jets;
     use crate::jets::form::util::scow;
     use crate::jets::util::rip;
@@ -38,10 +43,8 @@ pub mod util {
             Ok(res) => Ok(T(context.stack, &[D(0), res])),
             Err(err) => match err {
                 Tone::Blocked(block) => Ok(T(context.stack, &[D(1), block])),
-                Tone::Error(err, trace) => match err {
-                    NockErr::Deterministic => Ok(T(context.stack, &[D(2), trace])),
-                    NockErr::NonDeterministic => Err(JetErr::NonDeterministic),
-                },
+                Tone::Deterministic(trace) => Ok(T(context.stack, &[D(2), trace])),
+                Tone::NonDeterministic(_) => Err(JetErr::NonDeterministic),
             },
         }
     }

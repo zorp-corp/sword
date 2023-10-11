@@ -1,7 +1,7 @@
 use ares::hamt::Hamt;
 use ares::interpreter::{interpret, Context};
 use ares::mem::NockStack;
-use ares::noun::{IndirectAtom, Noun};
+use ares::noun::{IndirectAtom, Noun, D};
 use ares::serf::serf;
 use ares::serialization::{cue, jam};
 use memmap::Mmap;
@@ -66,6 +66,7 @@ fn main() -> io::Result<()> {
         stack: &mut stack,
         newt: None,
         cache: &mut Hamt::<Noun>::new(),
+        scry_stack: D(0),
     };
     let result =
         interpret(&mut context, input_cell.head(), input_cell.tail()).expect("nock failed");
