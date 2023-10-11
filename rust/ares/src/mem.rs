@@ -694,9 +694,9 @@ impl NockStack {
                 let mut fp: *mut u64;
                 let mut sp = self.stack_pointer;
                 let mut ap = self.alloc_pointer;
-                let mut pfp = *(self.prev_frame_pointer_pointer()) as *mut u64;
-                let mut psp = *(self.prev_stack_pointer_pointer()) as *mut u64;
-                let mut pap = *(self.prev_alloc_pointer_pointer()) as *mut u64;
+                let mut pfp = *(self.prev_frame_pointer_pointer());
+                let mut psp = *(self.prev_stack_pointer_pointer());
+                let mut pap = *(self.prev_alloc_pointer_pointer());
 
                 let mut dbg_stack = Vec::new();
 
