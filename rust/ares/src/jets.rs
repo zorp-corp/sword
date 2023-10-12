@@ -14,6 +14,7 @@ use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
+use crate::jets::lock::aes::*;
 use crate::jets::lock::ed::*;
 use crate::jets::lock::sha::*;
 use crate::mem::NockStack;

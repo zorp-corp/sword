@@ -183,7 +183,6 @@ mod util {
         Atom: txt,
         urcrypt_siv: low_f    
     ) -> Noun {
-        let ret: Noun;
         let txt_w: usize;
         let soc_w: usize;
         let txt_y: &[u8];
@@ -195,22 +194,26 @@ mod util {
         txt_y = IndirectAtom::new_raw_mut_bytes(stack, dat);
         txt_y[0..txt_w].copy_from_slice(txt);
         let dat = dat.as_mut_ptr() as *mut urcrypt_aes_siv_data;
+        let out = IndirectAtom::new_raw_mut_bytes(stack, txt_w);
 
+        let ret = match (*low_f)(txt_y, txt_w, dat_u, soc_w, key_y, iv_y, out_y) {
+            0 => T(stack, &[iv_y, txt_w[0], txt_w]),
+                 // ^ not correct yet
+            _ => D(0x0)
+        };
 
-        txt_y = u3r_bytes_all(&txt_w, txt);
-        out_y = u3a_malloc(txt_w);
-
-        ret = ( 0 != (*low_f)(txt_y, txt_w, dat_u, soc_w, key_y, iv_y, out_y) )
-            ? u3_none
-            : u3nt(u3i_bytes(16, iv_y),
-                u3i_words(1, &txt_w),
-                u3i_bytes(txt_w, out_y));
-
-        u3a_free(txt_y);
-        u3a_free(out_y);
-        _cqea_ads_free(dat_u);
-        return ret;
+        ret
     }
+
+    pub fn siv_de(stack: &mut NockStack,
+        &[u8]: key_y,
+        usize: key_w,
+        Noun: ads,
+        Atom: iv,
+        Atom: len,
+        Atom: txt,
+        urcrypt_siv: low_f    
+    ) -> Noun {
 
 }
 
@@ -221,8 +224,152 @@ mod tests {
     use crate::noun::{D, T};
     use crate::jets::util::test::{A, assert_jet, init_stack, assert_jet_err};
 
+    fn string_to_ubig(text: &str) -> UBig {
+        let bytes = text.as_bytes();
+        let mut lsb_value = ubig!(0x0);
+
+        for (i, &byte) in bytes.iter().enumerate() {
+            lsb_value += ubig!(byte) << (i * 8);
+        }
+
+        lsb_value
+    }
+
+    fn atom_hello_mars(stack: &mut NockStack) -> Noun {
+        A(stack, string_to_ubig("Hello Mars"))
+    }
+
     #[test]
     fn test_siva_en() {
         let s = &mut init_stack();
+        /*
+        > (~(en siva:aes:crypto 0x0 ~))
+        [p=0xb0f7.a0df.be76.c85b.5e29.bb31.aaec.fc77 q=0 r=0x0]
+         */
+        assert_jet(
+            s,
+            jet_siva_en,
+            A(s, &ubig!(0x0)),
+            T(s, &[A(s, &ubig!(0xb0f7a0dfbe76c85b5e29bb31aaecfc77)), D(0x0), D(0x0)]),
+        );
+        /*
+        > (~(en siva:aes:crypto (shax 0x0) ~))
+        [p=0x9e60.092f.8061.fcad.e893.1c80.dc36.f050 q=0 r=0x0]
+        */
+        let (mut ida_0, out) = IndirectAtom::new_raw_mut_bytes(stack, 512);
+        urcrypt_shay(D(0x0).as_bytes().as_ptr(), len, out.as_mut_ptr());
+        Ok(ida_0.normalize_as_atom().as_noun())
+        assert_jet(
+            s,
+            jet_siva_en,
+            ida_0,
+            T(s, &[A(s, &ubig!(0x9e60092f8061fcade8931c80dc36f050)), D(0x0), D(0x0)]),
+        );
+        /*
+        > (~(en siva:aes:crypto (shax 'Hello Mars') ~))
+        [p=0x3bd4.b5d5.652f.3ee0.9898.0b0d.c564.2498 q=0 r=0x0]
+        */
+        assert_jet(
+            s,
+            jet_siva_en,
+            A(s, "Hello Mars"),
+            T(s, &[A(s, &ubig!(0x3bd4b5d5652f3ee098980b0dc5642498)), D(0x0), D(0x0)]),
+        );
+        /*
+        > (~(en siva:aes:crypto (shax 0x0) ~[1 2 3]))
+        [p=0x2464.c22e.919a.df29.ab6a.d55b.885a.1cb2 q=0 r=0x0]
+        */
+        assert_jet(
+            s,
+            jet_siva_en,
+            T(s, &[D(1), D(2), D(3)]),
+            T(s, &[A(s, &ubig!(0x2464c22e919adf29ab6ad55b885a1cb2)), D(0x0), D(0x0)]),
+        );
+        /*
+        > (~(en siva:aes:crypto (shax 'Hello Mars') ~[1 2 3]))
+        [p=0x1114.18f8.b82e.ca32.d9f3.41f9.1c23.f555 q=0 r=0x0]
+        */
+        assert_jet(
+            s,
+            jet_siva_en,
+            T(s, &[D(1), D(2), D(3)]),
+            T(s, &[A(s, &ubig!(0x111418f8b82eca32d9f341f91c23f555)), D(0x0), D(0x0)]),
+        );
     }
+
+
+    fn atom_63(_stack: &mut NockStack) -> Noun {
+        D(0x7fffffffffffffff)
+    }
+
+
+    fn atom_128(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(0xdeadbeef12345678fedcba9876543210))
+    }
+
+    fn atom_128_b(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(0xdeadbeef12345678fedcba9876540000))
+    }
+
+    fn atom_264(stack: &mut NockStack) -> Noun {
+        A(
+            stack,
+            &ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ff),
+        )
+    }
+
+    fn atom_528(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff))
+    }
+
+    fn assert_math_jet(
+        stack: &mut NockStack,
+        jet: Jet,
+        sam: &[fn(&mut NockStack) -> Noun],
+        res: UBig,
+    ) {
+        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
+        assert_nary_jet_ubig(stack, jet, &sam, res);
+    }
+
+    fn assert_math_jet_noun(
+        stack: &mut NockStack,
+        jet: Jet,
+        sam: &[fn(&mut NockStack) -> Noun],
+        res: Noun,
+    ) {
+        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
+        let sam = T(stack, &sam);
+        assert_jet(stack, jet, sam, res);
+    }
+
+    fn assert_math_jet_err(
+        stack: &mut NockStack,
+        jet: Jet,
+        sam: &[fn(&mut NockStack) -> Noun],
+        err: JetErr,
+    ) {
+        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
+        let sam = T(stack, &sam);
+        assert_jet_err(stack, jet, sam, err);
+    }
+
+    #[test]
+    fn test_add() {
+        let s = &mut init_stack();
+        assert_math_jet(
+            s,
+            jet_add,
+            &[atom_128, atom_96],
+            ubig!(0xdeadbef00d03068514bb685765666666),
+        );
+        assert_math_jet(
+            s,
+            jet_add,
+            &[atom_63, atom_96],
+            ubig!(0xfaceb00c95deadbeef123455),
+        );
+        assert_math_jet(s, jet_add, &[atom_63, atom_63], ubig!(0xfffffffffffffffe));
+    }
+
 }

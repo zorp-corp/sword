@@ -1,4 +1,4 @@
-use crate::jets::util::{met,slot};
+use crate::jets::util::{met, slot};
 use crate::jets::{JetErr, Result};
 use crate::mem::NockStack;
 use crate::newt::Newt;
