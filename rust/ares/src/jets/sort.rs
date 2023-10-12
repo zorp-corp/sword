@@ -25,7 +25,7 @@ pub fn jet_mor(
     let f = mug(stack, d.as_noun());
 
     if e.data() == f.data() {
-        util::dor(stack, a, b)
+        Ok(util::dor(a, b))
     } else {
         if e.data() < f.data() {
             Ok(YES)
@@ -48,7 +48,7 @@ pub fn jet_gor(
     let d = mug(stack, b);
 
     if c.data() == d.data() {
-        util::dor(stack, a, b)
+        Ok(util::dor(a, b))
     } else {
         if c.data() < d.data() {
             Ok(YES)
@@ -59,7 +59,7 @@ pub fn jet_gor(
 }
 
 pub fn jet_dor(
-    stack: &mut NockStack,
+    _stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
     subject: Noun,
 ) -> jets::Result {
@@ -67,38 +67,35 @@ pub fn jet_dor(
     let a = slot(sam, 2)?;
     let b = slot(sam, 3)?;
 
-    util::dor(stack, a, b)
+    Ok(util::dor(a, b))
 }
 
 pub mod util {
+    use either::{Left, Right};
     use crate::jets::util::slot;
     use crate::jets::math::util::lth;
-    use crate::jets::Result;
-    use crate::mem::NockStack;
     use crate::noun::{Noun, YES, NO};
 
-    pub fn dor(stack: &mut NockStack, a: Noun, b: Noun) -> Result {
+    pub fn dor(a: Noun, b: Noun) -> Noun {
         if unsafe { a.raw_equals(b) } {
-            Ok(YES)
+            YES
         } else {
-            if a.is_atom() {
-                if b.is_atom() {
-                    lth(stack, a.as_atom()?, b.as_atom()?)
-                } else {
-                    Ok(YES)
-                }
-            } else {
-                if b.is_atom() {
-                    Ok(NO)
-                } else {
-                    let a_head = slot(a, 2)?;
-                    let b_head = slot(b, 2)?;
-                    let a_tail = slot(a, 3)?;
-                    let b_tail = slot(b, 3)?;
+            match (a.as_either_atom_cell(), b.as_either_atom_cell()) {
+                (Left(atom_a), Left(atom_b)) => lth(atom_a, atom_b),
+                (Left(_), Right(_)) => YES,
+                (Right(_), Left(_)) => NO,
+                (Right(cell_a), Right(cell_b)) => {
+                    let a_head = match slot(cell_a.as_noun(), 2) {
+                        Ok(n) => n,
+                        Err(_) => return NO,
+                    };
+                    let b_head = slot(cell_b.as_noun(), 2).unwrap();
+                    let a_tail = slot(cell_a.as_noun(), 3).unwrap();
+                    let b_tail = slot(cell_b.as_noun(), 3).unwrap();
                     if unsafe { a_head.raw_equals(b_head) } {
-                        Ok(dor(stack, a_tail, b_tail)?)
+                        dor(a_tail, b_tail)
                     } else {
-                        Ok(dor(stack, a_head, b_head)?)
+                        dor(a_head, b_head)
                     }
                 }
             }

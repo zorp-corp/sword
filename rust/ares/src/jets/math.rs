@@ -216,7 +216,7 @@ pub fn jet_lte(
 }
 
 pub fn jet_lth(
-    stack: &mut NockStack,
+    _stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
     subject: Noun,
 ) -> jets::Result {
@@ -224,7 +224,7 @@ pub fn jet_lth(
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    util::lth(stack, a, b)
+    Ok(util::lth(a, b))
 }
 
 pub fn jet_mod(
@@ -290,25 +290,26 @@ pub fn jet_sub(
 }
 
 pub mod util {
-    use crate::jets::Result;
-    use crate::noun::{Atom, YES, NO};
-    use crate::mem::NockStack;
+    use crate::jets::util::test::init_stack;
+    use crate::noun::{Atom, Noun, YES, NO};
 
-    pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> Result {
+    pub fn lth(a: Atom, b: Atom) -> Noun {
+        let s = &mut init_stack();
+
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             if a.data() < b.data() {
-                Ok(YES)
+                YES
             } else {
-                Ok(NO)
+                NO
             }
         } else if a.bit_size() < b.bit_size() {
-            Ok(YES)
+            YES
         } else if a.bit_size() > b.bit_size() {
-            Ok(NO)
-        } else if a.as_ubig(stack) < b.as_ubig(stack) {
-            Ok(YES)
+            NO
+        } else if a.as_ubig(s) < b.as_ubig(s) {
+            YES
         } else {
-            Ok(NO)
+            NO
         }
     }
 }
