@@ -1,7 +1,9 @@
 use crate::assert_acyclic;
+use crate::assert_no_forwarding_pointers;
+use crate::assert_no_junior_pointers;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use crate::snapshot::pma::{pma_in_arena, pma_malloc_w};
-
+use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
 use libc::{c_void, memcmp};
@@ -58,22 +60,22 @@ impl NockStack {
      * The initial frame is a west frame. When the stack is initialized, a number of slots is given.
      * We add three extra slots to store the “previous” frame, stack, and allocation pointer. For the
      * initial frame, the previous allocation pointer is set to the beginning (low boundary) of the
-     * arena, the previous frame pointer is set to NULL, and the previous stack pointer is set to XX */
+     * arena, the previous frame pointer is set to NULL, and the previous stack pointer is set to NULL */
 
-    /** Size is in 64 bit words.
+    /** size is in 64-bit (i.e. 8-byte) words.
      * top_slots is how many slots to allocate to the top stack frame.
      */
     pub fn new(size: usize, top_slots: usize) -> NockStack {
         let memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
         let start = memory.as_ptr() as *const u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
-        let frame_pointer = unsafe { start.add(top_slots + RESERVED) } as *mut u64;
+        let frame_pointer = unsafe { start.add(RESERVED + top_slots) } as *mut u64;
         let stack_pointer = frame_pointer;
         let alloc_pointer = unsafe { start.add(size) } as *mut u64;
         unsafe {
-            *frame_pointer = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
-            *frame_pointer.sub(STACK) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
-            *frame_pointer.sub(ALLOC) = start as u64; // "alloc pointer" from "previous" frame
+            *frame_pointer.sub(FRAME + 1) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
+            *frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
+            *frame_pointer.sub(ALLOC + 1) = ptr::null::<u64>() as u64; // "alloc pointer" from "previous" frame
         };
         NockStack {
             start,
@@ -84,6 +86,11 @@ impl NockStack {
             memory,
             pc: false,
         }
+    }
+
+    /** Current frame pointer of this NockStack */
+    pub fn get_frame_pointer(&self) -> *const u64 {
+        self.frame_pointer
     }
 
     /** Checks if the current stack frame has West polarity */
@@ -351,6 +358,10 @@ impl NockStack {
     }
 
     unsafe fn copy(&mut self, noun: &mut Noun) {
+        assert_acyclic!(*noun);
+        assert_no_forwarding_pointers!(*noun);
+        assert_no_junior_pointers!(self, *noun);
+
         self.pre_copy();
         assert!(self.stack_is_empty());
         let noun_ptr = noun as *mut Noun;
@@ -438,7 +449,10 @@ impl NockStack {
             }
         }
         // Set saved previous allocation pointer its new value after this allocation
+
         assert_acyclic!(*noun);
+        assert_no_forwarding_pointers!(*noun);
+        assert_no_junior_pointers!(self, *noun);
     }
 
     pub unsafe fn struct_is_in<T>(&self, ptr: *const T, count: usize) {
@@ -570,7 +584,6 @@ impl NockStack {
                 },
             }
         }
-        assert_acyclic!(*noun);
     }
 
     pub unsafe fn frame_pop(&mut self) {
@@ -581,6 +594,18 @@ impl NockStack {
         self.frame_pointer = prev_frame_ptr;
         self.stack_pointer = prev_stack_ptr;
         self.alloc_pointer = prev_alloc_ptr;
+
+        if self.frame_pointer.is_null()
+            || self.stack_pointer.is_null()
+            || self.alloc_pointer.is_null()
+        {
+            permit_alloc(|| {
+                panic!(
+                    "serf: frame_pop: null NockStack pointer f={:p} s={:p} a={:p}",
+                    self.frame_pointer, self.stack_pointer, self.alloc_pointer
+                );
+            });
+        }
 
         self.pc = false;
     }
@@ -720,6 +745,88 @@ impl NockStack {
             unsafe { self.stack_pointer == self.alloc_pointer.add(RESERVED) }
         }
     }
+
+    pub fn no_junior_pointers(&self, noun: Noun) -> bool {
+        unsafe {
+            if let Ok(c) = noun.as_cell() {
+                let mut fp: *mut u64;
+                let mut sp = self.stack_pointer;
+                let mut ap = self.alloc_pointer;
+                let mut pfp = *(self.prev_frame_pointer_pointer());
+                let mut psp = *(self.prev_stack_pointer_pointer());
+                let mut pap = *(self.prev_alloc_pointer_pointer());
+
+                let mut dbg_stack = Vec::new();
+
+                // Detemine range
+                let (rlo, rhi) = loop {
+                    if psp.is_null() {
+                        psp = ((self.start as u64) + ((self.size << 3) as u64)) as *mut u64;
+                    }
+                    let (lo, hi) = if sp < ap { (ap, psp) } else { (psp, ap) };
+                    let ptr = c.to_raw_pointer() as *mut u64;
+                    if ptr >= lo && ptr < hi {
+                        break if sp < ap { (sp, ap) } else { (ap, sp) };
+                    } else {
+                        fp = pfp;
+                        sp = psp;
+                        ap = pap;
+                        if sp < ap {
+                            pfp = *(fp.sub(FRAME + 1)) as *mut u64;
+                            psp = *(fp.sub(STACK + 1)) as *mut u64;
+                            pap = *(fp.sub(ALLOC + 1)) as *mut u64;
+                        } else {
+                            pfp = *(fp.add(FRAME)) as *mut u64;
+                            psp = *(fp.add(STACK)) as *mut u64;
+                            pap = *(fp.add(ALLOC)) as *mut u64;
+                        }
+                    }
+                };
+
+                dbg_stack.push(c.head());
+                dbg_stack.push(c.tail());
+                while let Some(n) = dbg_stack.pop() {
+                    if let Ok(a) = n.as_allocated() {
+                        let ptr = a.to_raw_pointer();
+                        if ptr >= rlo && ptr < rhi {
+                            eprintln!(
+                                "\rserf: Noun {:x} has Noun {:x} in junior of range {:p}-{:p}",
+                                (noun.raw << 3),
+                                (n.raw << 3),
+                                rlo,
+                                rhi
+                            );
+                            return false;
+                        }
+                        if let Some(c) = a.cell() {
+                            dbg_stack.push(c.tail());
+                            dbg_stack.push(c.head());
+                        }
+                    }
+                }
+
+                true
+            } else {
+                true
+            }
+        }
+    }
+}
+
+#[cfg(feature = "check_junior")]
+#[macro_export]
+macro_rules! assert_no_junior_pointers {
+    ( $x:expr, $y:expr ) => {
+        assert_no_alloc::permit_alloc(|| {
+            assert!($x.no_junior_pointers($y));
+        })
+    };
+}
+
+#[cfg(not(feature = "check_junior"))]
+#[macro_export]
+macro_rules! assert_no_junior_pointers {
+    ( $x:expr, $y:expr ) => {};
 }
 
 pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
@@ -746,6 +853,13 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
      * senior noun, *never vice versa*, to avoid introducing references from more senior frames
      * into more junior frames, which would result in incorrect operation of the copier.
      */
+    assert_acyclic!(*a);
+    assert_acyclic!(*b);
+    assert_no_forwarding_pointers!(*a);
+    assert_no_forwarding_pointers!(*b);
+    assert_no_junior_pointers!(stack, *a);
+    assert_no_junior_pointers!(stack, *b);
+
     // If the nouns are already word-equal we have nothing to do
     if (*a).raw_equals(*b) {
         return true;
@@ -792,7 +906,6 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         ) == 0
                     {
                         let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
-                        // unify
                         if x_as_ptr == junior {
                             *x = *y;
                         } else {
@@ -842,8 +955,14 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         }
     }
     stack.frame_pop();
+
     assert_acyclic!(*a);
     assert_acyclic!(*b);
+    assert_no_forwarding_pointers!(*a);
+    assert_no_forwarding_pointers!(*b);
+    assert_no_junior_pointers!(stack, *a);
+    assert_no_junior_pointers!(stack, *b);
+
     (*a).raw_equals(*b)
 }
 
@@ -864,17 +983,19 @@ unsafe fn senior_pointer_first(
     };
 
     loop {
+        if low_pointer.is_null() || high_pointer.is_null() {
+            // we found the bottom of the stack; check entirety of the stack
+            low_pointer = stack.start;
+            high_pointer = stack.start.add(stack.size);
+        }
+
         match (
             a < high_pointer && a >= low_pointer,
             b < high_pointer && b >= low_pointer,
         ) {
             (true, true) => {
                 // both pointers are in the same frame, pick arbitrarily (lower in mem)
-                if a < b {
-                    break (a, b);
-                } else {
-                    break (b, a);
-                };
+                break lower_pointer_first(a, b);
             }
             (true, false) => break (b, a), // a is in the frame, b is not, so b is senior
             (false, true) => break (a, b), // b is in the frame, a is not, so a is senior
@@ -887,30 +1008,23 @@ unsafe fn senior_pointer_first(
                     alloc_pointer = *(frame_pointer.sub(ALLOC + 1)) as *const u64;
                     frame_pointer = *(frame_pointer.sub(FRAME + 1)) as *const u64;
 
+                    // both pointers are in the PMA, pick arbitrarily (lower in mem)
                     if frame_pointer.is_null() {
-                        if a < b {
-                            break (a, b);
-                        } else {
-                            break (b, a);
-                        }
+                        break lower_pointer_first(a, b);
                     };
 
                     // previous allocation pointer
                     high_pointer = alloc_pointer;
                     // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
                     low_pointer = *(frame_pointer.add(STACK)) as *const u64;
-                    continue;
                 } else if stack_pointer > alloc_pointer {
                     stack_pointer = *(frame_pointer.add(STACK)) as *const u64;
                     alloc_pointer = *(frame_pointer.add(ALLOC)) as *const u64;
                     frame_pointer = *(frame_pointer.add(FRAME)) as *const u64;
 
+                    // both pointers are in the PMA, pick arbitrarily (lower in mem)
                     if frame_pointer.is_null() {
-                        if a < b {
-                            break (a, b);
-                        } else {
-                            break (b, a);
-                        }
+                        break lower_pointer_first(a, b);
                     };
 
                     // previous allocation pointer
@@ -922,6 +1036,14 @@ unsafe fn senior_pointer_first(
                 }
             }
         }
+    }
+}
+
+fn lower_pointer_first(a: *const u64, b: *const u64) -> (*const u64, *const u64) {
+    if a < b {
+        (a, b)
+    } else {
+        (b, a)
     }
 }
 

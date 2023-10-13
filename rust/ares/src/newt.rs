@@ -58,6 +58,7 @@ use either::Either;
 use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
 use std::ptr::copy_nonoverlapping;
+use std::slice::from_raw_parts_mut;
 
 crate::gdb!();
 
@@ -82,7 +83,9 @@ impl Newt {
     fn write_noun(&mut self, stack: &mut NockStack, noun: Noun) {
         let atom = jam(stack, noun);
         let size = atom.size() << 3;
-        let mut buf = vec![0u8; size + 5];
+        // XX: checked add?
+        let buf = unsafe { from_raw_parts_mut(stack.struct_alloc::<u8>(size + 5), size + 5) };
+        buf[0] = 0u8;
         buf[1] = size as u8;
         buf[2] = (size >> 8) as u8;
         buf[3] = (size >> 16) as u8;
@@ -104,10 +107,14 @@ impl Newt {
                 );
             },
         };
-        self.output.write_all(&buf).unwrap();
+        self.output.write_all(buf).unwrap();
     }
 
-    /** Send %ripe, the first event. */
+    /** Send %ripe, the first event.
+     *
+     * eve  =   event number
+     * mug  =   mug of Arvo after above event
+     */
     pub fn ripe(&mut self, stack: &mut NockStack, eve: u64, mug: u64) {
         let version = T(
             stack,
@@ -127,7 +134,11 @@ impl Newt {
         self.write_noun(stack, live);
     }
 
-    /** Send %slog, pretty-printed debug output. */
+    /** Send %slog, pretty-printed debug output.
+     *
+     * pri  =   debug priority
+     * tank =   output as tank
+     */
     pub fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
         let slog = T(stack, &[D(tas!(b"slog")), D(pri), tank]);
         self.write_noun(stack, slog);
@@ -145,19 +156,30 @@ impl Newt {
         self.write_noun(stack, peek);
     }
 
-    /** Send %peek %bail, unsuccessfully scried. */
+    /** Send %peek %bail, unsuccessfully scried.
+     *
+     * dud  =   goof
+     */
     pub fn peek_bail(&mut self, stack: &mut NockStack, dud: Noun) {
         let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"bail")), dud]);
         self.write_noun(stack, peek);
     }
 
-    /** Send %play %done, successfully replayed events. */
+    /** Send %play %done, successfully replayed events.
+     *
+     * mug  =   mug of Arvo after full replay
+     */
     pub fn play_done(&mut self, stack: &mut NockStack, mug: u64) {
         let play = T(stack, &[D(tas!(b"play")), D(tas!(b"done")), D(mug)]);
         self.write_noun(stack, play);
     }
 
-    /** Send %play %bail, failed to replay events. */
+    /** Send %play %bail, failed to replay events.
+     *
+     * eve  =   last good event number
+     * mug  =   mug of Arvo after above event
+     * dud  =   goof when trying next event
+     */
     pub fn play_bail(&mut self, stack: &mut NockStack, eve: u64, mug: u64, dud: Noun) {
         let play = T(
             stack,
@@ -166,7 +188,12 @@ impl Newt {
         self.write_noun(stack, play);
     }
 
-    /** Send %work %done, successfully ran event. */
+    /** Send %work %done, successfully ran event.
+     *
+     * eve  =   new event number
+     * mug  =   mug of Arvo after above event
+     * fec  =   list of effects
+     */
     pub fn work_done(&mut self, stack: &mut NockStack, eve: u64, mug: u64, fec: Noun) {
         let work = T(
             stack,
@@ -175,7 +202,13 @@ impl Newt {
         self.write_noun(stack, work);
     }
 
-    /** Send %work %swap, successfully replaced failed event. */
+    /** Send %work %swap, successfully replaced failed event.
+     *
+     * eve  =   new event number
+     * mug  =   mug of Arvo after above event
+     * job  =   event performed instead of the one given to serf by king
+     * fec  =   list of effects
+     */
     pub fn work_swap(&mut self, stack: &mut NockStack, eve: u64, mug: u64, job: Noun, fec: Noun) {
         let work = T(
             stack,
@@ -184,7 +217,10 @@ impl Newt {
         self.write_noun(stack, work);
     }
 
-    /** Send %work %bail, failed to run event. */
+    /** Send %work %bail, failed to run event.
+     *
+     * lud  =   list of goof
+     */
     pub fn work_bail(&mut self, stack: &mut NockStack, lud: Noun) {
         let work = T(stack, &[D(tas!(b"work")), D(tas!(b"bail")), lud]);
         self.write_noun(stack, work);

@@ -1,9 +1,10 @@
-use ares::interpreter::interpret;
+use ares::hamt::Hamt;
+use ares::interpreter::{interpret, Context};
 use ares::jets::cold::Cold;
 use ares::jets::hot::Hot;
 use ares::jets::warm::Warm;
 use ares::mem::NockStack;
-use ares::noun::IndirectAtom;
+use ares::noun::{IndirectAtom, Noun};
 use ares::serf::serf;
 use ares::serialization::{cue, jam};
 use memmap::Mmap;
@@ -27,7 +28,11 @@ fn main() -> io::Result<()> {
     if filename == "see gdb! definition in lib.rs about this" {
         ares::interpreter::use_gdb();
         ares::jets::use_gdb();
+        ares::jets::bits::use_gdb();
+        ares::jets::hash::use_gdb();
         ares::jets::math::use_gdb();
+        ares::jets::nock::use_gdb();
+        ares::jets::tree::use_gdb();
         ares::mem::use_gdb();
         ares::mug::use_gdb();
         ares::newt::use_gdb();
@@ -47,9 +52,6 @@ fn main() -> io::Result<()> {
     let f = File::open(filename)?;
     let in_len = f.metadata()?.len();
     let mut stack = NockStack::new(8 << 10 << 10, 0);
-    let mut cold = Cold::new(&mut stack);
-    let mut warm = Warm::new();
-    let hot = Hot::init(&mut stack);
     let jammed_input = unsafe {
         let in_map = Mmap::map(&f)?;
         let word_len = (in_len + 7) >> 3;
@@ -63,15 +65,16 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let result = interpret(
-        &mut stack,
-        &mut None,
-        &mut cold,
-        &mut warm,
-        hot,
-        input_cell.head(),
-        input_cell.tail(),
-    );
+    let mut context = Context {
+        stack: &mut stack,
+        newt: None,
+        cache: &mut Hamt::<Noun>::new(),
+        cold: &mut Cold::new(&mut stack);
+        warm: &mut Warm::new();
+        hot: &mut Hot::init(&mut stack);
+    };
+    let result =
+        interpret(&mut context, input_cell.head(), input_cell.tail()).expect("nock failed");
     if let Ok(atom) = result.as_atom() {
         println!("Result: {}", atom);
     }
