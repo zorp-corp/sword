@@ -1,44 +1,30 @@
 /** Virtualization jets
  */
-use crate::interpreter::{interpret, NockErr};
-use crate::jets;
+use crate::interpreter::Context;
 use crate::jets::util::slot;
-use crate::mem::NockStack;
-use crate::newt::Newt;
-use crate::noun::{Noun, D, T};
+use crate::jets::Result;
+use crate::noun::Noun;
 
 crate::gdb!();
 
-// XX: interpret should accept optional scry function and potentially produce blocked
-pub fn jet_mink(
-    stack: &mut NockStack,
-    newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+//  XX: interpret should accept optional scry function and potentially produce blocked
+pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     // mink sample = [nock scry_namespace]
     //             = [[subject formula] scry_namespace]
     let v_subject = slot(arg, 4)?;
     let v_formula = slot(arg, 5)?;
     let _scry = slot(arg, 3)?;
-
-    //  XX: NonDeterministic errors need to bail here, too
-    match interpret(stack, newt, v_subject, v_formula) {
-        Ok(res) => Ok(T(stack, &[D(0), res])),
-        Err(err) => match err {
-            NockErr::Blocked(block) => Ok(T(stack, &[D(1), block])),
-            NockErr::Error(error) => Ok(T(stack, &[D(2), error])),
-        },
-    }
+    util::mink(context, v_subject, v_formula)
 }
 
 pub mod util {
+    use crate::interpreter::{interpret, Context, NockErr, Tone};
     use crate::jets;
     use crate::jets::form::util::scow;
     use crate::jets::util::rip;
-    use crate::jets::{jet_mink, JetErr};
+    use crate::jets::JetErr;
     use crate::mem::NockStack;
-    use crate::newt::Newt;
     use crate::noun::{tape, Cell, Noun, D, T};
     use ares_macros::tas;
     use std::result;
@@ -46,15 +32,24 @@ pub mod util {
     const LEAF: Noun = D(tas!(b"leaf"));
     const ROSE: Noun = D(tas!(b"rose"));
 
+    pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> jets::Result {
+        //  XX: no partial traces; all of our traces go down to the "home road"
+        match interpret(context, subject, formula) {
+            Ok(res) => Ok(T(context.stack, &[D(0), res])),
+            Err(err) => match err {
+                Tone::Blocked(block) => Ok(T(context.stack, &[D(1), block])),
+                Tone::Error(err, trace) => match err {
+                    NockErr::Deterministic => Ok(T(context.stack, &[D(2), trace])),
+                    NockErr::NonDeterministic => Err(JetErr::NonDeterministic),
+                },
+            },
+        }
+    }
+
     /** Consume $tone, produce $toon
      */
     //  XX: should write a jet_mook wrapper for this function
-    pub fn mook(
-        stack: &mut NockStack,
-        newt: &mut Option<&mut Newt>,
-        tone: Cell,
-        flop: bool,
-    ) -> result::Result<Cell, JetErr> {
+    pub fn mook(context: &mut Context, tone: Cell, flop: bool) -> result::Result<Cell, JetErr> {
         let tag = tone.head().as_direct()?;
         let original_list = tone.tail();
 
@@ -76,7 +71,7 @@ pub mod util {
             let mut res = D(0);
             let mut list = original_list;
             // Unused if flopping
-            let (mut new_cell, mut new_memory) = Cell::new_raw_mut(stack);
+            let (mut new_cell, mut new_memory) = Cell::new_raw_mut(context.stack);
             let mut memory = new_memory;
 
             // loop guaranteed to run at least once
@@ -86,7 +81,7 @@ pub mod util {
                 } else if !flop && res.raw_equals(D(0)) {
                     res = new_cell.as_noun();
                 } else if !flop {
-                    (new_cell, new_memory) = Cell::new_raw_mut(stack);
+                    (new_cell, new_memory) = Cell::new_raw_mut(context.stack);
                     (*memory).tail = new_cell.as_noun();
                     memory = new_memory
                 }
@@ -99,16 +94,13 @@ pub mod util {
                 let tank: Noun = match tag.data() {
                     tas!(b"mean") => {
                         if let Ok(atom) = dat.as_atom() {
-                            let tape = rip(stack, 3, 1, atom)?;
-                            T(stack, &[LEAF, tape])
+                            let tape = rip(context.stack, 3, 1, atom)?;
+                            T(context.stack, &[LEAF, tape])
                         } else {
-                            let virt = T(stack, &[dat, dat.as_cell()?.head()]);
-                            let load = T(stack, &[virt, D(0)]);
-                            let subj = T(stack, &[D(0), load, D(0)]);
-                            let tone = jet_mink(stack, newt, subj)?.as_cell()?;
+                            let tone = mink(context, dat, dat.as_cell()?.head())?.as_cell()?;
                             if !tone.head().raw_equals(D(0)) {
-                                let tape = tape(stack, "####");
-                                T(stack, &[LEAF, tape])
+                                let tape = tape(context.stack, "####");
+                                T(context.stack, &[LEAF, tape])
                             } else {
                                 // XX: need to check that this is actually a tank
                                 //     return leaf+"mean.mook" if not
@@ -117,13 +109,14 @@ pub mod util {
                         }
                     }
                     tas!(b"spot") => {
+                        let stack = &mut context.stack;
                         let spot = dat.as_cell()?;
                         let pint = spot.tail().as_cell()?;
                         let pstr = pint.head().as_cell()?;
                         let pend = pint.tail().as_cell()?;
 
-                        let colo = T(stack, &[D(b':' as u64), D(0)]);
-                        let trel = T(stack, &[colo, D(0), D(0)]);
+                        let colo = T(*stack, &[D(b':' as u64), D(0)]);
+                        let trel = T(*stack, &[colo, D(0), D(0)]);
 
                         let smyt = smyt(stack, spot.head())?;
 
@@ -141,7 +134,7 @@ pub mod util {
                             list = list.tail().as_cell()?;
                         }
                         // "{end_col}]>"
-                        let p4 = T(stack, &[D(b']' as u64), D(b'>' as u64), D(0)]);
+                        let p4 = T(*stack, &[D(b']' as u64), D(b'>' as u64), D(0)]);
                         (*list.tail_as_mut()) = p4;
 
                         list = end_lin.as_cell()?;
@@ -152,7 +145,7 @@ pub mod util {
                             list = list.tail().as_cell()?;
                         }
                         // "{end_lin} {end_col}]>"
-                        let p3 = T(stack, &[D(b' ' as u64), end_col]);
+                        let p3 = T(*stack, &[D(b' ' as u64), end_col]);
                         (*list.tail_as_mut()) = p3;
 
                         list = str_col.as_cell()?;
@@ -164,7 +157,7 @@ pub mod util {
                         }
                         // "{str_col}].[{end_lin} {end_col}]>"
                         let p2 = T(
-                            stack,
+                            *stack,
                             &[D(b']' as u64), D(b'.' as u64), D(b'[' as u64), end_lin],
                         );
                         (*list.tail_as_mut()) = p2;
@@ -177,19 +170,19 @@ pub mod util {
                             list = list.tail().as_cell()?;
                         }
                         // "{str_lin} {str_col}].[{end_lin} {end_col}]>"
-                        let p1 = T(stack, &[D(b' ' as u64), str_col]);
+                        let p1 = T(*stack, &[D(b' ' as u64), str_col]);
                         (*list.tail_as_mut()) = p1;
 
                         // "<[{str_lin} {str_col}].[{end_lin} {end_col}]>"
-                        let tape = T(stack, &[D(b'<' as u64), D(b'[' as u64), str_lin]);
-                        let finn = T(stack, &[LEAF, tape]);
+                        let tape = T(*stack, &[D(b'<' as u64), D(b'[' as u64), str_lin]);
+                        let finn = T(*stack, &[LEAF, tape]);
 
-                        T(stack, &[ROSE, trel, smyt, finn, D(0)])
+                        T(*stack, &[ROSE, trel, smyt, finn, D(0)])
                     }
                     _ => {
-                        let tape = rip(stack, 3, 1, tag.as_atom())?;
+                        let tape = rip(context.stack, 3, 1, tag.as_atom())?;
                         T(
-                            stack,
+                            context.stack,
                             &[
                                 D(tas!(b"m")),
                                 D(tas!(b"o")),
@@ -206,7 +199,7 @@ pub mod util {
                 };
 
                 if flop {
-                    res = T(stack, &[tank, res]);
+                    res = T(context.stack, &[tank, res]);
                 } else {
                     (*memory).head = tank;
                 }
@@ -217,7 +210,7 @@ pub mod util {
                 (*memory).tail = D(0);
             }
 
-            let toon = Cell::new(stack, D(2), res);
+            let toon = Cell::new(context.stack, D(2), res);
             Ok(toon)
         }
     }
@@ -252,6 +245,23 @@ pub mod util {
 mod tests {
     use super::*;
     use crate::jets::util::test::{assert_jet, init_stack};
+    use crate::mem::NockStack;
+    use crate::noun::{D, T};
+    use crate::serf::TERMINATOR;
+    use std::sync::Arc;
+
+    #[test]
+    fn init() {
+        // This needs to be done because TERMINATOR is lazy allocated, and if you don't
+        // do it before you call the unit tests it'll get allocated on the Rust heap
+        // inside an assert_no_alloc block.
+        //
+        // Also Rust has no primitive for pre-test setup / post-test teardown, so we
+        // do it in a test that we rely on being called before any other in this file,
+        // since we're already using single-threaded test mode to avoid race conditions
+        // (because Rust doesn't support test order dependencies either).
+        let _ = Arc::clone(&TERMINATOR);
+    }
 
     #[test]
     fn test_mink_success() {

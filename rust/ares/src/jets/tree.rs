@@ -1,19 +1,14 @@
 /** Tree jets
  */
-use crate::jets;
+use crate::interpreter::Context;
 use crate::jets::util::*;
 use crate::jets::JetErr::*;
-use crate::mem::NockStack;
-use crate::newt::Newt;
+use crate::jets::Result;
 use crate::noun::{Noun, D};
 
 crate::gdb!();
 
-pub fn jet_cap(
-    _stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_cap(_context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let tom = arg.as_atom()?;
     let met = met(0, tom);
@@ -29,11 +24,8 @@ pub fn jet_cap(
     }
 }
 
-pub fn jet_mas(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_mas(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let tom = arg.as_atom()?;
     let met = met(0, tom);

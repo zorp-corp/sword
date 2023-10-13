@@ -44,7 +44,9 @@ pub const NO: Noun = D(1);
 #[macro_export]
 macro_rules! assert_acyclic {
     ( $x:expr ) => {
-        assert!(crate::noun::acyclic_noun($x));
+        assert_no_alloc::permit_alloc(|| {
+            assert!(crate::noun::acyclic_noun($x));
+        })
     };
 }
 
@@ -80,6 +82,42 @@ fn acyclic_noun_go(noun: Noun, seen: &mut IntMap<()>) -> bool {
             }
         }
     }
+}
+
+#[cfg(feature = "check_forwarding")]
+#[macro_export]
+macro_rules! assert_no_forwarding_pointers {
+    ( $x:expr ) => {
+        assert_no_alloc::permit_alloc(|| {
+            assert!(crate::noun::no_forwarding_pointers($x));
+        })
+    };
+}
+
+#[cfg(not(feature = "check_forwarding"))]
+#[macro_export]
+macro_rules! assert_no_forwarding_pointers {
+    ( $x:expr ) => {};
+}
+
+pub fn no_forwarding_pointers(noun: Noun) -> bool {
+    let mut dbg_stack = Vec::new();
+    dbg_stack.push(noun);
+
+    while !dbg_stack.is_empty() {
+        if let Some(noun) = dbg_stack.pop() {
+            if unsafe { noun.raw & FORWARDING_MASK == FORWARDING_TAG } {
+                return false;
+            } else if let Ok(cell) = noun.as_cell() {
+                dbg_stack.push(cell.tail());
+                dbg_stack.push(cell.head());
+            }
+        } else {
+            break;
+        }
+    }
+
+    true
 }
 
 /** Test if a noun is a direct atom. */
@@ -188,7 +226,7 @@ impl DirectAtom {
     }
 
     pub fn as_bytes(&self) -> &[u8] {
-        let bytes: &[u8; 8] = unsafe { std::mem::transmute(self.0) };
+        let bytes: &[u8; 8] = unsafe { std::mem::transmute(&self.0) };
         &bytes[..]
     }
 }
@@ -832,6 +870,14 @@ impl Allocated {
             unsafe { Left(self.indirect) }
         } else {
             unsafe { Right(self.cell) }
+        }
+    }
+
+    pub fn cell(&self) -> Option<Cell> {
+        if self.is_cell() {
+            unsafe { Some(self.cell) }
+        } else {
+            None
         }
     }
 

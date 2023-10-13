@@ -1,5 +1,7 @@
 /** Text processing jets
  */
+use crate::interpreter::Context;
+use crate::jets::util::slot;
 use crate::jets::Result;
 use crate::jets::util::slot;
 use crate::mem::NockStack;
@@ -8,7 +10,7 @@ use crate::noun::{Noun, D};
 
 crate::gdb!();
 
-pub fn jet_lent(_stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+pub fn jet_lent(_context: &mut Context, subject: Noun) -> Result {
     let tape = slot(subject, 6)?;
     util::lent(tape).map(|x| D(x as u64))
 }

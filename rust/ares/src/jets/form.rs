@@ -1,17 +1,16 @@
-use crate::jets::util::slot;
 /** Formatting jets
  */
+use crate::interpreter::Context;
+use crate::jets::util::slot;
 use crate::jets::Result;
-use crate::mem::NockStack;
-use crate::newt::Newt;
 use crate::noun::Noun;
 
 crate::gdb!();
 
-pub fn jet_scow(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+pub fn jet_scow(context: &mut Context, subject: Noun) -> Result {
     let aura = slot(subject, 12)?.as_direct()?;
     let atom = slot(subject, 13)?.as_atom()?;
-    util::scow(stack, aura, atom)
+    util::scow(context.stack, aura, atom)
 }
 
 pub mod util {
