@@ -1045,20 +1045,6 @@ impl Noun {
         Noun { raw }
     }
 
-    pub unsafe fn assert_no_forwarding_pointers(self) {
-        let mut dbg_stack = Vec::new();
-        dbg_stack.push(self);
-        while !dbg_stack.is_empty() {
-            let noun = dbg_stack.pop().unwrap();
-            if noun.raw & FORWARDING_MASK == FORWARDING_TAG {
-                panic!("Noun {:#x} has a forwarding pointer as a child", self.raw);
-            } else if let Ok(cell) = noun.as_cell() {
-                dbg_stack.push(cell.tail());
-                dbg_stack.push(cell.head());
-            }
-        }
-    }
-
     /** Produce the total size of a noun, in words
      *
      * This counts the total size, see mass_frame() to count the size in the current frame.

@@ -3,9 +3,9 @@ use crate::interpreter;
 use crate::interpreter::{inc, interpret, Tone};
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
-use crate::jets::warm::Warm;
 use crate::jets::nock::util::mook;
 use crate::jets::text::util::lent;
+use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
@@ -48,9 +48,9 @@ impl Context {
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new();
 
-        let cold = Cold::new(stack);
+        let cold = Cold::new(&mut stack);
         let warm = Warm::new();
-        let hot = Hot::init(stack);
+        let hot = Hot::init(&mut stack);
 
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
         let mug = mug_u32(&mut stack, arvo);
@@ -99,7 +99,7 @@ impl Context {
             cache: &mut self.cache,
             cold: &mut self.cold,
             warm: &mut self.warm,
-            hot: &mut self.hot,
+            hot: &self.hot,
         }
     }
 

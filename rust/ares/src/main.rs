@@ -65,13 +65,17 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
+    let mut cache = Hamt::<Noun>::new();
+    let mut cold = Cold::new(&mut stack);
+    let mut warm = Warm::new();
+    let hot = Hot::init(&mut stack);
     let mut context = Context {
         stack: &mut stack,
         newt: None,
-        cache: &mut Hamt::<Noun>::new(),
-        cold: &mut Cold::new(&mut stack);
-        warm: &mut Warm::new();
-        hot: &mut Hot::init(&mut stack);
+        cache: &mut cache,
+        cold: &mut cold,
+        warm: &mut warm,
+        hot: &hot,
     };
     let result =
         interpret(&mut context, input_cell.head(), input_cell.tail()).expect("nock failed");

@@ -2,10 +2,11 @@ use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
 use crate::hamt::Hamt;
-use crate::jets::JetErr;
+use crate::jets::cold;
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::warm::Warm;
+use crate::jets::JetErr;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -243,7 +244,7 @@ pub struct Context<'a, 'b, 'c, 'd, 'e, 'f> {
     //  XX: persistent memo cache
     pub cold: &'d mut Cold,
     pub warm: &'e mut Warm,
-    pub hot: &'f mut Hot,
+    pub hot: &'f Hot,
 }
 
 #[derive(Debug)]
@@ -264,6 +265,12 @@ impl From<NockErr> for () {
 
 impl From<noun::Error> for NockErr {
     fn from(_: noun::Error) -> Self {
+        NockErr::Deterministic
+    }
+}
+
+impl From<cold::Error> for NockErr {
+    fn from(_: cold::Error) -> Self {
         NockErr::Deterministic
     }
 }
@@ -397,12 +404,16 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         }
                         Todo2::ComputeResult => {
                             //  XX: why are these mut?
-                            if let Some(jet) = warm.find_jet(stack, &mut vale.subject, &mut res) {
+                            if let Some(jet) =
+                                context
+                                    .warm
+                                    .find_jet(context.stack, &mut vale.subject, &mut res)
+                            {
                                 // a jet match
-                                if let Ok(jet_res) = jet(stack, vale.subject) {
+                                if let Ok(jet_res) = jet(context, vale.subject) {
                                     // XX TODO: nondeterministic errors
                                     res = jet_res;
-                                    stack.pop::<NockWork>();
+                                    context.stack.pop::<NockWork>();
                                     continue;
                                 }
                             };
@@ -567,14 +578,16 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             push_formula(context.stack, kale.core, false)?;
                         }
                         Todo9::ComputeResult => {
-                            if let Ok(formula) = res.slot_atom(kale.axis) {
+                            if let Ok(mut formula) = res.slot_atom(kale.axis) {
                                 //  XX: why mut?
-                                if let Some(jet) = warm.find_jet(stack, &mut res, &mut formula) {
+                                if let Some(jet) =
+                                    context.warm.find_jet(context.stack, &mut res, &mut formula)
+                                {
                                     // a jet match
-                                    if let Ok(jet_res) = jet(stack, res) {
+                                    if let Ok(jet_res) = jet(context, res) {
                                         // XX TODO: nondeterministic errors
                                         res = jet_res;
-                                        stack.pop::<NockWork>();
+                                        context.stack.pop::<NockWork>();
                                         continue;
                                     };
                                 };
@@ -675,10 +688,17 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         }
                     }
                     Todo11D::Done => {
-                        if let Some(found) =
-                            hint::match_post_nock(context, subject, dint.tag, dint.body, res)
-                        {
-                            res = found;
+                        match hint::match_post_nock(
+                            context,
+                            subject,
+                            dint.tag,
+                            Some(dint.hint),
+                            dint.body,
+                            res,
+                        ) {
+                            Ok(Some(found)) => res = found,
+                            Err(err) => break Err(err),
+                            _ => {}
                         }
                         context.stack.pop::<NockWork>();
                     }
@@ -705,10 +725,12 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         }
                     }
                     Todo11S::Done => {
-                        if let Some(found) =
-                            hint::match_post_nock(context, subject, sint.tag, sint.body, res)
-                        {
-                            res = found;
+                        match hint::match_post_nock(
+                            context, subject, sint.tag, None, sint.body, res,
+                        ) {
+                            Ok(Some(found)) => res = found,
+                            Err(err) => break Err(err),
+                            _ => {}
                         }
                         context.stack.pop::<NockWork>();
                     }
@@ -1077,7 +1099,7 @@ mod hint {
         //  XX: handle IndirectAtom tags
         match tag.as_direct()?.data() {
             tas!(b"sham") => {
-                if cfg!(feature="sham_hints")  {
+                if cfg!(feature = "sham_hints") {
                     let jet_formula = hint.as_cell()?;
                     // XX: what is the head here?
                     let jet_name = jet_formula.tail();
@@ -1094,7 +1116,11 @@ mod hint {
                                         Ok(mut nock_res) => {
                                             let stack = &mut context.stack;
                                             if unsafe {
-                                                !unifying_equality(stack, &mut nock_res, &mut jet_res)
+                                                !unifying_equality(
+                                                    stack,
+                                                    &mut nock_res,
+                                                    &mut jet_res,
+                                                )
                                             } {
                                                 //  XX: need string interpolation without allocation, then delete eprintln
                                                 // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, nock_res, jet_res);
@@ -1146,7 +1172,7 @@ mod hint {
                         Ok(None)
                     }
                 } else {
-                  Ok(None)
+                    Ok(None)
                 }
             }
             tas!(b"memo") => {
@@ -1249,14 +1275,15 @@ mod hint {
         context: &mut Context,
         subject: Noun,
         tag: Atom,
+        hint: Option<Noun>,
         body: Noun,
         res: Noun,
-    ) -> Option<Noun> {
+    ) -> Result<Option<Noun>, NockErr> {
         let stack = &mut context.stack;
         let cache = &mut context.cache;
 
         //  XX: handle IndirectAtom tags
-        match tag.direct()?.data() {
+        match tag.as_direct()?.data() {
             tas!(b"memo") => {
                 let mut key = Cell::new(*stack, subject, body).as_noun();
                 **cache = (*cache).insert(stack, &mut key, res);
@@ -1265,31 +1292,33 @@ mod hint {
                 mean_pop(stack);
             }
             tas!(b"fast") => {
-                let clue = raw_slot_result(hint, 7)?;
-                let chum = raw_slot_result(clue, 2)?;
-                let parent_formula_op = raw_slot_result(clue, 12)?.as_atom()?.as_direct()?;
-                let parent_formula_ax = raw_slot_result(clue, 13)?.as_atom()?;
-                if parent_formula_op.data() == 1 {
-                    if parent_formula_ax.as_direct()?.data() == 0 {
-                        let changed = cold.register(stack, res, parent_formula_ax, chum)?;
-                        if changed {
-                            *warm = Warm::init(stack, cold, hot);
+                if let Some(hint) = hint {
+                    let clue = hint.slot(3)?;
+                    let chum = clue.slot(2)?;
+                    let parent_formula_op = clue.slot(12)?.as_atom()?.as_direct()?;
+                    let parent_formula_ax = clue.slot(13)?.as_atom()?;
+
+                    if parent_formula_op.data() == 1 {
+                        if parent_formula_ax.as_direct()?.data() == 0 {
+                            let changed =
+                                context.cold.register(stack, res, parent_formula_ax, chum)?;
+                            if changed {
+                                *context.warm = Warm::init(stack, context.cold, context.hot);
+                            }
+                        } else {
+                            return Err(NockErr::Deterministic);
                         }
-                        Ok(())
                     } else {
-                        Err(())
+                        let changed = context.cold.register(stack, res, parent_formula_ax, chum)?;
+                        if changed {
+                            *context.warm = Warm::init(stack, context.cold, context.hot);
+                        }
                     }
-                } else {
-                    let changed = cold.register(stack, res, parent_formula_ax, chum)?;
-                    if changed {
-                        *warm = Warm::init(stack, cold, hot);
-                    }
-                    Ok(())
                 }
             }
             _ => {}
         }
 
-        None
+        Ok(None)
     }
 }

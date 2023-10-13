@@ -1,10 +1,9 @@
 use crate::hamt::Hamt;
-use crate::interpreter::slot_result;
 use crate::jets::cold::{Batteries, Cold};
 use crate::jets::hot::Hot;
 use crate::jets::Jet;
 use crate::mem::{NockStack, Preserve};
-use crate::noun::Noun;
+use crate::noun::{Noun, Slots};
 use std::ptr::{copy_nonoverlapping, null_mut};
 
 pub struct Warm(Hamt<WarmEntry>);
@@ -110,16 +109,16 @@ impl Warm {
         }
     }
 
-    pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: Hot) -> Self {
+    pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> Self {
         let mut warm = Self::new();
-        for (mut path, axis, jet) in hot {
+        for (mut path, axis, jet) in *hot {
             let batteries_list = cold.find(stack, &mut path);
             for batteries in batteries_list {
                 let mut batteries_tmp = batteries;
                 let (battery, _parent_axis) = batteries_tmp
                     .next()
                     .expect("IMPOSSIBLE: empty battery entry in cold state");
-                if let Ok(mut formula) = unsafe { slot_result(*battery, axis.as_bitslice()) } {
+                if let Ok(mut formula) = unsafe { (*battery).slot_atom(axis) } {
                     warm.insert(stack, &mut formula, path, batteries, jet);
                 } else {
                     eprintln!("Bad axis {} into formula {:?}", axis, battery);
