@@ -33,22 +33,22 @@ pub fn jet_siva_en(stack: &mut NockStack,
             let (mut _kee_ida, kee) = IndirectAtom::new_raw_mut_bytes(stack, 32);
             kee[0..key_bytes.len()].copy_from_slice(key_bytes);
 
-            siv_en(stack,
+            Ok(util::siv_en(stack,
                 kee.as_mut_ptr(),
                 32,
                 ads,
                 txt,
                 urcrypt_aes_siva_en
-            )
+            ))
         }
     }
 }
 
 mod util {
-    use crate::noun::{D, Noun};
-    use std::result::Result;
-    use crate::jets::JetErr;
+    use crate::noun::{D, IndirectAtom, Noun};
     use crate::jets::util::met;
+    use urcrypt_sys::urcrypt_aes_siv_data;
+    use crate::jets::Result;
 
     /// Returns a tuple of (soc, mat, dat):
     /// * soc: number of items in the list of atoms
@@ -59,14 +59,14 @@ mod util {
     ///
     /// * `ads` - the list of atoms to measure
     ///
-    pub fn measure_ads(ads: Noun) -> Result<(usize, usize, usize), JetErr> {
+    pub fn measure_ads(ads: Noun) -> (usize, usize, usize) {
         let mut soc = 0;
         let mut mat = 0;
         let mut dat = 0;
 
         let mut tail = ads;
-        let a = 0;
-        let b = 0;
+        let mut a = 0;
+        let mut b = 0;
         unsafe {
             while !tail.raw_equals(D(0)) {
                 let (head, ttail) = match tail.as_cell() {
@@ -92,7 +92,8 @@ mod util {
             let tmp = a * std::mem::size_of::<urcrypt_aes_siv_data>();
             if (tmp / a) != std::mem::size_of::<urcrypt_aes_siv_data>() {
                 panic!("measure_ads: wrong size")
-            } else if (dat = tmp + b) < tmp {
+            } else if (tmp + b) < tmp {
+                dat = tmp + b;
                 panic!("measure_ads: overflow")
             } else {
                 soc = a;
@@ -103,44 +104,65 @@ mod util {
         }
     }
 
+    /// Encodes the list of atoms. Assumes ads is a
+    /// valid list of atoms, as it's already been measured.
+    ///
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `ads` - the list of atoms to allocate
     /// * `mat` - the encoding size
     /// * `dat` - the data allocation
     ///
+    /*
+static void
+_cqea_encode_ads(u3_noun ads,
+                 c3_w mat_w,
+                 urcrypt_aes_siv_data *dat_u)
+{
+  c3_w met_w;
+  u3_noun i, t;
+  urcrypt_aes_siv_data *cur_u;
+  c3_y *dat_y = ((c3_y*) dat_u) + mat_w;
+
+  for ( cur_u = dat_u, t = ads; u3_nul != t; t = u3t(t), ++cur_u ) {
+    i = u3h(t);
+    met_w = u3r_met(3, i);
+    u3r_bytes(0, met_w, dat_y, i);
+    cur_u->length = met_w;
+    cur_u->bytes = dat_y;
+    dat_y += met_w;
+  }
+}
+*/
     pub fn encode_ads(
         ads: Noun,
         mat: usize,
-        dat: &mut [urcrypt_aes_siv_data]
-    ) {
-        let current: &mut urcrypt_aes_siv_data;
-        let data_bytes: &mut [u8] = &mut dat[mat..];
+        dat: *mut urcrypt_aes_siv_data,
+    ) -> Result {
+        let mut current = unsafe { *(dat) };
+        let mut data_bytes: &mut [u8] = unsafe {
+            std::slice::from_raw_parts_mut(current.bytes, current.length + mat)
+        };
 
-        let mut tail = ads;
-        while !tail.raw_equals(D(0)) {
-            let head = tail.head();
-            let head = match head.as_atom() {
-                Ok(head) => head,
-                Err(_) => panic!("measure_ads: head not an atom"),
-            };
-
-            let length = met(3, head);
-            data_bytes = IndirectAtom::new_raw_mut_bytes(stack, length);
-            data_bytes[..length].copy_from_slice(head.as_bytes());
-
-            current.length = length;
-            current.bytes = data_bytes.as_mut_ptr();
-            data_bytes = &mut data_bytes[length..];
-            current = &mut dat[dat.length() - data_bytes.length()];
-            tail = tail.tail();
+        let mut head: Noun;
+        let mut tail: Noun = ads;
+        unsafe {
+            while !tail.raw_equals(D(0)) {
+                let head = tail.as_cell()?.head().as_atom()?;
+                let num_bytes = met(3, head);
+                current.length = num_bytes;
+                current.bytes = data_bytes.as_mut_ptr();
+                data_bytes[0..num_bytes].copy_from_slice(head.as_bytes());
+                data_bytes = &mut data_bytes[num_bytes..];
+                let tail = tail.as_cell()?.tail();
+                return Ok(ads);
+            }
         }
+        Ok(ads)
     }
 
-    pub fn ads_alloc(
-        ads: Noun,
-        soc: &mut usize
-    ) -> urcrypt_aes_siv_data {
+    pub fn ads_alloc(ads: Noun, soc: &mut usize) -> urcrypt_aes_siv_data {
         if !ads {
             soc = 0;
             D(0x0)
@@ -153,35 +175,13 @@ mod util {
         }
     }
 
-    /*
-    static void
-    _cqea_encode_ads(u3_noun ads,
-                    c3_w mat_w,
-                    urcrypt_aes_siv_data *dat_u)
-    {
-    c3_w met_w;
-    u3_noun i, t;
-    urcrypt_aes_siv_data *cur_u;
-    c3_y *dat_y = ((c3_y*) dat_u) + mat_w;
-
-    for ( cur_u = dat_u, t = ads; u3_nul != t; t = u3t(t), ++cur_u ) {
-        i = u3h(t);
-        met_w = u3r_met(3, i);
-        u3r_bytes(0, met_w, dat_y, i);
-        cur_u->length = met_w;
-        cur_u->bytes = dat_y;
-        dat_y += met_w;
-    }
-    }
-
-    */
-
+    #[allow(non_snake_case)]
     pub fn siv_en(stack: &mut NockStack,
         &[u8]: key_y,
         usize: key_w,
         Noun: ads,
         Atom: txt,
-        urcrypt_siv: low_f    
+        urcrypt_siv: low_f
     ) -> Noun {
         let txt_w: usize;
         let soc_w: usize;
@@ -212,9 +212,10 @@ mod util {
         Atom: iv,
         Atom: len,
         Atom: txt,
-        urcrypt_siv: low_f    
+        urcrypt_siv: low_f
     ) -> Noun {
 
+    }
 }
 
 #[cfg(test)]
