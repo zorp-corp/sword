@@ -2,19 +2,10 @@ use crate::jets::util::{met, slot};
 use crate::jets::{JetErr, Result};
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{IndirectAtom, Noun, YES, NO};
+use crate::noun::{IndirectAtom, Noun};
 use urcrypt_sys::*;
 
 crate::gdb!();
-
-type urcrypt_siv = fn(&mut [u8],
-    usize,
-    urcrypt_aes_siv_data,
-    usize,
-    &mut [u8],
-    [u8; 16],
-    &mut u8
-);
 
 pub fn jet_siva_en(stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
@@ -22,7 +13,7 @@ pub fn jet_siva_en(stack: &mut NockStack,
 ) -> Result {
     let txt = slot(subject, 6)?.as_atom();
     let key = slot(subject, 60)?.as_atom()?;
-    let ads = slot(subject, 61)?;
+    let atoms = slot(subject, 61)?;
 
     if (met(3, key) as usize) > 32 {
         // XX vere punts; we should do the same in the future
@@ -36,7 +27,7 @@ pub fn jet_siva_en(stack: &mut NockStack,
             Ok(util::siv_en(stack,
                 kee.as_mut_ptr(),
                 32,
-                ads,
+                atoms,
                 txt,
                 urcrypt_aes_siva_en
             ))
@@ -45,177 +36,166 @@ pub fn jet_siva_en(stack: &mut NockStack,
 }
 
 mod util {
-    use crate::noun::{D, IndirectAtom, Noun};
+    use crate::mem::NockStack;
+    use crate::noun::{Atom, D, Noun, IndirectAtom};
     use crate::jets::util::met;
     use urcrypt_sys::urcrypt_aes_siv_data;
-    use crate::jets::Result;
 
-    /// Returns a tuple of (soc, mat, dat):
-    /// * soc: number of items in the list of atoms
-    /// * mat: size in bytes of the associative array
-    /// * dat: size of allocation (array + atom storage)
+    type UrcryptSiv = fn(&mut [u8],
+        &[urcrypt_aes_siv_data],
+        &mut [u8],
+        [u8; 16],
+        &mut [u8]
+    );
+
+    /// Returns a tuple of (length, bytes, size):
+    /// * length: number of items in the list of atoms
+    /// * bytes: size in bytes of the associative array
+    /// * size: size of allocation (array + atom storage)
     ///
     /// # Arguments
     ///
-    /// * `ads` - the list of atoms to measure
+    /// * `atoms` - the list of atoms to measure
     ///
-    pub fn measure_ads(ads: Noun) -> (usize, usize, usize) {
-        let mut soc = 0;
-        let mut mat = 0;
-        let mut dat = 0;
+    pub fn _measure_atoms(atoms: Noun) -> (usize, usize, usize) {
+        let mut length = 0;
+        let mut bytes = 0;
+        let mut size = 0;
 
-        let mut tail = ads;
+        let mut tail = atoms;
         let mut a = 0;
         let mut b = 0;
         unsafe {
             while !tail.raw_equals(D(0)) {
                 let (head, ttail) = match tail.as_cell() {
                     Ok(cell) => (cell.head(), cell.tail()),
-                    Err(_) => panic!("measure_ads: not a cell"),
+                    Err(_) => panic!("measure_atoms: not a cell"),
                 };
                 let head = match head.as_atom() {
                     Ok(a) => a,
-                    Err(_) => panic!("measure_ads: head not an atom"),
+                    Err(_) => panic!("measure_atoms: head not an atom"),
                 };
                 tail = ttail;
 
                 let tmp = b;
                 b += met(3, head);
-                //  XX why this check?
+                //  could be just asserting that met returns more than 0
                 if b < tmp {
-                    panic!("measure_ads: overflow");
+                    panic!("measure_atoms: overflow");
                 }
                 a += 1;
             }
 
             // check for size overflows
             let tmp = a * std::mem::size_of::<urcrypt_aes_siv_data>();
+            size = tmp + b;
             if (tmp / a) != std::mem::size_of::<urcrypt_aes_siv_data>() {
-                panic!("measure_ads: wrong size")
-            } else if (tmp + b) < tmp {
-                dat = tmp + b;
-                panic!("measure_ads: overflow")
+                panic!("measure_atoms: wrong size")
+            } else if size < tmp {
+                panic!("measure_atoms: overflow")
             } else {
-                soc = a;
-                mat = tmp;
+                length = a;
+                bytes = tmp;
             }
 
-            (soc, mat, dat)
+            (length, bytes, size)
         }
     }
 
-    /// Encodes the list of atoms. Assumes ads is a
+    /// Encodes the list of atoms. Assumes atoms is a
     /// valid list of atoms, as it's already been measured.
-    ///
     ///
     /// # Arguments
     ///
-    /// * `ads` - the list of atoms to allocate
-    /// * `mat` - the encoding size
-    /// * `dat` - the data allocation
+    /// * `atoms` - the list of atoms to allocate
+    /// * `bytes` - the encoding size
+    /// * `data` - the data allocation
     ///
-    /*
-static void
-_cqea_encode_ads(u3_noun ads,
-                 c3_w mat_w,
-                 urcrypt_aes_siv_data *dat_u)
-{
-  c3_w met_w;
-  u3_noun i, t;
-  urcrypt_aes_siv_data *cur_u;
-  c3_y *dat_y = ((c3_y*) dat_u) + mat_w;
-
-  for ( cur_u = dat_u, t = ads; u3_nul != t; t = u3t(t), ++cur_u ) {
-    i = u3h(t);
-    met_w = u3r_met(3, i);
-    u3r_bytes(0, met_w, dat_y, i);
-    cur_u->length = met_w;
-    cur_u->bytes = dat_y;
-    dat_y += met_w;
-  }
-}
-*/
-    pub fn encode_ads(
-        ads: Noun,
-        mat: usize,
-        dat: *mut urcrypt_aes_siv_data,
-    ) -> Result {
-        let mut current = unsafe { *(dat) };
-        let mut data_bytes: &mut [u8] = unsafe {
-            std::slice::from_raw_parts_mut(current.bytes, current.length + mat)
-        };
-
-        let mut head: Noun;
-        let mut tail: Noun = ads;
+    pub fn _encode_atoms(atoms: Noun, bytes: usize, data: &mut [urcrypt_aes_siv_data]) {
+        // iterate through the list of atoms
+        let mut t = atoms;
+        let mut i = 0;
         unsafe {
-            while !tail.raw_equals(D(0)) {
-                let head = tail.as_cell()?.head().as_atom()?;
-                let num_bytes = met(3, head);
-                current.length = num_bytes;
-                current.bytes = data_bytes.as_mut_ptr();
-                data_bytes[0..num_bytes].copy_from_slice(head.as_bytes());
-                data_bytes = &mut data_bytes[num_bytes..];
-                let tail = tail.as_cell()?.tail();
-                return Ok(ads);
+            while !t.raw_equals(D(0)) {
+                let (head, tail) = match t.as_cell() {
+                    Ok(cell) => (cell.head(), cell.tail()),
+                    Err(_) => panic!("_encode_atoms: not a cell"),
+                };
+                let head = match head.as_atom() {
+                    Ok(a) => a,
+                    Err(_) => panic!("_encode_atoms: head not an atom"),
+                };
+                t = tail;
+                let head_bytes = head.as_bytes();
+                data[i].length = head_bytes.len();
+                for j in 0..head_bytes.len() {
+                    let byte_ptr = data[i+j].bytes;
+                    (*(byte_ptr)) = head_bytes[j];
+                }
+                i += data[i].length;
             }
         }
-        Ok(ads)
     }
 
-    pub fn ads_alloc(ads: Noun, soc: &mut usize) -> urcrypt_aes_siv_data {
-        if !ads {
-            soc = 0;
-            D(0x0)
-        } else {
-            let (soc, mat, dat) = measure_ads(ads);
-            let dat = IndirectAtom::new_raw_mut_bytes(stack, dat);
-            let dat = dat.as_mut_ptr() as *mut urcrypt_aes_siv_data;
-            encode_ads(ads, mat, dat);
-            dat
+    pub fn _allocate_atoms(atoms: Noun, length: usize) -> &'static mut [urcrypt_aes_siv_data] {
+        let (length, bytes, size) = _measure_atoms(atoms);
+        let siv_data: &mut [urcrypt_aes_siv_data];
+        _encode_atoms(atoms, bytes, siv_data);
+        siv_data
+    }
+
+    /*
+static u3_noun
+_cqea_siv_en(c3_y*   key_y,
+             c3_w    key_w,
+             u3_noun ads,
+             u3_atom txt,
+             urcrypt_siv low_f)
+{
+  u3_noun ret;
+  c3_w txt_w, soc_w;
+  c3_y *txt_y, *out_y, iv_y[16];
+  urcrypt_aes_siv_data *dat_u;
+
+  dat_u = _cqea_ads_alloc(ads, &soc_w);
+  txt_y = u3r_bytes_all(&txt_w, txt);
+  out_y = u3a_malloc(txt_w);
+
+  ret = ( 0 != (*low_f)(txt_y, txt_w, dat_u, soc_w, key_y, iv_y, out_y) )
+      ? u3_none
+      : u3nt(u3i_bytes(16, iv_y),
+             u3i_words(1, &txt_w),
+             u3i_bytes(txt_w, out_y));
+
+  u3a_free(txt_y);
+  u3a_free(out_y);
+  _cqea_ads_free(dat_u);
+  return ret;
+}
+     */
+    pub fn siv_en(stack: &mut NockStack, key: &mut [u8], atoms: Noun, text: Atom, func: UrcryptSiv) -> Noun {
+        let siv_data = _allocate_atoms(atoms, 0);
+        let (txt_ida, txt_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, siv_data.len()) };
+        txt_bytes.copy_from_slice(text.as_bytes());
+        let mut iv = [0u8; 16];
+        let mut out: &[u8];
+        let mut ret = 0;
+        unsafe {
+            func(txt_bytes, siv_data, key, iv, &mut out);
         }
+        atoms
     }
 
-    #[allow(non_snake_case)]
-    pub fn siv_en(stack: &mut NockStack,
-        &[u8]: key_y,
-        usize: key_w,
-        Noun: ads,
-        Atom: txt,
-        urcrypt_siv: low_f
-    ) -> Noun {
-        let txt_w: usize;
-        let soc_w: usize;
-        let txt_y: &[u8];
-        let out_y: &[u8];
-        let iv_y: [u8; 16];
-        let dat_u: &[urcrypt_aes_siv_data];
-
-        dat_u = ads_alloc(ads, &soc_w);
-        txt_y = IndirectAtom::new_raw_mut_bytes(stack, dat);
-        txt_y[0..txt_w].copy_from_slice(txt);
-        let dat = dat.as_mut_ptr() as *mut urcrypt_aes_siv_data;
-        let out = IndirectAtom::new_raw_mut_bytes(stack, txt_w);
-
-        let ret = match (*low_f)(txt_y, txt_w, dat_u, soc_w, key_y, iv_y, out_y) {
-            0 => T(stack, &[iv_y, txt_w[0], txt_w]),
-                 // ^ not correct yet
-            _ => D(0x0)
-        };
-
-        ret
-    }
-
-    pub fn siv_de(stack: &mut NockStack,
-        &[u8]: key_y,
-        usize: key_w,
-        Noun: ads,
-        Atom: iv,
-        Atom: len,
-        Atom: txt,
-        urcrypt_siv: low_f
-    ) -> Noun {
-
-    }
+    // pub fn siv_de(stack: &mut NockStack,
+    //     &[u8]: key_y,
+    //     usize: key_w,
+    //     Noun: atoms,
+    //     Atom: iv,
+    //     Atom: len,
+    //     Atom: txt,
+    //     urcrypt_siv: low_f
+    // ) -> Noun {
+    // }
 }
 
 #[cfg(test)]
