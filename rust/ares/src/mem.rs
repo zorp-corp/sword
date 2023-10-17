@@ -468,7 +468,7 @@ impl NockStack {
         assert_no_junior_pointers!(self, *noun);
     }
 
-    pub unsafe fn struct_is_in<T>(&self, ptr: *const T, count: usize) {
+    pub unsafe fn assert_struct_is_in<T>(&self, ptr: *const T, count: usize) {
         let ap = (if self.pc {
             *(self.prev_alloc_pointer_pointer())
         } else {
@@ -494,7 +494,7 @@ impl NockStack {
         );
     }
 
-    unsafe fn noun_in(&self, noun: Noun) {
+    unsafe fn assert_noun_in(&self, noun: Noun) {
         let mut dbg_stack = Vec::new();
         dbg_stack.push(noun);
         let ap = (if self.pc {
@@ -1085,7 +1085,7 @@ impl Preserve for IndirectAtom {
         *self = IndirectAtom::from_raw_pointer(buf);
     }
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
-        stack.noun_in(self.as_atom().as_noun());
+        stack.assert_noun_in(self.as_atom().as_noun());
     }
 }
 
@@ -1100,7 +1100,7 @@ impl Preserve for Atom {
         }
     }
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
-        stack.noun_in(self.as_noun());
+        stack.assert_noun_in(self.as_noun());
     }
 }
 
@@ -1109,7 +1109,7 @@ impl Preserve for Noun {
         stack.copy(self);
     }
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
-        stack.noun_in(*self);
+        stack.assert_noun_in(*self);
     }
 }
 

@@ -36,7 +36,7 @@ impl Preserve for WarmEntry {
         };
         let mut cursor = *self;
         loop {
-            stack.struct_is_in(cursor.0, 1);
+            stack.assert_struct_is_in(cursor.0, 1);
             (*cursor.0).batteries.assert_in_stack(stack);
             (*cursor.0).path.assert_in_stack(stack);
             if (*cursor.0).next.0.is_null() {

@@ -316,6 +316,7 @@ pub mod util {
         }
 
         pub fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
+            //  XX: consider making a mock context singleton that tests can use
             let mut cache = Hamt::<Noun>::new();
             let mut cold = Cold::new(stack);
             let mut warm = Warm::new();
@@ -344,6 +345,7 @@ pub mod util {
         }
 
         pub fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
+            //  XX: consider making a mock context singleton that tests can use
             let mut cache = Hamt::<Noun>::new();
             let mut cold = Cold::new(stack);
             let mut warm = Warm::new();

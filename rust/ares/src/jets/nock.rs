@@ -29,8 +29,8 @@ pub mod util {
     use ares_macros::tas;
     use std::result;
 
-    const LEAF: Noun = D(tas!(b"leaf"));
-    const ROSE: Noun = D(tas!(b"rose"));
+    pub const LEAF: Noun = D(tas!(b"leaf"));
+    pub const ROSE: Noun = D(tas!(b"rose"));
 
     pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> jets::Result {
         //  XX: no partial traces; all of our traces go down to the "home road"

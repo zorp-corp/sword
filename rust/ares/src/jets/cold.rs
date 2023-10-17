@@ -5,6 +5,19 @@ use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
 
+pub enum Error {
+    NoParent,
+    BadNock,
+}
+
+impl From<noun::Error> for Error {
+    fn from(_: noun::Error) -> Self {
+        Error::BadNock
+    }
+}
+
+pub type Result = std::result::Result<bool, Error>;
+
 #[derive(Copy, Clone)]
 pub struct Batteries(*mut BatteriesMem);
 
@@ -24,7 +37,7 @@ impl Preserve for Batteries {
         };
         let mut cursor = *self;
         loop {
-            stack.struct_is_in(cursor.0, 1);
+            stack.assert_struct_is_in(cursor.0, 1);
             (*cursor.0).battery.assert_in_stack(stack);
             (*cursor.0).parent_axis.assert_in_stack(stack);
             if (*cursor.0).parent_batteries.0.is_null() {
@@ -76,13 +89,20 @@ impl Iterator for Batteries {
 
 impl Batteries {
     pub fn matches(self, stack: &mut NockStack, mut core: Noun) -> bool {
+        let mut root_found: bool = false;
+
         for (battery, parent_axis) in self {
+            if root_found {
+                panic!("cold: core matched to root, but more data remains in path");
+            }
+
             if let Ok(d) = parent_axis.as_direct() {
                 if d.data() == 0 {
-                    if unsafe { !unifying_equality(stack, &mut core, battery) } {
-                        return false;
-                    } else {
+                    if unsafe { unifying_equality(stack, &mut core, battery) } {
+                        root_found = true;
                         continue;
+                    } else {
+                        return false;
                     };
                 };
             };
@@ -100,6 +120,11 @@ impl Batteries {
                 return false;
             }
         }
+
+        if !root_found {
+            panic!("cold: core matched exactly, but never matched root");
+        }
+
         true
     }
 }
@@ -122,7 +147,7 @@ impl Preserve for BatteriesList {
         }
         let mut cursor = *self;
         loop {
-            stack.struct_is_in(cursor.0, 1);
+            stack.assert_struct_is_in(cursor.0, 1);
             (*cursor.0).batteries.assert_in_stack(stack);
             if (*cursor.0).next.0.is_null() {
                 break;
@@ -192,7 +217,7 @@ impl Preserve for NounList {
         };
         let mut cursor = *self;
         loop {
-            stack.struct_is_in(cursor.0, 1);
+            stack.assert_struct_is_in(cursor.0, 1);
             (*cursor.0).element.assert_in_stack(stack);
             if (*cursor.0).next.0.is_null() {
                 break;
@@ -241,7 +266,7 @@ pub struct Cold(*mut ColdMem);
 
 struct ColdMem {
     /// key: outermost battery
-    /// value: registered path to core
+    /// value: possible registered paths for core
     battery_to_paths: Hamt<NounList>,
     /// Roots
     /// key: root noun
@@ -254,7 +279,7 @@ struct ColdMem {
 
 impl Preserve for Cold {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
-        stack.struct_is_in(self.0, 1);
+        stack.assert_struct_is_in(self.0, 1);
         (*self.0).battery_to_paths.assert_in_stack(stack);
         (*self.0).root_to_paths.assert_in_stack(stack);
         (*self.0).path_to_batteries.assert_in_stack(stack);
@@ -266,17 +291,6 @@ impl Preserve for Cold {
         let new_dest: *mut ColdMem = stack.struct_alloc_in_previous_frame(1);
         copy_nonoverlapping(self.0, new_dest, 1);
         self.0 = new_dest;
-    }
-}
-
-pub enum Error {
-    NoParent,
-    BadNock,
-}
-
-impl From<noun::Error> for Error {
-    fn from(_: noun::Error) -> Self {
-        Error::BadNock
     }
 }
 
@@ -308,7 +322,7 @@ impl Cold {
     /// register a core, return a boolean of whether we actually needed to register (false ->
     /// already registered)
     ///
-    /// XX TODO validate chum
+    /// XX: validate chum Noun as $chum
     #[allow(clippy::result_unit_err)]
     pub fn register(
         &mut self,
@@ -316,9 +330,7 @@ impl Cold {
         mut core: Noun,
         parent_axis: Atom,
         mut chum: Noun,
-    ) -> Result<bool, Error> {
-        let mut battery = core.slot(2)?;
-
+    ) -> Result {
         unsafe {
             // Are we registering a root?
             if let Ok(parent_axis_direct) = parent_axis.as_direct() {
@@ -380,6 +392,7 @@ impl Cold {
                 }
             }
 
+            let mut battery = core.slot(2)?;
             let mut parent = core.slot_atom(parent_axis)?;
             // Check if we already registered this core
             if let Some(paths) = (*(self.0)).battery_to_paths.lookup(stack, &mut battery) {
@@ -401,7 +414,7 @@ impl Cold {
             let mut parent_battery = parent.slot(2)?;
 
             // err until we actually found a parent
-            let mut ret: Result<bool, Error> = Err(Error::NoParent);
+            let mut ret: Result = Err(Error::NoParent);
 
             let mut path_to_batteries = (*(self.0)).path_to_batteries;
             let mut battery_to_paths = (*(self.0)).battery_to_paths;

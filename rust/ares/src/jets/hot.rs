@@ -9,32 +9,45 @@ const A_50: Either<u64, (u64, u64)> = Right((tas!(b"a"), 50));
 // This is the const state all in one spot as literals
 #[allow(clippy::complexity)]
 const HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
-    (&[A_50, Left(tas!(b"dec"))], 1, jet_dec),
     (&[A_50, Left(tas!(b"add"))], 1, jet_add),
-    (&[A_50, Left(tas!(b"sub"))], 1, jet_sub),
-    (&[A_50, Left(tas!(b"mul"))], 1, jet_mul),
+    (&[A_50, Left(tas!(b"dec"))], 1, jet_dec),
     (&[A_50, Left(tas!(b"div"))], 1, jet_div),
-    (&[A_50, Left(tas!(b"mod"))], 1, jet_mod),
     (&[A_50, Left(tas!(b"dvr"))], 1, jet_dvr),
-    (&[A_50, Left(tas!(b"lth"))], 1, jet_lth),
-    (&[A_50, Left(tas!(b"lte"))], 1, jet_lte),
     (&[A_50, Left(tas!(b"gth"))], 1, jet_gth),
     (&[A_50, Left(tas!(b"gte"))], 1, jet_gte),
+    (&[A_50, Left(tas!(b"lte"))], 1, jet_lte),
+    (&[A_50, Left(tas!(b"lth"))], 1, jet_lth),
+    (&[A_50, Left(tas!(b"mod"))], 1, jet_mod),
+    (&[A_50, Left(tas!(b"mul"))], 1, jet_mul),
+    (&[A_50, Left(tas!(b"sub"))], 1, jet_sub),
+    //
+    (&[A_50, Left(tas!(b"cap"))], 1, jet_cap),
+    (&[A_50, Left(tas!(b"mas"))], 1, jet_mas),
+    //
+    (&[A_50, Left(tas!(b"lent"))], 1, jet_lent),
+    //
     (&[A_50, Left(tas!(b"bex"))], 1, jet_bex),
+    (&[A_50, Left(tas!(b"can"))], 1, jet_can),
+    (&[A_50, Left(tas!(b"cat"))], 1, jet_cat),
+    (&[A_50, Left(tas!(b"cut"))], 1, jet_cut),
+    (&[A_50, Left(tas!(b"end"))], 1, jet_end),
     (&[A_50, Left(tas!(b"lsh"))], 1, jet_lsh),
+    (&[A_50, Left(tas!(b"met"))], 1, jet_met),
+    (&[A_50, Left(tas!(b"rap"))], 1, jet_rap),
+    (&[A_50, Left(tas!(b"rep"))], 1, jet_rep),
+    (&[A_50, Left(tas!(b"rev"))], 1, jet_rev),
+    (&[A_50, Left(tas!(b"rip"))], 1, jet_rip),
     (&[A_50, Left(tas!(b"rsh"))], 1, jet_rsh),
+    //
     (&[A_50, Left(tas!(b"con"))], 1, jet_con),
     (&[A_50, Left(tas!(b"dis"))], 1, jet_dis),
     (&[A_50, Left(tas!(b"mix"))], 1, jet_mix),
-    (&[A_50, Left(tas!(b"end"))], 1, jet_end),
-    (&[A_50, Left(tas!(b"cat"))], 1, jet_cat),
-    (&[A_50, Left(tas!(b"cut"))], 1, jet_cut),
-    (&[A_50, Left(tas!(b"can"))], 1, jet_can),
-    (&[A_50, Left(tas!(b"rep"))], 1, jet_rep),
-    (&[A_50, Left(tas!(b"rip"))], 1, jet_rip),
-    (&[A_50, Left(tas!(b"met"))], 1, jet_met),
+    //
     (&[A_50, Left(tas!(b"mug"))], 1, jet_mug),
-    (&[A_50, Left(tas!(b"rev"))], 1, jet_rev),
+    //
+    (&[A_50, Left(tas!(b"scow"))], 1, jet_scow),
+    //
+    (&[A_50, Left(tas!(b"mink"))], 1, jet_mink),
 ];
 
 #[derive(Copy, Clone)]

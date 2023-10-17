@@ -434,7 +434,7 @@ impl<T: Copy + Preserve> Default for Hamt<T> {
 
 impl<T: Copy + Preserve> Preserve for Hamt<T> {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
-        stack.struct_is_in(self.0.buffer, self.0.size());
+        stack.assert_struct_is_in(self.0.buffer, self.0.size());
         let mut traversal_stack: [Option<(Stem<T>, u32)>; 6] = [None; 6];
         traversal_stack[0] = Some((self.0, 0));
         let mut traversal_depth = 1;
@@ -456,15 +456,15 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                         continue 'check_stem;
                     }
                     Some((Left(next_stem), _idx)) => {
-                        stack.struct_is_in(next_stem.buffer, next_stem.size());
+                        stack.assert_struct_is_in(next_stem.buffer, next_stem.size());
                         assert!(traversal_depth <= 5); // will increment
-                        traversal_stack[traversal_depth - 1].as_mut().unwrap().1 = position + 1;
+                        traversal_stack[traversal_depth - 1] = Some((stem, position + 1));
                         traversal_stack[traversal_depth] = Some((next_stem, 0));
                         traversal_depth += 1;
                         continue 'check;
                     }
                     Some((Right(leaf), _idx)) => {
-                        stack.struct_is_in(leaf.buffer, leaf.len);
+                        stack.assert_struct_is_in(leaf.buffer, leaf.len);
                         for pair in leaf.to_mut_slice().iter() {
                             pair.0.assert_in_stack(stack);
                             pair.1.assert_in_stack(stack);
@@ -476,6 +476,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
             }
         }
     }
+
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if stack.is_in_frame(self.0.buffer) {
             let dest_buffer = stack.struct_alloc_in_previous_frame(self.0.size());
