@@ -226,6 +226,7 @@
 ++  lent                                                ::  length
   ~/  %lent
   |=  a=(list)
+  ~>  %sham.%lent
   ^-  @
   =+  b=0
   |-
@@ -579,7 +580,6 @@
 ++  dor                                                 ::  tree order
   ~/  %dor
   |=  [a=* b=*]
-  ~>  %sham.%dor
   ^-  ?
   ?:  =(a b)  &
   ?.  ?=(@ a)
@@ -593,7 +593,6 @@
 ++  gor                                                 ::  mug order
   ~/  %gor
   |=  [a=* b=*]
-  ~>  %sham.%gor
   ^-  ?
   =+  [c=(mug a) d=(mug b)]
   ?:  =(c d)
@@ -603,7 +602,6 @@
 ++  mor                                                 ::  more mug order
   ~/  %mor
   |=  [a=* b=*]
-  ~>  %sham.%mor
   ^-  ?
   =+  [c=(mug (mug a)) d=(mug (mug b))]
   ?:  =(c d)
@@ -626,13 +624,11 @@
 ++  in
   ~/  %in
   =|  a=(tree)  :: (set)
-  ~>  %sham.%in
   |@
   ++  apt
     =<  $
     ~/  %apt
     =|  [l=(unit) r=(unit)]
-    ~>  %sham.%apt
     |.  ^-  ?
     ?~  a   &
     ?&  ?~(l & (gor n.a u.l))
@@ -644,7 +640,6 @@
   ++  del
     ~/  %del
     |*  b=*
-    ~>  %sham.%del
     |-  ^+  a
     ?~  a
       ~
@@ -662,7 +657,6 @@
   ++  put
     ~/  %put
     |*  b=*
-    ~>  %sham.%put
     |-  ^+  a
     ?~  a
       [b ~ ~]
@@ -686,13 +680,11 @@
 ++  by
   ~/  %by
   =|  a=(tree (pair))  ::  (map)
-  ~>  %sham.%by
   =*  node  ?>(?=(^ a) n.a)
   |@
   ++  del
     ~/  %del
     |*  b=*
-    ~>  %sham.%del
     |-  ^+  a
     ?~  a
       ~
@@ -711,7 +703,6 @@
     =<  $
     ~/  %apt
     =|  [l=(unit) r=(unit)]
-    ~>  %sham.%apt
     |.  ^-  ?
     ?~  a   &
     ?&  ?~(l & &((gor p.n.a u.l) !=(p.n.a u.l)))
@@ -725,7 +716,6 @@
   ++  get
     ~/  %get
     |*  b=*
-    ~>  %sham.%get
     =>  .(b `_?>(?=(^ a) p.n.a)`b)
     |-  ^-  (unit _?>(?=(^ a) q.n.a))
     ?~  a
@@ -739,7 +729,6 @@
   ++  put
     ~/  %put
     |*  [b=* c=*]
-    ~>  %sham.%put
     |-  ^+  a
     ?~  a
       [[b c] ~ ~]

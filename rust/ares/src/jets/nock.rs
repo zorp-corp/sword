@@ -35,8 +35,8 @@ pub mod util {
     use either::{Left, Right};
     use std::result;
 
-    const LEAF: Noun = D(tas!(b"leaf"));
-    const ROSE: Noun = D(tas!(b"rose"));
+    pub const LEAF: Noun = D(tas!(b"leaf"));
+    pub const ROSE: Noun = D(tas!(b"rose"));
 
     pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> jets::Result {
         match interpret(context, subject, formula) {
