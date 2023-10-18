@@ -226,6 +226,7 @@ struct Nock12 {
     reff: Noun,
     path: Noun,
     hand: Noun,
+    flag: Option<bool>,
 }
 
 #[derive(Copy, Clone)]
@@ -259,35 +260,47 @@ pub struct Context<'a, 'b, 'c> {
     pub scry_stack: Noun,
 }
 
-#[derive(Debug)]
-pub enum Tone {
-    Blocked(Noun),
-    Deterministic(Noun),
-    NonDeterministic(Noun),
+#[derive(Clone, Copy, Debug)]
+pub enum Error {
+    Nock(NockError),
+    Scry(ScryError),
 }
 
-#[derive(Debug)]
-pub enum NockErr {
-    Blocked(Noun),
+#[derive(Clone, Copy, Debug)]
+pub enum NockError {
+    Deterministic(Noun),    // trace
+    NonDeterministic(Noun), // trace
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum ScryError {
+    Blocked(Noun),          // path
+    Deterministic(Noun),    // trace
+    NonDeterministic(Noun), // trace
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Failure {
+    Blocked(Noun), // path
     Deterministic,
     NonDeterministic,
 }
 
-impl From<NockErr> for () {
-    fn from(_: NockErr) -> Self {}
+impl From<Failure> for () {
+    fn from(_: Failure) -> Self {}
 }
 
-impl From<noun::Error> for NockErr {
+impl From<noun::Error> for Failure {
     fn from(_: noun::Error) -> Self {
-        NockErr::Deterministic
+        Failure::Deterministic
     }
 }
 
-impl From<JetErr> for NockErr {
+impl From<JetErr> for Failure {
     fn from(e: JetErr) -> Self {
         match e {
-            JetErr::Deterministic => NockErr::Deterministic,
-            JetErr::NonDeterministic => NockErr::NonDeterministic,
+            JetErr::Deterministic => Failure::Deterministic,
+            JetErr::NonDeterministic => Failure::NonDeterministic,
             JetErr::Punt => panic!("unhandled JetErr::Punt"),
         }
     }
@@ -301,11 +314,12 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
 }
 
 /** Interpret nock */
-pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Result<Noun, Tone> {
+pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Result<Noun, Error> {
     let terminator = Arc::clone(&TERMINATOR);
     let orig_subject = subject; // for debugging
     let virtual_frame: *const u64 = context.stack.get_frame_pointer();
     let mut res: Noun = D(0);
+    let mut scry_flag: bool = false;
 
     // Setup stack for Nock computation
     unsafe {
@@ -381,7 +395,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         context.stack.pop::<NockWork>();
                     } else {
                         // Axis invalid for input Noun
-                        break Err(NockErr::Deterministic);
+                        break Err(Failure::Deterministic);
                     }
                 }
                 NockWork::Work1(once) => {
@@ -390,7 +404,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                 }
                 NockWork::Work2(mut vale) => {
                     if (*terminator).load(Ordering::Relaxed) {
-                        break Err(NockErr::NonDeterministic);
+                        break Err(Failure::NonDeterministic);
                     }
 
                     match vale.todo {
@@ -457,7 +471,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             context.stack.pop::<NockWork>();
                         } else {
                             // Cannot increment (Nock 4) a cell
-                            break Err(NockErr::Deterministic);
+                            break Err(Failure::Deterministic);
                         }
                     }
                 },
@@ -498,11 +512,11 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 push_formula(context.stack, cond.once, cond.tail)?;
                             } else {
                                 // Test branch of Nock 6 must return 0 or 1
-                                break Err(NockErr::Deterministic);
+                                break Err(Failure::Deterministic);
                             }
                         } else {
                             // Test branch of Nock 6 must return a direct atom
-                            break Err(NockErr::Deterministic);
+                            break Err(Failure::Deterministic);
                         }
                     }
                 },
@@ -556,7 +570,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                 },
                 NockWork::Work9(mut kale) => {
                     if (*terminator).load(Ordering::Relaxed) {
-                        break Err(NockErr::NonDeterministic);
+                        break Err(Failure::NonDeterministic);
                     }
 
                     match kale.todo {
@@ -587,7 +601,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 }
                             } else {
                                 // Axis into core must be atom
-                                break Err(NockErr::Deterministic);
+                                break Err(Failure::Deterministic);
                             }
                         }
                         Todo9::RestoreSubject => {
@@ -732,31 +746,36 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             scry.todo = Todo12::Done;
                             scry.path = res;
                             scry.hand = context.scry_stack;
+                            scry.flag = Some(scry_flag);
+                            scry_flag = true;
                             context.scry_stack = cell.tail();
                             *context.stack.top() = NockWork::Work12(scry);
                             push_formula(context.stack, scry_form, false)?;
                         } else {
                             // No scry handler
-                            break Err(NockErr::Deterministic);
+                            break Err(Failure::Deterministic);
                         }
                     }
                     Todo12::Done => match res.as_either_atom_cell() {
                         Left(atom) => {
                             if atom.as_noun().raw_equals(D(0)) {
-                                break Err(NockErr::Blocked(scry.path));
+                                break Err(Failure::Blocked(scry.path));
                             } else {
-                                break Err(NockErr::Deterministic);
+                                //  XX: mink crash
+                                break Err(Failure::Deterministic);
                             }
                         }
                         Right(cell) => match cell.tail().as_either_atom_cell() {
                             Left(_) => {
+                                scry_flag = scry.flag.unwrap();
                                 let hunk =
                                     T(context.stack, &[D(tas!(b"hunk")), scry.reff, scry.path]);
                                 mean_push(context.stack, hunk);
-                                break Err(NockErr::Deterministic);
+                                break Err(Failure::Deterministic);
                             }
                             Right(cell) => {
                                 res = cell.tail();
+                                scry_flag = scry.flag.unwrap();
                                 context.scry_stack = scry.hand;
                                 context.stack.pop::<NockWork>();
                             }
@@ -769,11 +788,11 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
     match nock {
         Ok(res) => Ok(res),
-        Err(err) => Err(exit_early(context.stack, context.cache, virtual_frame, err)),
+        Err(err) => Err(exit(context, virtual_frame, err, scry_flag)),
     }
 }
 
-fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), NockErr> {
+fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), Failure> {
     unsafe {
         if let Ok(formula_cell) = formula.as_cell() {
             // Formula
@@ -793,7 +812,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                     *stack.push() = NockWork::Work0(Nock0 { axis: axis_atom });
                                 } else {
                                     // Axis for Nock 0 must be an atom
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 }
                             }
                             1 => {
@@ -811,7 +830,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                     });
                                 } else {
                                     // Argument to Nock 2 must be cell
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 };
                             }
                             3 => {
@@ -835,7 +854,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                     });
                                 } else {
                                     // Argument to Nock 5 must be cell
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 };
                             }
                             6 => {
@@ -850,11 +869,11 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                         });
                                     } else {
                                         // Argument tail to Nock 6 must be cell
-                                        return Err(NockErr::Deterministic);
+                                        return Err(Failure::Deterministic);
                                     };
                                 } else {
                                     // Argument to Nock 6 must be cell
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 }
                             }
                             7 => {
@@ -867,7 +886,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                     });
                                 } else {
                                     // Argument to Nock 7 must be cell
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 };
                             }
                             8 => {
@@ -880,7 +899,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                     });
                                 } else {
                                     // Argument to Nock 8 must be cell
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 };
                             }
                             9 => {
@@ -894,11 +913,11 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                         });
                                     } else {
                                         // Axis for Nock 9 must be an atom
-                                        return Err(NockErr::Deterministic);
+                                        return Err(Failure::Deterministic);
                                     }
                                 } else {
                                     // Argument to Nock 9 must be cell
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 };
                             }
                             10 => {
@@ -913,15 +932,15 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                             });
                                         } else {
                                             // Axis for Nock 10 must be an atom
-                                            return Err(NockErr::Deterministic);
+                                            return Err(Failure::Deterministic);
                                         }
                                     } else {
                                         // Heah of argument to Nock 10 must be a cell
-                                        return Err(NockErr::Deterministic);
+                                        return Err(Failure::Deterministic);
                                     };
                                 } else {
                                     // Argument to Nock 10 must be a cell
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 };
                             }
                             11 => {
@@ -946,13 +965,13 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                                 });
                                             } else {
                                                 // Hint tag must be an atom
-                                                return Err(NockErr::Deterministic);
+                                                return Err(Failure::Deterministic);
                                             }
                                         }
                                     };
                                 } else {
                                     // Argument for Nock 11 must be cell
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 };
                             }
                             12 => {
@@ -962,62 +981,72 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                         reff: arg_cell.head(),
                                         path: arg_cell.tail(),
                                         hand: D(0),
+                                        flag: None,
                                     });
                                 } else {
                                     // Argument for Nock 12 must be cell
-                                    return Err(NockErr::Deterministic);
+                                    return Err(Failure::Deterministic);
                                 }
                             }
                             _ => {
                                 // Invalid formula opcode
-                                return Err(NockErr::Deterministic);
+                                return Err(Failure::Deterministic);
                             }
                         }
                     } else {
                         // Formula opcode must be direct atom
-                        return Err(NockErr::Deterministic);
+                        return Err(Failure::Deterministic);
                     }
                 }
             }
         } else {
             // Bad formula: atoms are not formulas
-            return Err(NockErr::Deterministic);
+            return Err(Failure::Deterministic);
         }
     }
     Ok(())
 }
 
-pub fn exit_early(
-    stack: &mut NockStack,
-    cache: &mut Hamt<Noun>,
+pub fn exit(
+    context: &mut Context,
     virtual_frame: *const u64,
-    error: NockErr,
-) -> Tone {
+    error: Failure,
+    scry_flag: bool,
+) -> Error {
     unsafe {
-        let mut trace = *(stack.local_noun_pointer(0));
+        let stack = &mut context.stack;
+
+        let mut preserve = match error {
+            Failure::Blocked(path) => path,
+            _ => *(stack.local_noun_pointer(0)),
+        };
+
+        while (*stack).get_frame_pointer() != virtual_frame {
+            (*stack).preserve(&mut preserve);
+            (*stack).frame_pop();
+        }
+
         match error {
-            NockErr::Blocked(mut path) => {
-                while stack.get_frame_pointer() != virtual_frame {
-                    stack.preserve(&mut path);
-                    stack.preserve(cache);
-                    stack.frame_pop();
+            Failure::Blocked(_) => {
+                if scry_flag {
+                    Error::Scry(ScryError::Blocked(preserve))
+                } else {
+                    panic!("serf: blocked outside of scry");
                 }
-                Tone::Blocked(path)
             }
-            NockErr::Deterministic => {
-                while stack.get_frame_pointer() != virtual_frame {
-                    stack.preserve(&mut trace);
-                    stack.preserve(cache);
-                    stack.frame_pop();
+            Failure::Deterministic => {
+                if scry_flag {
+                    Error::Scry(ScryError::Deterministic(preserve))
+                } else {
+                    Error::Nock(NockError::Deterministic(preserve))
                 }
-                Tone::Deterministic(trace)
             }
-            NockErr::NonDeterministic => {
-                while stack.get_frame_pointer() != virtual_frame {
-                    stack.preserve(&mut trace);
-                    stack.frame_pop();
+            Failure::NonDeterministic => {
+                if scry_flag {
+                    Error::Scry(ScryError::NonDeterministic(preserve))
+                } else {
+                    Error::Nock(NockError::NonDeterministic(preserve))
                 }
-                Tone::NonDeterministic(trace)
             }
         }
     }
@@ -1155,7 +1184,7 @@ mod hint {
         tag: Atom,
         hint: Noun,
         body: Noun,
-    ) -> Result<Option<Noun>, NockErr> {
+    ) -> Result<Option<Noun>, Failure> {
         //  XX: handle IndirectAtom tags
         match tag.as_direct()?.data() {
             // %sham hints are scaffolding until we have a real jet dashboard
@@ -1187,28 +1216,28 @@ mod hint {
                                             let tape = tape(*stack, "jet mismatch");
                                             let mean = T(*stack, &[D(tas!(b"mean")), tape]);
                                             mean_push(stack, mean);
-                                            Err(NockErr::Deterministic)
+                                            Err(Failure::Deterministic)
                                         } else {
                                             Ok(Some(nock_res))
                                         }
                                     }
-                                    Err(tone) => {
+                                    Err(error) => {
                                         let stack = &mut context.stack;
                                         //  XX: need string interpolation without allocation, then delete eprintln
                                         // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, err, jet_res);
                                         eprintln!(
                                             "\rjet {} failed, raw: {:?}, jetted: {}",
-                                            jet_name, tone, jet_res
+                                            jet_name, error, jet_res
                                         );
                                         let tape = tape(*stack, "jet mismatch");
                                         let mean = T(*stack, &[D(tas!(b"mean")), tape]);
                                         mean_push(stack, mean);
 
-                                        match tone {
-                                            Tone::NonDeterministic(_) => {
-                                                Err(NockErr::NonDeterministic)
+                                        match error {
+                                            Error::Nock(NockError::NonDeterministic(_)) => {
+                                                Err(Failure::NonDeterministic)
                                             }
-                                            _ => Err(NockErr::Deterministic),
+                                            _ => Err(Failure::Deterministic),
                                         }
                                     }
                                 }
@@ -1247,11 +1276,11 @@ mod hint {
         tag: Atom,
         hint: Option<(Noun, Noun)>,
         _body: Noun,
-    ) -> Result<Option<Noun>, NockErr> {
+    ) -> Result<Option<Noun>, Failure> {
         //  XX: handle IndirectAtom tags
         match tag.as_direct()?.data() {
             tas!(b"slog") => {
-                let (_, hint_res) = hint.ok_or(NockErr::Deterministic)?;
+                let (_, hint_res) = hint.ok_or(Failure::Deterministic)?;
                 let slog_cell = hint_res.as_cell()?;
                 let pri = slog_cell.head().as_direct()?.data();
                 let tank = slog_cell.tail();
@@ -1269,11 +1298,11 @@ mod hint {
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
                 let terminator = Arc::clone(&TERMINATOR);
                 if (*terminator).load(Ordering::Relaxed) {
-                    return Err(NockErr::NonDeterministic);
+                    return Err(Failure::NonDeterministic);
                 }
 
                 let stack = &mut context.stack;
-                let (_, hint_res) = hint.ok_or(NockErr::Deterministic)?;
+                let (_, hint_res) = hint.ok_or(Failure::Deterministic)?;
                 let noun = T(*stack, &[tag.as_noun(), hint_res]);
                 mean_push(stack, noun);
                 Ok(None)
@@ -1281,7 +1310,7 @@ mod hint {
             tas!(b"hela") => {
                 // XX: should this be virtualized?
                 //     pretty sure we should be bailing on error
-                //     might need to switch return type to Result<Option<Noun>, NockErr>
+                //     might need to switch return type to Result<Option<Noun>, Failure>
                 let mean = unsafe { *(context.stack.local_noun_pointer(0)) };
                 let tone = Cell::new(context.stack, D(2), mean);
 
@@ -1292,7 +1321,7 @@ mod hint {
                             let tape = tape(*stack, "%hela failed: toon not %2");
                             let mean = T(*stack, &[D(tas!(b"mean")), tape]);
                             mean_push(stack, mean);
-                            return Err(NockErr::Deterministic);
+                            return Err(Failure::Deterministic);
                         }
 
                         let mut list = toon.tail();

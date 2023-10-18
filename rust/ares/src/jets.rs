@@ -304,6 +304,8 @@ pub mod util {
         }
 
         pub fn assert_noun_eq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
+            eprintln!("\r{}", a);
+            eprintln!("\r{}", b);
             let eq = unsafe { unifying_equality(stack, &mut a, &mut b) };
             assert!(eq, "got: {}, need: {}", a, b);
         }

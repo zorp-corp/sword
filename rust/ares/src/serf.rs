@@ -1,6 +1,6 @@
 use crate::hamt::Hamt;
 use crate::interpreter;
-use crate::interpreter::{inc, interpret, Tone};
+use crate::interpreter::{inc, interpret, Error, NockError};
 use crate::jets::nock::util::mook;
 use crate::jets::text::util::lent;
 use crate::mem::NockStack;
@@ -237,12 +237,12 @@ pub fn serf() -> io::Result<()> {
     Ok(())
 }
 
-fn burn(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Tone> {
+fn burn(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
     let burn_context = &mut context.for_interpreter();
     interpret(burn_context, subject, formula)
 }
 
-fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Tone> {
+fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let arvo = context.arvo();
     let pul = T(context.stack_as_mut(), &[D(9), D(axis), D(0), D(2)]);
     let sam = T(context.stack_as_mut(), &[D(6), D(0), D(7)]);
@@ -261,7 +261,7 @@ fn goof(context: &mut Context, trace: Noun) -> Noun {
     let tang = mook(mook_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
         .tail();
-    //  XX: noun::Tone or noun::NockErr should use a bail enum system similar to u3m_bail motes;
+    //  XX: noun::Error should use a bail enum system similar to u3m_bail motes;
     //      might be able to replace NockErr with mote and map determinism to individual motes;
     //      for, always set to %exit
     T(mook_context.stack, &[D(tas!(b"exit")), tang])
@@ -271,9 +271,13 @@ fn goof(context: &mut Context, trace: Noun) -> Noun {
 fn soft(context: &mut Context, ovo: Noun) -> Result<Noun, Noun> {
     match slam(context, POKE_AXIS, ovo) {
         Ok(res) => Ok(res),
-        Err(tone) => match tone {
-            Tone::Deterministic(trace) | Tone::NonDeterministic(trace) => Err(goof(context, trace)),
-            Tone::Blocked(_) => panic!("serf: soft: .^ invalid outside of virtual Nock"),
+        Err(error) => match error {
+            Error::Nock(nock_err) => match nock_err {
+                NockError::Deterministic(trace) | NockError::NonDeterministic(trace) => {
+                    Err(goof(context, trace))
+                }
+            },
+            Error::Scry(_) => panic!("serf: soft: .^ invalid outside of virtual Nock"),
         },
     }
 }
@@ -289,14 +293,14 @@ fn play_life(context: &mut Context, eve: Noun) {
             context.event_update(eved, arvo);
             context.play_done();
         }
-        Err(tone) => match tone {
-            Tone::Deterministic(trace) | Tone::NonDeterministic(trace) => {
-                let goof = goof(context, trace);
-                context.play_bail(goof);
-            }
-            Tone::Blocked(_) => {
-                panic!("serf: soft: .^ invalid outside of virtual Nock")
-            }
+        Err(error) => match error {
+            Error::Nock(nock_err) => match nock_err {
+                NockError::Deterministic(trace) | NockError::NonDeterministic(trace) => {
+                    let goof = goof(context, trace);
+                    context.play_bail(goof);
+                }
+            },
+            Error::Scry(_) => panic!("serf: soft: .^ invalid outside of virtual Nock"),
         },
     }
 }

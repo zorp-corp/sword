@@ -24,7 +24,7 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
-    use crate::interpreter::{interpret, Context, Tone};
+    use crate::interpreter::{interpret, Context, Error, NockError, ScryError};
     use crate::jets;
     use crate::jets::form::util::scow;
     use crate::jets::util::rip;
@@ -39,13 +39,21 @@ pub mod util {
     const ROSE: Noun = D(tas!(b"rose"));
 
     pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> jets::Result {
-        //  XX: no partial traces; all of our traces go down to the "home road"
         match interpret(context, subject, formula) {
             Ok(res) => Ok(T(context.stack, &[D(0), res])),
             Err(err) => match err {
-                Tone::Blocked(block) => Ok(T(context.stack, &[D(1), block])),
-                Tone::Deterministic(trace) => Ok(T(context.stack, &[D(2), trace])),
-                Tone::NonDeterministic(_) => Err(JetErr::NonDeterministic),
+                Error::Nock(nock_err) => match nock_err {
+                    NockError::Deterministic(trace) => Ok(T(context.stack, &[D(2), trace])),
+                    //  XX: trace is unused; needs to be printed or welded to trace from outer context
+                    NockError::NonDeterministic(_trace) => Err(JetErr::NonDeterministic),
+                },
+                Error::Scry(scry_err) => match scry_err {
+                    ScryError::Blocked(path) => Ok(T(context.stack, &[D(1), path])),
+                    //  XX: trace is unused; needs to be printed or welded to trace from outer context
+                    ScryError::Deterministic(_trace) => Err(JetErr::Deterministic),
+                    //  XX: trace is unused; needs to be printed or welded to trace from outer context
+                    ScryError::NonDeterministic(_trace) => Err(JetErr::NonDeterministic),
+                },
             },
         }
     }
