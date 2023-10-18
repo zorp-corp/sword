@@ -7,7 +7,7 @@ use urcrypt_sys::*;
 
 crate::gdb!();
 
-pub fn jet_siva_en(stack: &mut NockStack,
+pub fn jet_sivc_en(stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
     subject: Noun
 ) -> Result {
@@ -15,9 +15,105 @@ pub fn jet_siva_en(stack: &mut NockStack,
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
 
-    println!("jet_siva_en: txt: {:x?}", txt.as_bytes());
-    println!("jet_siva_en: key: {:x?}", key.as_bytes());
-    println!("jet_siva_en: atoms: {:?}", atoms);
+    if (met(3, key) as usize) > 64 {
+        // XX vere punts; we should do the same in the future
+        Err(JetErr::NonDeterministic)
+    } else {
+        unsafe {
+            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+            key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
+
+            Ok(util::_siv_en(stack,
+                key_bytes,
+                atoms,
+                txt,
+                urcrypt_aes_sivc_en
+            ))
+        }
+    }
+}
+
+pub fn jet_sivc_de(stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun
+) -> Result {
+    let iv  = slot(subject, 12)?.as_atom()?;
+    let len = slot(subject, 26)?.as_atom()?;
+    let txt = slot(subject, 27)?.as_atom()?;
+    let key = slot(subject, 60)?.as_atom()?;
+    let ads = slot(subject, 61)?;
+    unsafe {
+        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
+
+        Ok(util::_siv_de(stack,
+            key_bytes,
+            ads,
+            iv,
+            len,
+            txt,
+            urcrypt_aes_sivc_de
+        ))
+    }
+}
+
+pub fn jet_sivb_en(stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun
+) -> Result {
+    let txt = slot(subject, 6)?.as_atom()?;
+    let key = slot(subject, 60)?.as_atom()?;
+    let atoms = slot(subject, 61)?;
+
+    if (met(3, key) as usize) > 48 {
+        // XX vere punts; we should do the same in the future
+        Err(JetErr::NonDeterministic)
+    } else {
+        unsafe {
+            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
+            key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
+
+            Ok(util::_siv_en(stack,
+                key_bytes,
+                atoms,
+                txt,
+                urcrypt_aes_sivb_en
+            ))
+        }
+    }
+}
+
+pub fn jet_sivb_de(stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun
+) -> Result {
+    let iv  = slot(subject, 12)?.as_atom()?;
+    let len = slot(subject, 26)?.as_atom()?;
+    let txt = slot(subject, 27)?.as_atom()?;
+    let key = slot(subject, 60)?.as_atom()?;
+    let ads = slot(subject, 61)?;
+    unsafe {
+        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
+        key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
+
+        Ok(util::_siv_de(stack,
+            key_bytes,
+            ads,
+            iv,
+            len,
+            txt,
+            urcrypt_aes_sivb_de
+        ))
+    }
+}
+
+pub fn jet_siva_en(stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun
+) -> Result {
+    let txt = slot(subject, 6)?.as_atom()?;
+    let key = slot(subject, 60)?.as_atom()?;
+    let atoms = slot(subject, 61)?;
 
     if (met(3, key) as usize) > 32 {
         // XX vere punts; we should do the same in the future
@@ -27,7 +123,6 @@ pub fn jet_siva_en(stack: &mut NockStack,
             let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
             key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-            println!("calling siv_en");
             Ok(util::_siv_en(stack,
                 key_bytes,
                 atoms,
@@ -38,11 +133,36 @@ pub fn jet_siva_en(stack: &mut NockStack,
     }
 }
 
+pub fn jet_siva_de(stack: &mut NockStack,
+    _newt: &mut Option<&mut Newt>,
+    subject: Noun
+) -> Result {
+    let iv  = slot(subject, 12)?.as_atom()?;
+    let len = slot(subject, 26)?.as_atom()?;
+    let txt = slot(subject, 27)?.as_atom()?;
+    let key = slot(subject, 60)?.as_atom()?;
+    let ads = slot(subject, 61)?;
+    unsafe {
+        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
+
+        Ok(util::_siv_de(stack,
+            key_bytes,
+            ads,
+            iv,
+            len,
+            txt,
+            urcrypt_aes_siva_de
+        ))
+    }
+}
+
 mod util {
     use crate::mem::NockStack;
     use crate::noun::{Atom, D, T, Noun, IndirectAtom};
     use crate::jets::util::met;
     use urcrypt_sys::urcrypt_aes_siv_data;
+    use std::ptr::null_mut;
 
     type UrcryptSiv = unsafe extern "C" fn(*mut u8, usize,
                                            *mut urcrypt_aes_siv_data, usize,
@@ -101,7 +221,6 @@ mod util {
                 bytes = tmp;
             }
 
-            println!("_measure_atoms: length: {}, bytes: {}, size: {}", length, bytes, size);
             (length, bytes, size)
         }
     }
@@ -118,41 +237,28 @@ mod util {
     pub fn _encode_atoms(atoms: Noun, data: &mut [urcrypt_aes_siv_data]) {
         let mut t = atoms;
         let mut i = 0;
-        println!("data.len(): {}", data.len());
         unsafe {
             while !t.raw_equals(D(0)) {
-                println!("i: {}", i);
                 let (head, tail) = match t.as_cell() {
                     Ok(cell) => (cell.head(), cell.tail()),
                     Err(_) => panic!("_encode_atoms: not a cell"),
                 };
-                println!("head: {}", head);
-                println!("tail: {}", tail);
                 let head = match head.as_atom() {
                     Ok(a) => a,
                     Err(_) => panic!("_encode_atoms: head not an atom"),
                 };
-                println!("head is atom");
-                // for j in 0..head_bytes.len() {
-                //     (*(data[i].bytes.wrapping_add(j))) = head_bytes[j];
-                //     println!("data[{}].bytes[{}]: {:x?}", i, j, data[i].bytes.wrapping_add(j));
-                // }
                 t = tail;
                 let head_bytes = head.as_bytes();
-                println!("head_bytes: {:x?}", head_bytes);
                 data[i].length = head_bytes.len();
-                println!("data[i].length: {}", data[i].length);
                 // allocate enough bytes at data[i].bytes
                 let ptr = std::alloc::alloc(std::alloc::Layout::from_size_align(head_bytes.len(), 8).unwrap());
                 // copy the bytes from head_bytes into the buffer pointed to by data[i].bytes (which is a *mut u8)
                 let data_bytes: &mut [u8] = std::slice::from_raw_parts_mut(ptr as *mut u8, head_bytes.len());
                 data_bytes.copy_from_slice(head_bytes);
                 data[i].bytes = data_bytes.as_mut_ptr();
-
-                println!("for done");
+                i += 1;
             }
         }
-        println!("done encoding");
     }
 
     pub fn _allocate_atoms(atoms: Noun) -> &'static mut [urcrypt_aes_siv_data] {
@@ -160,14 +266,11 @@ mod util {
             return &mut [];
         }
         let (length, _, size) = _measure_atoms(atoms);
-        println!("measured");
         let siv_data: &mut [urcrypt_aes_siv_data] = unsafe {
             let ptr = std::alloc::alloc(std::alloc::Layout::from_size_align(size, 8).unwrap());
             std::slice::from_raw_parts_mut(ptr as *mut urcrypt_aes_siv_data, length)
         };
-        println!("initialized siv_data");
         _encode_atoms(atoms, siv_data);
-        println!("encoded siv_data");
         siv_data
     }
 
@@ -180,22 +283,16 @@ mod util {
         let siv_data = _allocate_atoms(ads);
 
         let txt_len = met(3, txt);
-        let (txt_atom, txt_bytes) = match txt_len {
+        let (_txt_atom, txt_bytes) = match txt_len {
             0 => {
                 (D(0), &mut [] as &mut [u8])
             },
             _ => {
                 let (mut txt_ida, txt_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, txt_len) };
-                println!("txt_len: {}", txt_len);
                 txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
                 (unsafe { txt_ida.normalize_as_atom().as_noun() }, txt_bytes)
             }
         };
-        println!("_siv_en: txt_bytes[{:?}]: {:x?}", txt_len, txt_bytes);
-
-        let (mut _key_ida, key_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 32) };
-        key_bytes[0..key.len()].copy_from_slice(key);
-        println!("_siv_en: key[{:?}]: {:x?}", key.len(), key);
 
         let (mut iv, iv_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 16)};
         let (out_atom, out_bytes) = match txt_len {
@@ -208,7 +305,7 @@ mod util {
 
         unsafe {
             fun(
-                txt_bytes.as_mut_ptr(),
+                if txt_len == 0 { null_mut::<u8>() } else { txt_bytes.as_mut_ptr() },
                 txt_len,
                 siv_data.as_mut_ptr(),
                 siv_data.len(),
@@ -227,16 +324,53 @@ mod util {
         ret
     }
 
-    // pub fn siv_de(stack: &mut NockStack,
-    //     &[u8]: key_y,
-    //     usize: key_w,
-    //     Noun: atoms,
-    //     Atom: iv,
-    //     Atom: len,
-    //     Atom: txt,
-    //     urcrypt_siv: low_f
-    // ) -> Noun {
-    // }
+    pub fn _siv_de(stack: &mut NockStack,
+        key: &mut [u8],
+        ads: Noun,
+        iv: Atom,
+        len: Atom,
+        txt: Atom,
+        fun: UrcryptSiv) -> Noun {
+        let siv_data = _allocate_atoms(ads);
+
+        let (_iv_ida, iv_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 16)};
+        iv_bytes[0..16].copy_from_slice(&(iv.as_bytes()[0..16]));
+
+        let txt_len = if met(5, len) > 1 { 0 } else {
+            let len_bytes = len.as_bytes();
+            len_bytes[0] as usize // XX this might be wrong
+        };
+        // XX vere bail:fails on txt_len == 0
+        let (_txt_ida, txt_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, txt_len) };
+        txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
+
+        let (out_atom, out_bytes) = match txt_len {
+            0 => (D(0), &mut [] as &mut [u8]),
+            _ => unsafe {
+                let (out_ida, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
+                (out_ida.as_noun(), out_bytes)
+            },
+        };
+
+        unsafe {
+            fun(
+                if txt_len == 0 { null_mut::<u8>() } else { txt_bytes.as_mut_ptr() },
+                txt_len,
+                siv_data.as_mut_ptr(),
+                siv_data.len(),
+                key.as_mut_ptr(),
+                iv_bytes.as_mut_ptr(),
+                out_bytes.as_mut_ptr()
+            );
+        }
+
+        let ret = T(stack, &[
+            D(0),
+            out_atom,
+        ]);
+
+        ret
+    }
 }
 
 #[cfg(test)]
@@ -244,7 +378,7 @@ mod tests {
     use super::*;
     use ibig::ubig;
     use crate::noun::{Cell, D, T};
-    use crate::jets::util::test::{A, assert_jet, init_stack, assert_noun_eq};
+    use crate::jets::util::test::{A, init_stack, assert_noun_eq};
     use crate::jets::Jet;
 
     pub fn assert_jet_in_door(
@@ -299,10 +433,135 @@ mod tests {
             let sample = T(s, &[key, vec]);
             T(s, &[D(0), sample, D(0)])
         }
-        let siv = A(s, &ubig!(0x85632d07c6e8f37f950acd320a2ecc93));
+        let iv = A(s, &ubig!(0x85632d07c6e8f37f950acd320a2ecc93));
         let len = D(14);
         let cyp = A(s, &ubig!(0x40c02b9690c4dc04daef7f6afe5c));
-        let res = T(s, &[siv, len, cyp]);
+        let res = T(s, &[iv, len, cyp]);
         assert_jet_in_door(s, jet_siva_en, &[gate_sample], &[gate_context], res);
+    }
+
+    #[test]
+    pub fn test_sivb_en() {
+        let s = &mut init_stack();
+
+        /* RFC 5297
+         * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
+         */
+        fn gate_sample(s: &mut NockStack) -> Noun {
+            let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
+            txt
+        }
+        fn gate_context(s: &mut NockStack) -> Noun {
+            let key = A(s, &ubig!(_0xfffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff00112233445566778899aabbccddeeff));
+            let a = A(s, &ubig!(_0x101112131415161718191a1b1c1d1e1f2021222324252627));
+            let vec = T(s, &[a, D(0)]);
+            let sample = T(s, &[key, vec]);
+            T(s, &[D(0), sample, D(0)])
+        }
+        let iv = A(s, &ubig!(0x89e869b93256785154f0963962fe0740));
+        let len = D(14);
+        let cyp = A(s, &ubig!(0xf313e667b56478a032b9913e923c));
+        let res = T(s, &[iv, len, cyp]);
+        assert_jet_in_door(s, jet_sivb_en, &[gate_sample], &[gate_context], res);
+    }
+
+    #[test]
+    pub fn test_sivc_en() {
+        let s = &mut init_stack();
+
+        /* RFC 5297
+         * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
+         */
+        fn gate_sample(s: &mut NockStack) -> Noun {
+            let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
+            txt
+        }
+        fn gate_context(s: &mut NockStack) -> Noun {
+            let key = A(s, &ubig!(_0xfffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff));
+            let a = A(s, &ubig!(_0x101112131415161718191a1b1c1d1e1f2021222324252627));
+            let vec = T(s, &[a, D(0)]);
+            let sample = T(s, &[key, vec]);
+            T(s, &[D(0), sample, D(0)])
+        }
+        let iv = A(s, &ubig!(0x724dfb2eaf94dbb19b0ba3a299a0801e));
+        let len = D(14);
+        let cyp = A(s, &ubig!(0x1206291a35ad3db0212773440fd0));
+        let res = T(s, &[iv, len, cyp]);
+        assert_jet_in_door(s, jet_sivc_en, &[gate_sample], &[gate_context], res);
+    }
+
+    #[test]
+    pub fn test_siva_de() {
+        let s = &mut init_stack();
+
+        /* RFC 5297
+         * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
+         */
+        fn gate_sample(s: &mut NockStack) -> Noun {
+            let iv = A(s, &ubig!(0x85632d07c6e8f37f950acd320a2ecc93));
+            let len = D(14);
+            let cyp = A(s, &ubig!(0x40c02b9690c4dc04daef7f6afe5c));
+            T(s, &[iv, len, cyp])
+        }
+        fn gate_context(s: &mut NockStack) -> Noun {
+            let key = A(s, &ubig!(_0xfffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff));
+            let a = A(s, &ubig!(_0x101112131415161718191a1b1c1d1e1f2021222324252627));
+            let vec = T(s, &[a, D(0)]);
+            let sample = T(s, &[key, vec]);
+            T(s, &[D(0), sample, D(0)])
+        }
+        let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
+        let res = T(s, &[D(0), txt]);
+        assert_jet_in_door(s, jet_siva_de, &[gate_sample], &[gate_context], res);
+    }
+
+    #[test]
+    pub fn test_sivb_de() {
+        let s = &mut init_stack();
+
+        /* RFC 5297
+         * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
+         */
+        fn gate_sample(s: &mut NockStack) -> Noun {
+            let iv = A(s, &ubig!(0x89e869b93256785154f0963962fe0740));
+            let len = D(14);
+            let cyp = A(s, &ubig!(0xf313e667b56478a032b9913e923c));
+            T(s, &[iv, len, cyp])
+        }
+        fn gate_context(s: &mut NockStack) -> Noun {
+            let key = A(s, &ubig!(_0xfffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff00112233445566778899aabbccddeeff));
+            let a = A(s, &ubig!(_0x101112131415161718191a1b1c1d1e1f2021222324252627));
+            let vec = T(s, &[a, D(0)]);
+            let sample = T(s, &[key, vec]);
+            T(s, &[D(0), sample, D(0)])
+        }
+        let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
+        let res = T(s, &[D(0), txt]);
+        assert_jet_in_door(s, jet_sivb_de, &[gate_sample], &[gate_context], res);
+    }
+
+    #[test]
+    pub fn test_sivc_de() {
+        let s = &mut init_stack();
+
+        /* RFC 5297
+         * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
+         */
+        fn gate_sample(s: &mut NockStack) -> Noun {
+            let iv = A(s, &ubig!(0x724dfb2eaf94dbb19b0ba3a299a0801e));
+            let len = D(14);
+            let cyp = A(s, &ubig!(0x1206291a35ad3db0212773440fd0));
+            T(s, &[iv, len, cyp])
+        }
+        fn gate_context(s: &mut NockStack) -> Noun {
+            let key = A(s, &ubig!(_0xfffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff));
+            let a = A(s, &ubig!(_0x101112131415161718191a1b1c1d1e1f2021222324252627));
+            let vec = T(s, &[a, D(0)]);
+            let sample = T(s, &[key, vec]);
+            T(s, &[D(0), sample, D(0)])
+        }
+        let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
+        let res = T(s, &[D(0), txt]);
+        assert_jet_in_door(s, jet_sivc_de, &[gate_sample], &[gate_context], res);
     }
 }
