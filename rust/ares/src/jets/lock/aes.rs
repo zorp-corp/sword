@@ -11,22 +11,25 @@ pub fn jet_siva_en(stack: &mut NockStack,
     _newt: &mut Option<&mut Newt>,
     subject: Noun
 ) -> Result {
-    let txt = slot(subject, 6)?.as_atom();
+    let txt = slot(subject, 6)?.as_atom()?;
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
+
+    println!("jet_siva_en: txt: {:x?}", txt.as_bytes());
+    println!("jet_siva_en: key: {:x?}", key.as_bytes());
+    println!("jet_siva_en: atoms: {:?}", atoms);
 
     if (met(3, key) as usize) > 32 {
         // XX vere punts; we should do the same in the future
         Err(JetErr::NonDeterministic)
     } else {
         unsafe {
-            let key_bytes = key.as_bytes();
-            let (mut _kee_ida, kee) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-            kee[0..key_bytes.len()].copy_from_slice(key_bytes);
+            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+            key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-            Ok(util::siv_en(stack,
-                kee.as_mut_ptr(),
-                32,
+            println!("calling siv_en");
+            Ok(util::_siv_en(stack,
+                key_bytes,
                 atoms,
                 txt,
                 urcrypt_aes_siva_en
@@ -37,16 +40,13 @@ pub fn jet_siva_en(stack: &mut NockStack,
 
 mod util {
     use crate::mem::NockStack;
-    use crate::noun::{Atom, D, Noun, IndirectAtom};
+    use crate::noun::{Atom, D, T, Noun, IndirectAtom};
     use crate::jets::util::met;
     use urcrypt_sys::urcrypt_aes_siv_data;
 
-    type UrcryptSiv = fn(&mut [u8],
-        &[urcrypt_aes_siv_data],
-        &mut [u8],
-        [u8; 16],
-        &mut [u8]
-    );
+    type UrcryptSiv = unsafe extern "C" fn(*mut u8, usize,
+                                           *mut urcrypt_aes_siv_data, usize,
+                                           *mut u8, *mut u8, *mut u8) -> i32;
 
     /// Returns a tuple of (length, bytes, size):
     /// * length: number of items in the list of atoms
@@ -58,22 +58,25 @@ mod util {
     /// * `atoms` - the list of atoms to measure
     ///
     pub fn _measure_atoms(atoms: Noun) -> (usize, usize, usize) {
-        let mut length = 0;
-        let mut bytes = 0;
-        let mut size = 0;
+        let length;
+        let bytes;
+        let size;
 
         let mut tail = atoms;
         let mut a = 0;
         let mut b = 0;
         unsafe {
-            while !tail.raw_equals(D(0)) {
+            loop {
+                if tail.raw_equals(D(0)) {
+                    break;
+                }
                 let (head, ttail) = match tail.as_cell() {
                     Ok(cell) => (cell.head(), cell.tail()),
-                    Err(_) => panic!("measure_atoms: not a cell"),
+                    Err(_) => panic!("_measure_atoms: not a cell"),
                 };
                 let head = match head.as_atom() {
                     Ok(a) => a,
-                    Err(_) => panic!("measure_atoms: head not an atom"),
+                    Err(_) => panic!("_measure_atoms: head not an atom"),
                 };
                 tail = ttail;
 
@@ -81,7 +84,7 @@ mod util {
                 b += met(3, head);
                 //  could be just asserting that met returns more than 0
                 if b < tmp {
-                    panic!("measure_atoms: overflow");
+                    panic!("_measure_atoms: overflow");
                 }
                 a += 1;
             }
@@ -90,14 +93,15 @@ mod util {
             let tmp = a * std::mem::size_of::<urcrypt_aes_siv_data>();
             size = tmp + b;
             if (tmp / a) != std::mem::size_of::<urcrypt_aes_siv_data>() {
-                panic!("measure_atoms: wrong size")
+                panic!("_measure_atoms: wrong size")
             } else if size < tmp {
-                panic!("measure_atoms: overflow")
+                panic!("_measure_atoms: overflow")
             } else {
                 length = a;
                 bytes = tmp;
             }
 
+            println!("_measure_atoms: length: {}, bytes: {}, size: {}", length, bytes, size);
             (length, bytes, size)
         }
     }
@@ -111,79 +115,116 @@ mod util {
     /// * `bytes` - the encoding size
     /// * `data` - the data allocation
     ///
-    pub fn _encode_atoms(atoms: Noun, bytes: usize, data: &mut [urcrypt_aes_siv_data]) {
-        // iterate through the list of atoms
+    pub fn _encode_atoms(atoms: Noun, data: &mut [urcrypt_aes_siv_data]) {
         let mut t = atoms;
         let mut i = 0;
+        println!("data.len(): {}", data.len());
         unsafe {
             while !t.raw_equals(D(0)) {
+                println!("i: {}", i);
                 let (head, tail) = match t.as_cell() {
                     Ok(cell) => (cell.head(), cell.tail()),
                     Err(_) => panic!("_encode_atoms: not a cell"),
                 };
+                println!("head: {}", head);
+                println!("tail: {}", tail);
                 let head = match head.as_atom() {
                     Ok(a) => a,
                     Err(_) => panic!("_encode_atoms: head not an atom"),
                 };
+                println!("head is atom");
+                // for j in 0..head_bytes.len() {
+                //     (*(data[i].bytes.wrapping_add(j))) = head_bytes[j];
+                //     println!("data[{}].bytes[{}]: {:x?}", i, j, data[i].bytes.wrapping_add(j));
+                // }
                 t = tail;
                 let head_bytes = head.as_bytes();
+                println!("head_bytes: {:x?}", head_bytes);
                 data[i].length = head_bytes.len();
-                for j in 0..head_bytes.len() {
-                    let byte_ptr = data[i+j].bytes;
-                    (*(byte_ptr)) = head_bytes[j];
-                }
-                i += data[i].length;
+                println!("data[i].length: {}", data[i].length);
+                // allocate enough bytes at data[i].bytes
+                let ptr = std::alloc::alloc(std::alloc::Layout::from_size_align(head_bytes.len(), 8).unwrap());
+                // copy the bytes from head_bytes into the buffer pointed to by data[i].bytes (which is a *mut u8)
+                let data_bytes: &mut [u8] = std::slice::from_raw_parts_mut(ptr as *mut u8, head_bytes.len());
+                data_bytes.copy_from_slice(head_bytes);
+                data[i].bytes = data_bytes.as_mut_ptr();
+
+                println!("for done");
             }
         }
+        println!("done encoding");
     }
 
-    pub fn _allocate_atoms(atoms: Noun, length: usize) -> &'static mut [urcrypt_aes_siv_data] {
-        let (length, bytes, size) = _measure_atoms(atoms);
-        let siv_data: &mut [urcrypt_aes_siv_data];
-        _encode_atoms(atoms, bytes, siv_data);
+    pub fn _allocate_atoms(atoms: Noun) -> &'static mut [urcrypt_aes_siv_data] {
+        if unsafe { atoms.raw_equals(D(0)) } {
+            return &mut [];
+        }
+        let (length, _, size) = _measure_atoms(atoms);
+        println!("measured");
+        let siv_data: &mut [urcrypt_aes_siv_data] = unsafe {
+            let ptr = std::alloc::alloc(std::alloc::Layout::from_size_align(size, 8).unwrap());
+            std::slice::from_raw_parts_mut(ptr as *mut urcrypt_aes_siv_data, length)
+        };
+        println!("initialized siv_data");
+        _encode_atoms(atoms, siv_data);
+        println!("encoded siv_data");
         siv_data
     }
 
-    /*
-static u3_noun
-_cqea_siv_en(c3_y*   key_y,
-             c3_w    key_w,
-             u3_noun ads,
-             u3_atom txt,
-             urcrypt_siv low_f)
-{
-  u3_noun ret;
-  c3_w txt_w, soc_w;
-  c3_y *txt_y, *out_y, iv_y[16];
-  urcrypt_aes_siv_data *dat_u;
+    pub fn _siv_en(stack: &mut NockStack,
+        key: &mut [u8],
+        ads: Noun,
+        txt: Atom,
+        fun: UrcryptSiv) -> Noun {
 
-  dat_u = _cqea_ads_alloc(ads, &soc_w);
-  txt_y = u3r_bytes_all(&txt_w, txt);
-  out_y = u3a_malloc(txt_w);
+        let siv_data = _allocate_atoms(ads);
 
-  ret = ( 0 != (*low_f)(txt_y, txt_w, dat_u, soc_w, key_y, iv_y, out_y) )
-      ? u3_none
-      : u3nt(u3i_bytes(16, iv_y),
-             u3i_words(1, &txt_w),
-             u3i_bytes(txt_w, out_y));
+        let txt_len = met(3, txt);
+        let (txt_atom, txt_bytes) = match txt_len {
+            0 => {
+                (D(0), &mut [] as &mut [u8])
+            },
+            _ => {
+                let (mut txt_ida, txt_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, txt_len) };
+                println!("txt_len: {}", txt_len);
+                txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
+                (unsafe { txt_ida.normalize_as_atom().as_noun() }, txt_bytes)
+            }
+        };
+        println!("_siv_en: txt_bytes[{:?}]: {:x?}", txt_len, txt_bytes);
 
-  u3a_free(txt_y);
-  u3a_free(out_y);
-  _cqea_ads_free(dat_u);
-  return ret;
-}
-     */
-    pub fn siv_en(stack: &mut NockStack, key: &mut [u8], atoms: Noun, text: Atom, func: UrcryptSiv) -> Noun {
-        let siv_data = _allocate_atoms(atoms, 0);
-        let (txt_ida, txt_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, siv_data.len()) };
-        txt_bytes.copy_from_slice(text.as_bytes());
-        let mut iv = [0u8; 16];
-        let mut out: &[u8];
-        let mut ret = 0;
+        let (mut _key_ida, key_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 32) };
+        key_bytes[0..key.len()].copy_from_slice(key);
+        println!("_siv_en: key[{:?}]: {:x?}", key.len(), key);
+
+        let (mut iv, iv_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 16)};
+        let (out_atom, out_bytes) = match txt_len {
+            0 => (D(0), &mut [] as &mut [u8]),
+            _ => unsafe {
+                let (out_ida, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
+                (out_ida.as_noun(), out_bytes)
+            },
+        };
+
         unsafe {
-            func(txt_bytes, siv_data, key, iv, &mut out);
+            fun(
+                txt_bytes.as_mut_ptr(),
+                txt_len,
+                siv_data.as_mut_ptr(),
+                siv_data.len(),
+                key.as_mut_ptr(),
+                iv_bytes.as_mut_ptr(),
+                out_bytes.as_mut_ptr()
+            );
         }
-        atoms
+
+        let ret = T(stack, &[
+            unsafe { iv.normalize_as_atom().as_noun() },
+            D(txt_len as u64),
+            out_atom,
+        ]);
+
+        ret
     }
 
     // pub fn siv_de(stack: &mut NockStack,
@@ -202,155 +243,66 @@ _cqea_siv_en(c3_y*   key_y,
 mod tests {
     use super::*;
     use ibig::ubig;
-    use crate::noun::{D, T};
-    use crate::jets::util::test::{A, assert_jet, init_stack, assert_jet_err};
+    use crate::noun::{Cell, D, T};
+    use crate::jets::util::test::{A, assert_jet, init_stack, assert_noun_eq};
+    use crate::jets::Jet;
 
-    fn string_to_ubig(text: &str) -> UBig {
-        let bytes = text.as_bytes();
-        let mut lsb_value = ubig!(0x0);
-
-        for (i, &byte) in bytes.iter().enumerate() {
-            lsb_value += ubig!(byte) << (i * 8);
-        }
-
-        lsb_value
-    }
-
-    fn atom_hello_mars(stack: &mut NockStack) -> Noun {
-        A(stack, string_to_ubig("Hello Mars"))
+    pub fn assert_jet_in_door(
+        stack: &mut NockStack,
+        jet: Jet,
+        sam: &[fn(&mut NockStack) -> Noun],  // regular sample
+        ctx: &[fn(&mut NockStack) -> Noun],  // door sample as context
+        res: Noun) {
+        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
+        let ctx: Vec<Noun> = ctx.iter().map(|f| f(stack)).collect();
+        let sam = if sam.len() > 1 { T(stack, &sam) } else { sam[0] };
+        let ctx = if ctx.len() > 1 { T(stack, &ctx) } else { ctx[0] };
+        let pay = Cell::new(stack, sam, ctx).as_noun();
+        let sbj = Cell::new(stack, D(0), pay).as_noun();
+        // std::io::stderr().flush().unwrap();
+        let jet_res = jet(stack, &mut None, sbj).unwrap();
+        // std::io::stderr().flush().unwrap();
+        assert_noun_eq(stack, jet_res, res);
     }
 
     #[test]
-    fn test_siva_en() {
+    pub fn test_siva_en() {
         let s = &mut init_stack();
         /*
-        > (~(en siva:aes:crypto 0x0 ~))
+        > (~(en siva:aes:crypto [key=0x0 vec=~]) txt=0x0)
         [p=0xb0f7.a0df.be76.c85b.5e29.bb31.aaec.fc77 q=0 r=0x0]
          */
-        assert_jet(
-            s,
-            jet_siva_en,
-            A(s, &ubig!(0x0)),
-            T(s, &[A(s, &ubig!(0xb0f7a0dfbe76c85b5e29bb31aaecfc77)), D(0x0), D(0x0)]),
-        );
-        /*
-        > (~(en siva:aes:crypto (shax 0x0) ~))
-        [p=0x9e60.092f.8061.fcad.e893.1c80.dc36.f050 q=0 r=0x0]
-        */
-        let (mut ida_0, out) = IndirectAtom::new_raw_mut_bytes(stack, 512);
-        urcrypt_shay(D(0x0).as_bytes().as_ptr(), len, out.as_mut_ptr());
-        Ok(ida_0.normalize_as_atom().as_noun())
-        assert_jet(
-            s,
-            jet_siva_en,
-            ida_0,
-            T(s, &[A(s, &ubig!(0x9e60092f8061fcade8931c80dc36f050)), D(0x0), D(0x0)]),
-        );
-        /*
-        > (~(en siva:aes:crypto (shax 'Hello Mars') ~))
-        [p=0x3bd4.b5d5.652f.3ee0.9898.0b0d.c564.2498 q=0 r=0x0]
-        */
-        assert_jet(
-            s,
-            jet_siva_en,
-            A(s, "Hello Mars"),
-            T(s, &[A(s, &ubig!(0x3bd4b5d5652f3ee098980b0dc5642498)), D(0x0), D(0x0)]),
-        );
-        /*
-        > (~(en siva:aes:crypto (shax 0x0) ~[1 2 3]))
-        [p=0x2464.c22e.919a.df29.ab6a.d55b.885a.1cb2 q=0 r=0x0]
-        */
-        assert_jet(
-            s,
-            jet_siva_en,
-            T(s, &[D(1), D(2), D(3)]),
-            T(s, &[A(s, &ubig!(0x2464c22e919adf29ab6ad55b885a1cb2)), D(0x0), D(0x0)]),
-        );
-        /*
-        > (~(en siva:aes:crypto (shax 'Hello Mars') ~[1 2 3]))
-        [p=0x1114.18f8.b82e.ca32.d9f3.41f9.1c23.f555 q=0 r=0x0]
-        */
-        assert_jet(
-            s,
-            jet_siva_en,
-            T(s, &[D(1), D(2), D(3)]),
-            T(s, &[A(s, &ubig!(0x111418f8b82eca32d9f341f91c23f555)), D(0x0), D(0x0)]),
-        );
+        fn sample(_s: &mut NockStack) -> Noun {
+            let txt = D(0);
+            txt
+        }
+        fn context(s: &mut NockStack) -> Noun {
+            let sample = T(s, &[D(0), D(0)]);
+            T(s, &[D(0), sample, D(0)])
+        }
+
+        let siv = A(s, &ubig!(0xb0f7a0dfbe76c85b5e29bb31aaecfc77));
+        let res = T(s, &[siv, D(0), D(0x0)]);
+        assert_jet_in_door(s, jet_siva_en, &[sample], &[context], res);
+
+        /* RFC 5297
+         * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
+         */
+        fn gate_sample(s: &mut NockStack) -> Noun {
+            let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
+            txt
+        }
+        fn gate_context(s: &mut NockStack) -> Noun {
+            let key = A(s, &ubig!(_0xfffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff));
+            let a = A(s, &ubig!(_0x101112131415161718191a1b1c1d1e1f2021222324252627));
+            let vec = T(s, &[a, D(0)]);
+            let sample = T(s, &[key, vec]);
+            T(s, &[D(0), sample, D(0)])
+        }
+        let siv = A(s, &ubig!(0x85632d07c6e8f37f950acd320a2ecc93));
+        let len = D(14);
+        let cyp = A(s, &ubig!(0x40c02b9690c4dc04daef7f6afe5c));
+        let res = T(s, &[siv, len, cyp]);
+        assert_jet_in_door(s, jet_siva_en, &[gate_sample], &[gate_context], res);
     }
-
-
-    fn atom_63(_stack: &mut NockStack) -> Noun {
-        D(0x7fffffffffffffff)
-    }
-
-
-    fn atom_128(stack: &mut NockStack) -> Noun {
-        A(stack, &ubig!(0xdeadbeef12345678fedcba9876543210))
-    }
-
-    fn atom_128_b(stack: &mut NockStack) -> Noun {
-        A(stack, &ubig!(0xdeadbeef12345678fedcba9876540000))
-    }
-
-    fn atom_264(stack: &mut NockStack) -> Noun {
-        A(
-            stack,
-            &ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ff),
-        )
-    }
-
-    fn atom_528(stack: &mut NockStack) -> Noun {
-        A(stack, &ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff))
-    }
-
-    fn assert_math_jet(
-        stack: &mut NockStack,
-        jet: Jet,
-        sam: &[fn(&mut NockStack) -> Noun],
-        res: UBig,
-    ) {
-        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-        assert_nary_jet_ubig(stack, jet, &sam, res);
-    }
-
-    fn assert_math_jet_noun(
-        stack: &mut NockStack,
-        jet: Jet,
-        sam: &[fn(&mut NockStack) -> Noun],
-        res: Noun,
-    ) {
-        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-        let sam = T(stack, &sam);
-        assert_jet(stack, jet, sam, res);
-    }
-
-    fn assert_math_jet_err(
-        stack: &mut NockStack,
-        jet: Jet,
-        sam: &[fn(&mut NockStack) -> Noun],
-        err: JetErr,
-    ) {
-        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-        let sam = T(stack, &sam);
-        assert_jet_err(stack, jet, sam, err);
-    }
-
-    #[test]
-    fn test_add() {
-        let s = &mut init_stack();
-        assert_math_jet(
-            s,
-            jet_add,
-            &[atom_128, atom_96],
-            ubig!(0xdeadbef00d03068514bb685765666666),
-        );
-        assert_math_jet(
-            s,
-            jet_add,
-            &[atom_63, atom_96],
-            ubig!(0xfaceb00c95deadbeef123455),
-        );
-        assert_math_jet(s, jet_add, &[atom_63, atom_63], ubig!(0xfffffffffffffffe));
-    }
-
 }
