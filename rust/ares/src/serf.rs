@@ -1,8 +1,11 @@
 use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Tone};
+use crate::jets::cold::Cold;
+use crate::jets::hot::Hot;
 use crate::jets::nock::util::mook;
 use crate::jets::text::util::lent;
+use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
 use crate::newt::Newt;
@@ -31,6 +34,9 @@ struct Context {
     newt: Newt,
     cache: Hamt<Noun>,
     //  XX: persistent memo cache
+    cold: Cold,
+    warm: Warm,
+    hot: Hot,
 }
 
 impl Context {
@@ -41,6 +47,10 @@ impl Context {
         let mut stack = NockStack::new(256 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new();
+
+        let cold = Cold::new(&mut stack);
+        let warm = Warm::new();
+        let hot = Hot::init(&mut stack);
 
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
         let mug = mug_u32(&mut stack, arvo);
@@ -54,6 +64,9 @@ impl Context {
             stack,
             newt,
             cache,
+            cold,
+            warm,
+            hot,
         }
     }
 
@@ -84,6 +97,9 @@ impl Context {
             stack: &mut self.stack,
             newt: Some(&mut self.newt),
             cache: &mut self.cache,
+            cold: &mut self.cold,
+            warm: &mut self.warm,
+            hot: &self.hot,
         }
     }
 
