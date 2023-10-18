@@ -293,19 +293,15 @@ pub enum Failure {
     NonDeterministic,
 }
 
-impl From<Failure> for () {
-    fn from(_: Failure) -> Self {}
-}
-
 impl From<noun::Error> for Failure {
     fn from(_: noun::Error) -> Self {
         Failure::Deterministic
     }
 }
 
-impl From<cold::Error> for NockErr {
+impl From<cold::Error> for Failure {
     fn from(_: cold::Error) -> Self {
-        NockErr::Deterministic
+        Failure::Deterministic
     }
 }
 
@@ -1267,7 +1263,11 @@ mod hint {
                                         Ok(mut nock_res) => {
                                             let stack = &mut context.stack;
                                             if unsafe {
-                                                !unifying_equality(stack, &mut nock_res, &mut jet_res)
+                                                !unifying_equality(
+                                                    stack,
+                                                    &mut nock_res,
+                                                    &mut jet_res,
+                                                )
                                             } {
                                                 //  XX: need string interpolation without allocation, then delete eprintln
                                                 // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, nock_res, jet_res);
@@ -1417,7 +1417,7 @@ mod hint {
         hint: Option<Noun>,
         body: Noun,
         res: Noun,
-    ) -> Result<Option<Noun>, NockErr> {
+    ) -> Result<Option<Noun>, Failure> {
         let stack = &mut context.stack;
         let cache = &mut context.cache;
         let newt = &mut context.newt;
