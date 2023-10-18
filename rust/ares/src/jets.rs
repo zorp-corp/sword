@@ -93,13 +93,13 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         //
         tas!(b"mug") => Some(jet_mug),
         //
-        tas!(b"scow") => Some(jet_scow),
-        //
-        tas!(b"mink") => Some(jet_mink),
-        //
         tas!(b"dor") => Some(jet_dor),
         tas!(b"gor") => Some(jet_gor),
         tas!(b"mor") => Some(jet_mor),
+        //
+        tas!(b"scow") => Some(jet_scow),
+        //
+        tas!(b"mink") => Some(jet_mink),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None

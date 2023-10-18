@@ -1,19 +1,17 @@
 /** Sorting jets
  */
+use crate::interpreter::Context;
 use crate::jets;
 use crate::jets::util::slot;
-use crate::mem::NockStack;
 use crate::mug::mug;
-use crate::newt::Newt;
 use crate::noun::{Noun, NO, YES};
+use std::cmp::Ordering;
 
 crate::gdb!();
 
-pub fn jet_mor(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_mor(context: &mut Context, subject: Noun) -> jets::Result {
+    let stack = &mut context.stack;
+
     let sam = slot(subject, 6)?;
     let a = slot(sam, 2)?;
     let b = slot(sam, 3)?;
@@ -24,22 +22,16 @@ pub fn jet_mor(
     let e = mug(stack, c.as_noun());
     let f = mug(stack, d.as_noun());
 
-    if e.data() == f.data() {
-        Ok(util::dor(a, b))
-    } else {
-        if e.data() < f.data() {
-            Ok(YES)
-        } else {
-            Ok(NO)
-        }
+    match e.data().cmp(&f.data()) {
+        Ordering::Greater => Ok(NO),
+        Ordering::Less => Ok(YES),
+        Ordering::Equal => Ok(util::dor(a, b)),
     }
 }
 
-pub fn jet_gor(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_gor(context: &mut Context, subject: Noun) -> jets::Result {
+    let stack = &mut context.stack;
+
     let sam = slot(subject, 6)?;
     let a = slot(sam, 2)?;
     let b = slot(sam, 3)?;
@@ -47,22 +39,14 @@ pub fn jet_gor(
     let c = mug(stack, a);
     let d = mug(stack, b);
 
-    if c.data() == d.data() {
-        Ok(util::dor(a, b))
-    } else {
-        if c.data() < d.data() {
-            Ok(YES)
-        } else {
-            Ok(NO)
-        }
+    match c.data().cmp(&d.data()) {
+        Ordering::Greater => Ok(NO),
+        Ordering::Less => Ok(YES),
+        Ordering::Equal => Ok(util::dor(a, b)),
     }
 }
 
-pub fn jet_dor(
-    _stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_dor(_context: &mut Context, subject: Noun) -> jets::Result {
     let sam = slot(subject, 6)?;
     let a = slot(sam, 2)?;
     let b = slot(sam, 3)?;
@@ -71,10 +55,10 @@ pub fn jet_dor(
 }
 
 pub mod util {
-    use either::{Left, Right};
-    use crate::jets::util::slot;
     use crate::jets::math::util::lth;
-    use crate::noun::{Noun, YES, NO};
+    use crate::jets::util::slot;
+    use crate::noun::{Noun, NO, YES};
+    use either::{Left, Right};
 
     pub fn dor(a: Noun, b: Noun) -> Noun {
         if unsafe { a.raw_equals(b) } {
@@ -106,9 +90,9 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ibig::ubig;
-    use crate::jets::util::test::{A, assert_jet, init_stack};
+    use crate::jets::util::test::{assert_jet, init_stack, A};
     use crate::noun::{D, T};
+    use ibig::ubig;
 
     #[test]
     fn test_dor() {

@@ -190,11 +190,7 @@ pub fn jet_lte(context: &mut Context, subject: Noun) -> Result {
     })
 }
 
-pub fn jet_lth(
-    _stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_lth(_context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -256,7 +252,7 @@ pub fn jet_sub(context: &mut Context, subject: Noun) -> Result {
 
 pub mod util {
     use crate::jets::util::test::init_stack;
-    use crate::noun::{Atom, Noun, YES, NO};
+    use crate::noun::{Atom, Noun, NO, YES};
 
     pub fn lth(a: Atom, b: Atom) -> Noun {
         let s = &mut init_stack();

@@ -45,6 +45,10 @@ const HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     //
     (&[A_50, Left(tas!(b"mug"))], 1, jet_mug),
     //
+    (&[A_50, Left(tas!(b"dor"))], 1, jet_dor),
+    (&[A_50, Left(tas!(b"gor"))], 1, jet_gor),
+    (&[A_50, Left(tas!(b"mor"))], 1, jet_mor),
+    //
     (&[A_50, Left(tas!(b"scow"))], 1, jet_scow),
     //
     (&[A_50, Left(tas!(b"mink"))], 1, jet_mink),
