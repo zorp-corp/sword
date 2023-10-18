@@ -258,8 +258,6 @@ pub struct Context<'a> {
     pub stack: &'a mut NockStack,
     // For printing slogs; if None, print to stdout; Option slated to be removed
     pub newt: Option<&'a mut Newt>,
-    // Per-event cache; option to share cache with virtualized events
-    pub cache: &'a mut Hamt<Noun>,
     //  XX: persistent memo cache
     pub cold: &'a mut Cold,
     pub warm: &'a mut Warm,
@@ -327,6 +325,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     let terminator = Arc::clone(&TERMINATOR);
     let orig_subject = subject; // for debugging
     let virtual_frame: *const u64 = context.stack.get_frame_pointer();
+    let mut cache = Hamt::<Noun>::new();
     let mut res: Noun = D(0);
     let mut scry_flag: bool = false;
 
@@ -360,7 +359,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     debug_assertions(context.stack, subject);
                     debug_assertions(context.stack, res);
 
-                    context.stack.preserve(context.cache);
                     context.stack.preserve(context.cold);
                     context.stack.preserve(context.warm);
                     context.stack.preserve(&mut res);
@@ -376,9 +374,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     debug_assertions(context.stack, subject);
                     debug_assertions(context.stack, res);
 
-                    context.stack.preserve(context.cache);
                     context.stack.preserve(context.cold);
                     context.stack.preserve(context.warm);
+                    context.stack.preserve(&mut cache);
                     context.stack.preserve(&mut res);
                     context.stack.frame_pop();
 
@@ -682,8 +680,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                 }
                 NockWork::Work11D(mut dint) => match dint.todo {
                     Todo11D::ComputeHint => {
-                        match hint::match_pre_hint(context, subject, dint.tag, dint.hint, dint.body)
-                        {
+                        match hint::match_pre_hint(
+                            context, &mut cache, subject, dint.tag, dint.hint, dint.body,
+                        ) {
                             Ok(Some(found)) => {
                                 res = found;
                                 context.stack.pop::<NockWork>();
@@ -728,6 +727,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     Todo11D::Done => {
                         match hint::match_post_nock(
                             context,
+                            &mut cache,
                             subject,
                             dint.tag,
                             Some(dint.hint),
@@ -764,7 +764,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     }
                     Todo11S::Done => {
                         match hint::match_post_nock(
-                            context, subject, sint.tag, None, sint.body, res,
+                            context, &mut cache, subject, sint.tag, None, sint.body, res,
                         ) {
                             Ok(Some(found)) => res = found,
                             Err(err) => break Err(err),
@@ -1238,6 +1238,7 @@ mod hint {
     /** Match dynamic hints before the hint formula is evaluated */
     pub fn match_pre_hint(
         context: &mut Context,
+        cache: &mut Hamt<Noun>,
         subject: Noun,
         tag: Atom,
         hint: Noun,
@@ -1328,7 +1329,7 @@ mod hint {
             tas!(b"memo") => {
                 let stack = &mut context.stack;
                 let mut key = Cell::new(*stack, subject, body).as_noun();
-                Ok(context.cache.lookup(stack, &mut key))
+                Ok(cache.lookup(stack, &mut key))
             }
             _ => Ok(None),
         }
@@ -1412,6 +1413,7 @@ mod hint {
     /** Match static and dynamic hints after the nock formula is evaluated */
     pub fn match_post_nock(
         context: &mut Context,
+        cache: &mut Hamt<Noun>,
         subject: Noun,
         tag: Atom,
         hint: Option<Noun>,
@@ -1419,14 +1421,13 @@ mod hint {
         res: Noun,
     ) -> Result<Option<Noun>, Failure> {
         let stack = &mut context.stack;
-        let cache = &mut context.cache;
         let newt = &mut context.newt;
 
         //  XX: handle IndirectAtom tags
         match tag.as_direct()?.data() {
             tas!(b"memo") => {
                 let mut key = Cell::new(*stack, subject, body).as_noun();
-                **cache = (*cache).insert(stack, &mut key, res);
+                *cache = cache.insert(stack, &mut key, res);
             }
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
                 mean_pop(stack);

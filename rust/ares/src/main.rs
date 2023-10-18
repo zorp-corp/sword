@@ -1,10 +1,9 @@
-use ares::hamt::Hamt;
 use ares::interpreter::{interpret, Context};
 use ares::jets::cold::Cold;
 use ares::jets::hot::Hot;
 use ares::jets::warm::Warm;
 use ares::mem::NockStack;
-use ares::noun::{IndirectAtom, Noun, D};
+use ares::noun::{IndirectAtom, D};
 use ares::serf::serf;
 use ares::serialization::{cue, jam};
 use memmap::Mmap;
@@ -65,14 +64,12 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let mut cache = Hamt::<Noun>::new();
     let mut cold = Cold::new(&mut stack);
     let mut warm = Warm::new();
     let hot = Hot::init(&mut stack);
     let mut context = Context {
         stack: &mut stack,
         newt: None,
-        cache: &mut cache,
         cold: &mut cold,
         warm: &mut warm,
         hot: &hot,

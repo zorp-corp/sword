@@ -1,4 +1,3 @@
-use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error, NockError};
 use crate::jets::cold::Cold;
@@ -32,7 +31,6 @@ struct Context {
     mug: u32,
     stack: NockStack,
     newt: Newt,
-    cache: Hamt<Noun>,
     //  XX: persistent memo cache
     cold: Cold,
     warm: Warm,
@@ -46,7 +44,6 @@ impl Context {
         let mut snapshot = DoubleJam::new(snap_path);
         let mut stack = NockStack::new(256 << 10 << 10, 0);
         let newt = Newt::new();
-        let cache = Hamt::<Noun>::new();
 
         let cold = Cold::new(&mut stack);
         let warm = Warm::new();
@@ -63,7 +60,6 @@ impl Context {
             mug,
             stack,
             newt,
-            cache,
             cold,
             warm,
             hot,
@@ -91,12 +87,9 @@ impl Context {
     }
 
     pub fn for_interpreter(&mut self) -> interpreter::Context {
-        self.cache = Hamt::<Noun>::new();
-
         interpreter::Context {
             stack: &mut self.stack,
             newt: Some(&mut self.newt),
-            cache: &mut self.cache,
             cold: &mut self.cold,
             warm: &mut self.warm,
             hot: &self.hot,

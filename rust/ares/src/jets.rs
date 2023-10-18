@@ -295,7 +295,6 @@ pub mod util {
 
     pub mod test {
         use super::*;
-        use crate::hamt::Hamt;
         use crate::mem::{unifying_equality, NockStack};
         use crate::noun::{Atom, Noun, D, T};
         use assert_no_alloc::assert_no_alloc;
@@ -317,14 +316,12 @@ pub mod util {
 
         pub fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
             //  XX: consider making a mock context singleton that tests can use
-            let mut cache = Hamt::<Noun>::new();
             let mut cold = Cold::new(stack);
             let mut warm = Warm::new();
             let hot = Hot::init(stack);
             let mut context = Context {
                 stack,
                 newt: None,
-                cache: &mut cache,
                 cold: &mut cold,
                 warm: &mut warm,
                 hot: &hot,
@@ -347,14 +344,12 @@ pub mod util {
 
         pub fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
             //  XX: consider making a mock context singleton that tests can use
-            let mut cache = Hamt::<Noun>::new();
             let mut cold = Cold::new(stack);
             let mut warm = Warm::new();
             let hot = Hot::init(stack);
             let mut context = Context {
                 stack,
                 newt: None,
-                cache: &mut cache,
                 cold: &mut cold,
                 warm: &mut warm,
                 hot: &hot,
