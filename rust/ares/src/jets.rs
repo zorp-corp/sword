@@ -1,3 +1,7 @@
+pub mod cold;
+pub mod hot;
+pub mod warm;
+
 pub mod bits;
 pub mod form;
 pub mod hash;
@@ -9,13 +13,16 @@ pub mod tree;
 
 use crate::interpreter::Context;
 use crate::jets::bits::*;
+use crate::jets::cold::Cold;
 use crate::jets::form::*;
 use crate::jets::hash::*;
+use crate::jets::hot::Hot;
 use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::sort::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
+use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::noun::{self, Noun, Slots};
 use ares_macros::tas;
@@ -315,10 +322,18 @@ pub mod util {
         }
 
         pub fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
+            //  XX: consider making a mock context singleton that tests can use
+            let mut cache = Hamt::<Noun>::new();
+            let mut cold = Cold::new(stack);
+            let mut warm = Warm::new();
+            let hot = Hot::init(stack);
             let mut context = Context {
                 stack,
                 newt: None,
-                cache: &mut Hamt::<Noun>::new(),
+                cache: &mut cache,
+                cold: &mut cold,
+                warm: &mut warm,
+                hot: &hot,
             };
             let sam = T(context.stack, &[D(0), sam, D(0)]);
             let jet_res = assert_no_alloc(|| jet(&mut context, sam).unwrap());
@@ -336,10 +351,18 @@ pub mod util {
         }
 
         pub fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
+            //  XX: consider making a mock context singleton that tests can use
+            let mut cache = Hamt::<Noun>::new();
+            let mut cold = Cold::new(stack);
+            let mut warm = Warm::new();
+            let hot = Hot::init(stack);
             let mut context = Context {
                 stack,
                 newt: None,
-                cache: &mut Hamt::<Noun>::new(),
+                cache: &mut cache,
+                cold: &mut cold,
+                warm: &mut warm,
+                hot: &hot,
             };
             let sam = T(context.stack, &[D(0), sam, D(0)]);
             let jet_res = jet(&mut context, sam);

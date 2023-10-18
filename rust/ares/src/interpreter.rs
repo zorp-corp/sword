@@ -2,6 +2,10 @@ use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
 use crate::hamt::Hamt;
+use crate::jets::cold;
+use crate::jets::cold::Cold;
+use crate::jets::hot::Hot;
+use crate::jets::warm::Warm;
 use crate::jets::JetErr;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
@@ -231,13 +235,16 @@ enum NockWork {
     Work11S(Nock11S),
 }
 
-pub struct Context<'a, 'b, 'c> {
+pub struct Context<'a> {
     pub stack: &'a mut NockStack,
     // For printing slogs; if None, print to stdout; Option slated to be removed
-    pub newt: Option<&'b mut Newt>,
+    pub newt: Option<&'a mut Newt>,
     // Per-event cache; option to share cache with virtualized events
-    pub cache: &'c mut Hamt<Noun>,
+    pub cache: &'a mut Hamt<Noun>,
     //  XX: persistent memo cache
+    pub cold: &'a mut Cold,
+    pub warm: &'a mut Warm,
+    pub hot: &'a Hot,
 }
 
 #[derive(Debug)]
@@ -258,6 +265,12 @@ impl From<NockErr> for () {
 
 impl From<noun::Error> for NockErr {
     fn from(_: noun::Error) -> Self {
+        NockErr::Deterministic
+    }
+}
+
+impl From<cold::Error> for NockErr {
+    fn from(_: cold::Error) -> Self {
         NockErr::Deterministic
     }
 }
@@ -317,6 +330,8 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     debug_assertions(context.stack, res);
 
                     context.stack.preserve(context.cache);
+                    context.stack.preserve(context.cold);
+                    context.stack.preserve(context.warm);
                     context.stack.preserve(&mut res);
                     context.stack.frame_pop();
 
@@ -331,6 +346,8 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     debug_assertions(context.stack, res);
 
                     context.stack.preserve(context.cache);
+                    context.stack.preserve(context.cold);
+                    context.stack.preserve(context.warm);
                     context.stack.preserve(&mut res);
                     context.stack.frame_pop();
 
@@ -385,6 +402,24 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             push_formula(context.stack, vale.formula, false)?;
                         }
                         Todo2::ComputeResult => {
+                            if let Some(jet) =
+                                context
+                                    .warm
+                                    .find_jet(context.stack, &mut vale.subject, &mut res)
+                            {
+                                match jet(context, vale.subject) {
+                                    Ok(jet_res) => {
+                                        res = jet_res;
+                                        context.stack.pop::<NockWork>();
+                                        continue;
+                                    }
+                                    Err(JetErr::Punt) => {}
+                                    Err(err) => {
+                                        break Err(err.into());
+                                    }
+                                }
+                            };
+
                             if vale.tail {
                                 context.stack.pop::<NockWork>();
                                 subject = vale.subject;
@@ -545,7 +580,23 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             push_formula(context.stack, kale.core, false)?;
                         }
                         Todo9::ComputeResult => {
-                            if let Ok(formula) = res.slot_atom(kale.axis) {
+                            if let Ok(mut formula) = res.slot_atom(kale.axis) {
+                                if let Some(jet) =
+                                    context.warm.find_jet(context.stack, &mut res, &mut formula)
+                                {
+                                    match jet(context, res) {
+                                        Ok(jet_res) => {
+                                            res = jet_res;
+                                            context.stack.pop::<NockWork>();
+                                            continue;
+                                        }
+                                        Err(JetErr::Punt) => {}
+                                        Err(err) => {
+                                            break Err(err.into());
+                                        }
+                                    }
+                                };
+
                                 if kale.tail {
                                     context.stack.pop::<NockWork>();
                                     subject = res;
@@ -629,10 +680,11 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 context.stack.pop::<NockWork>();
                             }
                             Ok(None) => {
-                                dint.todo = Todo11D::Done;
                                 if dint.tail {
                                     context.stack.pop::<NockWork>();
                                 } else {
+                                    dint.todo = Todo11D::Done;
+                                    dint.hint = res;
                                     *context.stack.top() = NockWork::Work11D(dint);
                                 }
                                 push_formula(context.stack, dint.body, dint.tail)?;
@@ -643,10 +695,17 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         }
                     }
                     Todo11D::Done => {
-                        if let Some(found) =
-                            hint::match_post_nock(context, subject, dint.tag, dint.body, res)
-                        {
-                            res = found;
+                        match hint::match_post_nock(
+                            context,
+                            subject,
+                            dint.tag,
+                            Some(dint.hint),
+                            dint.body,
+                            res,
+                        ) {
+                            Ok(Some(found)) => res = found,
+                            Err(err) => break Err(err),
+                            _ => {}
                         }
                         context.stack.pop::<NockWork>();
                     }
@@ -659,10 +718,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 context.stack.pop::<NockWork>();
                             }
                             Ok(None) => {
-                                sint.todo = Todo11S::Done;
                                 if sint.tail {
                                     context.stack.pop::<NockWork>();
                                 } else {
+                                    sint.todo = Todo11S::Done;
                                     *context.stack.top() = NockWork::Work11S(sint);
                                 }
                                 push_formula(context.stack, sint.body, sint.tail)?;
@@ -673,10 +732,12 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         }
                     }
                     Todo11S::Done => {
-                        if let Some(found) =
-                            hint::match_post_nock(context, subject, sint.tag, sint.body, res)
-                        {
-                            res = found;
+                        match hint::match_post_nock(
+                            context, subject, sint.tag, None, sint.body, res,
+                        ) {
+                            Ok(Some(found)) => res = found,
+                            Err(err) => break Err(err),
+                            _ => {}
                         }
                         context.stack.pop::<NockWork>();
                     }
@@ -1013,7 +1074,8 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 mod hint {
     use super::*;
     use crate::jets;
-    use crate::jets::nock::util::mook;
+    use crate::jets::cold;
+    use crate::jets::nock::util::{mook, LEAF};
     use crate::mem::unifying_equality;
     use crate::noun::{tape, Atom, Cell, Noun, D, T};
     use crate::serf::TERMINATOR;
@@ -1044,71 +1106,78 @@ mod hint {
     ) -> Result<Option<Noun>, NockErr> {
         //  XX: handle IndirectAtom tags
         match tag.as_direct()?.data() {
-            // %sham hints are scaffolding until we have a real jet dashboard
             tas!(b"sham") => {
-                let jet_formula = hint.as_cell()?;
-                // XX: what is the head here?
-                let jet_name = jet_formula.tail();
+                if cfg!(feature = "sham_hints") {
+                    let jet_formula = hint.as_cell()?;
+                    // XX: what is the head here?
+                    let jet_name = jet_formula.tail();
 
-                if let Some(jet) = jets::get_jet(jet_name) {
-                    match jet(context, subject) {
-                        Ok(mut jet_res) => {
-                            //  XX: simplify this by moving jet test mode into the 11 code in interpret, or into its own function?
-                            // if in test mode, check that the jet returns the same result as the raw nock
-                            if jets::get_jet_test_mode(jet_name) {
-                                //  XX: we throw away trace, which might matter for non-deterministic errors
-                                //      maybe mook and slog it?
-                                match interpret(context, subject, body) {
-                                    Ok(mut nock_res) => {
-                                        let stack = &mut context.stack;
-                                        if unsafe {
-                                            !unifying_equality(stack, &mut nock_res, &mut jet_res)
-                                        } {
+                    if let Some(jet) = jets::get_jet(jet_name) {
+                        match jet(context, subject) {
+                            Ok(mut jet_res) => {
+                                //  XX: simplify this by moving jet test mode into the 11 code in interpret, or into its own function?
+                                // if in test mode, check that the jet returns the same result as the raw nock
+                                if jets::get_jet_test_mode(jet_name) {
+                                    //  XX: we throw away trace, which might matter for non-deterministic errors
+                                    //      maybe mook and slog it?
+                                    match interpret(context, subject, body) {
+                                        Ok(mut nock_res) => {
+                                            let stack = &mut context.stack;
+                                            if unsafe {
+                                                !unifying_equality(
+                                                    stack,
+                                                    &mut nock_res,
+                                                    &mut jet_res,
+                                                )
+                                            } {
+                                                //  XX: need string interpolation without allocation, then delete eprintln
+                                                // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, nock_res, jet_res);
+                                                eprintln!(
+                                                    "\rjet {} failed, raw: {:?}, jetted: {}",
+                                                    jet_name, nock_res, jet_res
+                                                );
+                                                let tape = tape(*stack, "jet mismatch");
+                                                let mean = T(*stack, &[D(tas!(b"mean")), tape]);
+                                                mean_push(stack, mean);
+                                                Err(NockErr::Deterministic)
+                                            } else {
+                                                Ok(Some(nock_res))
+                                            }
+                                        }
+                                        Err(Tone::Error(err, _)) => {
+                                            let stack = &mut context.stack;
                                             //  XX: need string interpolation without allocation, then delete eprintln
-                                            // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, nock_res, jet_res);
+                                            // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, err, jet_res);
                                             eprintln!(
                                                 "\rjet {} failed, raw: {:?}, jetted: {}",
-                                                jet_name, nock_res, jet_res
+                                                jet_name, err, jet_res
                                             );
                                             let tape = tape(*stack, "jet mismatch");
                                             let mean = T(*stack, &[D(tas!(b"mean")), tape]);
                                             mean_push(stack, mean);
-                                            Err(NockErr::Deterministic)
-                                        } else {
-                                            Ok(Some(nock_res))
+                                            Err(err)
+                                        }
+                                        Err(Tone::Blocked(_)) => {
+                                            panic!("jet test mode: no scry handling")
                                         }
                                     }
-                                    Err(Tone::Error(err, _)) => {
-                                        let stack = &mut context.stack;
-                                        //  XX: need string interpolation without allocation, then delete eprintln
-                                        // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, err, jet_res);
-                                        eprintln!(
-                                            "\rjet {} failed, raw: {:?}, jetted: {}",
-                                            jet_name, err, jet_res
-                                        );
-                                        let tape = tape(*stack, "jet mismatch");
-                                        let mean = T(*stack, &[D(tas!(b"mean")), tape]);
-                                        mean_push(stack, mean);
-                                        Err(err)
-                                    }
-                                    Err(Tone::Blocked(_)) => {
-                                        panic!("jet test mode: no scry handling")
-                                    }
+                                } else {
+                                    Ok(Some(jet_res))
                                 }
-                            } else {
-                                Ok(Some(jet_res))
+                            }
+                            Err(JetErr::Punt) => Ok(None),
+                            Err(err) => {
+                                let stack = &mut context.stack;
+                                //  XX: need string interpolation without allocation
+                                // let tape = tape(stack, "{} jet error in {}", err, jet_name);
+                                let tape = tape(*stack, "jet error");
+                                let mean = T(*stack, &[D(tas!(b"mean")), tape]);
+                                mean_push(stack, mean);
+                                Err(err.into())
                             }
                         }
-                        Err(JetErr::Punt) => Ok(None),
-                        Err(err) => {
-                            let stack = &mut context.stack;
-                            //  XX: need string interpolation without allocation
-                            // let tape = tape(stack, "{} jet error in {}", err, jet_name);
-                            let tape = tape(*stack, "jet error");
-                            let mean = T(*stack, &[D(tas!(b"mean")), tape]);
-                            mean_push(stack, mean);
-                            Err(err.into())
-                        }
+                    } else {
+                        Ok(None)
                     }
                 } else {
                     Ok(None)
@@ -1134,19 +1203,12 @@ mod hint {
         //  XX: handle IndirectAtom tags
         match tag.as_direct()?.data() {
             tas!(b"slog") => {
-                let (_, hint_res) = hint.ok_or(NockErr::Deterministic)?;
-                let slog_cell = hint_res.as_cell()?;
+                let (_form, clue) = hint.ok_or(NockErr::Deterministic)?;
+                let slog_cell = clue.as_cell()?;
                 let pri = slog_cell.head().as_direct()?.data();
                 let tank = slog_cell.tail();
-                if context.newt.is_none() {
-                    eprintln!("raw slog: {} {}", pri, tank);
-                } else {
-                    context
-                        .newt
-                        .as_mut()
-                        .unwrap()
-                        .slog(context.stack, pri, tank);
-                }
+
+                slog(context.stack, &mut context.newt, pri, tank);
                 Ok(None)
             }
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
@@ -1156,8 +1218,8 @@ mod hint {
                 }
 
                 let stack = &mut context.stack;
-                let (_, hint_res) = hint.ok_or(NockErr::Deterministic)?;
-                let noun = T(*stack, &[tag.as_noun(), hint_res]);
+                let (_form, clue) = hint.ok_or(NockErr::Deterministic)?;
+                let noun = T(*stack, &[tag.as_noun(), clue]);
                 mean_push(stack, noun);
                 Ok(None)
             }
@@ -1185,11 +1247,7 @@ mod hint {
                             }
 
                             let cell = list.as_cell().unwrap();
-                            if context.newt.is_none() {
-                                eprintln!("raw slog: {} {}", 0, cell.head());
-                            } else {
-                                context.newt.as_mut().unwrap().slog(stack, 0, cell.head());
-                            }
+                            slog(stack, &mut context.newt, 0, cell.head());
 
                             list = cell.tail();
                         }
@@ -1214,14 +1272,16 @@ mod hint {
         context: &mut Context,
         subject: Noun,
         tag: Atom,
+        hint: Option<Noun>,
         body: Noun,
         res: Noun,
-    ) -> Option<Noun> {
+    ) -> Result<Option<Noun>, NockErr> {
         let stack = &mut context.stack;
         let cache = &mut context.cache;
+        let newt = &mut context.newt;
 
         //  XX: handle IndirectAtom tags
-        match tag.direct()?.data() {
+        match tag.as_direct()?.data() {
             tas!(b"memo") => {
                 let mut key = Cell::new(*stack, subject, body).as_noun();
                 **cache = (*cache).insert(stack, &mut key, res);
@@ -1229,9 +1289,69 @@ mod hint {
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
                 mean_pop(stack);
             }
+            tas!(b"fast") => {
+                if let Some(clue) = hint {
+                    let cold_res: cold::Result = {
+                        let chum = clue.slot(2)?;
+                        let parent_formula_op = clue.slot(12)?.as_atom()?.as_direct()?;
+                        let parent_formula_ax = clue.slot(13)?.as_atom()?;
+
+                        if parent_formula_op.data() == 1 {
+                            if parent_formula_ax.as_direct()?.data() == 0 {
+                                context.cold.register(stack, res, parent_formula_ax, chum)
+                            } else {
+                                //  XX: Need better message in slog; need better slogging tools
+                                //      format!("invalid root parent axis: {} {}", chum, parent_formula_ax)
+                                let tape =
+                                    tape(*stack, "serf: cold: register: invalid root parent axis");
+                                slog_leaf(stack, newt, tape);
+                                Ok(false)
+                            }
+                        } else {
+                            context.cold.register(stack, res, parent_formula_ax, chum)
+                        }
+                    };
+
+                    match cold_res {
+                        Ok(true) => *context.warm = Warm::init(stack, context.cold, context.hot),
+                        Err(cold::Error::NoParent) => {
+                            //  XX: Need better message in slog; need better slogging tools
+                            //      format!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
+                            let tape = tape(
+                                *stack,
+                                "serf: cold: register: could not find parent battery at given axis",
+                            );
+                            slog_leaf(stack, newt, tape);
+                        }
+                        Err(cold::Error::BadNock) => {
+                            //  XX: Need better message in slog; need better slogging tools
+                            //      format!("bad clue formula: {}", clue)
+                            let tape = tape(*stack, "serf: cold: register: bad clue formula");
+                            slog_leaf(stack, newt, tape);
+                        }
+                        _ => {}
+                    }
+                } else {
+                    let tape = tape(*stack, "serf: cold: register: no clue for %fast");
+                    slog_leaf(stack, newt, tape);
+                }
+            }
             _ => {}
         }
 
-        None
+        Ok(None)
+    }
+
+    fn slog_leaf(stack: &mut NockStack, newt: &mut Option<&mut Newt>, tape: Noun) {
+        let tank = T(stack, &[LEAF, tape]);
+        slog(stack, newt, 0u64, tank);
+    }
+
+    fn slog(stack: &mut NockStack, newt: &mut Option<&mut Newt>, pri: u64, tank: Noun) {
+        if newt.is_none() {
+            eprintln!("raw slog: {} {}", pri, tank);
+        } else {
+            newt.as_mut().unwrap().slog(stack, pri, tank);
+        }
     }
 }
