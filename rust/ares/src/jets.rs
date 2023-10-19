@@ -5,6 +5,7 @@ pub mod warm;
 pub mod bits;
 pub mod form;
 pub mod hash;
+pub mod lute;
 pub mod math;
 pub mod nock;
 pub mod text;
