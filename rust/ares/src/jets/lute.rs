@@ -46,7 +46,8 @@ pub fn jet_crop(context: &mut Context, subject: Noun) -> Result {
     let sut = slot(van , 6)?; // why does vere bail:fail if any of these are none?
 
     let vet = slot(van, 59)?;
-    let fun = (141 + tas!(b"crop")) + ((vet.as_atom()?.as_direct()?.data() as u64) << 8);
+    let flag = if unsafe { vet.raw_equals(D(0)) } { 0 } else { 1 };
+    let fun = (141 + tas!(b"crop")) + (flag << 8);
     let mut key = T(context.stack, &[D(fun), sut, ref_, bat]);
     let pro = context.cache.lookup(context.stack, &mut key);
 
