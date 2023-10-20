@@ -2,6 +2,7 @@
  */
 use crate::interpreter::Context;
 use crate::jets::util::*;
+use crate::jets::text::util::lent;
 use crate::jets::JetErr::*;
 use crate::jets::Result;
 use crate::noun::DIRECT_MAX;
@@ -357,6 +358,34 @@ pub fn jet_xeb(context: &mut Context, subject: Noun) -> Result {
         Ok(DirectAtom::new_unchecked(syz).as_atom().as_noun())
     }
 }
+
+pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let src = slot(sam, 1)?;
+
+    if unsafe { src.raw_equals(D(0)) } {
+        return Ok(D(0));
+    }
+
+    flop(context.stack, src)
+}
+
+//  return u3kc_rep(u3k(a), 1, u3kb_flop(u3qc_rip(a, 1, b)));
+/*pub fn jet_swp(context: &mut Context, subject: Noun) -> Result {
+    let arg = slot(subject, 6)?;
+    let a = slot(arg, 2)?.as_atom()?;
+    let b = slot(arg, 3)?.as_atom()?;
+
+    let new_size = cmp::max(a.size(), b.size());
+
+    unsafe {
+        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(context.stack, new_size);
+        let a_bit = a.as_bitslice();
+        dest[..a_bit.len()].copy_from_bitslice(a_bit);
+        *dest |= b.as_bitslice();
+        Ok(atom.normalize_as_atom().as_noun())
+    }
+}*/
 
 #[cfg(test)]
 mod tests {
@@ -735,4 +764,36 @@ mod tests {
         assert_jet(s, jet_xeb, D(0x3fffffffffffffff), D(62));
         assert_jet(s, jet_xeb, D(0x4000000000000000), D(63));
     }
+
+    #[test]
+    fn test_flop() {
+        let s = &mut init_stack();
+        let sam = T(s, &[D(1), D(2), D(3), D(0)]);
+        let res = T(s, &[D(3), D(2), D(1), D(0)]);
+        assert_jet(s, jet_flop, sam, res);
+
+        let sam = T(
+            s,
+            &[
+                D(0xd), D(0xe), D(0xa), D(0xd), D(0xb), D(0xe), D(0xe), D(0xf),
+                D(0x1), D(0x2), D(0x3), D(0x4), D(0x5), D(0x6), D(0x7), D(0x8),
+                D(0xf), D(0xe), D(0xd), D(0xc), D(0xb), D(0xa), D(0x9), D(0x8),
+                D(0x7), D(0x6), D(0x5), D(0x4), D(0x3), D(0x2), D(0x1), D(0x0),
+                D(0x0),
+            ],
+        );
+        #[rustfmt::skip]
+        let res = T(
+            s,
+            &[
+                D(0x0), D(0x1), D(0x2), D(0x3), D(0x4), D(0x5), D(0x6), D(0x7),
+                D(0x8), D(0x9), D(0xa), D(0xb), D(0xc), D(0xd), D(0xe), D(0xf),
+                D(0x8), D(0x7), D(0x6), D(0x5), D(0x4), D(0x3), D(0x2), D(0x1),
+                D(0xf), D(0xe), D(0xe), D(0xb), D(0xd), D(0xa), D(0xe), D(0xd),
+                D(0x0),
+            ],
+        );
+        assert_jet(s, jet_flop, sam, res);
+    }
+
 }

@@ -21,6 +21,7 @@ use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::sort::*;
 use crate::jets::text::*;
+use crate::jets::text::util::*;
 use crate::jets::tree::*;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
@@ -284,6 +285,26 @@ pub mod util {
         }
 
         Ok(list)
+    }
+
+    /// Reverse order of list
+    pub fn flop(stack: &mut NockStack, noun: Noun) -> Result {
+        let mut list = noun;
+        let mut tsil = D(0);
+        loop {
+            if let Some(list) = list.atom() {
+                if list.as_bitslice().first_one().is_none() {
+                    break;
+                } else {
+                    return Err(JetErr::Deterministic);
+                }
+            }
+            let cell = list.as_cell()?;
+            tsil = Cell::new(stack, cell.head(), tsil).as_noun();
+            list = cell.tail();
+        }
+
+        Ok(tsil)
     }
 
     /// Binary OR
