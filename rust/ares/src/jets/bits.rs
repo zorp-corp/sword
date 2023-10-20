@@ -370,20 +370,24 @@ pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
     flop(context.stack, src)
 }
 
-pub fn jet_swp(context: &mut Context, subject: Noun) -> Result {
+// return u3kc_rep(u3k(a), 1, u3kb_flop(u3qc_rip(a, 1, b)));
+// TODO
+// allocate new IndirectAtom of same size and as_bitslice()
+// so we can rebuild it back to front in bloq size
+/*pub fn jet_swp(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let bloq = slot(sam, 2)?.as_atom()?.as_direct()?.data() as usize;
     let atom = slot(sam, 3)?.as_atom()?;
 
     let ripper = rip(context.stack, bloq, 1, atom)?;
-    println!("ripper: {:?}", ripper);
+    //println!("ripper: {:?}", ripper);
     let flopper = flop(context.stack, ripper)?;
-    println!("flopper: {:?}", flopper);
+    //println!("flopper: {:?}", flopper);
     let sample = T(context.stack, &[D(1), flopper]);
-    println!("sample: {:?}", sample);
-    println!("sample: {:?}", jet_rep(context, sample));
+    //println!("sample: {:?}", sample);
+    //println!("sample: {:?}", jet_rep(context, sample));
     jet_rep(context, sample)
-}
+}*/
 
 #[cfg(test)]
 mod tests {
@@ -763,7 +767,7 @@ mod tests {
         assert_jet(s, jet_xeb, D(0x4000000000000000), D(63));
     }
 
-    #[test]
+    /*#[test]
     fn test_swp() {
         let s = &mut init_stack();
         let sam = T(s, &[D(1), D(0x18)]);
@@ -774,7 +778,7 @@ mod tests {
         assert_jet(s, jet_swp, sam, D(0x1));
         let sam = T(s, &[D(3), D(0x636261)]);
         assert_jet(s, jet_swp, sam, D(0x616263));
-    }
+    }*/
 
     #[test]
     fn test_flop() {
