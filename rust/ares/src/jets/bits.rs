@@ -4,6 +4,7 @@ use crate::interpreter::Context;
 use crate::jets::util::*;
 use crate::jets::JetErr::*;
 use crate::jets::Result;
+use crate::noun::DIRECT_MAX;
 use crate::noun::{DirectAtom, IndirectAtom, Noun, D};
 use std::cmp;
 
@@ -343,6 +344,17 @@ pub fn jet_mix(context: &mut Context, subject: Noun) -> Result {
         dest[..a_bit.len()].copy_from_bitslice(a_bit);
         *dest ^= b.as_bitslice();
         Ok(atom.normalize_as_atom().as_noun())
+    }
+}
+
+pub fn jet_xeb(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let a = slot(sam, 1)?.as_atom()?;
+
+    let syz = met(0, a) as u64;
+
+    unsafe {
+        Ok(DirectAtom::new_unchecked(syz).as_atom().as_noun())
     }
 }
 
@@ -709,5 +721,18 @@ mod tests {
         assert_jet(s, jet_mix, sam, a128);
         let sam = T(s, &[a128, a0]);
         assert_jet(s, jet_mix, sam, a128);
+    }
+
+    #[test]
+    fn test_xeb() {
+        let s = &mut init_stack();
+        assert_jet(s, jet_xeb, D(0), D(0));
+        assert_jet(s, jet_xeb, D(1), D(1));
+        assert_jet(s, jet_xeb, D(31), D(5));
+        assert_jet(s, jet_xeb, D(32), D(6));
+        assert_jet(s, jet_xeb, D(0xfff), D(12));
+        assert_jet(s, jet_xeb, D(0xffff), D(16));
+        assert_jet(s, jet_xeb, D(0x3fffffffffffffff), D(62));
+        assert_jet(s, jet_xeb, D(0x4000000000000000), D(63));
     }
 }
