@@ -19,6 +19,7 @@
   $:  core=(jug path sock)         ::  nested batteries by path
       batt=(jug ^ path)            ::  paths by outer batteries
       call=(jug [path @] [sock *]) ::  arms to exact call label
+      back=(map [sock *] [path @]) ::  path/axis labels by bell
   ==
 ::  hint table entry
 +$  hind
@@ -28,7 +29,7 @@
 +$  hone  [soot=sock norm=food root=sock]
 ::    Nomm (Nock--)
 ::
-::  9 is rewritten to 7+2
+::  9 is rewritten to 7+2 [9 b c] -> [7 c 2 [0 1] 0 c]
 ::  8 is rewritten to 7+autocons+0
 +$  nomm
   $%  [%par left=nomm rite=nomm]                   :: autocons

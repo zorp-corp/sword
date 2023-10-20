@@ -1,69 +1,159 @@
 /-  noir
 |%
-+|  %lin
+::  hot state
+::
+::  faces (per element):
+::  j - jet ID
+::  p - path
+::  a - battery axis
+::  need - how this jet expects the subject
++$  heat
+  (list [p=path a=@ j=@jet =need])
+:: pokes
++$  gist
+  $%  [%comp s=* f=* slow=path]
+      [%heat =heat]
+  ==
 ::  external label
 +$  bell  [text=sock:noir form=*]
 ::  internal label
-+$  bile  [%bile axe=@ tis=@ thus=@tas bell]
++$  bile  [%bile axe=@ thus=@tas bell]
 ::  ssa shape of a noun
 +$  need
   $%  [%this sass=@uvre]
-      [%both left=need rite=need]
+      [%both sass=@uvre left=need rite=need]
       [%none ~]
   ==
 +$  next  $>(%next goal)
 ::  destination
 +$  goal
-  $%  [%pick zero=bile once=bile]
+  $%  [%pick sass=@uvre zero=bile once=bile]
       [%done ~]
       [%next what=need then=bile]
   ==
 ::  instructions in a block
+::
+::  faces:
+::  n - noun
+::  d - destination
+::  f - formula
+::  h - head
+::  k - key
+::  l - label
+::  r - result
+::  s - source
+::  t - tail
+::  u - subject
+::
+::  cases:
+::  %imm - write immediate n to d
+::  %mov - copy s to d
+::  %phi - select source based on last %hip, copy to d
+::  %con - cons h and t into d
+::  %cop - poison s if s is an atom
+::  %lop - poison s if s is not a loobean
+::  %coc - crash immediately if s is an atom
+::  %hed - write head of s to d. Poison s if s is an atom
+::  %tal - write tail of s to d. Poison s if s is an atom
+::  %hci - write head of s to d. Crash if s is an atom
+::  %tci - write tail of s to d. Crash if s is an atom.
+::  %men - Push s onto the mean stack
+::  %man - Pop the mean stack
+::  %hit - Increment a profiling hit counter labeled with the noun in s
+::  %slg - Print out s for debugging
+::  %mew - Write r to the memo cache at the triple [k u f]
+::  %tim - Push a timer onto the timer stack and start it
+::  %tom - Pop a timer from the timer stack, stop it, and print elapsed
+::  %mem - Print memory usage
+::  %pol - If s is poisoned, poison d
+::  %poi - Poison d
+::  %ibp - If any register in s is poisoned, crash.
 +$  pole
-  $%  [%imm * @uvre]            :: Write a noun to an SSA value
-      [%mov @uvre @uvre]        :: Copy an SSA value
-      [%phi (list @uvre) @uvre] :: Choose whichever SSA value is defined
-      [%inc @uvre @uvre]        :: Define second SSA register as increment of first
-      [%con @uvre @uvre @uvre]  :: Construct a cell, first SSA head, second SSA tail, third SSA result
-      [%hed @uvre @uvre]        :: Take the head of first SSA and place in second.
-                                ::  Undefined if first SSA not a cell
-      [%tal @uvre @uvre]        :: Take tail head of first SSA and place in second.
-                                ::  Undefined if first SSA not a cell
-      [%men @uvre]              :: Push onto the mean stack
-      [%man ~]                  :: Pop from the mean stack
-      [%hit @uvre]              :: Profiling hit counter
-      [%slg @uvre]              :: Debugging print
-      [%mew @uvre @uvre @uvre @uvre]  :: Cache write - cache key - subject - formula - result
-      [%tim ~]                  :: Start timer
-      [%tom ~]                  :: Stop timer 
-      [%mem ~]                  :: Print memory usage
+  $%  [%imm n=* d=@uvre]
+      [%mov s=@uvre d=@uvre]
+      [%phi s=(list [bile @uvre]) d=@uvre]
+      [%inc s=@uvre d=@uvre]
+      [%con h=@uvre t=@uvre d=@uvre]
+      [%cop s=@uvre]
+      [%lop s=@uvre]
+      [%coc s=@uvre]
+      [%hed s=@uvre d=@uvre]
+      [%hci s=@uvre d=@uvre]
+      [%tal s=@uvre d=@uvre]
+      [%tci s=@uvre d=@uvre]
+      [%men l=@ta s=@uvre]
+      [%man ~]
+      [%hit s=@uvre]
+      [%slg s=@uvre]
+      [%mew k=@uvre u=@uvre f=@uvre r=@uvre]
+      [%tim ~]
+      [%tom ~]
+      [%mem ~]
+      [%pol s=@uvre d=@uvre]
+      [%poi d=@uvre]
+      [%ipb s=(list @uvre)]
   ==
 +$  pool
-  $%  [%hed @uvre]
-      [%tal @uvre]
+  $%  [%hed s=@uvre]
+      [%tal s=@uvre]
   ==
 ::  instructions ending a block
+::
+::  faces:
+::  a - target arm
+::  b - poisons
+::  c - come-from block
+::  d - destination
+::  e - scry ref
+::  f - formula
+::  i - in cache
+::  k - key
+::  l - left source
+::  m - cache miss
+::  o - "one" / false case
+::  p - scry path
+::  r - right source
+::  s - source
+::  t - target block
+::  u - subject
+::  v - subject but registerized
+::  z - "zero" / true case
+::
+::  cases:
+::  %clq - if s is a cell goto z else goto o
+::  %eqq - if l and r equal goto z else goto o
+::  %brn - if s is 0 goto z, if one goto o, else crash
+::  %hop - unconditionally go to t
+::  %hip - set comefrom label to c and goto t
+::  %lnk - evaluate f against u and put the result in d, then goto t
+::  %cal - call the arm a with subject in registers u, poisons in b,
+::         result in d, and then goto t
+::  %caf - like call but with fast label
+::  %lnt - evaluate f against u in tail position
+::  %jmp - call the arm a with subject in registers u, poisons in b, in
+::         tail position
+::  %jmf - like jmp but with fast label
+::  %spy - scry with ref in e and path in p, put result in d, goto t
+::  %mer - check if triple [k u f] is in cache, put result in d if so
+::         and goto i, else goto m
+::  %don - return value in s from current arm
+::  %bom - crash
 +$  site
-  $%  [%clq @uvre bile bile]                    :: Branch left if the SSA value is a cell, right otherwise
-      [%eqq @uvre @uvre bile bile]              :: Branch left if SSA registers are equal, right otherwise
-      [%brn @uvre bile bile bile]               :: Branch 1st - not loobean, 2nd - 0, 3rd - 1
-      [%hop bile]                               :: Go to bile unconditionally (local direct jump)
-      [%lnk @uvre @uvre @uvre bile]             :: Call formula in first SSA register with subject in second,
-                                                ::   result in third, return to bile
-      [%cal bell @uvre (list @uvre) @uvre bile] :: Call arm given by bell, 
-                                                ::   subject/formula pair in register
-                                                ::   subject in SSA register list,
-                                                ::   result to register, return to bile
-      [%lnt @uvre @uvre]                        :: Jump to formula in first SSA register with subject in second
-      [%jmp bell @uvre (list @uvre)]            :: Jump to the code at the label in tail position,
-                                                ::   subject/formula pair in SSA register,
-                                                ::   subject in register list
-      [%spy @uvre @uvre @uvre bile]             :: Scry with the ref/path pair in the first 2 SSA registers
-                                                ::   define the third as the result
-      [%mer @uvre @uvre @uvre @uvre bile bile]  :: Cache read: key - subject - formula - hit - miss
-      [%don @uvre]                              :: Finish the procedure, returning the value in the SSA
-      [%pun ~]                                  :: Punt to tree-walking nock, with a saved mean stack, subject, and formula
-      [%bom ~]                                  :: Crash immediately without punting
+  $%  [%clq s=@uvre z=bile o=bile]
+      [%eqq l=@uvre r=@uvre z=bile o=bile]
+      [%brn s=@uvre z=bile o=bile]
+      [%hop t=bile]
+      [%hip c=bile t=bile]
+      [%lnk u=@uvre f=@uvre d=@uvre t=bile]
+      [%cal a=bell b=(list @uvre) v=(list @uvre) d=@uvre t=bile]
+      [%caf a=bell b=(list @uvre) v=(list @uvre) d=@uvre t=bile u=@uvre n=[path @]]
+      [%lnt u=@uvre f=@uvre]
+      [%jmp a=bell b=(list @uvre) v=(list @uvre)]
+      [%jmf a=bell b=(list @uvre) v=(list @uvre) u=@uvre n=[path @]]
+      [%spy e=@uvre p=@uvre d=@uvre t=bile]
+      [%mer k=@uvre u=@uvre f=@uvre d=@uvre i=bile m=bile]
+      [%don s=@uvre]
+      [%bom ~]
   ==
 ::  basic block
 +$  blob  [body=(list pole) bend=site]
