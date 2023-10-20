@@ -190,26 +190,12 @@ pub fn jet_lte(context: &mut Context, subject: Noun) -> Result {
     })
 }
 
-pub fn jet_lth(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_lth(_context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() < b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() < b.bit_size() {
-        YES
-    } else if a.bit_size() > b.bit_size() {
-        NO
-    } else if a.as_ubig(context.stack) < b.as_ubig(context.stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(util::lth(a, b))
 }
 
 pub fn jet_mod(context: &mut Context, subject: Noun) -> Result {
@@ -262,6 +248,31 @@ pub fn jet_sub(context: &mut Context, subject: Noun) -> Result {
     let b = slot(arg, 3)?.as_atom()?;
 
     Ok(sub(context.stack, a, b)?.as_noun())
+}
+
+pub mod util {
+    use crate::jets::util::test::init_stack;
+    use crate::noun::{Atom, Noun, NO, YES};
+
+    pub fn lth(a: Atom, b: Atom) -> Noun {
+        let s = &mut init_stack();
+
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            if a.data() < b.data() {
+                YES
+            } else {
+                NO
+            }
+        } else if a.bit_size() < b.bit_size() {
+            YES
+        } else if a.bit_size() > b.bit_size() {
+            NO
+        } else if a.as_ubig(s) < b.as_ubig(s) {
+            YES
+        } else {
+            NO
+        }
+    }
 }
 
 #[cfg(test)]
