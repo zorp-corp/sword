@@ -6,7 +6,7 @@ use crate::jets::text::util::lent;
 use crate::jets::JetErr::*;
 use crate::jets::Result;
 use crate::noun::DIRECT_MAX;
-use crate::noun::{DirectAtom, IndirectAtom, Noun, D};
+use crate::noun::{DirectAtom, IndirectAtom, Noun, D, T};
 use std::cmp;
 
 crate::gdb!();
@@ -370,22 +370,16 @@ pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
     flop(context.stack, src)
 }
 
-//  return u3kc_rep(u3k(a), 1, u3kb_flop(u3qc_rip(a, 1, b)));
-/*pub fn jet_swp(context: &mut Context, subject: Noun) -> Result {
-    let arg = slot(subject, 6)?;
-    let a = slot(arg, 2)?.as_atom()?;
-    let b = slot(arg, 3)?.as_atom()?;
+pub fn jet_swp(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let bloq = slot(sam, 2)?.as_atom()?.as_direct()?.data() as usize;
+    let atom = slot(sam, 3)?.as_atom()?;
 
-    let new_size = cmp::max(a.size(), b.size());
-
-    unsafe {
-        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(context.stack, new_size);
-        let a_bit = a.as_bitslice();
-        dest[..a_bit.len()].copy_from_bitslice(a_bit);
-        *dest |= b.as_bitslice();
-        Ok(atom.normalize_as_atom().as_noun())
-    }
-}*/
+    let ripper = rip(context.stack, bloq, 1, atom)?;
+    let flopper = flop(context.stack, ripper)?;
+    let sample = T(context.stack, &[D(1), flopper]);
+    jet_rep(context, sample)
+}
 
 #[cfg(test)]
 mod tests {
@@ -763,6 +757,17 @@ mod tests {
         assert_jet(s, jet_xeb, D(0xffff), D(16));
         assert_jet(s, jet_xeb, D(0x3fffffffffffffff), D(62));
         assert_jet(s, jet_xeb, D(0x4000000000000000), D(63));
+    }
+
+    #[test]
+    fn test_swp() {
+        let s = &mut init_stack();
+        let sam = T(s, &[D(0), D(0x18)]);
+        assert_jet(s, jet_swp, sam, D(0x3));
+        let sam = T(s, &[D(0), D(0x80)]);
+        assert_jet(s, jet_swp, sam, D(0x1));
+        let sam = T(s, &[D(3), D(0x636261)]);
+        assert_jet(s, jet_swp, sam, D(0x616263));
     }
 
     #[test]
