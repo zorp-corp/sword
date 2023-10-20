@@ -376,8 +376,12 @@ pub fn jet_swp(context: &mut Context, subject: Noun) -> Result {
     let atom = slot(sam, 3)?.as_atom()?;
 
     let ripper = rip(context.stack, bloq, 1, atom)?;
+    println!("ripper: {:?}", ripper);
     let flopper = flop(context.stack, ripper)?;
+    println!("flopper: {:?}", flopper);
     let sample = T(context.stack, &[D(1), flopper]);
+    println!("sample: {:?}", sample);
+    println!("sample: {:?}", jet_rep(context, sample));
     jet_rep(context, sample)
 }
 
@@ -762,6 +766,8 @@ mod tests {
     #[test]
     fn test_swp() {
         let s = &mut init_stack();
+        let sam = T(s, &[D(1), D(0x18)]);
+        assert_jet(s, jet_swp, sam, D(0x9));
         let sam = T(s, &[D(0), D(0x18)]);
         assert_jet(s, jet_swp, sam, D(0x3));
         let sam = T(s, &[D(0), D(0x80)]);
