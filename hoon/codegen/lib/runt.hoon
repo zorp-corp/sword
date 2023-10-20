@@ -34,12 +34,14 @@
   =^  tear  this  (dyn s f)
   ?:  ?=(%| -.tear)
     (q.p.tear s)
-  =/  fram=[stir=(map @ *) dirt=pile:gene]  [*(map @ *) p.tear]
+  =/  fram=[sick=(set @) stir=(map @ *) dirt=pile:gene]  [*(set @) *(map @ *) p.tear]
   =|  mean=(list ^)
+  =|  come=bile
   =/  [todo=(list pole:gene) then=site:gene]  (~(got by will.dirt.fram) wish.dirt.fram)
   =.  stir.fram  (~(put by stir.fram) sire.dirt.fram s)
   |-  ^-  (unit *)
   =>  |%  ++  r  |=(a=@uvre (~(got by stir.fram) a))  --
+  =|  sick=(set @uvre) :: poisoned registers
   ?^  todo
     ~&  i.todo
     =>  |%  ++  go  $(todo t.todo)  --
@@ -49,15 +51,19 @@
       go
     ::
         %mov
+      ?:  (~(has in sick.fram) +<.i.todo)
+        =.  sick.fram  (~(put in sick.fram) +>.i.todo)
       =.  stir.fram  (~(put by stir.fram) +>.i.todo (r +<.i.todo))
       go
     ::
         %phi
       |-  ^-  (unit *)
       ?~  +<.i.todo  !!
-      =/  v  (~(get by stir.fram) i.+<.i.todo)
-      ?~  v  $(+<.i.todo t.+<.i.todo)
-      =.  stir.fram  (~(put by stir.fram) +>.i.todo u.v)
+      ?.  =(come -.i.+<.i.todo)  $(+<.i.todo t.+<.i.tod)
+      ?:  (~(has by sick.fram) +.i.+<.todo)
+        =.  sick.fram  (~(put in sick.fram) +.i.+<.todo)
+      =/  v  (~(got by stir.fram) +.i.+<.i.todo)
+      =.  stir.fram  (~(put by stir.fram) +>.i.todo v)
       go
     ::
         %inc
@@ -71,16 +77,56 @@
       go
     ::
         %hed
+      =/  n  (r +<.i.todo)
+      ?@  n
+        =.  sick.fram  (~(put in sick.fram) +<.i.todo)
+        go
       =.  stir.fram  (~(put by stir.fram) +>.i.todo -:(r +<.i.todo))
       go
     ::
         %tal
+      =/  n  (r +<.i.todo)
+      ?@  n
+        =.  sick.fram  (~(put in sick.fram) +<.i.todo)
+        go
       =.  stir.fram  (~(put by stir.fram) +>.i.todo +:(r +<.i.todo))
       go
+    ::
+        %pol
+      ?:  (~(has in sick.fram) +<.i.todo)
+        =.  sick.fram  (~(put in sick.fram) +>.i.todo)
+        go
+      go
+    ::
+        %poi
+      =.  sick.fram  (~(put in sick.fram) +.i.todo)
+      go
+    ::
+        %ipb
+      ?:  (~(has in sick.fram) +.i.todo)
+        ~
+      go
+    ::  XX todo men/man
     ==
   ~&  then
   =>  |%
       ++  go  |=(b=bile:gene =+((~(got by will.dirt.fram) b) ^$(todo body, then bend)))
+      ++  sr
+        |=  [a=(list @uvre) n=need:gene]
+        =/  nack=(list need:gene)  ~[n]
+        =|  whip=(set @uvre)
+        |-  ^-  (map @uvre)
+        ?^  nack
+          ?-  -.i.nack
+              %none  $(nack t.nack)
+              %both  $(nack [left.i.nack rite.i.nack t.nack])
+              %this
+            ?>  ?=(^ a)
+            ?:  (~(has in sick.fram) i.a)
+              $(whip (~(put in whip) sass.i.nack), a t.a, nack t.nack)
+            $(a t.a, nack t.nack)
+          ==
+        whip
       ++  ar
         |=  [a=(list @uvre) n=need:gene]
         =/  nack=(list need:gene)  ~[n]
@@ -92,6 +138,8 @@
               %both  $(nack [left.i.nack rite.i.nack t.nack])
               %this
             ?>  ?=(^ a)
+            ?:  (~(has in sick.fram) i.a)
+              $(a t.a, nack t.nack)
             $(whip (~(put by whip) sass.i.nack (r i.a)), a t.a, nack t.nack)
           ==
         whip
@@ -114,16 +162,22 @@
       --
   ?-  -.then
       %clq
+    ?:  (~(has in sick.fram) +<.then)
+      ~
     ?^  (r +<.then)
       (go +>-.then)
     (go +>+.then)
   ::
       %eqq
+    ?:  (~(has in sick.fram) +<.then)
+      ~
     ?:  =((r +<.then) (r +>-.then)) 
       (go +>+<.then)
     (go +>+>.then)
   ::
       %brn
+    ?:  (~(has in sick.fram) +<.then)
+      ~
     =/  c  (r +<.then)
     ?:  =(0 c)
       (go +>+<.then)
@@ -135,6 +189,10 @@
     (go +.then)
   ::
       %lnk
+    ?:  (~(has in sick.fram) +<.then)
+      ~
+    ?:  (~(has in sick.fram) +>-.then)
+      ~
     =/  s  (r +<.then)
     =/  f  (r +>-.then)
     =^  tear  this  (dyn s f)
@@ -156,8 +214,6 @@
     ==
   ::
       %cal
-    =/  s  (r +>-.then)
-    =/  f  +<+.then
     =/  jute  (~(get by warm) +<.then)
     ?^  jute
       =/  silt  (q.u.jute s)
@@ -170,6 +226,7 @@
       tack  [[+>+>-.then +>+>+.then ^s ^f mean fram] tack]
       s  s
       f  f
+      sick.fram  (sr +>+<.then want.pill) 
       stir.fram  (ar +>+<.then want.pill)
       dirt.fram  pill
       mean  ~
@@ -178,6 +235,10 @@
     ==
   ::
       %lnt
+    ?:  (~(has in sick.fram) +<.then)
+      ~
+    ?:  (~(has in sick.fram) +>.then)
+      ~
     =/  s  (r +<.then)
     =/  f  (r +>.then)
     =^  tear  this  (dyn s f)
@@ -196,8 +257,6 @@
     ==
   ::
       %jmp
-    =/  s  (r +>-.then)
-    =/  f  +<+.then
     =/  jute  (~(get by warm) +<.then)
     ?^  jute
       =/  silt  (q.u.jute s)
@@ -208,11 +267,16 @@
     %=  $
       s  s
       f  f
+      sick.fram  (sr +>+.then want.pill)
       stir.fram  (ar +>+.then want.pill)
       dirt.fram  pill
       todo  body.long
       then  bend.long
     ==
+  ::
+      %hip
+    =.  come  +<.then
+    (go +>.then)
   ::
       %spy
     ~&  'todo: spy'  ~
@@ -220,9 +284,11 @@
       %mer
     ~&  'todo: mer'  (go +>+>+>.then)
   ::
-      %don  (re (r +.then))
+      %don
+    ?:  ?=(^ sick.fram)  ~
+    (re (r +.then))
+  ::
       %bom  ~
-      %pun  ~&  'todo: punt'  ~
   ==
   |%
   ++  dyn

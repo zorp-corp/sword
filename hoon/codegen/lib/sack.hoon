@@ -1,13 +1,13 @@
 /-  *noir
 /+  *soak
-=|  moan=(jar * hone)
-=|  cole=cool
+=|  moan=(jar * hone) :: finished code table
+=|  cole=cool :: cold state
 |%
 ++  thus  .
 ++  rout
   |=  [soot=sock form=*]
   ^-  _thus
-  =/  moot
+  =/  moot :: in progress code table
     %+  ~(put by *(map @hail toot))  `@hail`1
     :*  soot  |
         `form  ~
@@ -544,40 +544,49 @@
         ==
       $(sirs [mill sirs], mail mire)
     =.  mite  (~(dif in mite) (~(gas in *(set @hail)) work))
-    
+    ::  normalize all the callsites before we finalize any of them
     =/  done  ~(tap in (~(dif in flux) slag))
     =|  enod=(list (list @hail))
+    =|  dome=(list @hail)
     |-  ^-  _this
-    ?~  done
-      ?~  enod  this
+    ?^  done
+      ?:  (~(has by loop) i.done)  $(done t.done)
+      =/  hood  (~(got by moot) i.done)
+      =.  soot.hood  ~(norm so (~(app ca sake.hood) soot.hood))
+      =.  root.hood  ~(norm so (~(app ca rake.hood) root.hood))
+      =.  moot  (~(put by moot) i.done hood)
+      ?>  ?=(^ form.hood)
+      ?:  =/  huns  (~(get ja moan) u.form.hood)
+          |-  ^-  ?
+          ?^  huns
+            ?:  ?&  (~(huge so soot.i.huns) soot.hood)
+                    !(~(big ca cape.root.i.huns) rake.hood)
+                ==
+              &
+            $(huns t.huns)
+          |
+        $(done t.done)
+      =.  dome  [i.done dome]
+      =/  next  ~(tap in (~(get ju kids) i.done))
+      ?~  next
+        $(done t.done)
+      $(done t.done, enod [next enod])
+    ?^  enod
       $(done i.enod, enod t.enod)
-    =/  hood  (~(got by moot) i.done)
-    ?:  (~(has by loop) i.done)  $(done t.done) :: recursive
-    :: safe to apply masks because we only use things from moan if
-    :: output battery mask and input sock match
-    =.  soot.hood  ~(norm so (~(app ca sake.hood) soot.hood))
-    =.  root.hood  ~(norm so (~(app ca rake.hood) root.hood))
-    =.  moot  (~(put by moot) i.done hood)
-    ?>  ?=(^ form.hood)
-    ?:  =/  huns  (~(get ja moan) u.form.hood)
-        |-  ^-  ?
-        ?^  huns
-          ?:  ?&  (~(huge so soot.i.huns) soot.hood)
-                  !(~(big ca cape.root.i.huns) rake.hood)
-              ==
-            &
-          $(huns t.huns)
-        |
-      $(done t.done)
+    |-  ^-  _this
+    ?~  dome
+      this
+    =/  hood  (~(got by moot) i.dome)
     ?>  ?=(^ norm.hood)
-    =.  call.cole  (~(gas ju call.cole) (sale u.norm.hood))
+    =/  sell  (sale u.norm.hood)
+    =.  call.cole  (~(gas ju call.cole) sell)
+    =.  back.cole
+      (~(gas by back.cole) (turn sell |=([p=[path @] a=[sock *]] [a p])))
+    ?>  ?=(^ form.hood)
     =.  moan
       %+  ~(add ja moan)  u.form.hood
       [soot.hood (cook u.norm.hood loop) root.hood]
-    =/  next  ~(tap in (~(get ju kids) i.done))
-    ?~  next
-      $(done t.done)
-    $(done t.done, enod [next enod])
+    $(dome t.dome)
   ::  new entries for cold state
   ++  sale
     |=  norm=nomm
