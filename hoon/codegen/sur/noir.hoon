@@ -1,4 +1,6 @@
-/-  *sock
+/+  soak
+=>  soak
+~%  %noir  +3  ~
 |%
 ::    in-progress call table entry
 ::

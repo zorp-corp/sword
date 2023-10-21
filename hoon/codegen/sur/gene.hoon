@@ -1,4 +1,6 @@
-/-  noir
+/+  sack
+=>  sack
+~%  %gene  +3  ~
 |%
 ::  hot state
 ::
@@ -15,7 +17,7 @@
       [%heat =heat]
   ==
 ::  external label
-+$  bell  [text=sock:noir form=*]
++$  bell  [text=sock form=*]
 ::  internal label
 +$  bile  [%bile axe=@ thus=@tas bell]
 ::  ssa shape of a noun
