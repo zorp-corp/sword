@@ -1,10 +1,12 @@
-/-  *gene
-/+  sack
+/-  gene
+=>  gene
+=*  sack  +3
 =*  moan  moan.sack
 =*  cole  cole.sack
 =|  =hill
 =|  hots=(map [path @] [j=@jet =need])
 =>
+~%  %line  +15  ~
 |%
 :: difference between hill and moan
 ++  peck
@@ -22,9 +24,9 @@
 :: look up an arm in moan
 ++  puck
   |=  =bell
-  ^-  (unit hone:noir)
+  ^-  (unit hone)
   =/  hose  (~(get ja moan) form.bell)
-  |-  ^-  (unit hone:noir)
+  |-  ^-  (unit hone)
   ?^  hose
     ?:  =(text.bell soot.i.hose)  `i.hose
     $(hose t.hose)
@@ -999,6 +1001,7 @@
   hill
 --
 ::  codegen stateful core
+~%  %doge  +3  ~
 |%
 ++  this  .
 ::  Read out generated code
@@ -1037,6 +1040,7 @@
 :: run nock code with a scry gate
 ++  wink
   =*  thus  .
+  ~/  %wink
   |=  [p=$-(^ (unit (unit))) s=* f=*]
   ^-  [tone _this]
   =/  hull  (peek s f)

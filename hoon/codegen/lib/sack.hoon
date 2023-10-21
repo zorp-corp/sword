@@ -1,5 +1,6 @@
-/-  *noir
-/+  *soak
+/-  noir
+=>  noir
+~%  %sack  +15  ~
 =|  moan=(jar * hone) :: finished code table
 =|  cole=cool :: cold state
 |%

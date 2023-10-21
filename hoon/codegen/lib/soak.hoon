@@ -1,4 +1,6 @@
-/-  *sock
+/-  sock
+=>  sock
+~%  %soak  +3  ~
 |%
 ::  operations on $cape
 ++  ca
@@ -272,7 +274,6 @@
   know
 ++  sop
   |=  know=sock
-  ~&  know
   ?>  ~(apt so know)
   know
 --
