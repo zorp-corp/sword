@@ -1,3 +1,4 @@
+use crate::hamt::Hamt;
 /** Virtualization jets
  */
 use crate::interpreter::Context;
@@ -15,11 +16,16 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     let v_subject = slot(arg, 4)?;
     let v_formula = slot(arg, 5)?;
     let scry_handler = slot(arg, 3)?;
-    let new_scry_stack = T(&mut context.stack, &[scry_handler, context.scry_stack]);
-    context.scry_stack = new_scry_stack;
+
+    let old_cache = context.cache;
+    let old_scry_stack = context.scry_stack;
+
+    context.cache = Hamt::<Noun>::new();
+    context.scry_stack = T(&mut context.stack, &[scry_handler, old_scry_stack]);
 
     let res = util::mink(context, v_subject, v_formula);
-    context.scry_stack = context.scry_stack.as_cell()?.tail();
+    context.cache = old_cache;
+    context.scry_stack = old_scry_stack;
     res
 }
 

@@ -192,8 +192,11 @@ pub fn serf() -> io::Result<()> {
 
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {
-        //  XX: probably want to bookend this logic frame_push / frame_pop
-        //      preserve jet state and persistent cache, lose everything else
+        // Reset the local cache and scry handler stack
+        context.nock_context.cache = Hamt::<Noun>::new();
+        context.nock_context.scry_stack = D(0);
+        context.nock_context.stack.frame_push(0);
+
         let tag = slot(writ, 2)?.as_direct().unwrap();
         match tag.data() {
             tas!(b"live") => {
@@ -236,6 +239,15 @@ pub fn serf() -> io::Result<()> {
         };
 
         clear_interrupt();
+
+        // Persist data that should survive between events
+        //  XX: Such data should go in the PMA once that's available
+        unsafe {
+            let stack = &mut context.nock_context.stack;
+            stack.preserve(&mut context.nock_context.cold);
+            stack.preserve(&mut context.nock_context.warm);
+            stack.frame_pop();
+        }
     }
 
     Ok(())
