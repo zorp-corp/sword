@@ -11,7 +11,7 @@ crate::gdb!();
 pub fn jet_cue(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
-    let atom = slot(sam, 1)?.as_atom()?;
+    let atom = sam.as_atom()?;
 
     Ok(cue(stack, atom))
 }
