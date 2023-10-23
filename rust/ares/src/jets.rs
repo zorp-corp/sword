@@ -87,6 +87,8 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"rev") => Some(jet_rev),
         tas!(b"rip") => Some(jet_rip),
         tas!(b"rsh") => Some(jet_rsh),
+        tas!(b"flop") => Some(jet_flop),
+        tas!(b"xeb") => Some(jet_xeb),
         //
         tas!(b"con") => Some(jet_con),
         tas!(b"dis") => Some(jet_dis),
