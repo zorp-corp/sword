@@ -75,6 +75,13 @@ impl Newt {
         }
     }
 
+    pub fn new_mock() -> Newt {
+        Newt {
+            input: std::fs::File::open("/dev/null").expect("newt: could not open /dev/null"),
+            output: std::fs::File::open("/dev/null").expect("newt: could not open /dev/null"),
+        }
+    }
+
     /** Write a noun to the newt.
      *
      * NB: we write 64-bit words, while vere writes bytes.  The extra zero bytes shouldn't be a
