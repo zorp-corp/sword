@@ -1,6 +1,10 @@
-use ares::interpreter::interpret;
+use ares::hamt::Hamt;
+use ares::interpreter::{interpret, Context};
+use ares::jets::cold::Cold;
+use ares::jets::hot::Hot;
+use ares::jets::warm::Warm;
 use ares::mem::NockStack;
-use ares::noun::IndirectAtom;
+use ares::noun::{IndirectAtom, Noun};
 use ares::serf::serf;
 use ares::serialization::{cue, jam};
 use memmap::Mmap;
@@ -61,8 +65,20 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let result = interpret(&mut stack, &mut None, input_cell.head(), input_cell.tail())
-        .expect("nock failed");
+    let mut cache = Hamt::<Noun>::new();
+    let mut cold = Cold::new(&mut stack);
+    let mut warm = Warm::new();
+    let hot = Hot::init(&mut stack);
+    let mut context = Context {
+        stack: &mut stack,
+        newt: None,
+        cache: &mut cache,
+        cold: &mut cold,
+        warm: &mut warm,
+        hot: &hot,
+    };
+    let result =
+        interpret(&mut context, input_cell.head(), input_cell.tail()).expect("nock failed");
     if let Ok(atom) = result.as_atom() {
         println!("Result: {}", atom);
     }

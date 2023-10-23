@@ -1,4 +1,6 @@
 use crate::assert_acyclic;
+use crate::assert_no_forwarding_pointers;
+use crate::assert_no_junior_pointers;
 use crate::mem::*;
 use crate::noun::{Allocated, Atom, DirectAtom, Noun};
 use either::Either::*;
@@ -119,7 +121,11 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
     if let Some(mug) = get_mug(noun) {
         return mug;
     }
+
     assert_acyclic!(noun);
+    assert_no_forwarding_pointers!(noun);
+    assert_no_junior_pointers!(stack, noun);
+
     stack.frame_push(0);
     unsafe {
         *(stack.push()) = noun;
@@ -171,6 +177,11 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
     unsafe {
         stack.frame_pop();
     }
+
+    assert_acyclic!(noun);
+    assert_no_forwarding_pointers!(noun);
+    assert_no_junior_pointers!(stack, noun);
+
     get_mug(noun).expect("Noun should have a mug once it is mugged.")
 }
 

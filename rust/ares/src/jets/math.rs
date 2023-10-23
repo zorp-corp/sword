@@ -12,11 +12,10 @@
  * Another approach is use a global custom allocator.  This is fairly involved, but it would allow
  * us to use any library without worrying whether it allocates.
  */
-use crate::jets;
+use crate::interpreter::Context;
 use crate::jets::util::*;
 use crate::jets::JetErr::*;
-use crate::mem::NockStack;
-use crate::newt::Newt;
+use crate::jets::Result;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 use either::{Left, Right};
 use ibig::ops::DivRem;
@@ -24,30 +23,23 @@ use ibig::UBig;
 
 crate::gdb!();
 
-pub fn jet_add(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_add(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
     if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        Ok(Atom::new(stack, a.data() + b.data()).as_noun())
+        Ok(Atom::new(*stack, a.data() + b.data()).as_noun())
     } else {
-        let a_big = a.as_ubig(stack);
-        let b_big = b.as_ubig(stack);
-        let res = UBig::add_stack(stack, a_big, b_big);
-        Ok(Atom::from_ubig(stack, &res).as_noun())
+        let a_big = a.as_ubig(*stack);
+        let b_big = b.as_ubig(*stack);
+        let res = UBig::add_stack(*stack, a_big, b_big);
+        Ok(Atom::from_ubig(*stack, &res).as_noun())
     }
 }
 
-pub fn jet_dec(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_dec(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     if let Ok(atom) = arg.as_atom() {
         match atom.as_either() {
@@ -65,8 +57,9 @@ pub fn jet_dec(
                         panic!("Decrementing 0 stored as an indirect atom");
                     }
                     Some(first_one) => {
-                        let (mut new_indirect, new_slice) =
-                            unsafe { IndirectAtom::new_raw_mut_bitslice(stack, indirect.size()) };
+                        let (mut new_indirect, new_slice) = unsafe {
+                            IndirectAtom::new_raw_mut_bitslice(context.stack, indirect.size())
+                        };
                         if first_one > 0 {
                             new_slice[..first_one].fill(true);
                         }
@@ -84,11 +77,8 @@ pub fn jet_dec(
     }
 }
 
-pub fn jet_div(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_div(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -98,18 +88,15 @@ pub fn jet_div(
     } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         Ok(unsafe { DirectAtom::new_unchecked(a.data() / b.data()) }.as_noun())
     } else {
-        let a_big = a.as_ubig(stack);
-        let b_big = b.as_ubig(stack);
-        let res = UBig::div_stack(stack, a_big, b_big);
-        Ok(Atom::from_ubig(stack, &res).as_noun())
+        let a_big = a.as_ubig(*stack);
+        let b_big = b.as_ubig(*stack);
+        let res = UBig::div_stack(*stack, a_big, b_big);
+        Ok(Atom::from_ubig(*stack, &res).as_noun())
     }
 }
 
-pub fn jet_dvr(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_dvr(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -126,22 +113,18 @@ pub fn jet_dvr(
                 )
             }
         } else {
-            let (div, rem) = a.as_ubig(stack).div_rem(b.as_ubig(stack));
+            let (div, rem) = a.as_ubig(*stack).div_rem(b.as_ubig(*stack));
             (
-                Atom::from_ubig(stack, &div).as_noun(),
-                Atom::from_ubig(stack, &rem).as_noun(),
+                Atom::from_ubig(*stack, &div).as_noun(),
+                Atom::from_ubig(*stack, &rem).as_noun(),
             )
         };
 
-        Ok(T(stack, &[div, rem]))
+        Ok(T(*stack, &[div, rem]))
     }
 }
 
-pub fn jet_gte(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_gte(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -156,18 +139,14 @@ pub fn jet_gte(
         YES
     } else if a.bit_size() < b.bit_size() {
         NO
-    } else if a.as_ubig(stack) >= b.as_ubig(stack) {
+    } else if a.as_ubig(context.stack) >= b.as_ubig(context.stack) {
         YES
     } else {
         NO
     })
 }
 
-pub fn jet_gth(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_gth(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -182,18 +161,14 @@ pub fn jet_gth(
         YES
     } else if a.bit_size() < b.bit_size() {
         NO
-    } else if a.as_ubig(stack) > b.as_ubig(stack) {
+    } else if a.as_ubig(context.stack) > b.as_ubig(context.stack) {
         YES
     } else {
         NO
     })
 }
 
-pub fn jet_lte(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_lte(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -208,44 +183,23 @@ pub fn jet_lte(
         YES
     } else if a.bit_size() > b.bit_size() {
         NO
-    } else if a.as_ubig(stack) <= b.as_ubig(stack) {
+    } else if a.as_ubig(context.stack) <= b.as_ubig(context.stack) {
         YES
     } else {
         NO
     })
 }
 
-pub fn jet_lth(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_lth(_context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() < b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() < b.bit_size() {
-        YES
-    } else if a.bit_size() > b.bit_size() {
-        NO
-    } else if a.as_ubig(stack) < b.as_ubig(stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(util::lth(a, b))
 }
 
-pub fn jet_mod(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_mod(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -255,16 +209,13 @@ pub fn jet_mod(
     } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         Ok(unsafe { DirectAtom::new_unchecked(a.data() % b.data()) }.as_noun())
     } else {
-        let res = a.as_ubig(stack) % b.as_ubig(stack);
-        Ok(Atom::from_ubig(stack, &res).as_noun())
+        let res = a.as_ubig(*stack) % b.as_ubig(*stack);
+        Ok(Atom::from_ubig(*stack, &res).as_noun())
     }
 }
 
-pub fn jet_mul(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_mul(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -272,11 +223,11 @@ pub fn jet_mul(
     if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         let res = a.data() as u128 * b.data() as u128;
         if res < DIRECT_MAX as u128 {
-            Ok(Atom::new(stack, res as u64).as_noun())
+            Ok(Atom::new(*stack, res as u64).as_noun())
         } else {
             Ok(unsafe {
                 IndirectAtom::new_raw_bytes(
-                    stack,
+                    *stack,
                     if res < u64::MAX as u128 { 8 } else { 16 },
                     &res as *const u128 as *const u8,
                 )
@@ -284,23 +235,44 @@ pub fn jet_mul(
             .as_noun())
         }
     } else {
-        let a_big = a.as_ubig(stack);
-        let b_big = b.as_ubig(stack);
-        let res = UBig::mul_stack(stack, a_big, b_big);
-        Ok(Atom::from_ubig(stack, &res).as_noun())
+        let a_big = a.as_ubig(*stack);
+        let b_big = b.as_ubig(*stack);
+        let res = UBig::mul_stack(*stack, a_big, b_big);
+        Ok(Atom::from_ubig(*stack, &res).as_noun())
     }
 }
 
-pub fn jet_sub(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_sub(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(sub(stack, a, b)?.as_noun())
+    Ok(sub(context.stack, a, b)?.as_noun())
+}
+
+pub mod util {
+    use crate::jets::util::test::init_stack;
+    use crate::noun::{Atom, Noun, NO, YES};
+
+    pub fn lth(a: Atom, b: Atom) -> Noun {
+        let s = &mut init_stack();
+
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            if a.data() < b.data() {
+                YES
+            } else {
+                NO
+            }
+        } else if a.bit_size() < b.bit_size() {
+            YES
+        } else if a.bit_size() > b.bit_size() {
+            NO
+        } else if a.as_ubig(s) < b.as_ubig(s) {
+            YES
+        } else {
+            NO
+        }
+    }
 }
 
 #[cfg(test)]

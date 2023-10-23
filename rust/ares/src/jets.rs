@@ -1,20 +1,29 @@
+pub mod cold;
+pub mod hot;
+pub mod warm;
+
 pub mod bits;
 pub mod form;
 pub mod hash;
 pub mod math;
 pub mod nock;
+pub mod sort;
 pub mod text;
 pub mod tree;
 
+use crate::interpreter::Context;
 use crate::jets::bits::*;
+use crate::jets::cold::Cold;
 use crate::jets::form::*;
 use crate::jets::hash::*;
+use crate::jets::hot::Hot;
 use crate::jets::math::*;
 use crate::jets::nock::*;
+use crate::jets::sort::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
+use crate::jets::warm::Warm;
 use crate::mem::NockStack;
-use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots};
 use ares_macros::tas;
 use std::cmp;
@@ -23,7 +32,7 @@ crate::gdb!();
 
 /// Return Err if the computation crashed or should punt to Nock
 pub type Result = std::result::Result<Noun, JetErr>;
-pub type Jet = fn(&mut NockStack, &mut Option<&mut Newt>, Noun) -> Result;
+pub type Jet = fn(&mut Context, Noun) -> Result;
 
 /**
  * Only return a deterministic error if the Nock would have deterministically
@@ -83,6 +92,10 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"mix") => Some(jet_mix),
         //
         tas!(b"mug") => Some(jet_mug),
+        //
+        tas!(b"dor") => Some(jet_dor),
+        tas!(b"gor") => Some(jet_gor),
+        tas!(b"mor") => Some(jet_mor),
         //
         tas!(b"scow") => Some(jet_scow),
         //
@@ -288,6 +301,7 @@ pub mod util {
 
     pub mod test {
         use super::*;
+        use crate::hamt::Hamt;
         use crate::mem::{unifying_equality, NockStack};
         use crate::noun::{Atom, Noun, D, T};
         use assert_no_alloc::assert_no_alloc;
@@ -308,8 +322,21 @@ pub mod util {
         }
 
         pub fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
-            let sam = T(stack, &[D(0), sam, D(0)]);
-            let jet_res = assert_no_alloc(|| jet(stack, &mut None, sam).unwrap());
+            //  XX: consider making a mock context singleton that tests can use
+            let mut cache = Hamt::<Noun>::new();
+            let mut cold = Cold::new(stack);
+            let mut warm = Warm::new();
+            let hot = Hot::init(stack);
+            let mut context = Context {
+                stack,
+                newt: None,
+                cache: &mut cache,
+                cold: &mut cold,
+                warm: &mut warm,
+                hot: &hot,
+            };
+            let sam = T(context.stack, &[D(0), sam, D(0)]);
+            let jet_res = assert_no_alloc(|| jet(&mut context, sam).unwrap());
             assert_noun_eq(stack, jet_res, res);
         }
 
@@ -324,8 +351,21 @@ pub mod util {
         }
 
         pub fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
-            let sam = T(stack, &[D(0), sam, D(0)]);
-            let jet_res = jet(stack, &mut None, sam);
+            //  XX: consider making a mock context singleton that tests can use
+            let mut cache = Hamt::<Noun>::new();
+            let mut cold = Cold::new(stack);
+            let mut warm = Warm::new();
+            let hot = Hot::init(stack);
+            let mut context = Context {
+                stack,
+                newt: None,
+                cache: &mut cache,
+                cold: &mut cold,
+                warm: &mut warm,
+                hot: &hot,
+            };
+            let sam = T(context.stack, &[D(0), sam, D(0)]);
+            let jet_res = jet(&mut context, sam);
             assert!(
                 jet_res.is_err(),
                 "with sample: {}, expected err: {:?}, got: {:?}",
