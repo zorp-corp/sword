@@ -18,6 +18,7 @@ impl From<noun::Error> for Error {
 
 pub type Result = std::result::Result<bool, Error>;
 
+// Batteries is a core hierarchy (e.g. a path of parent batteries to a root)
 #[derive(Copy, Clone)]
 pub struct Batteries(*mut BatteriesMem);
 
@@ -129,6 +130,8 @@ impl Batteries {
     }
 }
 
+// BatteriesList is a linked list of core hierarchies with an iterator; used to
+// store all possible parent hierarchies for a core
 #[derive(Copy, Clone)]
 pub struct BatteriesList(*mut BatteriesListMem);
 
@@ -199,6 +202,8 @@ impl BatteriesList {
     }
 }
 
+// NounList is a linked list of paths (path = list of nested core names) with an
+// iterator; used to store all possible registered paths for a core
 #[derive(Copy, Clone)]
 struct NounList(*mut NounListMem);
 
@@ -265,12 +270,21 @@ impl Iterator for NounList {
 pub struct Cold(*mut ColdMem);
 
 struct ColdMem {
-    /// key: outermost battery
-    /// value: possible registered paths for core
+    /// key: outermost battery (e.g. furthest battery from root for a core)
+    /// value: possible registered paths for core 
+    /// 
+    /// Identical nock can exist in multiple places, so the outermost battery
+    /// yield multiple paths. Instead of matching on the entire core in the Hamt
+    /// (which would require iterating through every possible pait), we match
+    /// the outermost battery to a path, then compare the core to the registered
+    /// cores for that path.
     battery_to_paths: Hamt<NounList>,
     /// Roots
     /// key: root noun
     /// value: root path
+    /// 
+    /// Just like battery_to_paths, but for roots (which refer to themselves as
+    /// their parent).
     root_to_paths: Hamt<NounList>,
     /// key: registered path to core
     /// value: linked list of a sequence of nested batteries
