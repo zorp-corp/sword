@@ -1,9 +1,9 @@
 use crate::interpreter::Context;
 use crate::jets::util::*;
-use crate::jets::JetErr::*;
+
 use crate::jets::Result;
-use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
-use crate::mem::NockStack;
+use crate::noun::{Noun};
+
 use crate::serialization::{cue, jam};
 
 crate::gdb!();
