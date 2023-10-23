@@ -19,9 +19,7 @@ pub fn jet_cue(context: &mut Context, subject: Noun) -> Result {
 pub fn jet_jam(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
-    let noun = slot(sam, 1)?;
-
-    Ok(jam(stack, noun).as_noun())
+    Ok(jam(stack, sam).as_noun())
 }
 
 #[cfg(test)]
