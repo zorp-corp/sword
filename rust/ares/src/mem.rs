@@ -979,6 +979,77 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
     (*a).raw_equals(*b)
 }
 
+pub fn non_unifying_equality(a: Noun, b: Noun) -> bool {
+    // If the nouns are already word-equal we have nothing to do
+    if unsafe { a.raw_equals(b) } {
+        return true;
+    };
+    // If the nouns have cached mugs which are disequal we have nothing to do
+    if let (Ok(a_alloc), Ok(b_alloc)) = (a.as_allocated(), b.as_allocated()) {
+        if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug()) {
+            if a_mug != b_mug {
+                return false;
+            };
+        };
+    };
+    let mut stack = Vec::new();
+    stack.push((a, b));
+    while let Some((x, y)) = stack.pop() {
+        if unsafe { x.raw_equals(y) } {
+            continue;
+        };
+        if let (Ok(x_alloc), Ok(y_alloc)) = (
+            // equal direct atoms return true for raw_equals()
+            x.as_allocated(),
+            y.as_allocated(),
+        ) {
+            if let (Some(x_mug), Some(y_mug)) = (x_alloc.get_cached_mug(), y_alloc.get_cached_mug())
+            {
+                if x_mug != y_mug {
+                    // short-circuit: the mugs differ therefore the nouns must differ
+                    return false;
+                }
+            };
+            match (x_alloc.as_either(), y_alloc.as_either()) {
+                (Left(x_indirect), Left(y_indirect)) => {
+                    if unsafe {
+                        x_indirect.size() == y_indirect.size()
+                            && memcmp(
+                                x_indirect.data_pointer() as *const c_void,
+                                y_indirect.data_pointer() as *const c_void,
+                                x_indirect.size() << 3,
+                            ) == 0
+                    } {
+                        continue;
+                    } else {
+                        return false;
+                    }
+                }
+                (Right(x_cell), Right(y_cell)) => {
+                    if unsafe {
+                        x_cell.head().raw_equals(y_cell.head())
+                            && x_cell.tail().raw_equals(y_cell.tail())
+                    } {
+                        continue;
+                    } else {
+                        stack.push((x_cell.tail(), y_cell.tail()));
+                        stack.push((x_cell.head(), y_cell.head()));
+                        continue;
+                    }
+                }
+                (_, _) => {
+                    // cells don't match atoms
+                    return false;
+                }
+            }
+        } else {
+            return unsafe { x.raw_equals(y) };
+        }
+    }
+
+    true
+}
+
 unsafe fn senior_pointer_first(
     stack: &NockStack,
     a: *const u64,

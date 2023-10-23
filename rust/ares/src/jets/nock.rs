@@ -30,7 +30,7 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
-    use crate::interpreter::{interpret, Context, Error, NockError, ScryError};
+    use crate::interpreter::{interpret, Context, Error, Failure, NockError, ScryError};
     use crate::jets;
     use crate::jets::form::util::scow;
     use crate::jets::util::rip;
@@ -51,14 +51,18 @@ pub mod util {
                 Error::Nock(nock_err) => match nock_err {
                     NockError::Deterministic(trace) => Ok(T(&mut context.stack, &[D(2), trace])),
                     //  XX: trace is unused; needs to be printed or welded to trace from outer context
-                    NockError::NonDeterministic(_trace) => Err(JetErr::NonDeterministic),
+                    NockError::NonDeterministic(_trace) => {
+                        Err(JetErr::Fail(Failure::NonDeterministic))
+                    }
                 },
                 Error::Scry(scry_err) => match scry_err {
                     ScryError::Blocked(path) => Ok(T(&mut context.stack, &[D(1), path])),
                     //  XX: trace is unused; needs to be printed or welded to trace from outer context
-                    ScryError::Deterministic(_trace) => Err(JetErr::Deterministic),
+                    ScryError::Deterministic(_trace) => Err(JetErr::Fail(Failure::Deterministic)),
                     //  XX: trace is unused; needs to be printed or welded to trace from outer context
-                    ScryError::NonDeterministic(_trace) => Err(JetErr::NonDeterministic),
+                    ScryError::NonDeterministic(_trace) => {
+                        Err(JetErr::Fail(Failure::NonDeterministic))
+                    }
                 },
             },
         }
@@ -73,14 +77,14 @@ pub mod util {
 
         match tag.data() {
             x if x < 2 => return Ok(tone),
-            x if x > 2 => return Err(JetErr::Deterministic),
+            x if x > 2 => return Err(JetErr::Fail(Failure::Deterministic)),
             _ => {}
         }
 
         if unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
         } else if original_list.atom().is_some() {
-            return Err(JetErr::Deterministic);
+            return Err(JetErr::Fail(Failure::Deterministic));
         }
 
         // XX: trim traces longer than 1024 frames

@@ -271,8 +271,8 @@ pub struct Cold(*mut ColdMem);
 
 struct ColdMem {
     /// key: outermost battery (e.g. furthest battery from root for a core)
-    /// value: possible registered paths for core 
-    /// 
+    /// value: possible registered paths for core
+    ///
     /// Identical nock can exist in multiple places, so the outermost battery
     /// yield multiple paths. Instead of matching on the entire core in the Hamt
     /// (which would require iterating through every possible pait), we match
@@ -282,7 +282,7 @@ struct ColdMem {
     /// Roots
     /// key: root noun
     /// value: root path
-    /// 
+    ///
     /// Just like battery_to_paths, but for roots (which refer to themselves as
     /// their parent).
     root_to_paths: Hamt<NounList>,

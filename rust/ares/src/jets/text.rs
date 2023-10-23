@@ -13,6 +13,7 @@ pub fn jet_lent(_context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
+    use crate::interpreter::Failure;
     use crate::jets::JetErr;
     use crate::noun::Noun;
 
@@ -24,7 +25,7 @@ pub mod util {
                 if atom.as_bitslice().first_one().is_none() {
                     break;
                 } else {
-                    return Err(JetErr::Deterministic);
+                    return Err(JetErr::Fail(Failure::Deterministic));
                 }
             }
             let cell = list.as_cell()?;
@@ -39,6 +40,7 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::interpreter::Failure;
     use crate::jets::util::test::{assert_jet, assert_jet_err, init_context};
     use crate::jets::JetErr;
     use crate::noun::{D, T};
@@ -52,8 +54,8 @@ mod tests {
         assert_jet(c, jet_lent, sam, D(3));
         let sam = T(&mut c.stack, &[D(3), D(2), D(1), D(0)]);
         assert_jet(c, jet_lent, sam, D(3));
-        assert_jet_err(c, jet_lent, D(1), JetErr::Deterministic);
+        assert_jet_err(c, jet_lent, D(1), JetErr::Fail(Failure::Deterministic));
         let sam = T(&mut c.stack, &[D(3), D(2), D(1)]);
-        assert_jet_err(c, jet_lent, sam, JetErr::Deterministic);
+        assert_jet_err(c, jet_lent, sam, JetErr::Fail(Failure::Deterministic));
     }
 }

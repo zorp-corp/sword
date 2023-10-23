@@ -286,7 +286,7 @@ pub enum ScryError {
     NonDeterministic(Noun), // trace
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Failure {
     Blocked(Noun), // path
     Deterministic,
@@ -302,16 +302,6 @@ impl From<noun::Error> for Failure {
 impl From<cold::Error> for Failure {
     fn from(_: cold::Error) -> Self {
         Failure::Deterministic
-    }
-}
-
-impl From<JetErr> for Failure {
-    fn from(e: JetErr) -> Self {
-        match e {
-            JetErr::Deterministic => Failure::Deterministic,
-            JetErr::NonDeterministic => Failure::NonDeterministic,
-            JetErr::Punt => panic!("unhandled JetErr::Punt"),
-        }
     }
 }
 
@@ -1476,8 +1466,10 @@ mod hint {
                                 } else {
                                     //  XX: Need better message in slog; need better slogging tools
                                     //      format!("invalid root parent axis: {} {}", chum, parent_formula_ax)
-                                    let tape =
-                                        tape(stack, "serf: cold: register: invalid root parent axis");
+                                    let tape = tape(
+                                        stack,
+                                        "serf: cold: register: invalid root parent axis",
+                                    );
                                     slog_leaf(stack, newt, tape);
                                     Ok(false)
                                 }
