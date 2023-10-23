@@ -302,8 +302,23 @@ pub mod util {
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
 
-        pub fn init_stack() -> NockStack {
-            NockStack::new(8 << 10 << 10, 0)
+        pub fn init_context() -> Context {
+            let mut stack = NockStack::new(8 << 10 << 10, 0);
+            let newt = Newt::new_mock();
+            let cold = Cold::new(&mut stack);
+            let warm = Warm::new();
+            let hot = Hot::init(&mut stack);
+            let cache = Hamt::<Noun>::new();
+
+            Context {
+                stack,
+                newt,
+                cold,
+                warm,
+                hot,
+                cache,
+                scry_stack: D(0),
+            }
         }
 
         #[allow(non_snake_case)]
@@ -316,55 +331,25 @@ pub mod util {
             assert!(eq, "got: {}, need: {}", a, b);
         }
 
-        pub fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
-            //  XX: consider making a mock context singleton that tests can use
-            let mut newt = Newt::new_mock();
-            let mut cache = Hamt::<Noun>::new();
-            let mut cold = Cold::new(stack);
-            let mut warm = Warm::new();
-            let hot = Hot::init(stack);
-            let mut context = Context {
-                stack,
-                newt: Some(&mut newt),
-                cache: &mut cache,
-                cold: &mut cold,
-                warm: &mut warm,
-                hot: &hot,
-                scry_stack: D(0),
-            };
-            let sam = T(context.stack, &[D(0), sam, D(0)]);
-            let jet_res = assert_no_alloc(|| jet(&mut context, sam).unwrap());
-            assert_noun_eq(stack, jet_res, res);
+        pub fn assert_jet(context: &mut Context, jet: Jet, sam: Noun, res: Noun) {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let jet_res = assert_no_alloc(|| jet(context, sam).unwrap());
+            assert_noun_eq(&mut context.stack, jet_res, res);
         }
 
-        pub fn assert_jet_ubig(stack: &mut NockStack, jet: Jet, sam: Noun, res: UBig) {
-            let res = A(stack, &res);
-            assert_jet(stack, jet, sam, res);
+        pub fn assert_jet_ubig(context: &mut Context, jet: Jet, sam: Noun, res: UBig) {
+            let res = A(&mut context.stack, &res);
+            assert_jet(context, jet, sam, res);
         }
 
-        pub fn assert_nary_jet_ubig(stack: &mut NockStack, jet: Jet, sam: &[Noun], res: UBig) {
-            let sam = T(stack, sam);
-            assert_jet_ubig(stack, jet, sam, res);
+        pub fn assert_nary_jet_ubig(context: &mut Context, jet: Jet, sam: &[Noun], res: UBig) {
+            let sam = T(&mut context.stack, sam);
+            assert_jet_ubig(context, jet, sam, res);
         }
 
-        pub fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
-            //  XX: consider making a mock context singleton that tests can use
-            let mut newt = Newt::new_mock();
-            let mut cache = Hamt::<Noun>::new();
-            let mut cold = Cold::new(stack);
-            let mut warm = Warm::new();
-            let hot = Hot::init(stack);
-            let mut context = Context {
-                stack,
-                newt: Some(&mut newt),
-                cache: &mut cache,
-                cold: &mut cold,
-                warm: &mut warm,
-                hot: &hot,
-                scry_stack: D(0),
-            };
-            let sam = T(context.stack, &[D(0), sam, D(0)]);
-            let jet_res = jet(&mut context, sam);
+        pub fn assert_jet_err(context: &mut Context, jet: Jet, sam: Noun, err: JetErr) {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let jet_res = jet(context, sam);
             assert!(
                 jet_res.is_err(),
                 "with sample: {}, expected err: {:?}, got: {:?}",
@@ -383,13 +368,14 @@ pub mod util {
 
     #[cfg(test)]
     mod tests {
-        use super::test::{init_stack, A};
+        use super::test::{init_context, A};
         use super::*;
         use ibig::ubig;
 
         #[test]
         fn test_met() {
-            let s = &mut init_stack();
+            let c = &mut init_context();
+            let s = &mut c.stack;
 
             let a = A(s, &ubig!(0xdeadbeef12345678fedcba9876543210))
                 .as_atom()

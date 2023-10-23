@@ -66,18 +66,18 @@ fn main() -> io::Result<()> {
     let input_cell = input
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
-    let mut newt = Newt::new_mock();
-    let mut cache = Hamt::<Noun>::new();
-    let mut cold = Cold::new(&mut stack);
-    let mut warm = Warm::new();
+    let newt = Newt::new_mock();
+    let cache = Hamt::<Noun>::new();
+    let cold = Cold::new(&mut stack);
+    let warm = Warm::new();
     let hot = Hot::init(&mut stack);
     let mut context = Context {
-        stack: &mut stack,
-        newt: Some(&mut newt),
-        cache: &mut cache,
-        cold: &mut cold,
-        warm: &mut warm,
-        hot: &hot,
+        stack,
+        newt,
+        cache,
+        cold,
+        warm,
+        hot,
         scry_stack: D(0),
     };
     let result =
@@ -85,7 +85,7 @@ fn main() -> io::Result<()> {
     if let Ok(atom) = result.as_atom() {
         println!("Result: {}", atom);
     }
-    let jammed_result = jam(&mut stack, result);
+    let jammed_result = jam(&mut context.stack, result);
     let f_out = OpenOptions::new()
         .read(true)
         .write(true)

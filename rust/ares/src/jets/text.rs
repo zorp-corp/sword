@@ -39,20 +39,21 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, assert_jet_err, init_stack};
+    use crate::jets::util::test::{assert_jet, assert_jet_err, init_context};
     use crate::jets::JetErr;
     use crate::noun::{D, T};
 
     #[test]
     fn test_lent() {
-        let s = &mut init_stack();
-        assert_jet(s, jet_lent, D(0), D(0));
-        let sam = T(s, &[D(1), D(2), D(3), D(0)]);
-        assert_jet(s, jet_lent, sam, D(3));
-        let sam = T(s, &[D(3), D(2), D(1), D(0)]);
-        assert_jet(s, jet_lent, sam, D(3));
-        assert_jet_err(s, jet_lent, D(1), JetErr::Deterministic);
-        let sam = T(s, &[D(3), D(2), D(1)]);
-        assert_jet_err(s, jet_lent, sam, JetErr::Deterministic);
+        let c = &mut init_context();
+
+        assert_jet(c, jet_lent, D(0), D(0));
+        let sam = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
+        assert_jet(c, jet_lent, sam, D(3));
+        let sam = T(&mut c.stack, &[D(3), D(2), D(1), D(0)]);
+        assert_jet(c, jet_lent, sam, D(3));
+        assert_jet_err(c, jet_lent, D(1), JetErr::Deterministic);
+        let sam = T(&mut c.stack, &[D(3), D(2), D(1)]);
+        assert_jet_err(c, jet_lent, sam, JetErr::Deterministic);
     }
 }
