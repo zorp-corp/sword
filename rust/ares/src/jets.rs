@@ -21,7 +21,7 @@ use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::sort::*;
 use crate::jets::text::*;
-use crate::jets::text::util::*;
+
 use crate::jets::tree::*;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;

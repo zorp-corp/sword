@@ -2,11 +2,11 @@
  */
 use crate::interpreter::Context;
 use crate::jets::util::*;
-use crate::jets::text::util::lent;
+
 use crate::jets::JetErr::*;
 use crate::jets::Result;
-use crate::noun::DIRECT_MAX;
-use crate::noun::{DirectAtom, IndirectAtom, Noun, D, T};
+
+use crate::noun::{DirectAtom, IndirectAtom, Noun, D};
 use std::cmp;
 
 crate::gdb!();
@@ -348,7 +348,7 @@ pub fn jet_mix(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_xeb(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_xeb(_context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let a = slot(sam, 1)?.as_atom()?;
 
