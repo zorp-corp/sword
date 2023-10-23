@@ -438,20 +438,22 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             push_formula(&mut context.stack, vale.formula, false)?;
                         }
                         Todo2::ComputeResult => {
-                            if let Some(jet) = context.warm.find_jet(
-                                &mut context.stack,
-                                &mut vale.subject,
-                                &mut res,
-                            ) {
-                                match jet(context, vale.subject) {
-                                    Ok(jet_res) => {
-                                        res = jet_res;
-                                        context.stack.pop::<NockWork>();
-                                        continue;
-                                    }
-                                    Err(JetErr::Punt) => {}
-                                    Err(err) => {
-                                        break Err(err.into());
+                            if !cfg!(feature = "sham_hints") {
+                                if let Some(jet) = context.warm.find_jet(
+                                    &mut context.stack,
+                                    &mut vale.subject,
+                                    &mut res,
+                                ) {
+                                    match jet(context, vale.subject) {
+                                        Ok(jet_res) => {
+                                            res = jet_res;
+                                            context.stack.pop::<NockWork>();
+                                            continue;
+                                        }
+                                        Err(JetErr::Punt) => {}
+                                        Err(err) => {
+                                            break Err(err.into());
+                                        }
                                     }
                                 }
                             };
@@ -624,20 +626,22 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         }
                         Todo9::ComputeResult => {
                             if let Ok(mut formula) = res.slot_atom(kale.axis) {
-                                if let Some(jet) = context.warm.find_jet(
-                                    &mut context.stack,
-                                    &mut res,
-                                    &mut formula,
-                                ) {
-                                    match jet(context, res) {
-                                        Ok(jet_res) => {
-                                            res = jet_res;
-                                            context.stack.pop::<NockWork>();
-                                            continue;
-                                        }
-                                        Err(JetErr::Punt) => {}
-                                        Err(err) => {
-                                            break Err(err.into());
+                                if !cfg!(feature = "sham_hints") {
+                                    if let Some(jet) = context.warm.find_jet(
+                                        &mut context.stack,
+                                        &mut res,
+                                        &mut formula,
+                                    ) {
+                                        match jet(context, res) {
+                                            Ok(jet_res) => {
+                                                res = jet_res;
+                                                context.stack.pop::<NockWork>();
+                                                continue;
+                                            }
+                                            Err(JetErr::Punt) => {}
+                                            Err(err) => {
+                                                break Err(err.into());
+                                            }
                                         }
                                     }
                                 };
@@ -1459,50 +1463,52 @@ mod hint {
                 mean_pop(stack);
             }
             tas!(b"fast") => {
-                if let Some(clue) = hint {
-                    let cold_res: cold::Result = {
-                        let chum = clue.slot(2)?;
-                        let parent_formula_op = clue.slot(12)?.as_atom()?.as_direct()?;
-                        let parent_formula_ax = clue.slot(13)?.as_atom()?;
+                if !cfg!(feature = "sham_hints") {
+                    if let Some(clue) = hint {
+                        let cold_res: cold::Result = {
+                            let chum = clue.slot(2)?;
+                            let parent_formula_op = clue.slot(12)?.as_atom()?.as_direct()?;
+                            let parent_formula_ax = clue.slot(13)?.as_atom()?;
 
-                        if parent_formula_op.data() == 1 {
-                            if parent_formula_ax.as_direct()?.data() == 0 {
-                                cold.register(stack, res, parent_formula_ax, chum)
+                            if parent_formula_op.data() == 1 {
+                                if parent_formula_ax.as_direct()?.data() == 0 {
+                                    cold.register(stack, res, parent_formula_ax, chum)
+                                } else {
+                                    //  XX: Need better message in slog; need better slogging tools
+                                    //      format!("invalid root parent axis: {} {}", chum, parent_formula_ax)
+                                    let tape =
+                                        tape(stack, "serf: cold: register: invalid root parent axis");
+                                    slog_leaf(stack, newt, tape);
+                                    Ok(false)
+                                }
                             } else {
-                                //  XX: Need better message in slog; need better slogging tools
-                                //      format!("invalid root parent axis: {} {}", chum, parent_formula_ax)
-                                let tape =
-                                    tape(stack, "serf: cold: register: invalid root parent axis");
-                                slog_leaf(stack, newt, tape);
-                                Ok(false)
+                                cold.register(stack, res, parent_formula_ax, chum)
                             }
-                        } else {
-                            cold.register(stack, res, parent_formula_ax, chum)
-                        }
-                    };
+                        };
 
-                    match cold_res {
-                        Ok(true) => context.warm = Warm::init(stack, cold, hot),
-                        Err(cold::Error::NoParent) => {
-                            //  XX: Need better message in slog; need better slogging tools
-                            //      format!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
-                            let tape = tape(
-                                stack,
-                                "serf: cold: register: could not find parent battery at given axis",
-                            );
-                            slog_leaf(stack, newt, tape);
+                        match cold_res {
+                            Ok(true) => context.warm = Warm::init(stack, cold, hot),
+                            Err(cold::Error::NoParent) => {
+                                //  XX: Need better message in slog; need better slogging tools
+                                //      format!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
+                                let tape = tape(
+                                    stack,
+                                    "serf: cold: register: could not find parent battery at given axis",
+                                );
+                                slog_leaf(stack, newt, tape);
+                            }
+                            Err(cold::Error::BadNock) => {
+                                //  XX: Need better message in slog; need better slogging tools
+                                //      format!("bad clue formula: {}", clue)
+                                let tape = tape(stack, "serf: cold: register: bad clue formula");
+                                slog_leaf(stack, newt, tape);
+                            }
+                            _ => {}
                         }
-                        Err(cold::Error::BadNock) => {
-                            //  XX: Need better message in slog; need better slogging tools
-                            //      format!("bad clue formula: {}", clue)
-                            let tape = tape(stack, "serf: cold: register: bad clue formula");
-                            slog_leaf(stack, newt, tape);
-                        }
-                        _ => {}
+                    } else {
+                        let tape = tape(stack, "serf: cold: register: no clue for %fast");
+                        slog_leaf(stack, newt, tape);
                     }
-                } else {
-                    let tape = tape(stack, "serf: cold: register: no clue for %fast");
-                    slog_leaf(stack, newt, tape);
                 }
             }
             _ => {}
