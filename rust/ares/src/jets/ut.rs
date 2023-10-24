@@ -19,7 +19,7 @@ pub fn jet_mint_ut(
 
     // XX unlike Vere, we don't have runtime caching yet
     // so we just call the nock interpreter directly
-    match interpret(context, pay, bat) {
+    match interpret(context, subject, bat) {
         Ok(res) => Ok(res),
         Err(err) => Err(JetErr::Fail(err))
     }
