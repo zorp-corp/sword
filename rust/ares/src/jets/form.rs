@@ -10,7 +10,7 @@ crate::gdb!();
 pub fn jet_scow(context: &mut Context, subject: Noun) -> Result {
     let aura = slot(subject, 12)?.as_direct()?;
     let atom = slot(subject, 13)?.as_atom()?;
-    util::scow(context.stack, aura, atom)
+    util::scow(&mut context.stack, aura, atom)
 }
 
 pub mod util {
@@ -79,7 +79,7 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, assert_jet_err, init_stack, A};
+    use crate::jets::util::test::{assert_jet, assert_jet_err, init_context, A};
     use crate::jets::JetErr;
     use crate::noun::{Noun, D, T};
     use ares_macros::tas;
@@ -93,28 +93,35 @@ mod tests {
 
     #[test]
     fn test_scow() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+
         let aura = D(tas!(b"ud"));
-        let sam = T(s, &[aura, D(0)]);
-        let res = T(s, &[B(b'0'), D(0)]);
-        assert_jet(s, jet_scow, sam, res);
-        let sam = T(s, &[aura, D(100)]);
-        let res = T(s, &[B(b'1'), B(b'0'), B(b'0'), D(0)]);
-        assert_jet(s, jet_scow, sam, res);
-        let big = A(s, &ubig!(100));
-        let sam = T(s, &[aura, big]);
-        let res = T(s, &[B(b'1'), B(b'0'), B(b'0'), D(0)]);
-        assert_jet(s, jet_scow, sam, res);
-        let sam = T(s, &[aura, D(1000)]);
-        let res = T(s, &[B(b'1'), B(b'.'), B(b'0'), B(b'0'), B(b'0'), D(0)]);
-        assert_jet(s, jet_scow, sam, res);
-        let big = A(s, &ubig!(1000));
-        let sam = T(s, &[aura, big]);
-        let res = T(s, &[B(b'1'), B(b'.'), B(b'0'), B(b'0'), B(b'0'), D(0)]);
-        assert_jet(s, jet_scow, sam, res);
-        let sam = T(s, &[aura, D(9876543210)]);
+        let sam = T(&mut c.stack, &[aura, D(0)]);
+        let res = T(&mut c.stack, &[B(b'0'), D(0)]);
+        assert_jet(c, jet_scow, sam, res);
+        let sam = T(&mut c.stack, &[aura, D(100)]);
+        let res = T(&mut c.stack, &[B(b'1'), B(b'0'), B(b'0'), D(0)]);
+        assert_jet(c, jet_scow, sam, res);
+        let big = A(&mut c.stack, &ubig!(100));
+        let sam = T(&mut c.stack, &[aura, big]);
+        let res = T(&mut c.stack, &[B(b'1'), B(b'0'), B(b'0'), D(0)]);
+        assert_jet(c, jet_scow, sam, res);
+        let sam = T(&mut c.stack, &[aura, D(1000)]);
         let res = T(
-            s,
+            &mut c.stack,
+            &[B(b'1'), B(b'.'), B(b'0'), B(b'0'), B(b'0'), D(0)],
+        );
+        assert_jet(c, jet_scow, sam, res);
+        let big = A(&mut c.stack, &ubig!(1000));
+        let sam = T(&mut c.stack, &[aura, big]);
+        let res = T(
+            &mut c.stack,
+            &[B(b'1'), B(b'.'), B(b'0'), B(b'0'), B(b'0'), D(0)],
+        );
+        assert_jet(c, jet_scow, sam, res);
+        let sam = T(&mut c.stack, &[aura, D(9876543210)]);
+        let res = T(
+            &mut c.stack,
             &[
                 B(b'9'),
                 B(b'.'),
@@ -132,9 +139,9 @@ mod tests {
                 D(0),
             ],
         );
-        assert_jet(s, jet_scow, sam, res);
+        assert_jet(c, jet_scow, sam, res);
         let bad_aura = D(tas!(b"ux"));
-        let sam = T(s, &[bad_aura, D(0)]);
-        assert_jet_err(s, jet_scow, sam, JetErr::Punt);
+        let sam = T(&mut c.stack, &[bad_aura, D(0)]);
+        assert_jet_err(c, jet_scow, sam, JetErr::Punt);
     }
 }

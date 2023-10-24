@@ -979,6 +979,77 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
     (*a).raw_equals(*b)
 }
 
+pub fn non_unifying_equality(a: Noun, b: Noun) -> bool {
+    // If the nouns are already word-equal we have nothing to do
+    if unsafe { a.raw_equals(b) } {
+        return true;
+    };
+    // If the nouns have cached mugs which are disequal we have nothing to do
+    if let (Ok(a_alloc), Ok(b_alloc)) = (a.as_allocated(), b.as_allocated()) {
+        if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug()) {
+            if a_mug != b_mug {
+                return false;
+            };
+        };
+    };
+    let mut stack = Vec::new();
+    stack.push((a, b));
+    while let Some((x, y)) = stack.pop() {
+        if unsafe { x.raw_equals(y) } {
+            continue;
+        };
+        if let (Ok(x_alloc), Ok(y_alloc)) = (
+            // equal direct atoms return true for raw_equals()
+            x.as_allocated(),
+            y.as_allocated(),
+        ) {
+            if let (Some(x_mug), Some(y_mug)) = (x_alloc.get_cached_mug(), y_alloc.get_cached_mug())
+            {
+                if x_mug != y_mug {
+                    // short-circuit: the mugs differ therefore the nouns must differ
+                    return false;
+                }
+            };
+            match (x_alloc.as_either(), y_alloc.as_either()) {
+                (Left(x_indirect), Left(y_indirect)) => {
+                    if unsafe {
+                        x_indirect.size() == y_indirect.size()
+                            && memcmp(
+                                x_indirect.data_pointer() as *const c_void,
+                                y_indirect.data_pointer() as *const c_void,
+                                x_indirect.size() << 3,
+                            ) == 0
+                    } {
+                        continue;
+                    } else {
+                        return false;
+                    }
+                }
+                (Right(x_cell), Right(y_cell)) => {
+                    if unsafe {
+                        x_cell.head().raw_equals(y_cell.head())
+                            && x_cell.tail().raw_equals(y_cell.tail())
+                    } {
+                        continue;
+                    } else {
+                        stack.push((x_cell.tail(), y_cell.tail()));
+                        stack.push((x_cell.head(), y_cell.head()));
+                        continue;
+                    }
+                }
+                (_, _) => {
+                    // cells don't match atoms
+                    return false;
+                }
+            }
+        } else {
+            return unsafe { x.raw_equals(y) };
+        }
+    }
+
+    true
+}
+
 unsafe fn senior_pointer_first(
     stack: &NockStack,
     a: *const u64,
@@ -1116,5 +1187,48 @@ impl Preserve for Noun {
 impl Stack for NockStack {
     unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64 {
         self.layout_alloc(layout)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mem::NockStack;
+    use crate::noun::{Atom, Noun, D, T};
+    use ibig::{ubig, UBig};
+
+    pub fn init_stack() -> NockStack {
+        NockStack::new(8 << 10 << 10, 0)
+    }
+
+    #[allow(non_snake_case)]
+    pub fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
+        Atom::from_ubig(stack, ubig).as_noun()
+    }
+
+    #[test]
+    fn test_non_unifying_equality() {
+        let s = &mut init_stack();
+        let d1 = D(1);
+        let d2 = D(2);
+        let d3 = D(1);
+        let i1 = A(s, &ubig!(0xC0FFEEBABEB00B1E5));
+        let i2 = A(s, &ubig!(0xBADDECAFC0FFEE000));
+        let i3 = A(s, &ubig!(0xC0FFEEBABEB00B1E5));
+        let c1 = T(s, &[d1, i3]);
+        let c2 = T(s, &[d2, i2]);
+        let c3 = T(s, &[d3, i1]);
+
+        assert!(non_unifying_equality(d1, d1));
+        assert!(!non_unifying_equality(d1, d2));
+        assert!(non_unifying_equality(d1, d3));
+
+        assert!(non_unifying_equality(i1, i1));
+        assert!(!non_unifying_equality(i1, i2));
+        assert!(non_unifying_equality(i1, i3));
+
+        assert!(non_unifying_equality(c1, c1));
+        assert!(!non_unifying_equality(c1, c2));
+        assert!(non_unifying_equality(c1, c3));
     }
 }

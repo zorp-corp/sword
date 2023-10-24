@@ -1,6 +1,6 @@
 use crate::hamt::Hamt;
 use crate::interpreter;
-use crate::interpreter::{inc, interpret, Tone};
+use crate::interpreter::{inc, interpret, Error};
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::nock::util::mook;
@@ -30,13 +30,7 @@ struct Context {
     snapshot: DoubleJam,
     arvo: Noun,
     mug: u32,
-    stack: NockStack,
-    newt: Newt,
-    cache: Hamt<Noun>,
-    //  XX: persistent memo cache
-    cold: Cold,
-    warm: Warm,
-    hot: Hot,
+    nock_context: interpreter::Context,
 }
 
 impl Context {
@@ -55,51 +49,23 @@ impl Context {
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
         let mug = mug_u32(&mut stack, arvo);
 
+        let nock_context = interpreter::Context {
+            stack,
+            newt,
+            cold,
+            warm,
+            hot,
+            cache,
+            scry_stack: D(0),
+        };
+
         Context {
             epoch,
             event_num,
             snapshot,
             arvo,
             mug,
-            stack,
-            newt,
-            cache,
-            cold,
-            warm,
-            hot,
-        }
-    }
-
-    //
-    // Getters
-    //
-
-    pub fn epoch(&self) -> u64 {
-        self.epoch
-    }
-
-    pub fn event_num(&self) -> u64 {
-        self.event_num
-    }
-
-    pub fn arvo(&self) -> Noun {
-        self.arvo
-    }
-
-    pub fn stack_as_mut(&mut self) -> &mut NockStack {
-        &mut self.stack
-    }
-
-    pub fn for_interpreter(&mut self) -> interpreter::Context {
-        self.cache = Hamt::<Noun>::new();
-
-        interpreter::Context {
-            stack: &mut self.stack,
-            newt: Some(&mut self.newt),
-            cache: &mut self.cache,
-            cold: &mut self.cold,
-            warm: &mut self.warm,
-            hot: &self.hot,
+            nock_context,
         }
     }
 
@@ -111,8 +77,9 @@ impl Context {
         //  XX: assert event numbers are continuous
         self.arvo = new_arvo;
         self.event_num = new_event_num;
-        self.snapshot.save(&mut self.stack, &mut self.arvo);
-        self.mug = mug_u32(&mut self.stack, self.arvo);
+        self.snapshot
+            .save(&mut self.nock_context.stack, &mut self.arvo);
+        self.mug = mug_u32(&mut self.nock_context.stack, self.arvo);
     }
 
     //
@@ -121,7 +88,7 @@ impl Context {
 
     pub fn sync(&mut self) {
         self.snapshot
-            .sync(&mut self.stack, self.epoch, self.event_num);
+            .sync(&mut self.nock_context.stack, self.epoch, self.event_num);
     }
 
     //
@@ -129,43 +96,65 @@ impl Context {
     //
 
     pub fn next(&mut self) -> Option<Noun> {
-        self.newt.next(&mut self.stack)
+        self.nock_context.newt.next(&mut self.nock_context.stack)
     }
 
     pub fn ripe(&mut self) {
-        self.newt
-            .ripe(&mut self.stack, self.event_num, self.mug as u64);
+        self.nock_context.newt.ripe(
+            &mut self.nock_context.stack,
+            self.event_num,
+            self.mug as u64,
+        );
     }
 
     pub fn live(&mut self) {
-        self.newt.live(&mut self.stack);
+        self.nock_context.newt.live(&mut self.nock_context.stack);
     }
 
     pub fn peek_done(&mut self, dat: Noun) {
-        self.newt.peek_done(&mut self.stack, dat);
+        self.nock_context
+            .newt
+            .peek_done(&mut self.nock_context.stack, dat);
     }
 
     pub fn play_done(&mut self) {
-        self.newt.play_done(&mut self.stack, self.mug as u64);
+        self.nock_context
+            .newt
+            .play_done(&mut self.nock_context.stack, self.mug as u64);
     }
 
     pub fn play_bail(&mut self, dud: Noun) {
-        self.newt
-            .play_bail(&mut self.stack, self.event_num, self.mug as u64, dud);
+        self.nock_context.newt.play_bail(
+            &mut self.nock_context.stack,
+            self.event_num,
+            self.mug as u64,
+            dud,
+        );
     }
 
     pub fn work_done(&mut self, fec: Noun) {
-        self.newt
-            .work_done(&mut self.stack, self.event_num, self.mug as u64, fec);
+        self.nock_context.newt.work_done(
+            &mut self.nock_context.stack,
+            self.event_num,
+            self.mug as u64,
+            fec,
+        );
     }
 
     pub fn work_swap(&mut self, job: Noun, fec: Noun) {
-        self.newt
-            .work_swap(&mut self.stack, self.event_num, self.mug as u64, job, fec);
+        self.nock_context.newt.work_swap(
+            &mut self.nock_context.stack,
+            self.event_num,
+            self.mug as u64,
+            job,
+            fec,
+        );
     }
 
     pub fn work_bail(&mut self, lud: Noun) {
-        self.newt.work_bail(&mut self.stack, lud);
+        self.nock_context
+            .newt
+            .work_bail(&mut self.nock_context.stack, lud);
     }
 }
 
@@ -203,8 +192,11 @@ pub fn serf() -> io::Result<()> {
 
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {
-        //  XX: probably want to bookend this logic frame_push / frame_pop
-        //      preserve jet state and persistent cache, lose everything else
+        // Reset the local cache and scry handler stack
+        context.nock_context.cache = Hamt::<Noun>::new();
+        context.nock_context.scry_stack = D(0);
+        context.nock_context.stack.frame_push(0);
+
         let tag = slot(writ, 2)?.as_direct().unwrap();
         match tag.data() {
             tas!(b"live") => {
@@ -231,7 +223,7 @@ pub fn serf() -> io::Result<()> {
             }
             tas!(b"play") => {
                 let lit = slot(writ, 7)?;
-                if context.epoch() == 0 && context.event_num() == 0 {
+                if context.epoch == 0 && context.event_num == 0 {
                     // apply lifecycle to first batch
                     play_life(&mut context, lit);
                 } else {
@@ -247,54 +239,64 @@ pub fn serf() -> io::Result<()> {
         };
 
         clear_interrupt();
+
+        // Persist data that should survive between events
+        //  XX: Such data should go in the PMA once that's available
+        unsafe {
+            let stack = &mut context.nock_context.stack;
+            stack.preserve(&mut context.nock_context.cold);
+            stack.preserve(&mut context.nock_context.warm);
+            stack.frame_pop();
+        }
     }
 
     Ok(())
 }
 
-fn burn(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Tone> {
-    let burn_context = &mut context.for_interpreter();
-    interpret(burn_context, subject, formula)
-}
-
-fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Tone> {
-    let arvo = context.arvo();
-    let pul = T(context.stack_as_mut(), &[D(9), D(axis), D(0), D(2)]);
-    let sam = T(context.stack_as_mut(), &[D(6), D(0), D(7)]);
-    let fol = T(
-        context.stack_as_mut(),
-        &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)],
-    );
-    let sub = T(context.stack_as_mut(), &[arvo, ovo]);
-    burn(context, sub, fol)
+fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
+    let arvo = context.arvo;
+    let stack = &mut context.nock_context.stack;
+    let pul = T(stack, &[D(9), D(axis), D(0), D(2)]);
+    let sam = T(stack, &[D(6), D(0), D(7)]);
+    let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
+    let sub = T(stack, &[arvo, ovo]);
+    interpret(&mut context.nock_context, sub, fol)
 }
 
 fn goof(context: &mut Context, trace: Noun) -> Noun {
-    let tone = Cell::new(context.stack_as_mut(), D(2), trace);
-    let mook_context = &mut context.for_interpreter();
-
-    let tang = mook(mook_context, tone, false)
+    //  XX: trace is a $tang with at least one $tank, which we pick off the top.
+    //      Actual input to +mook should be (roll trace weld) ( or (zing trace)).
+    let head = trace.cell().unwrap().head();
+    let tone = Cell::new(&mut context.nock_context.stack, D(2), head);
+    let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
         .tail();
-    //  XX: noun::Tone or noun::NockErr should use a bail enum system similar to u3m_bail motes;
+    //  XX: noun::Error should use a bail enum system similar to u3m_bail motes;
     //      might be able to replace NockErr with mote and map determinism to individual motes;
     //      for, always set to %exit
-    T(mook_context.stack, &[D(tas!(b"exit")), tang])
+    T(&mut context.nock_context.stack, &[D(tas!(b"exit")), tang])
 }
 
 /** Run slam, process stack trace to tang if error */
 fn soft(context: &mut Context, ovo: Noun) -> Result<Noun, Noun> {
     match slam(context, POKE_AXIS, ovo) {
         Ok(res) => Ok(res),
-        Err(Tone::Error(_, trace)) => Err(goof(context, trace)),
-        Err(Tone::Blocked(_)) => panic!("soft: blocked err handling unimplemented"),
+        Err(error) => match error {
+            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
+                Err(goof(context, trace))
+            }
+            Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
+                panic!("serf: soft: .^ invalid outside of virtual Nock")
+            }
+        },
     }
 }
 
 fn play_life(context: &mut Context, eve: Noun) {
-    let sub = T(context.stack_as_mut(), &[D(0), D(3)]);
-    let lyf = T(context.stack_as_mut(), &[D(2), sub, D(0), D(2)]);
-    match burn(context, eve, lyf) {
+    let stack = &mut context.nock_context.stack;
+    let sub = T(stack, &[D(0), D(3)]);
+    let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
+    match interpret(&mut context.nock_context, eve, lyf) {
         Ok(gat) => {
             let eved = lent(eve).expect("serf: play: boot event number failure") as u64;
             let arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
@@ -302,18 +304,20 @@ fn play_life(context: &mut Context, eve: Noun) {
             context.event_update(eved, arvo);
             context.play_done();
         }
-        Err(Tone::Error(_, trace)) => {
-            let goof = goof(context, trace);
-            context.play_bail(goof);
-        }
-        Err(Tone::Blocked(_)) => {
-            panic!("play: blocked err handling unimplemented")
-        }
+        Err(error) => match error {
+            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
+                let goof = goof(context, trace);
+                context.play_bail(goof);
+            }
+            Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
+                panic!("serf: soft: .^ invalid outside of virtual Nock")
+            }
+        },
     }
 }
 
 fn play_list(context: &mut Context, mut lit: Noun) {
-    let mut eve = context.event_num();
+    let mut eve = context.event_num;
     while let Ok(cell) = lit.as_cell() {
         let ovo = cell.head();
         match soft(context, ovo) {
@@ -340,7 +344,7 @@ fn work(context: &mut Context, job: Noun) {
         Ok(res) => {
             let cell = res.as_cell().expect("serf: work: +slam returned atom");
             let fec = cell.head();
-            let eve = context.event_num();
+            let eve = context.event_num;
 
             context.event_update(eve + 1, cell.tail());
             context.work_done(fec);
@@ -358,21 +362,19 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
 
     clear_interrupt();
 
+    let stack = &mut context.nock_context.stack;
     //  crud = [+(now) [%$ %arvo ~] [%crud goof ovo]]
     let job_cell = job.as_cell().expect("serf: work: job not a cell");
     let job_now = job_cell.head().as_atom().expect("serf: work: now not atom");
-    let now = inc(context.stack_as_mut(), job_now).as_noun();
-    let wire = T(context.stack_as_mut(), &[D(0), D(tas!(b"arvo")), D(0)]);
-    let crud = T(
-        context.stack_as_mut(),
-        &[now, wire, D(tas!(b"crud")), goof, job_cell.tail()],
-    );
+    let now = inc(stack, job_now).as_noun();
+    let wire = T(stack, &[D(0), D(tas!(b"arvo")), D(0)]);
+    let crud = T(stack, &[now, wire, D(tas!(b"crud")), goof, job_cell.tail()]);
 
     match soft(context, crud) {
         Ok(res) => {
             let cell = res.as_cell().expect("serf: work: crud +slam returned atom");
             let fec = cell.head();
-            let eve = context.event_num();
+            let eve = context.event_num;
 
             context.event_update(eve + 1, cell.tail());
             context.work_swap(crud, fec);
@@ -384,8 +386,9 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
 }
 
 fn work_bail(context: &mut Context, goofs: &[Noun]) {
-    let lest = T(context.stack_as_mut(), goofs);
-    let lud = T(context.stack_as_mut(), &[lest, D(0)]);
+    let stack = &mut context.nock_context.stack;
+    let lest = T(stack, goofs);
+    let lud = T(stack, &[lest, D(0)]);
     context.work_bail(lud);
 }
 
