@@ -1189,3 +1189,46 @@ impl Stack for NockStack {
         self.layout_alloc(layout)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::mem::NockStack;
+    use crate::noun::{Atom, Noun, D, T};
+    use ibig::{ubig, UBig};
+
+    pub fn init_stack() -> NockStack {
+        NockStack::new(8 << 10 << 10, 0)
+    }
+
+    #[allow(non_snake_case)]
+    pub fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
+        Atom::from_ubig(stack, ubig).as_noun()
+    }
+
+    #[test]
+    fn test_non_unifying_equality() {
+        let s = &mut init_stack();
+        let d1 = D(1);
+        let d2 = D(2);
+        let d3 = D(1);
+        let i1 = A(s, &ubig!(0xC0FFEEBABEB00B1E5));
+        let i2 = A(s, &ubig!(0xBADDECAFC0FFEE000));
+        let i3 = A(s, &ubig!(0xC0FFEEBABEB00B1E5));
+        let c1 = T(s, &[d1, i3]);
+        let c2 = T(s, &[d2, i2]);
+        let c3 = T(s, &[d3, i1]);
+
+        assert!(non_unifying_equality(d1, d1));
+        assert!(!non_unifying_equality(d1, d2));
+        assert!(non_unifying_equality(d1, d3));
+
+        assert!(non_unifying_equality(i1, i1));
+        assert!(!non_unifying_equality(i1, i2));
+        assert!(non_unifying_equality(i1, i3));
+
+        assert!(non_unifying_equality(c1, c1));
+        assert!(!non_unifying_equality(c1, c2));
+        assert!(non_unifying_equality(c1, c3));
+    }
+}
