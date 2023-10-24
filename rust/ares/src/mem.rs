@@ -979,6 +979,15 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
     (*a).raw_equals(*b)
 }
 
+/// This function only exists as a default equality comparator for Nouns in cases where we don't
+/// have a NockStack available to perform unifying equality checks.
+///
+/// One such case is for the implementation of PartialEq on Noun, which is used by the derived
+/// implementationa of PartialEq for interpreter::Error and jets::JetErr. These themselves are
+/// only used during unit testing.
+///
+/// This function is incredibly inefficient in the case of densely connected DAGs, and should
+/// never be used without a very good reason. ALWAYS prefer unifying_equality.
 pub fn non_unifying_equality(a: Noun, b: Noun) -> bool {
     // If the nouns are already word-equal we have nothing to do
     if unsafe { a.raw_equals(b) } {
