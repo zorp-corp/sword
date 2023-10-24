@@ -28,7 +28,6 @@ use crate::mem::NockStack;
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots, D};
 use ares_macros::tas;
-use std::cmp;
 
 crate::gdb!();
 
@@ -137,10 +136,8 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
-    use crate::noun::Error::NotRepresentable;
-    use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
+    use crate::noun::{Noun, D};
     use bitvec::prelude::{BitSlice, Lsb0};
-    use ibig::UBig;
     use std::result;
 
     /**
@@ -239,86 +236,6 @@ pub mod util {
         Ok(())
     }
 
-    /// Subtraction
-    pub fn sub(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            let a_small = a.data();
-            let b_small = b.data();
-
-            if a_small < b_small {
-                Err(NotRepresentable)
-            } else {
-                Ok(Atom::new(stack, a_small - b_small))
-            }
-        } else {
-            let a_big = a.as_ubig(stack);
-            let b_big = b.as_ubig(stack);
-
-            if a_big < b_big {
-                Err(NotRepresentable)
-            } else {
-                let a_big = a.as_ubig(stack);
-                let b_big = b.as_ubig(stack);
-                let res = UBig::sub_stack(stack, a_big, b_big);
-                Ok(Atom::from_ubig(stack, &res))
-            }
-        }
-    }
-
-    /// Binary exponent
-    pub fn bex(stack: &mut NockStack, arg: usize) -> Atom {
-        unsafe {
-            if arg < 63 {
-                DirectAtom::new_unchecked(1 << arg).as_atom()
-            } else {
-                let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, (arg + 7) >> 3);
-                dest.set(arg, true);
-                atom.normalize_as_atom()
-            }
-        }
-    }
-
-    /// Measure the number of bloqs in an atom
-    pub fn met(bloq: usize, a: Atom) -> usize {
-        if unsafe { a.as_noun().raw_equals(D(0)) } {
-            0
-        } else if bloq < 6 {
-            (a.bit_size() + ((1 << bloq) - 1)) >> bloq
-        } else {
-            let bloq_word = bloq - 6;
-            (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
-        }
-    }
-
-    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> Result {
-        let len = (met(bloq, atom) + step - 1) / step;
-        let mut list = D(0);
-        for i in (0..len).rev() {
-            let new_atom = unsafe {
-                let (mut new_indirect, new_slice) =
-                    IndirectAtom::new_raw_mut_bitslice(stack, step << bloq);
-                chop(bloq, i * step, step, 0, new_slice, atom.as_bitslice())?;
-                new_indirect.normalize_as_atom()
-            };
-            list = Cell::new(stack, new_atom.as_noun(), list).as_noun();
-        }
-
-        Ok(list)
-    }
-
-    /// Binary OR
-    pub fn con(stack: &mut NockStack, a: Atom, b: Atom) -> Atom {
-        let new_size = cmp::max(a.size(), b.size());
-
-        unsafe {
-            let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
-            let a_bit = a.as_bitslice();
-            dest[..a_bit.len()].copy_from_bitslice(a_bit);
-            *dest |= b.as_bitslice();
-            atom.normalize_as_atom()
-        }
-    }
-
     pub mod test {
         use super::*;
         use crate::hamt::Hamt;
@@ -388,42 +305,6 @@ pub mod util {
                 "with sample: {}, expected err: {:?}, got: {:?}",
                 sam, err, jet_err
             );
-        }
-    }
-
-    #[cfg(test)]
-    mod tests {
-        use super::test::{init_context, A};
-        use super::*;
-        use ibig::ubig;
-
-        #[test]
-        fn test_met() {
-            let c = &mut init_context();
-            let s = &mut c.stack;
-
-            let a = A(s, &ubig!(0xdeadbeef12345678fedcba9876543210))
-                .as_atom()
-                .unwrap();
-            assert_eq!(met(0, a), 128);
-            assert_eq!(met(1, a), 64);
-            assert_eq!(met(2, a), 32);
-            assert_eq!(met(3, a), 16);
-            assert_eq!(met(4, a), 8);
-            assert_eq!(met(5, a), 4);
-            assert_eq!(met(6, a), 2);
-            assert_eq!(met(7, a), 1);
-            assert_eq!(met(8, a), 1);
-
-            let a = D(0x7fffffffffffffff).as_atom().unwrap();
-            assert_eq!(met(0, a), 63);
-            assert_eq!(met(1, a), 32);
-            assert_eq!(met(2, a), 16);
-            assert_eq!(met(3, a), 8);
-            assert_eq!(met(4, a), 4);
-            assert_eq!(met(5, a), 2);
-            assert_eq!(met(6, a), 1);
-            assert_eq!(met(7, a), 1);
         }
     }
 }
