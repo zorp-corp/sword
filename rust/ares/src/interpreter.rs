@@ -266,25 +266,6 @@ pub struct Context {
     pub scry_stack: Noun,
 }
 
-// #[derive(Clone, Copy, Debug)]
-// pub enum Error {
-//     Nock(NockError),
-//     Scry(ScryError),
-// }
-
-// #[derive(Clone, Copy, Debug)]
-// pub enum NockError {
-//     Deterministic(Noun),    // trace
-//     NonDeterministic(Noun), // trace
-// }
-
-// #[derive(Clone, Copy, Debug)]
-// pub enum ScryError {
-//     Blocked(Noun),          // path
-//     Deterministic(Noun),    // trace
-//     NonDeterministic(Noun), // trace
-// }
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Error {
     ScryBlocked(Noun),      // path
