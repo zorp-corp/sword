@@ -6,6 +6,7 @@ use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, Slots};
 use std::ptr::{copy_nonoverlapping, null_mut};
 
+/// key = formula
 pub struct Warm(Hamt<WarmEntry>);
 
 impl Preserve for Warm {
@@ -129,6 +130,9 @@ impl Warm {
         warm
     }
 
+    /// Walk through the linked list of WarmEntry objects and do a partial check
+    /// against the subject using Batteries (walk to root of parent batteries).
+    /// If there's a match, then we've found a valid jet.
     pub fn find_jet(&mut self, stack: &mut NockStack, s: &mut Noun, f: &mut Noun) -> Option<Jet> {
         let warm_it = self.0.lookup(stack, f)?;
         for (_path, batteries, jet) in warm_it {
