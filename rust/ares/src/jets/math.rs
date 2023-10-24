@@ -198,21 +198,7 @@ pub fn jet_lth(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() < b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() < b.bit_size() {
-        YES
-    } else if a.bit_size() > b.bit_size() {
-        NO
-    } else if a.as_ubig(stack) < b.as_ubig(stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(util::lth(stack, a, b))
 }
 
 pub fn jet_mod(context: &mut Context, subject: Noun) -> Result {
@@ -265,6 +251,29 @@ pub fn jet_sub(context: &mut Context, subject: Noun) -> Result {
     let b = slot(arg, 3)?.as_atom()?;
 
     Ok(sub(&mut context.stack, a, b)?.as_noun())
+}
+
+pub mod util {
+    use crate::mem::NockStack;
+    use crate::noun::{Atom, Noun, NO, YES};
+
+    pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            if a.data() < b.data() {
+                YES
+            } else {
+                NO
+            }
+        } else if a.bit_size() < b.bit_size() {
+            YES
+        } else if a.bit_size() > b.bit_size() {
+            NO
+        } else if a.as_ubig(stack) < b.as_ubig(stack) {
+            YES
+        } else {
+            NO
+        }
+    }
 }
 
 #[cfg(test)]
