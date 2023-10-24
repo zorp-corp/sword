@@ -25,6 +25,7 @@ const HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (&[A_50, Left(tas!(b"mas"))], 1, jet_mas),
     //
     (&[A_50, Left(tas!(b"lent"))], 1, jet_lent),
+    (&[A_50, Left(tas!(b"flop"))], 1, jet_flop),
     //
     (&[A_50, Left(tas!(b"bex"))], 1, jet_bex),
     (&[A_50, Left(tas!(b"can"))], 1, jet_can),
@@ -38,6 +39,7 @@ const HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (&[A_50, Left(tas!(b"rev"))], 1, jet_rev),
     (&[A_50, Left(tas!(b"rip"))], 1, jet_rip),
     (&[A_50, Left(tas!(b"rsh"))], 1, jet_rsh),
+    (&[A_50, Left(tas!(b"xeb"))], 1, jet_xeb),
     //
     (&[A_50, Left(tas!(b"con"))], 1, jet_con),
     (&[A_50, Left(tas!(b"dis"))], 1, jet_dis),
