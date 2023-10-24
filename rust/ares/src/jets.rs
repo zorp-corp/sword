@@ -82,8 +82,6 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         //
         tas!(b"cap") => Some(jet_cap),
         tas!(b"mas") => Some(jet_mas),
-        tas!(b"cue") => Some(jet_cue),
-        tas!(b"jam") => Some(jet_jam),
         //
         tas!(b"lent") => Some(jet_lent),
         //
@@ -109,6 +107,9 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"dor") => Some(jet_dor),
         tas!(b"gor") => Some(jet_gor),
         tas!(b"mor") => Some(jet_mor),
+        //
+        tas!(b"cue") => Some(jet_cue),
+        tas!(b"jam") => Some(jet_jam),
         //
         tas!(b"scow") => Some(jet_scow),
         //
