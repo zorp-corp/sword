@@ -10,7 +10,7 @@ pub mod nock;
 pub mod text;
 pub mod tree;
 
-use crate::interpreter::{Context, Failure};
+use crate::interpreter::{Context, Error};
 use crate::jets::bits::*;
 use crate::jets::cold::Cold;
 use crate::jets::form::*;
@@ -23,7 +23,7 @@ use crate::jets::tree::*;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{self, Noun, Slots};
+use crate::noun::{self, Noun, Slots, D};
 use ares_macros::tas;
 use std::cmp;
 
@@ -39,13 +39,13 @@ pub type Jet = fn(&mut Context, Noun) -> Result;
  */
 #[derive(Debug, PartialEq)]
 pub enum JetErr {
-    Punt,          // Retry with the raw nock
-    Fail(Failure), // Error; do not retry
+    Punt,        // Retry with the raw nock
+    Fail(Error), // Error; do not retry
 }
 
 impl From<noun::Error> for JetErr {
     fn from(_err: noun::Error) -> Self {
-        Self::Fail(Failure::Deterministic)
+        Self::Fail(Error::Deterministic(D(0)))
     }
 }
 
@@ -53,7 +53,7 @@ impl From<JetErr> for () {
     fn from(_: JetErr) -> Self {}
 }
 
-impl From<JetErr> for Failure {
+impl From<JetErr> for Error {
     fn from(e: JetErr) -> Self {
         match e {
             JetErr::Fail(f) => f,
@@ -138,13 +138,13 @@ pub mod util {
     pub fn checked_add(a: usize, b: usize) -> result::Result<usize, JetErr> {
         a.checked_add(b)
             .filter(|x| x <= &MAX_BIT_LENGTH)
-            .ok_or(JetErr::Fail(Failure::NonDeterministic))
+            .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
     }
 
     /// Performs addition that returns None on Noun size overflow
     pub fn checked_sub(a: usize, b: usize) -> result::Result<usize, JetErr> {
         a.checked_sub(b)
-            .ok_or(JetErr::Fail(Failure::NonDeterministic))
+            .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
     }
 
     pub fn checked_left_shift(bloq: usize, a: usize) -> result::Result<usize, JetErr> {
@@ -152,7 +152,7 @@ pub mod util {
 
         // Catch overflow
         if (res >> bloq) < a || res > MAX_BIT_LENGTH {
-            Err(JetErr::Fail(Failure::NonDeterministic))
+            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
         } else {
             Ok(res)
         }
@@ -170,14 +170,14 @@ pub mod util {
 
     pub fn slot(noun: Noun, axis: u64) -> Result {
         noun.slot(axis)
-            .map_err(|_e| JetErr::Fail(Failure::Deterministic))
+            .map_err(|_e| JetErr::Fail(Error::Deterministic(D(0))))
     }
 
     /// Extract a bloq and check that it's computable by the current system
     pub fn bloq(a: Noun) -> result::Result<usize, JetErr> {
         let bloq = a.as_direct()?.data() as usize;
         if bloq >= 47 {
-            Err(JetErr::Fail(Failure::NonDeterministic))
+            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
         } else {
             Ok(bloq)
         }

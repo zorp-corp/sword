@@ -1,6 +1,6 @@
 use crate::hamt::Hamt;
 use crate::interpreter;
-use crate::interpreter::{inc, interpret, Error, NockError};
+use crate::interpreter::{inc, interpret, Error};
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::nock::util::mook;
@@ -264,7 +264,10 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
 }
 
 fn goof(context: &mut Context, trace: Noun) -> Noun {
-    let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
+    //  XX: trace is a $tang with at least one $tank, which we pick off the top.
+    //      Actual input to +mook should be (roll trace weld) ( or (zing trace)).
+    let head = trace.cell().unwrap().head();
+    let tone = Cell::new(&mut context.nock_context.stack, D(2), head);
     let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
         .tail();
@@ -279,12 +282,12 @@ fn soft(context: &mut Context, ovo: Noun) -> Result<Noun, Noun> {
     match slam(context, POKE_AXIS, ovo) {
         Ok(res) => Ok(res),
         Err(error) => match error {
-            Error::Nock(nock_err) => match nock_err {
-                NockError::Deterministic(trace) | NockError::NonDeterministic(trace) => {
-                    Err(goof(context, trace))
-                }
-            },
-            Error::Scry(_) => panic!("serf: soft: .^ invalid outside of virtual Nock"),
+            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
+                Err(goof(context, trace))
+            }
+            Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
+                panic!("serf: soft: .^ invalid outside of virtual Nock")
+            }
         },
     }
 }
@@ -302,13 +305,13 @@ fn play_life(context: &mut Context, eve: Noun) {
             context.play_done();
         }
         Err(error) => match error {
-            Error::Nock(nock_err) => match nock_err {
-                NockError::Deterministic(trace) | NockError::NonDeterministic(trace) => {
-                    let goof = goof(context, trace);
-                    context.play_bail(goof);
-                }
-            },
-            Error::Scry(_) => panic!("serf: soft: .^ invalid outside of virtual Nock"),
+            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
+                let goof = goof(context, trace);
+                context.play_bail(goof);
+            }
+            Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
+                panic!("serf: soft: .^ invalid outside of virtual Nock")
+            }
         },
     }
 }

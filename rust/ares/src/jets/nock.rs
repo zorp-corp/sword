@@ -1,14 +1,33 @@
-use crate::hamt::Hamt;
 /** Virtualization jets
  */
-use crate::interpreter::Context;
+use crate::hamt::Hamt;
+use crate::interpreter::{Context, Error};
 use crate::jets::util::slot;
-use crate::jets::Result;
+use crate::jets::{JetErr, Result};
 use crate::noun::{Noun, T};
 
 crate::gdb!();
 
-//  XX: interpret should accept optional scry function and potentially produce blocked
+// Determinist scry crashes should have the following behaviour:
+//
+//  root                <-- Deterministic
+//      mink            <-- Deterministic
+//  scry                <-- ScryCrashed
+//
+//  root                <-- Deterministic
+//      mink            <-- Deterministic
+//          mink        <-- ScryCrashed
+//      scry            <-- ScryCrashed
+//  scry                <-- ScryCrashed
+//
+//  root
+//      mink            <-- Tone
+//          mink        <-- Deterministic
+//              mink    <-- ScryCrashed
+//          scry        <-- ScryCrashed
+//      scry            <-- ScryCrashed
+//  scry
+//
 pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     // mink sample = [nock scry_namespace]
@@ -23,14 +42,30 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     context.cache = Hamt::<Noun>::new();
     context.scry_stack = T(&mut context.stack, &[scry_handler, old_scry_stack]);
 
-    let res = util::mink(context, v_subject, v_formula);
-    context.cache = old_cache;
-    context.scry_stack = old_scry_stack;
-    res
+    match util::mink(context, v_subject, v_formula) {
+        Ok(noun) => {
+            context.cache = old_cache;
+            context.scry_stack = old_scry_stack;
+            Ok(noun)
+        }
+        Err(error) => match error {
+            Error::NonDeterministic(_) => Err(JetErr::Fail(error)),
+            Error::ScryCrashed(trace) => {
+                if unsafe { context.scry_stack.raw_equals(old_scry_stack) } {
+                    Err(JetErr::Fail(Error::Deterministic(trace)))
+                } else {
+                    Err(JetErr::Fail(error))
+                }
+            }
+            Error::Deterministic(_) | Error::ScryBlocked(_) => {
+                panic!("scry: mink: unhandled errors in helper")
+            }
+        },
+    }
 }
 
 pub mod util {
-    use crate::interpreter::{interpret, Context, Error, Failure, NockError, ScryError};
+    use crate::interpreter::{interpret, Context, Error};
     use crate::jets;
     use crate::jets::form::util::scow;
     use crate::jets::util::rip;
@@ -44,26 +79,13 @@ pub mod util {
     pub const LEAF: Noun = D(tas!(b"leaf"));
     pub const ROSE: Noun = D(tas!(b"rose"));
 
-    pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> jets::Result {
+    pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
         match interpret(context, subject, formula) {
             Ok(res) => Ok(T(&mut context.stack, &[D(0), res])),
             Err(err) => match err {
-                Error::Nock(nock_err) => match nock_err {
-                    NockError::Deterministic(trace) => Ok(T(&mut context.stack, &[D(2), trace])),
-                    //  XX: trace is unused; needs to be printed or welded to trace from outer context
-                    NockError::NonDeterministic(_trace) => {
-                        Err(JetErr::Fail(Failure::NonDeterministic))
-                    }
-                },
-                Error::Scry(scry_err) => match scry_err {
-                    ScryError::Blocked(path) => Ok(T(&mut context.stack, &[D(1), path])),
-                    //  XX: trace is unused; needs to be printed or welded to trace from outer context
-                    ScryError::Deterministic(_trace) => Err(JetErr::Fail(Failure::Deterministic)),
-                    //  XX: trace is unused; needs to be printed or welded to trace from outer context
-                    ScryError::NonDeterministic(_trace) => {
-                        Err(JetErr::Fail(Failure::NonDeterministic))
-                    }
-                },
+                Error::ScryBlocked(path) => Ok(T(&mut context.stack, &[D(1), path])),
+                Error::Deterministic(trace) => Ok(T(&mut context.stack, &[D(2), trace])),
+                Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(err),
             },
         }
     }
@@ -77,14 +99,14 @@ pub mod util {
 
         match tag.data() {
             x if x < 2 => return Ok(tone),
-            x if x > 2 => return Err(JetErr::Fail(Failure::Deterministic)),
+            x if x > 2 => return Err(JetErr::Fail(Error::Deterministic(D(0)))),
             _ => {}
         }
 
         if unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
         } else if original_list.atom().is_some() {
-            return Err(JetErr::Fail(Failure::Deterministic));
+            return Err(JetErr::Fail(Error::Deterministic(D(0))));
         }
 
         // XX: trim traces longer than 1024 frames
@@ -134,15 +156,21 @@ pub mod util {
                             T(stack, &[LEAF, tape])
                         }
                         Right(cell) => {
-                            let tone = mink(context, dat, cell.head())?.as_cell()?;
-                            if !tone.head().raw_equals(D(0)) {
+                            'tank: {
+                                if let Ok(tone) = mink(context, dat, cell.head()) {
+                                    if let Some(cell) = tone.cell() {
+                                        if cell.head().raw_equals(D(0)) {
+                                            //  XX: need to check that this is
+                                            //      actually a path;
+                                            //      return leaf+"mook.mean" if not
+                                            break 'tank cell.tail();
+                                        }
+                                    }
+                                }
+
                                 let stack = &mut context.stack;
                                 let tape = tape(stack, "####");
                                 T(stack, &[LEAF, tape])
-                            } else {
-                                //  XX: need to check that this is actually a tank
-                                //      return leaf+"mook.mean" if not
-                                tone.tail()
                             }
                         }
                     },
@@ -326,7 +354,7 @@ mod tests {
         let nock = T(stack, &[subj, form]);
         let scry = D(0);
         let samp = T(stack, &[nock, scry]);
-        let rest = T(stack, &[D(2), D(0)]);
+        let rest = T(stack, &[D(2), D(0), D(0)]);
         assert_jet(context, jet_mink, samp, rest);
     }
 
@@ -412,7 +440,7 @@ mod tests {
 
         let t1 = T(stack, &[tt1, tt2, D(0)]);
 
-        let rest = T(stack, &[D(2), t1]);
+        let rest = T(stack, &[D(2), t1, D(0)]);
 
         assert_jet(context, jet_mink, samp, rest);
     }
