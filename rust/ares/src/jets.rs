@@ -5,10 +5,10 @@ pub mod warm;
 pub mod bits;
 pub mod form;
 pub mod hash;
+pub mod list;
 pub mod math;
 pub mod nock;
 pub mod sort;
-pub mod text;
 pub mod tree;
 
 use crate::interpreter::{Context, Error};
@@ -17,10 +17,10 @@ use crate::jets::cold::Cold;
 use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::hot::Hot;
+use crate::jets::list::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::sort::*;
-use crate::jets::text::*;
 
 use crate::jets::tree::*;
 use crate::jets::warm::Warm;
@@ -44,6 +44,12 @@ pub type Jet = fn(&mut Context, Noun) -> Result;
 pub enum JetErr {
     Punt,        // Retry with the raw nock
     Fail(Error), // Error; do not retry
+}
+
+impl From<Error> for JetErr {
+    fn from(err: Error) -> Self {
+        Self::Fail(err)
+    }
 }
 
 impl From<noun::Error> for JetErr {
@@ -82,6 +88,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"cap") => Some(jet_cap),
         tas!(b"mas") => Some(jet_mas),
         //
+        tas!(b"flop") => Some(jet_flop),
         tas!(b"lent") => Some(jet_lent),
         //
         tas!(b"bex") => Some(jet_bex),
@@ -96,7 +103,6 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"rev") => Some(jet_rev),
         tas!(b"rip") => Some(jet_rip),
         tas!(b"rsh") => Some(jet_rsh),
-        tas!(b"flop") => Some(jet_flop),
         tas!(b"xeb") => Some(jet_xeb),
         //
         tas!(b"con") => Some(jet_con),
@@ -298,26 +304,6 @@ pub mod util {
         }
 
         Ok(list)
-    }
-
-    /// Reverse order of list
-    pub fn flop(stack: &mut NockStack, noun: Noun) -> Result {
-        let mut list = noun;
-        let mut tsil = D(0);
-        loop {
-            if let Some(list) = list.atom() {
-                if list.as_bitslice().first_one().is_none() {
-                    break;
-                } else {
-                    return Err(JetErr::Fail(Error::Deterministic(D(0))));
-                }
-            }
-            let cell = list.as_cell()?;
-            tsil = Cell::new(stack, cell.head(), tsil).as_noun();
-            list = cell.tail();
-        }
-
-        Ok(tsil)
     }
 
     /// Binary OR

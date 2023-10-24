@@ -356,17 +356,6 @@ pub fn jet_xeb(_context: &mut Context, subject: Noun) -> Result {
     unsafe { Ok(DirectAtom::new_unchecked(syz).as_atom().as_noun()) }
 }
 
-pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
-    let sam = slot(subject, 6)?;
-    let src = slot(sam, 1)?;
-
-    if unsafe { src.raw_equals(D(0)) } {
-        return Ok(D(0));
-    }
-
-    flop(&mut context.stack, src)
-}
-
 // return u3kc_rep(u3k(a), 1, u3kb_flop(u3qc_rip(a, 1, b)));
 // TODO
 // allocate new IndirectAtom of same size and as_bitslice()
@@ -806,37 +795,4 @@ mod tests {
         let sam = T(s, &[D(3), D(0x636261)]);
         assert_jet(s, jet_swp, sam, D(0x616263));
     }*/
-
-    #[test]
-    fn test_flop() {
-        let c = &mut init_context();
-
-        let sam = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
-        let res = T(&mut c.stack, &[D(3), D(2), D(1), D(0)]);
-        assert_jet(c, jet_flop, sam, res);
-
-        #[rustfmt::skip]
-        let sam = T(
-            &mut c.stack,
-            &[
-                D(0xd), D(0xe), D(0xa), D(0xd), D(0xb), D(0xe), D(0xe), D(0xf),
-                D(0x1), D(0x2), D(0x3), D(0x4), D(0x5), D(0x6), D(0x7), D(0x8),
-                D(0xf), D(0xe), D(0xd), D(0xc), D(0xb), D(0xa), D(0x9), D(0x8),
-                D(0x7), D(0x6), D(0x5), D(0x4), D(0x3), D(0x2), D(0x1), D(0x0),
-                D(0x0),
-            ],
-        );
-        #[rustfmt::skip]
-        let res = T(
-            &mut c.stack,
-            &[
-                D(0x0), D(0x1), D(0x2), D(0x3), D(0x4), D(0x5), D(0x6), D(0x7),
-                D(0x8), D(0x9), D(0xa), D(0xb), D(0xc), D(0xd), D(0xe), D(0xf),
-                D(0x8), D(0x7), D(0x6), D(0x5), D(0x4), D(0x3), D(0x2), D(0x1),
-                D(0xf), D(0xe), D(0xe), D(0xb), D(0xd), D(0xa), D(0xe), D(0xd),
-                D(0x0),
-            ],
-        );
-        assert_jet(c, jet_flop, sam, res);
-    }
 }
