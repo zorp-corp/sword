@@ -10,6 +10,7 @@ pub mod nock;
 pub mod sort;
 pub mod text;
 pub mod tree;
+pub mod ut;
 
 use crate::interpreter::{Context, Error};
 use crate::jets::bits::*;
@@ -22,6 +23,7 @@ use crate::jets::nock::*;
 use crate::jets::sort::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
+use crate::jets::ut::*;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::newt::Newt;
