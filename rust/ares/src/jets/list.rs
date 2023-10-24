@@ -10,12 +10,6 @@ crate::gdb!();
 pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let src = slot(sam, 1)?;
-
-    if unsafe { src.raw_equals(D(0)) } {
-        return Ok(D(0));
-    }
-
-    // util::flop(&mut context.stack, src).map_err(|x| x.into())
     Ok(util::flop(&mut context.stack, src)?)
 }
 
@@ -28,7 +22,7 @@ pub mod util {
     use crate::interpreter::Error;
     use crate::jets::JetErr;
     use crate::mem::NockStack;
-    use crate::noun::{Cell, Noun, D};
+    use crate::noun::{Noun, D, T};
     use std::result::Result;
 
     /// Reverse order of list
@@ -36,15 +30,12 @@ pub mod util {
         let mut list = noun;
         let mut tsil = D(0);
         loop {
-            if let Some(list) = list.atom() {
-                if list.as_bitslice().first_one().is_none() {
-                    break;
-                } else {
-                    return Err(Error::Deterministic(D(0)));
-                }
+            if unsafe { list.raw_equals(D(0)) } {
+                break;
             }
+
             let cell = list.as_cell()?;
-            tsil = Cell::new(stack, cell.head(), tsil).as_noun();
+            tsil = T(stack, &[cell.head(), tsil]);
             list = cell.tail();
         }
 
@@ -110,6 +101,10 @@ mod tests {
             ],
         );
         assert_jet(c, jet_flop, sam, res);
+
+        assert_jet_err(c, jet_flop, D(1), JetErr::Fail(Error::Deterministic(D(0))));
+        let sam = T(&mut c.stack, &[D(1), D(2), D(3)]);
+        assert_jet_err(c, jet_flop, sam, JetErr::Fail(Error::Deterministic(D(0))));
     }
 
     #[test]

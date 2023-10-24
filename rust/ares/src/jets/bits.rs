@@ -350,30 +350,8 @@ pub fn jet_mix(context: &mut Context, subject: Noun) -> Result {
 pub fn jet_xeb(_context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let a = slot(sam, 1)?.as_atom()?;
-
-    let syz = util::met(0, a) as u64;
-
-    unsafe { Ok(DirectAtom::new_unchecked(syz).as_atom().as_noun()) }
+    Ok(D(util::met(0, a) as u64))
 }
-
-// return u3kc_rep(u3k(a), 1, u3kb_flop(u3qc_rip(a, 1, b)));
-// TODO
-// allocate new IndirectAtom of same size and as_bitslice()
-// so we can rebuild it back to front in bloq size
-/*pub fn jet_swp(context: &mut Context, subject: Noun) -> Result {
-    let sam = slot(subject, 6)?;
-    let bloq = slot(sam, 2)?.as_atom()?.as_direct()?.data() as usize;
-    let atom = slot(sam, 3)?.as_atom()?;
-
-    let ripper = rip(context.stack, bloq, 1, atom)?;
-    //println!("ripper: {:?}", ripper);
-    let flopper = flop(context.stack, ripper)?;
-    //println!("flopper: {:?}", flopper);
-    let sample = T(context.stack, &[D(1), flopper]);
-    //println!("sample: {:?}", sample);
-    //println!("sample: {:?}", jet_rep(context, sample));
-    jet_rep(context, sample)
-}*/
 
 pub mod util {
     use crate::jets::util::*;
@@ -875,26 +853,11 @@ mod tests {
     fn test_xeb() {
         let c = &mut init_context();
 
-        assert_jet(c, jet_xeb, D(0), D(0));
-        assert_jet(c, jet_xeb, D(1), D(1));
-        assert_jet(c, jet_xeb, D(31), D(5));
-        assert_jet(c, jet_xeb, D(32), D(6));
-        assert_jet(c, jet_xeb, D(0xfff), D(12));
-        assert_jet(c, jet_xeb, D(0xffff), D(16));
-        assert_jet(c, jet_xeb, D(0x3fffffffffffffff), D(62));
-        assert_jet(c, jet_xeb, D(0x4000000000000000), D(63));
+        let (a0, a24, a63, a96, a128) = atoms(&mut c.stack);
+        assert_jet(c, jet_xeb, a0, D(0));
+        assert_jet(c, jet_xeb, a24, D(24));
+        assert_jet(c, jet_xeb, a63, D(63));
+        assert_jet(c, jet_xeb, a96, D(96));
+        assert_jet(c, jet_xeb, a128, D(128));
     }
-
-    /*#[test]
-    fn test_swp() {
-        let s = &mut init_stack();
-        let sam = T(s, &[D(1), D(0x18)]);
-        assert_jet(s, jet_swp, sam, D(0x9));
-        let sam = T(s, &[D(0), D(0x18)]);
-        assert_jet(s, jet_swp, sam, D(0x3));
-        let sam = T(s, &[D(0), D(0x80)]);
-        assert_jet(s, jet_swp, sam, D(0x1));
-        let sam = T(s, &[D(3), D(0x636261)]);
-        assert_jet(s, jet_swp, sam, D(0x616263));
-    }*/
 }
