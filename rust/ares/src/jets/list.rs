@@ -9,8 +9,7 @@ crate::gdb!();
 
 pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
-    let src = slot(sam, 1)?;
-    Ok(util::flop(&mut context.stack, src)?)
+    Ok(util::flop(&mut context.stack, sam)?)
 }
 
 pub fn jet_lent(_context: &mut Context, subject: Noun) -> Result {
