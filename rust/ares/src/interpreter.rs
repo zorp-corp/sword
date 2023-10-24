@@ -221,7 +221,6 @@ enum Todo12 {
     ComputeReff,
     ComputePath,
     Scry,
-    Done,
 }
 
 #[derive(Copy, Clone)]
@@ -229,7 +228,6 @@ struct Nock12 {
     todo: Todo12,
     reff: Noun,
     path: Noun,
-    hand: Noun,
 }
 
 #[derive(Copy, Clone)]
@@ -266,7 +264,7 @@ pub struct Context {
     pub scry_stack: Noun,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub enum Error {
     ScryBlocked(Noun),      // path
     ScryCrashed(Noun),      // trace
@@ -780,6 +778,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     }
                     Todo12::Scry => {
                         if let Some(cell) = context.scry_stack.cell() {
+                            scry.path = res;
                             let scry_stack = context.scry_stack;
                             let scry_handler = cell.head();
                             let scry_gate = scry_handler.as_cell()?;
@@ -795,14 +794,33 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             let scry_form = T(&mut context.stack, &[D(9), D(2), D(1), scry_core]);
 
                             context.scry_stack = cell.tail();
-                            match interpret(context, subject, scry_form) {
-                                Ok(noun) => {
-                                    scry.todo = Todo12::Done;
-                                    scry.path = res;
-                                    scry.hand = scry_stack;
-                                    *context.stack.top() = NockWork::Work12(scry);
-                                    res = noun;
-                                }
+                            // Alternately, we could use scry_core as the subject and [9 2 0 1] as
+                            // the formula. It's unclear if performance will be better with a purely
+                            // static formula.
+                            match interpret(context, D(0), scry_form) {
+                                Ok(noun) => match noun.as_either_atom_cell() {
+                                    Left(atom) => {
+                                        if atom.as_noun().raw_equals(D(0)) {
+                                            break Err(Error::ScryBlocked(scry.path));
+                                        } else {
+                                            break Err(Error::ScryCrashed(D(0)));
+                                        }
+                                    }
+                                    Right(cell) => match cell.tail().as_either_atom_cell() {
+                                        Left(_) => {
+                                            let stack = &mut context.stack;
+                                            let hunk =
+                                                T(stack, &[D(tas!(b"hunk")), scry.reff, scry.path]);
+                                            mean_push(stack, hunk);
+                                            break Err(Error::ScryCrashed(D(0)));
+                                        }
+                                        Right(cell) => {
+                                            res = cell.tail();
+                                            context.scry_stack = scry_stack;
+                                            context.stack.pop::<NockWork>();
+                                        }
+                                    },
+                                },
                                 Err(error) => match error {
                                     Error::Deterministic(trace) | Error::ScryCrashed(trace) => {
                                         break Err(Error::ScryCrashed(trace));
@@ -820,28 +838,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             break Err(Error::Deterministic(D(0)));
                         }
                     }
-                    Todo12::Done => match res.as_either_atom_cell() {
-                        Left(atom) => {
-                            if atom.as_noun().raw_equals(D(0)) {
-                                break Err(Error::ScryBlocked(scry.path));
-                            } else {
-                                break Err(Error::ScryCrashed(D(0)));
-                            }
-                        }
-                        Right(cell) => match cell.tail().as_either_atom_cell() {
-                            Left(_) => {
-                                let stack = &mut context.stack;
-                                let hunk = T(stack, &[D(tas!(b"hunk")), scry.reff, scry.path]);
-                                mean_push(stack, hunk);
-                                break Err(Error::ScryCrashed(D(0)));
-                            }
-                            Right(cell) => {
-                                res = cell.tail();
-                                context.scry_stack = scry.hand;
-                                context.stack.pop::<NockWork>();
-                            }
-                        },
-                    },
                 },
             };
         }
@@ -1041,7 +1037,6 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
                                         todo: Todo12::ComputeReff,
                                         reff: arg_cell.head(),
                                         path: arg_cell.tail(),
-                                        hand: D(0),
                                     });
                                 } else {
                                     // Argument for Nock 12 must be cell

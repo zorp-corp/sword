@@ -1,4 +1,4 @@
-use crate::mem::{non_unifying_equality, word_size_of, NockStack};
+use crate::mem::{word_size_of, NockStack};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::{Either, Left, Right};
 use ibig::{Stack, UBig};
@@ -1143,12 +1143,6 @@ impl fmt::Display for Noun {
                 write!(f, "Noun::Unknown({:x})", self.raw)
             }
         }
-    }
-}
-
-impl std::cmp::PartialEq for Noun {
-    fn eq(&self, other: &Noun) -> bool {
-        non_unifying_equality(*self, *other)
     }
 }
 

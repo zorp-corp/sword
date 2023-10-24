@@ -8,24 +8,24 @@ use crate::noun::{Noun, T};
 
 crate::gdb!();
 
-// Determinist scry crashes should have the following behaviour:
+// Deterministic scry crashes should have the following behaviour:
 //
-//  root                <-- Deterministic
-//      mink            <-- Deterministic
-//  scry                <-- ScryCrashed
+//  root                <-- bail, %crud
+//      mink            <-- return Deterministic
+//  scry                <-- return ScryCrashed
 //
-//  root                <-- Deterministic
-//      mink            <-- Deterministic
-//          mink        <-- ScryCrashed
-//      scry            <-- ScryCrashed
-//  scry                <-- ScryCrashed
+//  root                <-- bail, %crud
+//      mink            <-- return Deterministic
+//          mink        <-- return ScryCrashed
+//      scry            <-- return ScryCrashed
+//  scry                <-- return ScryCrashed
 //
 //  root
-//      mink            <-- Tone
-//          mink        <-- Deterministic
-//              mink    <-- ScryCrashed
-//          scry        <-- ScryCrashed
-//      scry            <-- ScryCrashed
+//      mink            <-- return Tone
+//          mink        <-- return Deterministic
+//              mink    <-- return ScryCrashed
+//          scry        <-- return ScryCrashed
+//      scry            <-- return ScryCrashed
 //  scry
 //
 pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
@@ -51,6 +51,18 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
         Err(error) => match error {
             Error::NonDeterministic(_) => Err(JetErr::Fail(error)),
             Error::ScryCrashed(trace) => {
+                // When we enter a +mink call, we record what the scry handler stack looked like on
+                // entry. Each scry pulls the scry handler off the top of the scry handler stack and
+                // and calls interpret() with the remainder of the scry handler stack. When a scry
+                // succeeds, it replaces the scry handler it used at the top of the stack. However,
+                // it never does so when it fails. Therefore, we can tell which particular
+                // virtualization instance failed if the scry handler stack at the time of failure
+                // is identical to the scry handler stack on entry to the +mink call. Therefore,
+                // when a virtual nock call returns ScryCrashed, mink compares the root of the scry
+                // handler stack currently in the context object with the one that was on the stack
+                // when the mink call was initiated. If they match, it's this mink call that crashed
+                // so convert the Error::ScryCrashed into a Error::Deterministic. Otherwise, pass
+                // the Error::ScryCrashed up to the senior virtualizer.
                 if unsafe { context.scry_stack.raw_equals(old_scry_stack) } {
                     Err(JetErr::Fail(Error::Deterministic(trace)))
                 } else {
