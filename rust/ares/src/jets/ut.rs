@@ -1,7 +1,7 @@
-use crate::interpreter::{Context, Error, interpret};
+use crate::interpreter::{Context, interpret};
 use crate::jets::util::*;
 use crate::jets::{JetErr, Result};
-use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
+use crate::noun::Noun;
 
 crate::gdb!();
 
@@ -10,12 +10,7 @@ pub fn jet_mint_ut(
     subject: Noun,
 ) -> Result {
     let sam = slot(subject, 6)?;
-    let gol = slot(sam, 2);
-    let gen = slot(sam, 3);
-    let ctx = slot(subject, 7)?;
     let bat = slot(subject, 2)?;
-    let pay = slot(sam, 3)?;
-    let sut = sam;  // XX refactor out
 
     // XX unlike Vere, we don't have runtime caching yet
     // so we just call the nock interpreter directly
@@ -28,31 +23,37 @@ pub fn jet_mint_ut(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::interpreter::{Context, Error};
+    use crate::interpreter::Context;
     use crate::mem::NockStack;
     use crate::jets::util::test::{assert_jet, assert_jet_err, init_context, A, assert_noun_eq};
-    use crate::jets::{Jet, JetErr};
+    use crate::jets::Jet;
     use crate::noun::{Noun, Cell, D, T};
-    use ares_macros::tas;
-    use ibig::ubig;
 
-    pub fn assert_jet_in_door(
+    pub fn assert_jet_with_subject(
         context: &mut Context,
         jet: Jet,
+        bat: &[fn(&mut NockStack) -> Noun],  // battery
         sam: &[fn(&mut NockStack) -> Noun],  // regular sample
         ctx: &[fn(&mut NockStack) -> Noun],  // door sample as context
         res: Noun) {
         unsafe {
-            let mut sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
-            let mut ctx: Vec<Noun> = ctx.iter().map(|f| f(&mut context.stack)).collect();
+            let bat: Vec<Noun> = bat.iter().map(|f| f(&mut context.stack)).collect();
+            let bat = if bat.len() > 1 { T(&mut context.stack, &bat) } else { bat[0] };
+
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
             let sam = if sam.len() > 1 { T(&mut context.stack, &sam) } else { sam[0] };
             eprintln!("sam: {:?}", sam);
+
+            let ctx: Vec<Noun> = ctx.iter().map(|f| f(&mut context.stack)).collect();
             let ctx = if ctx.len() > 1 { T(&mut context.stack, &ctx) } else { ctx[0] };
             eprintln!("ctx: {:?}", ctx);
+
             let pay = Cell::new(&mut context.stack, sam, ctx).as_noun();
             eprintln!("pay: {:?}", pay);
-            let sbj = Cell::new(&mut context.stack, D(0), pay).as_noun();
+
+            let sbj = Cell::new(&mut context.stack, bat, pay).as_noun();
             eprintln!("sbj: {:?}", sbj);
+
             let jet_res = jet(context, sbj).unwrap();
             eprintln!("jet: {:x}\n", jet_res.as_atom().expect("").as_direct().expect("").data());
             assert_noun_eq(&mut context.stack, jet_res, res);
@@ -88,6 +89,10 @@ mod tests {
         D(0x6e756f6e)
     }
 
+    fn nock_hello(_stack: &mut NockStack) -> Noun {
+        T(_stack, &[D(0x1), D(0x6f6c6c6568)])
+    }
+
     #[test]
     fn test_mint_ut() {
         let c = &mut init_context();
@@ -98,13 +103,15 @@ mod tests {
         let res_typ = T(&mut c.stack, &[D(0x6d6f7461), D(0x736174), D(0x0), D(0x6f6c6c6568)]);
         let res_val = T(&mut c.stack, &[D(0x1), D(0x6f6c6c6568)]);
         let res = T(&mut c.stack, &[res_typ, res_val]);
-        assert_jet_in_door(c, jet_mint_ut,
+        assert_jet_with_subject(c, jet_mint_ut,
+            &[nock_hello],
             &[atom_rock, atom_tas, atom_hello],
             &[atom_0, atom_noun, atom_0],
             res
         );
     }
 }
+
 /*
 u3_noun
 u3wfu_mint(u3_noun cor)
@@ -135,5 +142,4 @@ u3wfu_mint(u3_noun cor)
     }
   }
 }
-
 */
