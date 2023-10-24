@@ -39,7 +39,7 @@ pub type Jet = fn(&mut Context, Noun) -> Result;
  * Only return a deterministic error if the Nock would have deterministically
  * crashed.
  */
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub enum JetErr {
     Punt,        // Retry with the raw nock
     Fail(Error), // Error; do not retry
@@ -374,11 +374,38 @@ pub mod util {
                 &jet_res
             );
             let jet_err = jet_res.unwrap_err();
-            assert_eq!(
-                jet_err, err,
-                "with sample: {}, expected err: {:?}, got: {:?}",
-                sam, err, jet_err
-            );
+            match (jet_err, err) {
+                (JetErr::Punt, JetErr::Punt) => {}
+                (JetErr::Fail(actual_err), JetErr::Fail(expected_err)) => {
+                    match (actual_err, expected_err) {
+                        (Error::ScryBlocked(mut actual), Error::ScryBlocked(mut expected))
+                        | (Error::ScryCrashed(mut actual), Error::ScryCrashed(mut expected))
+                        | (Error::Deterministic(mut actual), Error::Deterministic(mut expected))
+                        | (
+                            Error::NonDeterministic(mut actual),
+                            Error::NonDeterministic(mut expected),
+                        ) => unsafe {
+                            assert!(unifying_equality(
+                                &mut context.stack,
+                                &mut actual,
+                                &mut expected
+                            ));
+                        },
+                        _ => {
+                            panic!(
+                                "with sample: {}, expected err: {:?}, got: {:?}",
+                                sam, expected_err, actual_err
+                            );
+                        }
+                    }
+                }
+                _ => {
+                    panic!(
+                        "with sample: {}, expected err: {:?}, got: {:?}",
+                        sam, err, jet_err
+                    );
+                }
+            }
         }
     }
 

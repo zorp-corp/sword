@@ -264,7 +264,7 @@ pub struct Context {
     pub scry_stack: Noun,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub enum Error {
     ScryBlocked(Noun),      // path
     ScryCrashed(Noun),      // trace
