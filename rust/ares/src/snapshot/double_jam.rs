@@ -78,7 +78,7 @@ impl DoubleJam {
                 | ((*in_ptr.add(1) as u32) << 8)
                 | ((*in_ptr.add(2) as u32) << 16)
                 | ((*in_ptr.add(3) as u32) << 24);
-            write_bytes(dest.add(word_len as usize - 1), 0, 8);
+            write_bytes(dest.add(word_len as usize - 1), 0, 1);
             copy_nonoverlapping(in_ptr.add(8), dest as *mut u8, in_len as usize);
             mem::drop(in_map);
             state.normalize(); // know it's not direct because first word is event number
@@ -110,6 +110,7 @@ impl Snapshot for DoubleJam {
     }
 
     fn save(&mut self, _stack: &mut NockStack, noun: &mut Noun) {
+        //  XX: I don't think this needs to be mut
         self.noun = *noun;
     }
 

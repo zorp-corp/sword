@@ -18,9 +18,6 @@ const DIRECT_MASK: u64 = !(u64::MAX >> 1);
 /** Maximum value of a direct atom. Values higher than this must be represented by indirect atoms. */
 pub const DIRECT_MAX: u64 = u64::MAX >> 1;
 
-/** Highest direct bit (since leading 0 marks directness) */
-const DIRECT_BITS: u64 = 62;
-
 /** Tag for an indirect atom. */
 const INDIRECT_TAG: u64 = u64::MAX & DIRECT_MASK;
 
@@ -47,7 +44,9 @@ pub const NO: Noun = D(1);
 #[macro_export]
 macro_rules! assert_acyclic {
     ( $x:expr ) => {
-        assert!(crate::noun::acyclic_noun($x));
+        assert_no_alloc::permit_alloc(|| {
+            assert!(crate::noun::acyclic_noun($x));
+        })
     };
 }
 
@@ -83,6 +82,42 @@ fn acyclic_noun_go(noun: Noun, seen: &mut IntMap<()>) -> bool {
             }
         }
     }
+}
+
+#[cfg(feature = "check_forwarding")]
+#[macro_export]
+macro_rules! assert_no_forwarding_pointers {
+    ( $x:expr ) => {
+        assert_no_alloc::permit_alloc(|| {
+            assert!(crate::noun::no_forwarding_pointers($x));
+        })
+    };
+}
+
+#[cfg(not(feature = "check_forwarding"))]
+#[macro_export]
+macro_rules! assert_no_forwarding_pointers {
+    ( $x:expr ) => {};
+}
+
+pub fn no_forwarding_pointers(noun: Noun) -> bool {
+    let mut dbg_stack = Vec::new();
+    dbg_stack.push(noun);
+
+    while !dbg_stack.is_empty() {
+        if let Some(noun) = dbg_stack.pop() {
+            if unsafe { noun.raw & FORWARDING_MASK == FORWARDING_TAG } {
+                return false;
+            } else if let Ok(cell) = noun.as_cell() {
+                dbg_stack.push(cell.tail());
+                dbg_stack.push(cell.head());
+            }
+        } else {
+            break;
+        }
+    }
+
+    true
 }
 
 /** Test if a noun is a direct atom. */
@@ -189,6 +224,11 @@ impl DirectAtom {
     pub fn as_bitslice_mut(&mut self) -> &mut BitSlice<u64, Lsb0> {
         BitSlice::from_element_mut(&mut self.0)
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        let bytes: &[u8; 8] = unsafe { std::mem::transmute(&self.0) };
+        &bytes[..]
+    }
 }
 
 impl fmt::Display for DirectAtom {
@@ -228,6 +268,16 @@ pub const fn D(n: u64) -> Noun {
 #[allow(non_snake_case)]
 pub fn T<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> Noun {
     Cell::new_tuple(allocator, tup).as_noun()
+}
+
+/// Create $tape Noun from ASCII string
+pub fn tape<A: NounAllocator>(allocator: &mut A, text: &str) -> Noun {
+    //  XX: Needs unit tests
+    let mut res = D(0);
+    for c in text.bytes().rev() {
+        res = T(allocator, &[D(c as u64), res])
+    }
+    res
 }
 
 /** An indirect atom.
@@ -376,11 +426,11 @@ impl IndirectAtom {
 
     /** Pointer to data for indirect atom */
     pub fn data_pointer(&self) -> *const u64 {
-        unsafe { self.to_raw_pointer().add(2) as *const u64 }
+        unsafe { self.to_raw_pointer().add(2) }
     }
 
     pub fn data_pointer_mut(&mut self) -> *mut u64 {
-        unsafe { self.to_raw_pointer_mut().add(2) as *mut u64 }
+        unsafe { self.to_raw_pointer_mut().add(2) }
     }
 
     pub fn as_slice(&self) -> &[u64] {
@@ -447,6 +497,9 @@ impl IndirectAtom {
     }
 }
 
+// XX: Need a version that either:
+//      a) allocates on the NockStack directly for creating a tape (or even a string?)
+//      b) disables no-allocation, creates a string, utilitzes it (eprintf or generate tape), and then deallocates
 impl fmt::Display for IndirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x")?;
@@ -483,7 +536,7 @@ impl Cell {
         (self.0 << 3) as *const CellMemory
     }
 
-    unsafe fn to_raw_pointer_mut(&mut self) -> *mut CellMemory {
+    pub unsafe fn to_raw_pointer_mut(&mut self) -> *mut CellMemory {
         (self.0 << 3) as *mut CellMemory
     }
 
@@ -582,6 +635,7 @@ impl Slots for Cell {}
 impl private::RawSlots for Cell {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         let mut noun: Noun = self.as_noun();
+        // Panic because all of the logic to guard against this is in Noun::RawSlots, Noun::Slots
         let mut cursor = axis.last_one().expect("raw_slow somehow by-passed 0 check");
 
         while cursor != 0 {
@@ -750,6 +804,14 @@ impl Atom {
     pub fn as_noun(self) -> Noun {
         Noun { atom: self }
     }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        if self.is_direct() {
+            unsafe { self.direct.as_bytes() }
+        } else {
+            unsafe { self.indirect.as_bytes() }
+        }
+    }
 }
 
 impl fmt::Display for Atom {
@@ -796,11 +858,11 @@ impl Allocated {
     }
 
     pub unsafe fn get_metadata(&self) -> u64 {
-        *(self.to_raw_pointer() as *const u64)
+        *(self.to_raw_pointer())
     }
 
     pub unsafe fn set_metadata(self, metadata: u64) {
-        *(self.const_to_raw_pointer_mut() as *mut u64) = metadata;
+        *(self.const_to_raw_pointer_mut()) = metadata;
     }
 
     pub fn as_either(&self) -> Either<IndirectAtom, Cell> {
@@ -808,6 +870,14 @@ impl Allocated {
             unsafe { Left(self.indirect) }
         } else {
             unsafe { Right(self.cell) }
+        }
+    }
+
+    pub fn cell(&self) -> Option<Cell> {
+        if self.is_cell() {
+            unsafe { Some(self.cell) }
+        } else {
+            None
         }
     }
 
@@ -1081,7 +1151,14 @@ impl private::RawSlots for Noun {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         match self.as_either_atom_cell() {
             Right(cell) => cell.raw_slot(axis),
-            Left(_atom) => Err(Error::NotCell), // Axis tried to descend through atom
+            Left(_atom) => {
+                if axis.last_one() == Some(0) {
+                    Ok(*self)
+                } else {
+                    // Axis tried to descend through atom
+                    Err(Error::NotCell)
+                }
+            }
         }
     }
 }
@@ -1110,10 +1187,18 @@ pub trait Slots: private::RawSlots {
      */
     fn slot(&self, axis: u64) -> Result<Noun> {
         if axis == 0 {
-            Err(Error::NotRepresentable) // 0 is not allowed as an axis
+            // 0 is not allowed as an axis
+            Err(Error::NotRepresentable)
         } else {
-            self.raw_slot(DirectAtom::new(axis).unwrap().as_bitslice())
+            self.raw_slot(BitSlice::from_element(&axis))
         }
+    }
+
+    /**
+     * Retrieve component Noun at axis given as Atom, or fail with descriptive error
+     */
+    fn slot_atom(&self, atom: Atom) -> Result<Noun> {
+        self.raw_slot(atom.as_bitslice())
     }
 }
 

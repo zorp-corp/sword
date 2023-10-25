@@ -5,18 +5,16 @@
  *
  * In any case, it's important to ensure that the library only allocates on the nock stack.  Gmp
  * has mp_set_memory_functions.  I don't know if rug does any allocation on top of that.  ibig does
- * not appear to support custom allocation functions, but we could probably patch it.  If we're
+ * not appear to support custom allocation functionc, but we could probably patch it.  If we're
  * patching it, we might even be able to avoid copying the input and output at all, which might
  * give a greater performance advantage than using gmp anyway.
  *
  * Another approach is use a global custom allocator.  This is fairly involved, but it would allow
  * us to use any library without worrying whether it allocates.
  */
-use crate::jets;
-use crate::jets::JetErr::*;
+use crate::interpreter::{Context, Error};
 use crate::jets::util::*;
-use crate::mem::NockStack;
-use crate::newt::Newt;
+use crate::jets::{JetErr, Result};
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 use either::{Left, Right};
 use ibig::ops::DivRem;
@@ -24,11 +22,8 @@ use ibig::UBig;
 
 crate::gdb!();
 
-pub fn jet_add(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_add(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -43,17 +38,13 @@ pub fn jet_add(
     }
 }
 
-pub fn jet_dec(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_dec(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     if let Ok(atom) = arg.as_atom() {
         match atom.as_either() {
             Left(direct) => {
                 if direct.data() == 0 {
-                    Err(Deterministic)
+                    Err(JetErr::Fail(Error::Deterministic(D(0))))
                 } else {
                     Ok(unsafe { DirectAtom::new_unchecked(direct.data() - 1) }.as_noun())
                 }
@@ -65,8 +56,9 @@ pub fn jet_dec(
                         panic!("Decrementing 0 stored as an indirect atom");
                     }
                     Some(first_one) => {
-                        let (mut new_indirect, new_slice) =
-                            unsafe { IndirectAtom::new_raw_mut_bitslice(stack, indirect.size()) };
+                        let (mut new_indirect, new_slice) = unsafe {
+                            IndirectAtom::new_raw_mut_bitslice(&mut context.stack, indirect.size())
+                        };
                         if first_one > 0 {
                             new_slice[..first_one].fill(true);
                         }
@@ -80,21 +72,18 @@ pub fn jet_dec(
             }
         }
     } else {
-        Err(Deterministic)
+        Err(JetErr::Fail(Error::Deterministic(D(0))))
     }
 }
 
-pub fn jet_div(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_div(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
     if unsafe { b.as_noun().raw_equals(D(0)) } {
-        Err(Deterministic)
+        Err(JetErr::Fail(Error::Deterministic(D(0))))
     } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         Ok(unsafe { DirectAtom::new_unchecked(a.data() / b.data()) }.as_noun())
     } else {
@@ -105,17 +94,14 @@ pub fn jet_div(
     }
 }
 
-pub fn jet_dvr(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_dvr(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
     if unsafe { b.as_noun().raw_equals(D(0)) } {
-        Err(Deterministic)
+        Err(JetErr::Fail(Error::Deterministic(D(0))))
     } else {
         let (div, rem) = if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             let (div, rem) = (a.data() / b.data(), a.data() % b.data());
@@ -137,11 +123,8 @@ pub fn jet_dvr(
     }
 }
 
-pub fn jet_gte(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_gte(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -163,11 +146,8 @@ pub fn jet_gte(
     })
 }
 
-pub fn jet_gth(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_gth(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -189,11 +169,8 @@ pub fn jet_gth(
     })
 }
 
-pub fn jet_lte(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_lte(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -215,37 +192,17 @@ pub fn jet_lte(
     })
 }
 
-pub fn jet_lth(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_lth(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() < b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() < b.bit_size() {
-        YES
-    } else if a.bit_size() > b.bit_size() {
-        NO
-    } else if a.as_ubig(stack) < b.as_ubig(stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(util::lth(stack, a, b))
 }
 
-pub fn jet_max(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_max(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -267,11 +224,8 @@ pub fn jet_max(
     })
 }
 
-pub fn jet_min(
-    _stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_min(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -286,24 +240,21 @@ pub fn jet_min(
         a.as_noun()
     } else if a.bit_size() > b.bit_size() {
         b.as_noun()
-    } else if a.as_ubig(_stack) <= b.as_ubig(_stack) {
+    } else if a.as_ubig(stack) <= b.as_ubig(stack) {
         a.as_noun()
     } else {
         b.as_noun()
     })
 }
 
-pub fn jet_mod(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_mod(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
     if unsafe { b.as_noun().raw_equals(D(0)) } {
-        Err(Deterministic)
+        Err(JetErr::Fail(Error::Deterministic(D(0))))
     } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         Ok(unsafe { DirectAtom::new_unchecked(a.data() % b.data()) }.as_noun())
     } else {
@@ -312,11 +263,8 @@ pub fn jet_mod(
     }
 }
 
-pub fn jet_mul(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_mul(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -343,26 +291,48 @@ pub fn jet_mul(
     }
 }
 
-pub fn jet_sub(
-    stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
-    subject: Noun,
-) -> jets::Result {
+pub fn jet_sub(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(sub(stack, a, b)?.as_noun())
+    Ok(sub(&mut context.stack, a, b)?.as_noun())
+}
+
+pub mod util {
+    use crate::mem::NockStack;
+    use crate::noun::{Atom, Noun, NO, YES};
+
+    pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            if a.data() < b.data() {
+                YES
+            } else {
+                NO
+            }
+        } else if a.bit_size() < b.bit_size() {
+            YES
+        } else if a.bit_size() > b.bit_size() {
+            NO
+        } else if a.as_ubig(stack) < b.as_ubig(stack) {
+            YES
+        } else {
+            NO
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::interpreter::Error;
+    use crate::jets::util::test::{
+        assert_jet, assert_jet_err, assert_jet_ubig, assert_nary_jet_ubig, init_context, A,
+    };
     use crate::jets::{Jet, JetErr};
-    use crate::jets::util::test::{assert_jet, assert_jet_err, assert_jet_ubig, assert_nary_jet_ubig, init_stack, A};
     use crate::mem::NockStack;
-    use crate::noun::{Noun, D, T, YES, NO};
-    use ibig::{UBig, ubig};
+    use crate::noun::{Noun, D, NO, T, YES};
+    use ibig::{ubig, UBig};
 
     fn atoms(s: &mut NockStack) -> (Noun, Noun, Noun, Noun, Noun) {
         (atom_0(s), atom_24(s), atom_63(s), atom_96(s), atom_128(s))
@@ -404,74 +374,78 @@ mod tests {
     }
 
     fn assert_math_jet(
-        stack: &mut NockStack,
+        context: &mut Context,
         jet: Jet,
         sam: &[fn(&mut NockStack) -> Noun],
         res: UBig,
     ) {
-        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-        assert_nary_jet_ubig(stack, jet, &sam, res);
+        let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+        assert_nary_jet_ubig(context, jet, &sam, res);
     }
 
     fn assert_math_jet_noun(
-        stack: &mut NockStack,
+        context: &mut Context,
         jet: Jet,
         sam: &[fn(&mut NockStack) -> Noun],
         res: Noun,
     ) {
-        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-        let sam = T(stack, &sam);
-        assert_jet(stack, jet, sam, res);
+        let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+        let sam = T(&mut context.stack, &sam);
+        assert_jet(context, jet, sam, res);
     }
 
     fn assert_math_jet_err(
-        stack: &mut NockStack,
+        context: &mut Context,
         jet: Jet,
         sam: &[fn(&mut NockStack) -> Noun],
         err: JetErr,
     ) {
-        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-        let sam = T(stack, &sam);
-        assert_jet_err(stack, jet, sam, err);
+        let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+        let sam = T(&mut context.stack, &sam);
+        assert_jet_err(context, jet, sam, err);
     }
 
     #[test]
     fn test_add() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+
         assert_math_jet(
-            s,
+            c,
             jet_add,
             &[atom_128, atom_96],
             ubig!(0xdeadbef00d03068514bb685765666666),
         );
         assert_math_jet(
-            s,
+            c,
             jet_add,
             &[atom_63, atom_96],
             ubig!(0xfaceb00c95deadbeef123455),
         );
-        assert_math_jet(s, jet_add, &[atom_63, atom_63], ubig!(0xfffffffffffffffe));
+        assert_math_jet(c, jet_add, &[atom_63, atom_63], ubig!(0xfffffffffffffffe));
     }
 
     #[test]
     fn test_dec() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+        let s = &mut c.stack;
+
         let (a0, _a24, a63, _a96, a128) = atoms(s);
-        assert_jet_ubig(s, jet_dec, a128, ubig!(0xdeadbeef12345678fedcba987654320f));
-        assert_jet(s, jet_dec, a63, D(0x7ffffffffffffffe));
-        assert_jet_err(s, jet_dec, a0, Deterministic);
+        assert_jet_ubig(c, jet_dec, a128, ubig!(0xdeadbeef12345678fedcba987654320f));
+        assert_jet(c, jet_dec, a63, D(0x7ffffffffffffffe));
+        assert_jet_err(c, jet_dec, a0, JetErr::Fail(Error::Deterministic(D(0))));
     }
 
     #[test]
     fn test_div() {
-        let s = &mut init_stack();
-        assert_math_jet(s, jet_div, &[atom_128, atom_96], ubig!(0xe349f8f0));
-        assert_math_jet(s, jet_div, &[atom_96, atom_63], ubig!(0x1f59d6018));
-        assert_math_jet(s, jet_div, &[atom_63, atom_96], ubig!(0));
-        assert_math_jet(s, jet_div, &[atom_63, atom_63], ubig!(1));
-        assert_math_jet(s, jet_div, &[atom_63, atom_24], ubig!(0xf2044dacfe));
+        let c = &mut init_context();
+
+        assert_math_jet(c, jet_div, &[atom_128, atom_96], ubig!(0xe349f8f0));
+        assert_math_jet(c, jet_div, &[atom_96, atom_63], ubig!(0x1f59d6018));
+        assert_math_jet(c, jet_div, &[atom_63, atom_96], ubig!(0));
+        assert_math_jet(c, jet_div, &[atom_63, atom_63], ubig!(1));
+        assert_math_jet(c, jet_div, &[atom_63, atom_24], ubig!(0xf2044dacfe));
         assert_math_jet(
-            s,
+            c,
             jet_div,
             &[atom_128, atom_24],
             ubig!(0x1a507f98b6fa8605ea3a79e97bf),
@@ -479,198 +453,238 @@ mod tests {
         let res = ubig!(
             _0x00000000000001000000000000000000000000000000000000000000000000000000000000000001
         );
-        assert_math_jet(s, jet_div, &[atom_528, atom_264], res);
-        assert_math_jet_err(s, jet_div, &[atom_63, atom_0], Deterministic);
-        assert_math_jet_err(s, jet_div, &[atom_0, atom_0], Deterministic);
+        assert_math_jet(c, jet_div, &[atom_528, atom_264], res);
+        assert_math_jet_err(
+            c,
+            jet_div,
+            &[atom_63, atom_0],
+            JetErr::Fail(Error::Deterministic(D(0))),
+        );
+        assert_math_jet_err(
+            c,
+            jet_div,
+            &[atom_0, atom_0],
+            JetErr::Fail(Error::Deterministic(D(0))),
+        );
     }
 
     #[test]
     fn test_dvr() {
-        let s = &mut init_stack();
-        let (a0, a24, a63, a96, a128) = atoms(s);
-        let a264 = atom_264(s);
-        let a528 = atom_528(s);
+        let c = &mut init_context();
 
-        let sam = T(s, &[a128, a96]);
-        let res_a = A(s, &ubig!(0xe349f8f0));
-        let res_b = A(s, &ubig!(0xcb0ce564ec598f658409d170));
-        let res = T(s, &[res_a, res_b]);
-        assert_jet(s, jet_dvr, sam, res);
+        let (a0, a24, a63, a96, a128) = atoms(&mut c.stack);
+        let a264 = atom_264(&mut c.stack);
+        let a528 = atom_528(&mut c.stack);
 
-        let sam = T(s, &[a128, a24]);
-        let res_a = A(s, &ubig!(0x1a507f98b6fa8605ea3a79e97bf));
-        let res_b = A(s, &ubig!(0x3b2013));
-        let res = T(s, &[res_a, res_b]);
-        assert_jet(s, jet_dvr, sam, res);
+        let sam = T(&mut c.stack, &[a128, a96]);
+        let res_a = A(&mut c.stack, &ubig!(0xe349f8f0));
+        let res_b = A(&mut c.stack, &ubig!(0xcb0ce564ec598f658409d170));
+        let res = T(&mut c.stack, &[res_a, res_b]);
+        assert_jet(c, jet_dvr, sam, res);
 
-        let sam = T(s, &[a63, a63]);
-        let res_a = A(s, &ubig!(1));
-        let res_b = A(s, &ubig!(0));
-        let res = T(s, &[res_a, res_b]);
-        assert_jet(s, jet_dvr, sam, res);
+        let sam = T(&mut c.stack, &[a128, a24]);
+        let res_a = A(&mut c.stack, &ubig!(0x1a507f98b6fa8605ea3a79e97bf));
+        let res_b = A(&mut c.stack, &ubig!(0x3b2013));
+        let res = T(&mut c.stack, &[res_a, res_b]);
+        assert_jet(c, jet_dvr, sam, res);
 
-        let sam = T(s, &[a0, a24]);
-        let res_a = A(s, &ubig!(0));
-        let res_b = A(s, &ubig!(0));
-        let res = T(s, &[res_a, res_b]);
-        assert_jet(s, jet_dvr, sam, res);
+        let sam = T(&mut c.stack, &[a63, a63]);
+        let res_a = A(&mut c.stack, &ubig!(1));
+        let res_b = A(&mut c.stack, &ubig!(0));
+        let res = T(&mut c.stack, &[res_a, res_b]);
+        assert_jet(c, jet_dvr, sam, res);
 
-        let sam = T(s, &[a528, a264]);
+        let sam = T(&mut c.stack, &[a0, a24]);
+        let res_a = A(&mut c.stack, &ubig!(0));
+        let res_b = A(&mut c.stack, &ubig!(0));
+        let res = T(&mut c.stack, &[res_a, res_b]);
+        assert_jet(c, jet_dvr, sam, res);
+
+        let sam = T(&mut c.stack, &[a528, a264]);
         let res_a = A(
-            s,
+            &mut c.stack,
             &ubig!(
                 _0x00000000000001000000000000000000000000000000000000000000000000000000000000000001
             ),
         );
-        let res_b = A(s, &ubig!(0x100));
-        let res = T(s, &[res_a, res_b]);
-        assert_jet(s, jet_dvr, sam, res);
+        let res_b = A(&mut c.stack, &ubig!(0x100));
+        let res = T(&mut c.stack, &[res_a, res_b]);
+        assert_jet(c, jet_dvr, sam, res);
 
-        assert_math_jet_err(s, jet_dvr, &[atom_63, atom_0], Deterministic);
+        assert_math_jet_err(
+            c,
+            jet_dvr,
+            &[atom_63, atom_0],
+            JetErr::Fail(Error::Deterministic(D(0))),
+        );
     }
 
     #[test]
     fn test_gte() {
-        let s = &mut init_stack();
-        assert_math_jet_noun(s, jet_gte, &[atom_128, atom_96], YES);
-        assert_math_jet_noun(s, jet_gte, &[atom_96, atom_63], YES);
-        assert_math_jet_noun(s, jet_gte, &[atom_63, atom_96], NO);
-        assert_math_jet_noun(s, jet_gte, &[atom_63, atom_63], YES);
-        assert_math_jet_noun(s, jet_gte, &[atom_63, atom_24], YES);
-        assert_math_jet_noun(s, jet_gte, &[atom_128, atom_24], YES);
-        assert_math_jet_noun(s, jet_gte, &[atom_128, atom_128_b], YES);
-        assert_math_jet_noun(s, jet_gte, &[atom_128_b, atom_128], NO);
+        let c = &mut init_context();
+
+        assert_math_jet_noun(c, jet_gte, &[atom_128, atom_96], YES);
+        assert_math_jet_noun(c, jet_gte, &[atom_96, atom_63], YES);
+        assert_math_jet_noun(c, jet_gte, &[atom_63, atom_96], NO);
+        assert_math_jet_noun(c, jet_gte, &[atom_63, atom_63], YES);
+        assert_math_jet_noun(c, jet_gte, &[atom_63, atom_24], YES);
+        assert_math_jet_noun(c, jet_gte, &[atom_128, atom_24], YES);
+        assert_math_jet_noun(c, jet_gte, &[atom_128, atom_128_b], YES);
+        assert_math_jet_noun(c, jet_gte, &[atom_128_b, atom_128], NO);
     }
 
     #[test]
     fn test_gth() {
-        let s = &mut init_stack();
-        assert_math_jet_noun(s, jet_gth, &[atom_128, atom_96], YES);
-        assert_math_jet_noun(s, jet_gth, &[atom_96, atom_63], YES);
-        assert_math_jet_noun(s, jet_gth, &[atom_63, atom_96], NO);
-        assert_math_jet_noun(s, jet_gth, &[atom_63, atom_63], NO);
-        assert_math_jet_noun(s, jet_gth, &[atom_63, atom_24], YES);
-        assert_math_jet_noun(s, jet_gth, &[atom_128, atom_24], YES);
-        assert_math_jet_noun(s, jet_gth, &[atom_128, atom_128_b], YES);
-        assert_math_jet_noun(s, jet_gth, &[atom_128_b, atom_128], NO);
+        let c = &mut init_context();
+
+        assert_math_jet_noun(c, jet_gth, &[atom_128, atom_96], YES);
+        assert_math_jet_noun(c, jet_gth, &[atom_96, atom_63], YES);
+        assert_math_jet_noun(c, jet_gth, &[atom_63, atom_96], NO);
+        assert_math_jet_noun(c, jet_gth, &[atom_63, atom_63], NO);
+        assert_math_jet_noun(c, jet_gth, &[atom_63, atom_24], YES);
+        assert_math_jet_noun(c, jet_gth, &[atom_128, atom_24], YES);
+        assert_math_jet_noun(c, jet_gth, &[atom_128, atom_128_b], YES);
+        assert_math_jet_noun(c, jet_gth, &[atom_128_b, atom_128], NO);
     }
 
     #[test]
     fn test_lte() {
-        let s = &mut init_stack();
-        assert_math_jet_noun(s, jet_lte, &[atom_128, atom_96], NO);
-        assert_math_jet_noun(s, jet_lte, &[atom_96, atom_63], NO);
-        assert_math_jet_noun(s, jet_lte, &[atom_63, atom_96], YES);
-        assert_math_jet_noun(s, jet_lte, &[atom_63, atom_63], YES);
-        assert_math_jet_noun(s, jet_lte, &[atom_63, atom_24], NO);
-        assert_math_jet_noun(s, jet_lte, &[atom_128, atom_24], NO);
-        assert_math_jet_noun(s, jet_lte, &[atom_128, atom_128_b], NO);
-        assert_math_jet_noun(s, jet_lte, &[atom_128_b, atom_128], YES);
+        let c = &mut init_context();
+
+        assert_math_jet_noun(c, jet_lte, &[atom_128, atom_96], NO);
+        assert_math_jet_noun(c, jet_lte, &[atom_96, atom_63], NO);
+        assert_math_jet_noun(c, jet_lte, &[atom_63, atom_96], YES);
+        assert_math_jet_noun(c, jet_lte, &[atom_63, atom_63], YES);
+        assert_math_jet_noun(c, jet_lte, &[atom_63, atom_24], NO);
+        assert_math_jet_noun(c, jet_lte, &[atom_128, atom_24], NO);
+        assert_math_jet_noun(c, jet_lte, &[atom_128, atom_128_b], NO);
+        assert_math_jet_noun(c, jet_lte, &[atom_128_b, atom_128], YES);
     }
 
     #[test]
     fn test_lth() {
-        let s = &mut init_stack();
-        assert_math_jet_noun(s, jet_lth, &[atom_128, atom_96], NO);
-        assert_math_jet_noun(s, jet_lth, &[atom_96, atom_63], NO);
-        assert_math_jet_noun(s, jet_lth, &[atom_63, atom_96], YES);
-        assert_math_jet_noun(s, jet_lth, &[atom_63, atom_63], NO);
-        assert_math_jet_noun(s, jet_lth, &[atom_63, atom_24], NO);
-        assert_math_jet_noun(s, jet_lth, &[atom_128, atom_24], NO);
-        assert_math_jet_noun(s, jet_lth, &[atom_128, atom_128_b], NO);
-        assert_math_jet_noun(s, jet_lth, &[atom_128_b, atom_128], YES);
+        let c = &mut init_context();
+
+        assert_math_jet_noun(c, jet_lth, &[atom_128, atom_96], NO);
+        assert_math_jet_noun(c, jet_lth, &[atom_96, atom_63], NO);
+        assert_math_jet_noun(c, jet_lth, &[atom_63, atom_96], YES);
+        assert_math_jet_noun(c, jet_lth, &[atom_63, atom_63], NO);
+        assert_math_jet_noun(c, jet_lth, &[atom_63, atom_24], NO);
+        assert_math_jet_noun(c, jet_lth, &[atom_128, atom_24], NO);
+        assert_math_jet_noun(c, jet_lth, &[atom_128, atom_128_b], NO);
+        assert_math_jet_noun(c, jet_lth, &[atom_128_b, atom_128], YES);
     }
 
     #[test]
     fn test_max() {
-        let s = &mut init_stack();
-        assert_math_jet(s, jet_max, &[atom_128, atom_96], ubig!(0xdeadbeef12345678fedcba9876543210));
-        assert_math_jet(s, jet_max, &[atom_96, atom_63], ubig!(0xfaceb00c15deadbeef123456));
-        assert_math_jet(s, jet_max, &[atom_63, atom_96], ubig!(0xfaceb00c15deadbeef123456));
-        assert_math_jet(s, jet_max, &[atom_63, atom_63], ubig!(0x7fffffffffffffff));
-        assert_math_jet(s, jet_max, &[atom_63, atom_24], ubig!(0x7fffffffffffffff));
-        assert_math_jet(s, jet_max, &[atom_128, atom_24], ubig!(0xdeadbeef12345678fedcba9876543210));
-        assert_math_jet(s, jet_max, &[atom_128, atom_128_b], ubig!(0xdeadbeef12345678fedcba9876543210));
-        assert_math_jet(s, jet_max, &[atom_128_b, atom_128], ubig!(0xdeadbeef12345678fedcba9876543210));
-        assert_math_jet(s, jet_max, &[atom_528, atom_264], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff));
-        assert_math_jet(s, jet_max, &[atom_264, atom_528], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff));
+        let c = &mut init_context();
+
+        assert_math_jet(c, jet_max, &[atom_128, atom_96], ubig!(0xdeadbeef12345678fedcba9876543210));
+        assert_math_jet(c, jet_max, &[atom_96, atom_63], ubig!(0xfaceb00c15deadbeef123456));
+        assert_math_jet(c, jet_max, &[atom_63, atom_96], ubig!(0xfaceb00c15deadbeef123456));
+        assert_math_jet(c, jet_max, &[atom_63, atom_63], ubig!(0x7fffffffffffffff));
+        assert_math_jet(c, jet_max, &[atom_63, atom_24], ubig!(0x7fffffffffffffff));
+        assert_math_jet(c, jet_max, &[atom_128, atom_24], ubig!(0xdeadbeef12345678fedcba9876543210));
+        assert_math_jet(c, jet_max, &[atom_128, atom_128_b], ubig!(0xdeadbeef12345678fedcba9876543210));
+        assert_math_jet(c, jet_max, &[atom_128_b, atom_128], ubig!(0xdeadbeef12345678fedcba9876543210));
+        assert_math_jet(c, jet_max, &[atom_528, atom_264], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff));
+        assert_math_jet(c, jet_max, &[atom_264, atom_528], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ffdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540001ff));
     }
 
     #[test]
     fn test_min() {
-        let s = &mut init_stack();
-        assert_math_jet(s, jet_min, &[atom_128, atom_96], ubig!(0xfaceb00c15deadbeef123456));
-        assert_math_jet(s, jet_min, &[atom_96, atom_63], ubig!(0x7fffffffffffffff));
-        assert_math_jet(s, jet_min, &[atom_63, atom_96], ubig!(0x7fffffffffffffff));
-        assert_math_jet(s, jet_min, &[atom_63, atom_63], ubig!(0x7fffffffffffffff));
-        assert_math_jet(s, jet_min, &[atom_63, atom_24], ubig!(0x876543));
-        assert_math_jet(s, jet_min, &[atom_128, atom_24], ubig!(0x876543));
-        assert_math_jet(s, jet_min, &[atom_128, atom_128_b], ubig!(0xdeadbeef12345678fedcba9876540000));
-        assert_math_jet(s, jet_min, &[atom_128_b, atom_128], ubig!(0xdeadbeef12345678fedcba9876540000));
-        assert_math_jet(s, jet_min, &[atom_528, atom_264], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ff));
-        assert_math_jet(s, jet_min, &[atom_264, atom_528], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ff));
+        let c = &mut init_context();
+        
+        assert_math_jet(c, jet_min, &[atom_128, atom_96], ubig!(0xfaceb00c15deadbeef123456));
+        assert_math_jet(c, jet_min, &[atom_96, atom_63], ubig!(0x7fffffffffffffff));
+        assert_math_jet(c, jet_min, &[atom_63, atom_96], ubig!(0x7fffffffffffffff));
+        assert_math_jet(c, jet_min, &[atom_63, atom_63], ubig!(0x7fffffffffffffff));
+        assert_math_jet(c, jet_min, &[atom_63, atom_24], ubig!(0x876543));
+        assert_math_jet(c, jet_min, &[atom_128, atom_24], ubig!(0x876543));
+        assert_math_jet(c, jet_min, &[atom_128, atom_128_b], ubig!(0xdeadbeef12345678fedcba9876540000));
+        assert_math_jet(c, jet_min, &[atom_128_b, atom_128], ubig!(0xdeadbeef12345678fedcba9876540000));
+        assert_math_jet(c, jet_min, &[atom_528, atom_264], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ff));
+        assert_math_jet(c, jet_min, &[atom_264, atom_528], ubig!(_0xdeadbeef12345678fedcba9876540000deadbeef12345678fedcba9876540000ff));
     }
 
     #[test]
     fn test_mod() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+
         assert_math_jet(
-            s,
+            c,
             jet_mod,
             &[atom_128, atom_96],
             ubig!(0xcb0ce564ec598f658409d170),
         );
-        assert_math_jet(s, jet_mod, &[atom_96, atom_63], ubig!(0x15deadc0e4af946e));
-        assert_math_jet(s, jet_mod, &[atom_63, atom_96], ubig!(0x7fffffffffffffff));
-        assert_math_jet(s, jet_mod, &[atom_63, atom_63], ubig!(0));
-        assert_math_jet(s, jet_mod, &[atom_63, atom_24], ubig!(0x798385));
-        assert_math_jet(s, jet_mod, &[atom_128, atom_24], ubig!(0x3b2013));
-        assert_math_jet(s, jet_mod, &[atom_528, atom_264], ubig!(0x100));
-        assert_math_jet_err(s, jet_mod, &[atom_63, atom_0], Deterministic);
-        assert_math_jet_err(s, jet_mod, &[atom_0, atom_0], Deterministic);
+        assert_math_jet(c, jet_mod, &[atom_96, atom_63], ubig!(0x15deadc0e4af946e));
+        assert_math_jet(c, jet_mod, &[atom_63, atom_96], ubig!(0x7fffffffffffffff));
+        assert_math_jet(c, jet_mod, &[atom_63, atom_63], ubig!(0));
+        assert_math_jet(c, jet_mod, &[atom_63, atom_24], ubig!(0x798385));
+        assert_math_jet(c, jet_mod, &[atom_128, atom_24], ubig!(0x3b2013));
+        assert_math_jet(c, jet_mod, &[atom_528, atom_264], ubig!(0x100));
+        assert_math_jet_err(
+            c,
+            jet_mod,
+            &[atom_63, atom_0],
+            JetErr::Fail(Error::Deterministic(D(0))),
+        );
+        assert_math_jet_err(
+            c,
+            jet_mod,
+            &[atom_0, atom_0],
+            JetErr::Fail(Error::Deterministic(D(0))),
+        );
     }
 
     #[test]
     fn test_mul() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+
         assert_math_jet(
-            s,
+            c,
             jet_mul,
             &[atom_128, atom_96],
             ubig!(_0xda297567129704bf42e744f13ff0ea4fc4ac01215b708bc94f941160),
         );
         assert_math_jet(
-            s,
+            c,
             jet_mul,
             &[atom_63, atom_96],
             ubig!(_0x7d6758060aef56de7cba6a1eea21524110edcbaa),
         );
         assert_math_jet(
-            s,
+            c,
             jet_mul,
             &[atom_63, atom_63],
             ubig!(0x3fffffffffffffff0000000000000001),
         );
-        assert_math_jet(s, jet_mul, &[atom_24, atom_24], ubig!(0x479bf4b7ef89));
+        assert_math_jet(c, jet_mul, &[atom_24, atom_24], ubig!(0x479bf4b7ef89));
     }
 
     #[test]
     fn test_sub() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+
         assert_math_jet(
-            s,
+            c,
             jet_sub,
             &[atom_128, atom_96],
             ubig!(0xdeadbeee1765a66ce8fe0cd98741fdba),
         );
         assert_math_jet(
-            s,
+            c,
             jet_sub,
             &[atom_96, atom_63],
             ubig!(0xfaceb00b95deadbeef123457),
         );
-        assert_math_jet(s, jet_sub, &[atom_63, atom_63], ubig!(0));
-        assert_math_jet(s, jet_sub, &[atom_128, atom_128], ubig!(0));
-        assert_math_jet_err(s, jet_sub, &[atom_63, atom_96], Deterministic);
+        assert_math_jet(c, jet_sub, &[atom_63, atom_63], ubig!(0));
+        assert_math_jet(c, jet_sub, &[atom_128, atom_128], ubig!(0));
+        assert_math_jet_err(
+            c,
+            jet_sub,
+            &[atom_63, atom_96],
+            JetErr::Fail(Error::Deterministic(D(0))),
+        );
     }
 }

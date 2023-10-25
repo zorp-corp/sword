@@ -104,7 +104,7 @@ impl<T: Copy> MutHamt<T> {
                 mug >>= 5;
                 match (*stem).entry(chunk) {
                     None => {
-                        let new_leaf_buffer = stack.struct_alloc(1);
+                        let new_leaf_buffer = stack.struct_alloc::<(Noun, T)>(1);
                         *new_leaf_buffer = (*n, t);
                         (*stem).bitmap |= chunk_to_bit(chunk);
                         (*stem).typemap &= !chunk_to_bit(chunk);
@@ -171,11 +171,7 @@ impl<T: Copy> Copy for Stem<T> {}
 
 impl<T: Copy> Clone for Stem<T> {
     fn clone(&self) -> Self {
-        Stem {
-            bitmap: self.bitmap,
-            typemap: self.typemap,
-            buffer: self.buffer,
-        }
+        *self
     }
 }
 
@@ -231,10 +227,7 @@ impl<T: Copy> Copy for Leaf<T> {}
 
 impl<T: Copy> Clone for Leaf<T> {
     fn clone(&self) -> Self {
-        Leaf {
-            len: self.len,
-            buffer: self.buffer,
-        }
+        *self
     }
 }
 
@@ -262,11 +255,12 @@ assert_eq_size!(&[(Noun, ())], Leaf<()>);
 // Our custom stem type is the same size as a fat pointer to `Entry`s
 assert_eq_size!(&[Entry<()>], Stem<()>);
 
+#[derive(Copy, Clone)]
 pub struct Hamt<T: Copy>(Stem<T>);
 
-impl<T: Copy> Hamt<T> {
+impl<T: Copy + Preserve> Hamt<T> {
     // Make a new, empty HAMT
-    pub fn new() -> Hamt<T> {
+    pub fn new() -> Self {
         Hamt(Stem {
             bitmap: 0,
             typemap: 0,
@@ -432,29 +426,81 @@ impl<T: Copy> Hamt<T> {
     }
 }
 
-impl<T: Copy> Default for Hamt<T> {
+impl<T: Copy + Preserve> Default for Hamt<T> {
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl<T: Copy + Preserve> Preserve for Hamt<T> {
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        stack.assert_struct_is_in(self.0.buffer, self.0.size());
+        let mut traversal_stack: [Option<(Stem<T>, u32)>; 6] = [None; 6];
+        traversal_stack[0] = Some((self.0, 0));
+        let mut traversal_depth = 1;
+        'check: loop {
+            if traversal_depth == 0 {
+                break;
+            }
+            let (stem, mut position) = traversal_stack[traversal_depth - 1]
+                .expect("Attempted to access uninitialized array element");
+            // can we loop over the size and count leading 0s remaining in the bitmap?
+            'check_stem: loop {
+                if position >= 32 {
+                    traversal_depth -= 1;
+                    continue 'check;
+                }
+                match stem.entry(position) {
+                    None => {
+                        position += 1;
+                        continue 'check_stem;
+                    }
+                    Some((Left(next_stem), _idx)) => {
+                        stack.assert_struct_is_in(next_stem.buffer, next_stem.size());
+                        assert!(traversal_depth <= 5); // will increment
+                        traversal_stack[traversal_depth - 1] = Some((stem, position + 1));
+                        traversal_stack[traversal_depth] = Some((next_stem, 0));
+                        traversal_depth += 1;
+                        continue 'check;
+                    }
+                    Some((Right(leaf), _idx)) => {
+                        stack.assert_struct_is_in(leaf.buffer, leaf.len);
+                        for pair in leaf.to_mut_slice().iter() {
+                            pair.0.assert_in_stack(stack);
+                            pair.1.assert_in_stack(stack);
+                        }
+                        position += 1;
+                        continue 'check_stem;
+                    }
+                }
+            }
+        }
+    }
+
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if stack.is_in_frame(self.0.buffer) {
             let dest_buffer = stack.struct_alloc_in_previous_frame(self.0.size());
             copy_nonoverlapping(self.0.buffer, dest_buffer, self.0.size());
             self.0.buffer = dest_buffer;
-            *(stack.push::<(Stem<T>, u32)>()) = (self.0, 0);
+            // Here we're using the Rust stack since the array is a fixed
+            // size. Thus it will be cleaned up if the Rust thread running
+            // this is killed, and is therefore not an issue vs. if it were allocated
+            // on the heap.
+            //
+            // In the past, this traversal stack was allocated in NockStack, but
+            // exactly the right way to do this is less clear with the split stack.
+            let mut traversal_stack: [Option<(Stem<T>, u32)>; 6] = [None; 6];
+            traversal_stack[0] = Some((self.0, 0));
             let mut traversal_depth = 1;
             'preserve: loop {
                 if traversal_depth == 0 {
                     break;
                 }
-                let (stem, mut position) = *(stack.top::<(Stem<T>, u32)>());
+                let (stem, mut position) = traversal_stack[traversal_depth - 1]
+                    .expect("Attempted to access uninitialized array element");
                 // can we loop over the size and count leading 0s remaining in the bitmap?
                 'preserve_stem: loop {
                     if position >= 32 {
-                        stack.pop::<(Stem<T>, u32)>();
                         traversal_depth -= 1;
                         continue 'preserve;
                     }
@@ -479,8 +525,8 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                 };
                                 *(stem.buffer.add(idx) as *mut Entry<T>) = Entry { stem: new_stem };
                                 assert!(traversal_depth <= 5); // will increment
-                                (*(stack.top::<(Stem<T>, u32)>())).1 = position + 1;
-                                *(stack.push::<(Stem<T>, u32)>()) = (new_stem, 0);
+                                traversal_stack[traversal_depth - 1] = Some((stem, position + 1));
+                                traversal_stack[traversal_depth] = Some((new_stem, 0));
                                 traversal_depth += 1;
                                 continue 'preserve;
                             } else {
