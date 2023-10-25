@@ -5,7 +5,7 @@ use crate::noun::Noun;
 
 crate::gdb!();
 
-pub fn jet_mint_ut(
+pub fn jet_ut_mint(
     context: &mut Context,
     subject: Noun,
 ) -> Result {
@@ -103,7 +103,7 @@ mod tests {
         let res_typ = T(&mut c.stack, &[D(0x6d6f7461), D(0x736174), D(0x0), D(0x6f6c6c6568)]);
         let res_val = T(&mut c.stack, &[D(0x1), D(0x6f6c6c6568)]);
         let res = T(&mut c.stack, &[res_typ, res_val]);
-        assert_jet_with_subject(c, jet_mint_ut,
+        assert_jet_with_subject(c, jet_ut_mint,
             &[nock_hello],
             &[atom_rock, atom_tas, atom_hello],
             &[atom_0, atom_noun, atom_0],
