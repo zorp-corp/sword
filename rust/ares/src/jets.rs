@@ -232,21 +232,14 @@ pub mod util {
     }
 
     /// Addition
-    pub fn add(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
+    pub fn add(stack: &mut NockStack, a: Atom, b: Atom) -> Atom {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            let a_small: u64 = a.data();
-            let b_small: u64 = b.data();
-
-            if a_small > MAX_BIT_LENGTH as u64 - b_small {
-                Err(NotRepresentable)
-            } else {
-                Ok(Atom::new(stack, a_small + b_small))
-            }
+            Atom::new(stack, a.data() + b.data())
         } else {
             let a_big = a.as_ubig(stack);
             let b_big = b.as_ubig(stack);
             let res = UBig::add_stack(stack, a_big, b_big);
-            Ok(Atom::from_ubig(stack, &res))
+            Atom::from_ubig(stack, &res)
         }
     }
 
@@ -273,63 +266,6 @@ pub mod util {
                 let res = UBig::sub_stack(stack, a_big, b_big);
                 Ok(Atom::from_ubig(stack, &res))
             }
-        }
-    }
-
-    /// Multiplication
-    pub fn mul(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            let a_small = a.data();
-            let b_small = b.data();
-
-            if a_small > MAX_BIT_LENGTH as u64 / b_small {
-                Err(NotRepresentable)
-            } else {
-                Ok(Atom::new(stack, a_small * b_small))
-            }
-        } else {
-            let a_big = a.as_ubig(stack);
-            let b_big = b.as_ubig(stack);
-            let res = UBig::mul_stack(stack, a_big, b_big);
-            Ok(Atom::from_ubig(stack, &res))
-        }
-    }
-
-    /// Division
-    pub fn div(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            let a_small = a.data();
-            let b_small = b.data();
-
-            if b_small == 0 {
-                Err(NotRepresentable)
-            } else {
-                Ok(Atom::new(stack, a_small / b_small))
-            }
-        } else {
-            let a_big = a.as_ubig(stack);
-            let b_big = b.as_ubig(stack);
-            let res = UBig::div_stack(stack, a_big, b_big);
-            Ok(Atom::from_ubig(stack, &res))
-        }
-    }
-
-    /// Modulus
-    pub fn mod_(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            let a_small = a.data();
-            let b_small = b.data();
-
-            if b_small == 0 {
-                Err(NotRepresentable)
-            } else {
-                Ok(Atom::new(stack, a_small % b_small))
-            }
-        } else {
-            let a_big = a.as_ubig(stack);
-            let b_big = b.as_ubig(stack);
-            let res = UBig::rem_stack(stack, a_big, b_big);
-            Ok(Atom::from_ubig(stack, &res))
         }
     }
 
@@ -483,6 +419,38 @@ pub mod util {
                     );
                 }
             }
+        }
+
+        pub fn assert_common_jet(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            res: UBig,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            assert_nary_jet_ubig(context, jet, &sam, res);
+        }
+
+        pub fn assert_common_jet_noun(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            res: Noun,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet(context, jet, sam, res);
+        }
+
+        pub fn assert_common_jet_err(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            err: JetErr,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet_err(context, jet, sam, err);
         }
     }
 
