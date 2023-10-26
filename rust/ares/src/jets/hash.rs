@@ -10,13 +10,13 @@ crate::gdb!();
 
 pub fn jet_mug(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
-    Ok(mug(context.stack, arg).as_noun())
+    Ok(mug(&mut context.stack, arg).as_noun())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, init_stack, A};
+    use crate::jets::util::test::{assert_jet, init_context, A};
     use crate::mem::NockStack;
     use crate::noun::{Noun, D, T};
     use ibig::ubig;
@@ -47,22 +47,23 @@ mod tests {
 
     #[test]
     fn test_mug() {
-        let s = &mut init_stack();
-        let (a0, a24, a63, a96, a128) = atoms(s);
-        assert_jet(s, jet_mug, a0, D(0x79ff04e8));
-        assert_jet(s, jet_mug, a24, D(0x69d59d90));
-        assert_jet(s, jet_mug, a63, D(0x7a9f252e));
-        assert_jet(s, jet_mug, a96, D(0x2aa4c8fb));
-        assert_jet(s, jet_mug, a128, D(0x44fb2c0c));
-        let sam = T(s, &[a128, a128]);
-        assert_jet(s, jet_mug, sam, D(0x61c0ea5c));
-        let sam = T(s, &[a96, a128]);
-        assert_jet(s, jet_mug, sam, D(0x20fb143f));
-        let sam = T(s, &[a0, a0]);
-        assert_jet(s, jet_mug, sam, D(0x192f5588));
-        let sam = T(s, &[a0, a24, a63, a96, a128]);
-        let sam = T(s, &[sam, a0, a24, a63, a96, a128]);
-        let sam = T(s, &[sam, a0, a24, a63, a96, a128]);
-        assert_jet(s, jet_mug, sam, D(0x7543cac7));
+        let c = &mut init_context();
+        let (a0, a24, a63, a96, a128) = atoms(&mut c.stack);
+
+        assert_jet(c, jet_mug, a0, D(0x79ff04e8));
+        assert_jet(c, jet_mug, a24, D(0x69d59d90));
+        assert_jet(c, jet_mug, a63, D(0x7a9f252e));
+        assert_jet(c, jet_mug, a96, D(0x2aa4c8fb));
+        assert_jet(c, jet_mug, a128, D(0x44fb2c0c));
+        let sam = T(&mut c.stack, &[a128, a128]);
+        assert_jet(c, jet_mug, sam, D(0x61c0ea5c));
+        let sam = T(&mut c.stack, &[a96, a128]);
+        assert_jet(c, jet_mug, sam, D(0x20fb143f));
+        let sam = T(&mut c.stack, &[a0, a0]);
+        assert_jet(c, jet_mug, sam, D(0x192f5588));
+        let sam = T(&mut c.stack, &[a0, a24, a63, a96, a128]);
+        let sam = T(&mut c.stack, &[sam, a0, a24, a63, a96, a128]);
+        let sam = T(&mut c.stack, &[sam, a0, a24, a63, a96, a128]);
+        assert_jet(c, jet_mug, sam, D(0x7543cac7));
     }
 }
