@@ -1,6 +1,8 @@
 /** Tree jets
  */
 use crate::interpreter::{Context, Error};
+use crate::jets::bits::util::*;
+use crate::jets::math::util::*;
 use crate::jets;
 use crate::jets::bits;
 use crate::jets::util::*;

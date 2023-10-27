@@ -138,8 +138,8 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
 pub mod util {
     use crate::interpreter::{interpret, Context, Error};
     use crate::jets;
+    use crate::jets::bits::util::rip;
     use crate::jets::form::util::scow;
-    use crate::jets::util::rip;
     use crate::jets::JetErr;
     use crate::mem::NockStack;
     use crate::noun::{tape, Cell, Noun, D, T};
