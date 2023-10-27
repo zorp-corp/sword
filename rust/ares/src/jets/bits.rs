@@ -293,6 +293,12 @@ pub fn jet_rsh(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+pub fn jet_xeb(_context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let a = slot(sam, 1)?.as_atom()?;
+    Ok(D(util::met(0, a) as u64))
+}
+
 /*
  * Bit logic
  */
@@ -335,12 +341,6 @@ pub fn jet_mix(context: &mut Context, subject: Noun) -> Result {
         *dest ^= b.as_bitslice();
         Ok(atom.normalize_as_atom().as_noun())
     }
-}
-
-pub fn jet_xeb(_context: &mut Context, subject: Noun) -> Result {
-    let sam = slot(subject, 6)?;
-    let a = slot(sam, 1)?.as_atom()?;
-    Ok(D(util::met(0, a) as u64))
 }
 
 pub mod util {

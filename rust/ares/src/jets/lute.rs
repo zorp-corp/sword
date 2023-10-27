@@ -8,7 +8,7 @@ use ares_macros::tas;
 
 crate::gdb!();
 
-pub fn jet_crop(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_ut_crop(context: &mut Context, subject: Noun) -> Result {
     let rff = slot(subject, 6)?;
     let van = slot(subject, 7)?;
 
@@ -37,7 +37,7 @@ pub fn jet_crop(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_fish(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_ut_fish(context: &mut Context, subject: Noun) -> Result {
     //  axe must be Atom, though we use it as Noun
     let axe = slot(subject, 6)?.as_atom()?;
     let van = slot(subject, 7)?;
@@ -149,7 +149,7 @@ pub fn jet_ut_mull(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_ut_nest(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_ut_nest_dext(context: &mut Context, subject: Noun) -> Result {
     let nest_in_core = slot(subject, 3)?;
 
     let seg = slot(nest_in_core, 12)?;
