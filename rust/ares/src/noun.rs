@@ -39,6 +39,7 @@ const FORWARDING_MASK: u64 = CELL_MASK;
 /** Loobeans */
 pub const YES: Noun = D(0);
 pub const NO: Noun = D(1);
+pub const NONE: Noun = unsafe { DirectAtom::new_unchecked(u64::MAX).as_noun() };
 
 #[cfg(feature = "check_acyclic")]
 #[macro_export]
@@ -916,6 +917,10 @@ pub union Noun {
 }
 
 impl Noun {
+    pub fn is_none(self) -> bool {
+        unsafe { self.raw == u64::MAX }
+    }
+
     pub fn is_direct(&self) -> bool {
         unsafe { is_direct_atom(self.raw) }
     }

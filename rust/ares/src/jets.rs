@@ -5,6 +5,7 @@ pub mod warm;
 pub mod bits;
 pub mod form;
 pub mod hash;
+pub mod lute;
 pub mod math;
 pub mod nock;
 pub mod serial;
@@ -50,6 +51,12 @@ pub enum JetErr {
 impl From<noun::Error> for JetErr {
     fn from(_err: noun::Error) -> Self {
         Self::Fail(Error::Deterministic(D(0)))
+    }
+}
+
+impl From<Error> for JetErr {
+    fn from(e: Error) -> Self {
+        Self::Fail(e)
     }
 }
 
