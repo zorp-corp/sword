@@ -9,9 +9,6 @@ use ares_macros::tas;
 crate::gdb!();
 
 pub fn jet_ut_crop(context: &mut Context, subject: Noun) -> Result {
-    // assert_no_alloc::permit_alloc(|| {
-    //     eprintln!("\r ENTERING UT CROP");
-    // });
     let rff = slot(subject, 6)?;
     let van = slot(subject, 7)?;
 
@@ -31,29 +28,16 @@ pub fn jet_ut_crop(context: &mut Context, subject: Noun) -> Result {
     let mut key = T(&mut context.stack, &[D(fun), sut, rff, bat]);
 
     match context.cache.lookup(&mut context.stack, &mut key) {
-        Some(pro) => {
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT CROP EXITING");
-            //     eprintln!("\r CACHE HIT");
-            // });
-            Ok(pro)
-        },
+        Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
             context.cache.insert(&mut context.stack, &mut key, pro);
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT CROP EXITING");
-            //     eprintln!("\r CACHE MISS");
-            // });
             Ok(pro)
         }
     }
 }
 
 pub fn jet_ut_fish(context: &mut Context, subject: Noun) -> Result {
-    // assert_no_alloc::permit_alloc(|| {
-    //     eprintln!("\r ENTERING UT FISH");
-    // });
     //  axe must be Atom, though we use it as Noun
     let axe = slot(subject, 6)?.as_atom()?;
     let van = slot(subject, 7)?;
@@ -74,29 +58,16 @@ pub fn jet_ut_fish(context: &mut Context, subject: Noun) -> Result {
     let mut key = T(&mut context.stack, &[D(fun), sut, axe.as_noun(), bat]);
 
     match context.cache.lookup(&mut context.stack, &mut key) {
-        Some(pro) => {
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT FISH EXITING");
-            //     eprintln!("\r CACHE HIT");
-            // });
-            Ok(pro)
-        },
+        Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
             context.cache.insert(&mut context.stack, &mut key, pro);
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT FISH EXITING");
-            //     eprintln!("\r CACHE MISS");
-            // });
             Ok(pro)
         }
     }
 }
 
 pub fn jet_ut_fuse(context: &mut Context, subject: Noun) -> Result {
-    // assert_no_alloc::permit_alloc(|| {
-    //     eprintln!("\r ENTERING UT FUSE");
-    // });
     let rff = slot(subject, 6)?;
     let van = slot(subject, 7)?;
 
@@ -116,29 +87,16 @@ pub fn jet_ut_fuse(context: &mut Context, subject: Noun) -> Result {
     let mut key = T(&mut context.stack, &[D(fun), sut, rff, bat]);
 
     match context.cache.lookup(&mut context.stack, &mut key) {
-        Some(pro) => {
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT FUSE EXITING");
-            //     eprintln!("\r CACHE HIT");
-            // });
-            Ok(pro)
-        },
+        Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
             context.cache.insert(&mut context.stack, &mut key, pro);
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT FUSE EXITING");
-            //     eprintln!("\r CACHE MISS");
-            // });
             Ok(pro)
         }
     }
 }
 
 pub fn jet_ut_mint(context: &mut Context, subject: Noun) -> Result {
-    // assert_no_alloc::permit_alloc(|| {
-    //     eprintln!("\r ENTERING UT MINT");
-    // });
     let gol = slot(subject, 12)?;
     let gen = slot(subject, 13)?;
     let van = slot(subject, 7)?;
@@ -151,29 +109,16 @@ pub fn jet_ut_mint(context: &mut Context, subject: Noun) -> Result {
     let mut key = T(&mut context.stack, &[D(fun), vet, sut, gol, gen, bat]);
 
     match context.cache.lookup(&mut context.stack, &mut key) {
-        Some(pro) => {
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT MINT EXITING");
-            //     eprintln!("\r CACHE HIT");
-            // });
-            Ok(pro)
-        },
+        Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
             context.cache.insert(&mut context.stack, &mut key, pro);
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT MINT EXITING");
-            //     eprintln!("\r CACHE MISS");
-            // });
             Ok(pro)
         }
     }
 }
 
 pub fn jet_ut_mull(context: &mut Context, subject: Noun) -> Result {
-    // assert_no_alloc::permit_alloc(|| {
-    //     eprintln!("\r ENTERING UT MULL");
-    // });
     let gol = slot(subject, 12)?;
     let dox = slot(subject, 26)?;
     let gen = slot(subject, 27)?;
@@ -195,29 +140,16 @@ pub fn jet_ut_mull(context: &mut Context, subject: Noun) -> Result {
     let mut key = T(&mut context.stack, &[D(fun), sut, gol, dox, gen, bat]);
 
     match context.cache.lookup(&mut context.stack, &mut key) {
-        Some(pro) => {
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT MULL EXITING");
-            //     eprintln!("\r CACHE HIT");
-            // });
-            Ok(pro)
-        },
+        Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
             context.cache.insert(&mut context.stack, &mut key, pro);
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT MULL EXITING");
-            //     eprintln!("\r CACHE MISS");
-            // });
             Ok(pro)
         }
     }
 }
 
 pub fn jet_ut_nest_dext(context: &mut Context, subject: Noun) -> Result {
-    // assert_no_alloc::permit_alloc(|| {
-    //     eprintln!("\r ENTERING UT NEST");
-    // });
     let nest_in_core = slot(subject, 3)?;
 
     let seg = slot(nest_in_core, 12)?;
@@ -243,13 +175,7 @@ pub fn jet_ut_nest_dext(context: &mut Context, subject: Noun) -> Result {
     let mut key = T(&mut context.stack, &[D(fun), sut, rff, bat]);
 
     match context.cache.lookup(&mut context.stack, &mut key) {
-        Some(pro) => {
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT NEST EXITING");
-            //     eprintln!("\r CACHE HIT");
-            // });
-            Ok(pro)
-        },
+        Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
             if unsafe { pro.raw_equals(YES) && reg.raw_equals(D(0)) }
@@ -257,20 +183,12 @@ pub fn jet_ut_nest_dext(context: &mut Context, subject: Noun) -> Result {
             {
                 context.cache.insert(&mut context.stack, &mut key, pro);
             }
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT NEST EXITING");
-            //     eprintln!("\r CACHE MISS");
-            // });
             Ok(pro)
         }
     }
 }
 
 pub fn jet_ut_rest(context: &mut Context, subject: Noun) -> Result {
-    // assert_no_alloc::permit_alloc(|| {
-    //     eprintln!("\r ENTERING UT REST");
-    // });
-
     let leg = slot(subject, 6)?;
     let van = slot(subject, 7)?;
 
@@ -290,22 +208,11 @@ pub fn jet_ut_rest(context: &mut Context, subject: Noun) -> Result {
     let mut key = T(&mut context.stack, &[D(fun), sut, leg, bat]);
 
     match context.cache.lookup(&mut context.stack, &mut key) {
-        Some(pro) => {
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT REST EXITING");
-            //     eprintln!("\r CACHE HIT");
-            // });
-            Ok(pro)
-        }
+        Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
             context.cache.insert(&mut context.stack, &mut key, pro);
-            // assert_no_alloc::permit_alloc(|| {
-            //     eprintln!("\r UT REST EXITING");
-            //     eprintln!("\r CACHE MISS");
-            // });
             Ok(pro)
         }
     }
-
 }

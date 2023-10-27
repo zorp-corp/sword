@@ -1374,7 +1374,7 @@ mod hint {
                             }
 
                             let cell = list.as_cell().unwrap();
-                            // newt.slog(stack, 0, cell.head());
+                            newt.slog(stack, 0, cell.head());
 
                             list = cell.tail();
                         }
@@ -1421,10 +1421,10 @@ mod hint {
             tas!(b"fast") => {
                 if !cfg!(feature = "sham_hints") {
                     if let Some(clue) = hint {
-                        let chum = clue.slot(2)?;
-                        let parent_formula_op = clue.slot(12)?.as_atom()?.as_direct()?;
-                        let parent_formula_ax = clue.slot(13)?.as_atom()?;
                         let cold_res: cold::Result = {
+                            let chum = clue.slot(2)?;
+                            let parent_formula_op = clue.slot(12)?.as_atom()?.as_direct()?;
+                            let parent_formula_ax = clue.slot(13)?.as_atom()?;
 
                             if parent_formula_op.data() == 1 {
                                 if parent_formula_ax.as_direct()?.data() == 0 {
@@ -1445,23 +1445,15 @@ mod hint {
                         };
 
                         match cold_res {
-                            Ok(true) => {
-                                // assert_no_alloc::permit_alloc(|| {
-                                //     eprintln!("\r COLD SUCCESS: chum = {}", chum);
-                                // });
-                                context.warm = Warm::init(stack, cold, hot)
-                            }
+                            Ok(true) => context.warm = Warm::init(stack, cold, hot),
                             Err(cold::Error::NoParent) => {
                                 //  XX: Need better message in slog; need better slogging tools
                                 //      format!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
-                                // let tape = tape(
-                                //     stack,
-                                //     "serf: cold: register: could not find parent battery at given axis",
-                                // );
-                                // assert_no_alloc::permit_alloc(|| {
-                                //     eprintln!("\r COLD FAILURE: chum = {}, axis = {}", chum, parent_formula_ax);
-                                // });
-                                // slog_leaf(stack, newt, tape);
+                                let tape = tape(
+                                    stack,
+                                    "serf: cold: register: could not find parent battery at given axis",
+                                );
+                                slog_leaf(stack, newt, tape);
                             }
                             Err(cold::Error::BadNock) => {
                                 //  XX: Need better message in slog; need better slogging tools

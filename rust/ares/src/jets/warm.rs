@@ -135,11 +135,8 @@ impl Warm {
     /// If there's a match, then we've found a valid jet.
     pub fn find_jet(&mut self, stack: &mut NockStack, s: &mut Noun, f: &mut Noun) -> Option<Jet> {
         let warm_it = self.0.lookup(stack, f)?;
-        for (path, batteries, jet) in warm_it {
+        for (_path, batteries, jet) in warm_it {
             if batteries.matches(stack, *s) {
-                // assert_no_alloc::permit_alloc(|| {
-                //     eprintln!("\r HIT JET {}", path);
-                // });
                 return Some(jet);
             }
         }
