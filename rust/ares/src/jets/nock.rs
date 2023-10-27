@@ -1,10 +1,10 @@
 /** Virtualization jets
  */
 use crate::hamt::Hamt;
-use crate::interpreter::{Context, Error};
+use crate::interpreter::{interpret, Context, Error};
 use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
-use crate::noun::{Noun, T};
+use crate::noun::{Noun, D, T};
 
 crate::gdb!();
 
@@ -76,6 +76,30 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+pub fn jet_mole(context: &mut Context, subject: Noun) -> Result {
+    jet_mure(context, subject)
+}
+
+pub fn jet_mure(context: &mut Context, subject: Noun) -> Result {
+    let tap = slot(subject, 6)?;
+    let fol = util::slam_gate_fol(&mut context.stack);
+    let scry = util::pass_thru_scry(&mut context.stack);
+
+    context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
+    match interpret(context, tap, fol) {
+        Ok(res) => {
+            context.scry_stack = context.scry_stack.as_cell()?.tail();
+            Ok(T(&mut context.stack, &[D(0), res]))
+        }
+        Err(error) => match error {
+            // Since we are using the pass-through scry handler, we know for a fact that a scry
+            // crash must have come from a senior virtualization context.
+            Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(JetErr::Fail(error)),
+            Error::Deterministic(_) | Error::ScryBlocked(_) => Ok(D(0)),
+        },
+    }
+}
+
 pub mod util {
     use crate::interpreter::{interpret, Context, Error};
     use crate::jets;
@@ -90,6 +114,32 @@ pub mod util {
 
     pub const LEAF: Noun = D(tas!(b"leaf"));
     pub const ROSE: Noun = D(tas!(b"rose"));
+
+    /// The classic "slam gate" formula.
+    pub fn slam_gate_fol(stack: &mut NockStack) -> Noun {
+        T(stack, &[D(9), D(2), D(0), D(1)])
+    }
+
+    /// The classic "pass-through" scry handler.
+    pub fn pass_thru_scry(stack: &mut NockStack) -> Noun {
+        //  > .*  0  !=  =>  ~  |=(a=^ ``.*(a [%12 [%0 2] %0 3]))
+        // [[[1 0] [1 0] 2 [0 6] 1 12 [0 2] 0 3] [0 0] 0]
+        let sig = T(stack, &[D(1), D(0)]);
+        let sam = T(stack, &[D(0), D(6)]);
+        let hed = T(stack, &[D(0), D(2)]);
+        let tel = T(stack, &[D(0), D(3)]);
+        let zap = T(stack, &[D(0), D(0)]);
+
+        let cry = T(stack, &[D(12), hed, tel]);
+        let fol = T(stack, &[D(1), cry]);
+        let res = T(stack, &[D(2), sam, fol]);
+        let uno = T(stack, &[sig, res]);
+        let dos = T(stack, &[sig, uno]);
+
+        let gat = T(stack, &[zap, D(0)]);
+
+        T(stack, &[dos, gat])
+    }
 
     pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
         match interpret(context, subject, formula) {
