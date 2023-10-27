@@ -1,88 +1,88 @@
 use crate::jets::*;
-use crate::noun::{Atom, DirectAtom, Noun, D, T};
+use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, T};
 use ares_macros::tas;
 use either::Either::{self, Left, Right};
 use std::ptr::null_mut;
 
-// const A_50: Either<u64, (u64, u64)> = Right((tas!(b"a"), 50));
-const K_139: Either<u64, (u64, u64)> = Right((tas!(b"k"), 139));
+// const A_50: Either<u64, (u64, u64)> = Right((b"a", 50));
+const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
 
 // // This is the const state all in one spot as literals
 // #[allow(clippy::complexity)]
 // const SHAM_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
-//     (&[A_50, Left(tas!(b"add"))], 1, jet_add),
-//     (&[A_50, Left(tas!(b"dec"))], 1, jet_dec),
-//     (&[A_50, Left(tas!(b"div"))], 1, jet_div),
-//     (&[A_50, Left(tas!(b"dvr"))], 1, jet_dvr),
-//     (&[A_50, Left(tas!(b"gth"))], 1, jet_gth),
-//     (&[A_50, Left(tas!(b"gte"))], 1, jet_gte),
-//     (&[A_50, Left(tas!(b"lte"))], 1, jet_lte),
-//     (&[A_50, Left(tas!(b"lth"))], 1, jet_lth),
-//     (&[A_50, Left(tas!(b"mod"))], 1, jet_mod),
-//     (&[A_50, Left(tas!(b"mul"))], 1, jet_mul),
-//     (&[A_50, Left(tas!(b"sub"))], 1, jet_sub),
+//     (&[A_50, Left(b"add")], 1, jet_add),
+//     (&[A_50, Left(b"dec")], 1, jet_dec),
+//     (&[A_50, Left(b"div")], 1, jet_div),
+//     (&[A_50, Left(b"dvr")], 1, jet_dvr),
+//     (&[A_50, Left(b"gth")], 1, jet_gth),
+//     (&[A_50, Left(b"gte")], 1, jet_gte),
+//     (&[A_50, Left(b"lte")], 1, jet_lte),
+//     (&[A_50, Left(b"lth")], 1, jet_lth),
+//     (&[A_50, Left(b"mod")], 1, jet_mod),
+//     (&[A_50, Left(b"mul")], 1, jet_mul),
+//     (&[A_50, Left(b"sub")], 1, jet_sub),
 //     //
-//     (&[A_50, Left(tas!(b"cap"))], 1, jet_cap),
-//     (&[A_50, Left(tas!(b"mas"))], 1, jet_mas),
+//     (&[A_50, Left(b"cap")], 1, jet_cap),
+//     (&[A_50, Left(b"mas")], 1, jet_mas),
 //     //
-//     (&[A_50, Left(tas!(b"lent"))], 1, jet_lent),
-//     (&[A_50, Left(tas!(b"flop"))], 1, jet_flop),
+//     (&[A_50, Left(b"lent")], 1, jet_lent),
+//     (&[A_50, Left(b"flop")], 1, jet_flop),
 //     //
-//     (&[A_50, Left(tas!(b"bex"))], 1, jet_bex),
-//     (&[A_50, Left(tas!(b"can"))], 1, jet_can),
-//     (&[A_50, Left(tas!(b"cat"))], 1, jet_cat),
-//     (&[A_50, Left(tas!(b"cut"))], 1, jet_cut),
-//     (&[A_50, Left(tas!(b"end"))], 1, jet_end),
-//     (&[A_50, Left(tas!(b"lsh"))], 1, jet_lsh),
-//     (&[A_50, Left(tas!(b"met"))], 1, jet_met),
-//     (&[A_50, Left(tas!(b"rap"))], 1, jet_rap),
-//     (&[A_50, Left(tas!(b"rep"))], 1, jet_rep),
-//     (&[A_50, Left(tas!(b"rev"))], 1, jet_rev),
-//     (&[A_50, Left(tas!(b"rip"))], 1, jet_rip),
-//     (&[A_50, Left(tas!(b"rsh"))], 1, jet_rsh),
-//     (&[A_50, Left(tas!(b"xeb"))], 1, jet_xeb),
+//     (&[A_50, Left(b"bex")], 1, jet_bex),
+//     (&[A_50, Left(b"can")], 1, jet_can),
+//     (&[A_50, Left(b"cat")], 1, jet_cat),
+//     (&[A_50, Left(b"cut")], 1, jet_cut),
+//     (&[A_50, Left(b"end")], 1, jet_end),
+//     (&[A_50, Left(b"lsh")], 1, jet_lsh),
+//     (&[A_50, Left(b"met")], 1, jet_met),
+//     (&[A_50, Left(b"rap")], 1, jet_rap),
+//     (&[A_50, Left(b"rep")], 1, jet_rep),
+//     (&[A_50, Left(b"rev")], 1, jet_rev),
+//     (&[A_50, Left(b"rip")], 1, jet_rip),
+//     (&[A_50, Left(b"rsh")], 1, jet_rsh),
+//     (&[A_50, Left(b"xeb")], 1, jet_xeb),
 //     //
-//     (&[A_50, Left(tas!(b"con"))], 1, jet_con),
-//     (&[A_50, Left(tas!(b"dis"))], 1, jet_dis),
-//     (&[A_50, Left(tas!(b"mix"))], 1, jet_mix),
+//     (&[A_50, Left(b"con")], 1, jet_con),
+//     (&[A_50, Left(b"dis")], 1, jet_dis),
+//     (&[A_50, Left(b"mix")], 1, jet_mix),
 //     //
-//     (&[A_50, Left(tas!(b"mug"))], 1, jet_mug),
+//     (&[A_50, Left(b"mug")], 1, jet_mug),
 //     //
-//     (&[A_50, Left(tas!(b"dor"))], 1, jet_dor),
-//     (&[A_50, Left(tas!(b"gor"))], 1, jet_gor),
-//     (&[A_50, Left(tas!(b"mor"))], 1, jet_mor),
+//     (&[A_50, Left(b"dor")], 1, jet_dor),
+//     (&[A_50, Left(b"gor")], 1, jet_gor),
+//     (&[A_50, Left(b"mor")], 1, jet_mor),
 //     //
-//     (&[A_50, Left(tas!(b"scow"))], 1, jet_scow),
+//     (&[A_50, Left(b"scow")], 1, jet_scow),
 //     //
-//     (&[A_50, Left(tas!(b"mink"))], 1, jet_mink),
+//     (&[A_50, Left(b"mink")], 1, jet_mink),
 // ];
 
 #[allow(clippy::complexity)]
-const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"add"))], 1, jet_add),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"dec"))], 1, jet_dec),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"div"))], 1, jet_div),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"dvr"))], 1, jet_dvr),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"gte"))], 1, jet_gte),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"gth"))], 1, jet_gth),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"lte"))], 1, jet_lte),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"lth"))], 1, jet_lth),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"max"))], 1, jet_max),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"min"))], 1, jet_min),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"mod"))], 1, jet_mod),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"mul"))], 1, jet_mul),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"sub"))], 1, jet_sub),
+const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
+    (&[K_139, Left(b"one"), Left(b"add")], 1, jet_add),
+    (&[K_139, Left(b"one"), Left(b"dec")], 1, jet_dec),
+    (&[K_139, Left(b"one"), Left(b"div")], 1, jet_div),
+    (&[K_139, Left(b"one"), Left(b"dvr")], 1, jet_dvr),
+    (&[K_139, Left(b"one"), Left(b"gte")], 1, jet_gte),
+    (&[K_139, Left(b"one"), Left(b"gth")], 1, jet_gth),
+    (&[K_139, Left(b"one"), Left(b"lte")], 1, jet_lte),
+    (&[K_139, Left(b"one"), Left(b"lth")], 1, jet_lth),
+    (&[K_139, Left(b"one"), Left(b"max")], 1, jet_max),
+    (&[K_139, Left(b"one"), Left(b"min")], 1, jet_min),
+    (&[K_139, Left(b"one"), Left(b"mod")], 1, jet_mod),
+    (&[K_139, Left(b"one"), Left(b"mul")], 1, jet_mul),
+    (&[K_139, Left(b"one"), Left(b"sub")], 1, jet_sub),
     //
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"cap"))], 1, jet_cap),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"mas"))], 1, jet_mas),
-    (&[K_139, Left(tas!(b"one")), Left(tas!(b"peg"))], 1, jet_peg),
+    (&[K_139, Left(b"one"), Left(b"cap")], 1, jet_cap),
+    (&[K_139, Left(b"one"), Left(b"mas")], 1, jet_mas),
+    (&[K_139, Left(b"one"), Left(b"peg")], 1, jet_peg),
     //
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"flop")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"flop"),
         ],
         1,
         jet_flop,
@@ -90,9 +90,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"lent")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"lent"),
         ],
         1,
         jet_lent,
@@ -100,9 +100,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"zing")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"zing"),
         ],
         1,
         jet_zing,
@@ -111,9 +111,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"bex")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"bex"),
         ],
         1,
         jet_bex,
@@ -121,9 +121,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"can")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"can"),
         ],
         1,
         jet_can,
@@ -131,9 +131,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"cat")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"cat"),
         ],
         1,
         jet_cat,
@@ -141,9 +141,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"cut")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"cut"),
         ],
         1,
         jet_cut,
@@ -151,9 +151,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"end")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"end"),
         ],
         1,
         jet_end,
@@ -161,9 +161,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"lsh")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"lsh"),
         ],
         1,
         jet_lsh,
@@ -171,9 +171,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"met")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"met"),
         ],
         1,
         jet_met,
@@ -181,9 +181,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"rap")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"rap"),
         ],
         1,
         jet_rap,
@@ -191,9 +191,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"rep")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"rep"),
         ],
         1,
         jet_rep,
@@ -201,9 +201,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"rev")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"rev"),
         ],
         1,
         jet_rev,
@@ -211,9 +211,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"rip")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"rip"),
         ],
         1,
         jet_rip,
@@ -221,9 +221,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"rsh")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"rsh"),
         ],
         1,
         jet_rsh,
@@ -231,9 +231,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"xeb")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"xeb"),
         ],
         1,
         jet_xeb,
@@ -242,9 +242,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"con")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"con"),
         ],
         1,
         jet_con,
@@ -252,9 +252,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"dis")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"dis"),
         ],
         1,
         jet_dis,
@@ -262,9 +262,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"mix")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"mix"),
         ],
         1,
         jet_mix,
@@ -273,9 +273,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"mug")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"mug"),
         ],
         1,
         jet_mug,
@@ -284,9 +284,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"dor")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"dor"),
         ],
         1,
         jet_dor,
@@ -294,9 +294,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"gor")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"gor"),
         ],
         1,
         jet_gor,
@@ -304,9 +304,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"mor")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"mor"),
         ],
         1,
         jet_mor,
@@ -315,9 +315,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"cue")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"cue"),
         ],
         1,
         jet_cue,
@@ -325,9 +325,9 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"jam")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"jam"),
         ],
         1,
         jet_jam,
@@ -336,11 +336,11 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"scow")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"scow"),
         ],
         1,
         jet_scow,
@@ -349,11 +349,11 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"mink")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"mink"),
         ],
         1,
         jet_mink,
@@ -361,11 +361,11 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"mole")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"mole"),
         ],
         1,
         jet_mole,
@@ -373,11 +373,11 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"mule")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"mule"),
         ],
         1,
         jet_mule,
@@ -386,13 +386,13 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"pen")),
-            Left(tas!(b"ut")),
-            Left(tas!(b"crop")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"pen"),
+            Left(b"ut"),
+            Left(b"crop"),
         ],
         1,
         jet_ut_crop,
@@ -400,13 +400,13 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"pen")),
-            Left(tas!(b"ut")),
-            Left(tas!(b"fish")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"pen"),
+            Left(b"ut"),
+            Left(b"fish"),
         ],
         1,
         jet_ut_fish,
@@ -414,13 +414,13 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"pen")),
-            Left(tas!(b"ut")),
-            Left(tas!(b"fuse")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"pen"),
+            Left(b"ut"),
+            Left(b"fuse"),
         ],
         1,
         jet_ut_fuse,
@@ -428,13 +428,13 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"pen")),
-            Left(tas!(b"ut")),
-            Left(tas!(b"mint")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"pen"),
+            Left(b"ut"),
+            Left(b"mint"),
         ],
         1,
         jet_ut_mint,
@@ -442,28 +442,28 @@ const TRUE_HOT_STATE: &[(&[Either<u64, (u64, u64)>], u64, Jet)] = &[
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"pen")),
-            Left(tas!(b"ut")),
-            Left(tas!(b"mull")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"pen"),
+            Left(b"ut"),
+            Left(b"mull"),
         ],
         1,
         jet_ut_mull,
     ),
-    // (&[K_139, Left(tas!(b"one")), Left(tas!(b"two")), Left(tas!(b"tri")), Left(tas!(b"qua")), Left(tas!(b"pen")), Left(tas!(b"ut")), Left(tas!(b"nest"))], Left(tas!(b"nest-in")), Left(tas!(b"nest-dext")), 1, jet_ut_nest_dext),
+    (&[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"pen"), Left(b"ut"), Left(b"nest"), Left(b"nest-in"), Left(b"nest-dext")], 1, jet_ut_nest_dext),
     (
         &[
             K_139,
-            Left(tas!(b"one")),
-            Left(tas!(b"two")),
-            Left(tas!(b"tri")),
-            Left(tas!(b"qua")),
-            Left(tas!(b"pen")),
-            Left(tas!(b"ut")),
-            Left(tas!(b"rest")),
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"pen"),
+            Left(b"ut"),
+            Left(b"rest"),
         ],
         1,
         jet_ut_rest,
@@ -482,9 +482,10 @@ impl Hot {
                 for i in *htap {
                     match i {
                         Left(tas) => {
+                            let chum = IndirectAtom::new_raw_bytes_ref(stack, tas).normalize_as_atom().as_noun();
                             a_path = T(
                                 stack,
-                                &[DirectAtom::new_panic(*tas).as_atom().as_noun(), a_path],
+                                &[chum, a_path],
                             );
                         }
                         Right((tas, ver)) => {
