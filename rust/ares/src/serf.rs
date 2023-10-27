@@ -5,6 +5,7 @@ use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::list::util::lent;
 use crate::jets::nock::util::mook;
+use crate::jets::text::util::lent;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::mug::mug_u32;
@@ -263,11 +264,9 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     interpret(&mut context.nock_context, sub, fol)
 }
 
-fn goof(context: &mut Context, trace: Noun) -> Noun {
-    //  XX: trace is a $tang with at least one $tank, which we pick off the top.
-    //      Actual input to +mook should be (roll trace weld) ( or (zing trace)).
-    let head = trace.cell().unwrap().head();
-    let tone = Cell::new(&mut context.nock_context.stack, D(2), head);
+fn goof(context: &mut Context, traces: Noun) -> Noun {
+    let trace = zing(&mut context.nock_context.stack, traces).unwrap();
+    let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
     let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
         .tail();
