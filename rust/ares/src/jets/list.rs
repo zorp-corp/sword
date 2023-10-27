@@ -26,9 +26,10 @@ pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
 
 pub mod util {
     use crate::interpreter::Error;
+    use crate::jets;
     use crate::jets::JetErr;
     use crate::mem::NockStack;
-    use crate::noun::{Noun, D, T};
+    use crate::noun::{Cell, Noun, D, T};
     use std::result::Result;
 
     /// Reverse order of list
