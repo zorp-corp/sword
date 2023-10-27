@@ -52,6 +52,12 @@ impl From<noun::Error> for JetErr {
     }
 }
 
+impl From<Error> for JetErr {
+    fn from(e: Error) -> Self {
+        Self::Fail(e)
+    }
+}
+
 impl From<JetErr> for () {
     fn from(_: JetErr) -> Self {}
 }
