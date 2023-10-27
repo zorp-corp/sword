@@ -24,7 +24,7 @@ pub mod util {
     use crate::jets;
     use crate::jets::JetErr;
     use crate::mem::NockStack;
-    use crate::noun::{Noun, Cell, D};
+    use crate::noun::{Cell, Noun, D};
     use std::result::Result;
 
     pub fn lent(tape: Noun) -> Result<usize, JetErr> {
@@ -53,23 +53,23 @@ pub mod util {
             let (mut cell, mut memory) = (new_cell, new_memory);
             let mut res: Noun = D(0);
             let mut flag = false;
-    
+
             loop {
                 if list.raw_equals(D(0)) {
                     break;
                 }
-    
+
                 let pair = list.as_cell()?;
                 let mut sub_list = pair.head();
-    
+
                 loop {
                     if sub_list.raw_equals(D(0)) {
                         break;
                     }
-    
+
                     let elem = sub_list.as_cell()?;
                     let head = elem.head();
-    
+
                     if flag {
                         (new_cell, new_memory) = Cell::new_raw_mut(stack);
                         (*memory).tail = new_cell.as_noun();
@@ -80,15 +80,15 @@ pub mod util {
                         flag = true;
                     }
                     (*memory).head = head;
-    
+
                     sub_list = elem.tail();
                 }
-    
+
                 list = pair.tail();
             }
-            
+
             if flag {
-                (*new_memory).tail = D(0);
+                (*memory).tail = D(0);
             }
             Ok(res)
         }
