@@ -140,6 +140,7 @@ pub mod util {
     use std::result;
 
     /**
+     * Address-based size checks.
      * Currently, only addresses indexable by the first 48 bits are reachable by
      * modern 64-bit CPUs.
      */
@@ -152,7 +153,7 @@ pub mod util {
             .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
     }
 
-    /// Performs addition that returns None on Noun size overflow
+    /// Performs subtraction that returns None on Noun size overflow
     pub fn checked_sub(a: usize, b: usize) -> result::Result<usize, JetErr> {
         a.checked_sub(b)
             .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
@@ -233,6 +234,18 @@ pub mod util {
 
         dest[to_b..to_b + step_b].copy_from_bitslice(&source[from_b..from_b + step_b]);
         Ok(())
+    }
+
+    /// Addition
+    pub fn add(stack: &mut NockStack, a: Atom, b: Atom) -> Atom {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            Atom::new(stack, a.data() + b.data())
+        } else {
+            let a_big = a.as_ubig(stack);
+            let b_big = b.as_ubig(stack);
+            let res = UBig::add_stack(stack, a_big, b_big);
+            Atom::from_ubig(stack, &res)
+        }
     }
 
     /// Subtraction
@@ -411,6 +424,38 @@ pub mod util {
                     );
                 }
             }
+        }
+
+        pub fn assert_common_jet(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            res: UBig,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            assert_nary_jet_ubig(context, jet, &sam, res);
+        }
+
+        pub fn assert_common_jet_noun(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            res: Noun,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet(context, jet, sam, res);
+        }
+
+        pub fn assert_common_jet_err(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            err: JetErr,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet_err(context, jet, sam, err);
         }
     }
 
