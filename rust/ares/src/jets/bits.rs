@@ -344,11 +344,13 @@ pub fn jet_xeb(_context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
+    use crate::jets;
     use crate::jets::util::*;
-    use crate::jets::Result;
+    use crate::jets::JetErr;
     use crate::mem::NockStack;
     use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, D};
     use std::cmp;
+    use std::result;
 
     /// Binary exponent
     pub fn bex(stack: &mut NockStack, arg: usize) -> Atom {
@@ -363,7 +365,12 @@ pub mod util {
         }
     }
 
-    pub fn lsh(stack: &mut NockStack, bloq: usize, step: usize, a: Atom) -> Result<Atom, JetErr> {
+    pub fn lsh(
+        stack: &mut NockStack,
+        bloq: usize,
+        step: usize,
+        a: Atom,
+    ) -> result::Result<Atom, JetErr> {
         let len = met(bloq, a);
         if len == 0 {
             return Ok(D(0).as_atom()?);
@@ -389,7 +396,7 @@ pub mod util {
         }
     }
 
-    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> Result {
+    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> jets::Result {
         let len = (met(bloq, atom) + step - 1) / step;
         let mut list = D(0);
         for i in (0..len).rev() {

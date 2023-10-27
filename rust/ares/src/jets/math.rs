@@ -26,7 +26,7 @@ pub fn jet_add(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
-    Ok(add(&mut context.stack, a, b).as_noun())
+    Ok(util::add(&mut context.stack, a, b).as_noun())
 }
 
 pub fn jet_dec(context: &mut Context, subject: Noun) -> Result {

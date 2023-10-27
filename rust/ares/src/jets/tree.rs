@@ -1,11 +1,9 @@
 /** Tree jets
  */
 use crate::interpreter::{Context, Error};
-use crate::jets::bits::util::*;
-use crate::jets::math::util::*;
-use crate::jets;
 use crate::jets::bits;
-use crate::jets::util::*;
+use crate::jets::math;
+use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
 use crate::noun::{Noun, D};
 
@@ -14,7 +12,7 @@ crate::gdb!();
 pub fn jet_cap(_context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let tom = arg.as_atom()?;
-    let met = met(0, tom);
+    let met = bits::util::met(0, tom);
 
     unsafe {
         if met < 2 {
@@ -31,16 +29,16 @@ pub fn jet_mas(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let tom = arg.as_atom()?;
-    let met = met(0, tom);
+    let met = bits::util::met(0, tom);
 
     if met < 2 {
         Err(JetErr::Fail(Error::Deterministic(D(0))))
     } else {
-        let c = bex(stack, met - 1);
-        let d = bex(stack, met - 2);
-        let e = sub(stack, tom, c)?;
+        let c = bits::util::bex(stack, met - 1);
+        let d = bits::util::bex(stack, met - 2);
+        let e = math::util::sub(stack, tom, c)?;
 
-        Ok(con(stack, e, d).as_noun())
+        Ok(bits::util::con(stack, e, d).as_noun())
     }
 }
 
@@ -60,12 +58,12 @@ pub fn jet_peg(context: &mut Context, subject: Noun) -> Result {
         }
     };
 
-    let c = met(0, b.as_atom()?);
+    let c = bits::util::met(0, b.as_atom()?);
     let d = c - 1;
     let e = bits::util::lsh(stack, 0, d, D(1).as_atom()?)?;
-    let f = jets::util::sub(stack, b.as_atom()?, e)?;
+    let f = math::util::sub(stack, b.as_atom()?, e)?;
     let g = bits::util::lsh(stack, 0, d, a.as_atom()?)?;
-    Ok(jets::util::add(stack, f, g).as_noun())
+    Ok(math::util::add(stack, f, g).as_noun())
 }
 
 #[cfg(test)]
