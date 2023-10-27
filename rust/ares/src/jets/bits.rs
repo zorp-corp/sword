@@ -537,33 +537,33 @@ mod tests {
     fn test_lsh() {
         let c = &mut init_context();
 
-        // let (a0, a24, _a63, a96, a128) = atoms(&mut c.stack);
+        let (_, a24, _a63, a96, a128) = atoms(&mut c.stack);
         assert_common_jet_noun(c, jet_lsh, &[atom_0, atom_24], D(0x10eca86));
-        // let sam = T(&mut c.stack, &[D(3), a24]);
-        // assert_jet(c, jet_lsh, sam, D(0x87654300));
-        // let sam = T(&mut c.stack, &[D(7), a24]);
-        // let res = A(
-        //     &mut c.stack,
-        //     &ubig!(_0x87654300000000000000000000000000000000),
-        // );
-        // assert_jet(c, jet_lsh, sam, res);
-        // let sam = T(&mut c.stack, &[D(6), a128]);
-        // let res = A(
-        //     &mut c.stack,
-        //     &ubig!(_0xdeadbeef12345678fedcba98765432100000000000000000),
-        // );
-        // assert_jet(c, jet_lsh, sam, res);
+        let sam = T(&mut c.stack, &[D(3), a24]);
+        assert_jet(c, jet_lsh, sam, D(0x87654300));
+        let sam = T(&mut c.stack, &[D(7), a24]);
+        let res = A(
+            &mut c.stack,
+            &ubig!(_0x87654300000000000000000000000000000000),
+        );
+        assert_jet(c, jet_lsh, sam, res);
+        let sam = T(&mut c.stack, &[D(6), a128]);
+        let res = A(
+            &mut c.stack,
+            &ubig!(_0xdeadbeef12345678fedcba98765432100000000000000000),
+        );
+        assert_jet(c, jet_lsh, sam, res);
 
-        // let bit = T(&mut c.stack, &[D(0), D(5)]);
-        // let sam = T(&mut c.stack, &[bit, a24]);
-        // assert_jet(c, jet_lsh, sam, D(0x10eca860));
-        // let bit = T(&mut c.stack, &[D(4), D(6)]);
-        // let sam = T(&mut c.stack, &[bit, a96]);
-        // let res = A(
-        //     &mut c.stack,
-        //     &ubig!(_0xfaceb00c15deadbeef123456000000000000000000000000),
-        // );
-        // assert_jet(c, jet_lsh, sam, res);
+        let bit = T(&mut c.stack, &[D(0), D(5)]);
+        let sam = T(&mut c.stack, &[bit, a24]);
+        assert_jet(c, jet_lsh, sam, D(0x10eca860));
+        let bit = T(&mut c.stack, &[D(4), D(6)]);
+        let sam = T(&mut c.stack, &[bit, a96]);
+        let res = A(
+            &mut c.stack,
+            &ubig!(_0xfaceb00c15deadbeef123456000000000000000000000000),
+        );
+        assert_jet(c, jet_lsh, sam, res);
     }
 
     #[test]
