@@ -230,7 +230,10 @@ pub mod util {
                 let cell = list.as_cell()?;
                 let trace = cell.head().as_cell()?;
                 let tag = trace.head().as_direct()?;
+                eprintln!("mook trace tag: {}", tag);
+                eprintln!("mook-list-head cold state null? {}", context.cold.is_null());
                 let dat = trace.tail();
+                //eprintln!("mook dat: {}", dat);
 
                 let tank: Noun = match tag.data() {
                     tas!(b"hunk") => match dat.as_either_atom_cell() {
@@ -254,7 +257,10 @@ pub mod util {
                         }
                         Right(cell) => {
                             'tank: {
-                                if let Ok(tone) = mink(context, dat, cell.head()) {
+                                eprintln!("mook-call-mink: cold state null before? {}", context.cold.is_null());
+                                let res = mink(context, dat, cell.head());
+                                eprintln!("mook-call-mink: cold state null after? {}", context.cold.is_null());
+                                if let Ok(tone) = res {
                                     if let Some(cell) = tone.cell() {
                                         if cell.head().raw_equals(D(0)) {
                                             //  XX: need to check that this is
@@ -272,74 +278,109 @@ pub mod util {
                         }
                     },
                     tas!(b"spot") => {
+                        eprintln!("spot cold state null? {}", context.cold.is_null());
                         let stack = &mut context.stack;
 
+                        eprintln!("spot cold state null 2? {}", context.cold.is_null());
+
                         let spot = dat.as_cell()?;
+                        eprintln!("spot cold state null 3? {}", context.cold.is_null());
                         let pint = spot.tail().as_cell()?;
+                        eprintln!("spot cold state null 4? {}", context.cold.is_null());
                         let pstr = pint.head().as_cell()?;
+                        eprintln!("spot cold state null 5? {}", context.cold.is_null());
                         let pend = pint.tail().as_cell()?;
+                        eprintln!("spot cold state null 6? {}", context.cold.is_null());
 
                         let colo = T(stack, &[D(b':' as u64), D(0)]);
+                        eprintln!("spot cold state null 7? {}", context.cold.is_null());
                         let trel = T(stack, &[colo, D(0), D(0)]);
+                        eprintln!("spot cold state null 8? {}", context.cold.is_null());
 
                         let smyt = smyt(stack, spot.head())?;
+                        eprintln!("spot cold state null 9? {}", context.cold.is_null());
 
                         let aura = D(tas!(b"ud")).as_direct()?;
+                        eprintln!("spot cold state null 10? {}", context.cold.is_null());
                         let str_lin = scow(stack, aura, pstr.head().as_atom()?)?;
+                        eprintln!("spot cold state null 11? {}", context.cold.is_null());
                         let str_col = scow(stack, aura, pstr.tail().as_atom()?)?;
+                        eprintln!("spot cold state null 12? {}", context.cold.is_null());
                         let end_lin = scow(stack, aura, pend.head().as_atom()?)?;
+                        eprintln!("spot cold state null 13? {}", context.cold.is_null());
                         let end_col = scow(stack, aura, pend.tail().as_atom()?)?;
+                        eprintln!("spot cold state null 14? {}", context.cold.is_null());
 
                         let mut list = end_col.as_cell()?;
+                        eprintln!("spot cold state null 15? {}", context.cold.is_null());
                         loop {
                             if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
                         }
+                        eprintln!("spot cold state null 16? {}", context.cold.is_null());
                         // "{end_col}]>"
                         let p4 = T(stack, &[D(b']' as u64), D(b'>' as u64), D(0)]);
+                        eprintln!("spot cold state null 16? {}", context.cold.is_null());
                         (*list.tail_as_mut()) = p4;
 
+                        eprintln!("spot cold state null 17? {}", context.cold.is_null());
+
                         list = end_lin.as_cell()?;
+
+                        eprintln!("spot cold state null 18? {}", context.cold.is_null());
                         loop {
                             if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
                         }
+                        eprintln!("spot cold state null 19? {}", context.cold.is_null());
                         // "{end_lin} {end_col}]>"
                         let p3 = T(stack, &[D(b' ' as u64), end_col]);
+                        eprintln!("spot cold state null? {} 20", context.cold.is_null());
                         (*list.tail_as_mut()) = p3;
+                        eprintln!("spot cold state null? {} 21", context.cold.is_null());
 
                         list = str_col.as_cell()?;
+                        eprintln!("spot cold state null? {} 22", context.cold.is_null());
                         loop {
                             if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
                         }
+                        eprintln!("spot cold state null 23? {}", context.cold.is_null());
                         // "{str_col}].[{end_lin} {end_col}]>"
                         let p2 = T(
                             stack,
                             &[D(b']' as u64), D(b'.' as u64), D(b'[' as u64), end_lin],
                         );
+                        eprintln!("spot cold state null 24? {}", context.cold.is_null());
                         (*list.tail_as_mut()) = p2;
+                        eprintln!("spot cold state null 25? {}", context.cold.is_null());
 
                         list = str_lin.as_cell()?;
+                        eprintln!("spot cold state null 26? {}", context.cold.is_null());
                         loop {
                             if list.tail().atom().is_some() {
                                 break;
                             }
                             list = list.tail().as_cell()?;
                         }
+                        eprintln!("spot cold state null 27? {}", context.cold.is_null());
                         // "{str_lin} {str_col}].[{end_lin} {end_col}]>"
                         let p1 = T(stack, &[D(b' ' as u64), str_col]);
+                        eprintln!("spot cold state null 28? {}", context.cold.is_null());
                         (*list.tail_as_mut()) = p1;
+                        eprintln!("spot cold state null 30? {}", context.cold.is_null());
 
                         // "<[{str_lin} {str_col}].[{end_lin} {end_col}]>"
                         let tape = T(stack, &[D(b'<' as u64), D(b'[' as u64), str_lin]);
+                        eprintln!("spot cold state null 31? {}", context.cold.is_null());
                         let finn = T(stack, &[LEAF, tape]);
+                        eprintln!("spot cold state null 32? {}", context.cold.is_null());
 
                         T(stack, &[ROSE, trel, smyt, finn, D(0)])
                     }
@@ -367,6 +408,7 @@ pub mod util {
                 } else {
                     (*memory).head = tank;
                 }
+                eprintln!("spot cold state null 33? {}", context.cold.is_null());
                 list = cell.tail();
             }
 

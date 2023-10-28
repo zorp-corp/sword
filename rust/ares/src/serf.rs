@@ -260,15 +260,20 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let sam = T(stack, &[D(6), D(0), D(7)]);
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
-    interpret(&mut context.nock_context, sub, fol)
+    eprintln!("slam: cold state empty before? {}", context.nock_context.cold.is_null());
+    let res = interpret(&mut context.nock_context, sub, fol);
+    eprintln!("slam: cold state empty after? {}", context.nock_context.cold.is_null());
+    res
 }
 
 fn goof(context: &mut Context, traces: Noun) -> Noun {
     let trace = zing(&mut context.nock_context.stack, traces).unwrap();
     let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
+    eprintln!("goof: cold state empty before? {}", context.nock_context.cold.is_null());
     let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
         .tail();
+    eprintln!("goof: cold state empty after? {}", context.nock_context.cold.is_null());
     //  XX: noun::Error should use a bail enum system similar to u3m_bail motes;
     //      might be able to replace NockErr with mote and map determinism to individual motes;
     //      for, always set to %exit
@@ -294,7 +299,10 @@ fn play_life(context: &mut Context, eve: Noun) {
     let stack = &mut context.nock_context.stack;
     let sub = T(stack, &[D(0), D(3)]);
     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
-    match interpret(&mut context.nock_context, eve, lyf) {
+    eprintln!("play_life: cold state empty before? {}", context.nock_context.cold.is_null());
+    let res = interpret(&mut context.nock_context, eve, lyf);
+    eprintln!("play_life: cold state empty after? {}", context.nock_context.cold.is_null());
+    match res {
         Ok(gat) => {
             let eved = lent(eve).expect("serf: play: boot event number failure") as u64;
             let arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
