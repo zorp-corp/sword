@@ -309,6 +309,14 @@ impl Preserve for Cold {
 }
 
 impl Cold {
+    pub fn is_null(&self) -> bool {
+        unsafe {
+            (*self.0).battery_to_paths.is_null() ||
+                (*self.0).battery_to_paths.is_null() ||
+                (*self.0).root_to_paths.is_null()
+        }
+    }
+
     pub fn new(stack: &mut NockStack) -> Self {
         let battery_to_paths = Hamt::new();
         let root_to_paths = Hamt::new();

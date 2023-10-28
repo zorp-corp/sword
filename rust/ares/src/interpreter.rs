@@ -1077,6 +1077,7 @@ pub fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> E
 
         while (stack).get_frame_pointer() != virtual_frame {
             (stack).preserve(&mut preserve);
+            (stack).preserve(&mut context.cold);
             (stack).frame_pop();
         }
 
@@ -1453,6 +1454,7 @@ mod hint {
                                     stack,
                                     "serf: cold: register: could not find parent battery at given axis",
                                 );
+                                eprintln!("serf: cold: register: could not find parent battery at given axis");
                                 slog_leaf(stack, newt, tape);
                             }
                             Err(cold::Error::BadNock) => {
