@@ -63,7 +63,7 @@ jobs:
             -A clippy::missing_safety_doc
 
       - name: Build
-        run: cargo build --release --verbose
+        run: cargo build --release --verbose --features check_all
 
       - name: Run tests
         run: cargo test --verbose -- --test-threads=1

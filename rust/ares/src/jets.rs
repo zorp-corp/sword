@@ -1,25 +1,35 @@
+pub mod cold;
+pub mod hot;
+pub mod warm;
+
 pub mod bits;
 pub mod lock;
 pub mod form;
 pub mod hash;
 pub mod math;
 pub mod nock;
+pub mod sort;
 pub mod text;
 pub mod tree;
 
+use crate::interpreter::{Context, Error};
 use crate::jets::bits::*;
+use crate::jets::cold::Cold;
 use crate::jets::form::*;
 use crate::jets::hash::*;
+use crate::jets::hot::Hot;
 use crate::jets::math::*;
 use crate::jets::nock::*;
+use crate::jets::sort::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
 // use crate::jets::lock::aes::*;
 use crate::jets::lock::ed::*;
 use crate::jets::lock::sha::*;
+use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{self, Noun, Slots};
+use crate::noun::{self, Noun, Slots, D};
 use ares_macros::tas;
 use std::cmp;
 
@@ -27,27 +37,35 @@ crate::gdb!();
 
 /// Return Err if the computation crashed or should punt to Nock
 pub type Result = std::result::Result<Noun, JetErr>;
-pub type Jet = fn(&mut NockStack, &mut Option<&mut Newt>, Noun) -> Result;
+pub type Jet = fn(&mut Context, Noun) -> Result;
 
 /**
  * Only return a deterministic error if the Nock would have deterministically
  * crashed.
  */
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub enum JetErr {
-    Punt,             // Retry with the raw nock
-    Deterministic,    // The Nock would have crashed
-    NonDeterministic, // Other error
+    Punt,        // Retry with the raw nock
+    Fail(Error), // Error; do not retry
 }
 
 impl From<noun::Error> for JetErr {
     fn from(_err: noun::Error) -> Self {
-        Self::Deterministic
+        Self::Fail(Error::Deterministic(D(0)))
     }
 }
 
 impl From<JetErr> for () {
     fn from(_: JetErr) -> Self {}
+}
+
+impl From<JetErr> for Error {
+    fn from(e: JetErr) -> Self {
+        match e {
+            JetErr::Fail(f) => f,
+            JetErr::Punt => panic!("unhandled JetErr::Punt"),
+        }
+    }
 }
 
 pub fn get_jet(jet_name: Noun) -> Option<Jet> {
@@ -87,6 +105,10 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"mix") => Some(jet_mix),
         //
         tas!(b"mug") => Some(jet_mug),
+        //
+        tas!(b"dor") => Some(jet_dor),
+        tas!(b"gor") => Some(jet_gor),
+        tas!(b"mor") => Some(jet_mor),
         //
         tas!(b"scow") => Some(jet_scow),
         //
@@ -134,12 +156,13 @@ pub mod util {
     pub fn checked_add(a: usize, b: usize) -> result::Result<usize, JetErr> {
         a.checked_add(b)
             .filter(|x| x <= &MAX_BIT_LENGTH)
-            .ok_or(JetErr::NonDeterministic)
+            .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
     }
 
     /// Performs addition that returns None on Noun size overflow
     pub fn checked_sub(a: usize, b: usize) -> result::Result<usize, JetErr> {
-        a.checked_sub(b).ok_or(JetErr::NonDeterministic)
+        a.checked_sub(b)
+            .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
     }
 
     pub fn checked_left_shift(bloq: usize, a: usize) -> result::Result<usize, JetErr> {
@@ -147,7 +170,7 @@ pub mod util {
 
         // Catch overflow
         if (res >> bloq) < a || res > MAX_BIT_LENGTH {
-            Err(JetErr::NonDeterministic)
+            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
         } else {
             Ok(res)
         }
@@ -164,14 +187,15 @@ pub mod util {
     }
 
     pub fn slot(noun: Noun, axis: u64) -> Result {
-        noun.slot(axis).map_err(|_e| JetErr::Deterministic)
+        noun.slot(axis)
+            .map_err(|_e| JetErr::Fail(Error::Deterministic(D(0))))
     }
 
     /// Extract a bloq and check that it's computable by the current system
     pub fn bloq(a: Noun) -> result::Result<usize, JetErr> {
         let bloq = a.as_direct()?.data() as usize;
         if bloq >= 47 {
-            Err(JetErr::NonDeterministic)
+            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
         } else {
             Ok(bloq)
         }
@@ -300,13 +324,29 @@ pub mod util {
 
     pub mod test {
         use super::*;
+        use crate::hamt::Hamt;
         use crate::mem::{unifying_equality, NockStack};
         use crate::noun::{Atom, Noun, D, T};
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
 
-        pub fn init_stack() -> NockStack {
-            NockStack::new(8 << 10 << 10, 0)
+        pub fn init_context() -> Context {
+            let mut stack = NockStack::new(8 << 10 << 10, 0);
+            let newt = Newt::new_mock();
+            let cold = Cold::new(&mut stack);
+            let warm = Warm::new();
+            let hot = Hot::init(&mut stack);
+            let cache = Hamt::<Noun>::new();
+
+            Context {
+                stack,
+                newt,
+                cold,
+                warm,
+                hot,
+                cache,
+                scry_stack: D(0),
+            }
         }
 
         #[allow(non_snake_case)]
@@ -319,25 +359,25 @@ pub mod util {
             assert!(eq, "got: {}, need: {}", a, b);
         }
 
-        pub fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
-            let sam = T(stack, &[D(0), sam, D(0)]);
-            let jet_res = assert_no_alloc(|| jet(stack, &mut None, sam).unwrap());
-            assert_noun_eq(stack, jet_res, res);
+        pub fn assert_jet(context: &mut Context, jet: Jet, sam: Noun, res: Noun) {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let jet_res = assert_no_alloc(|| jet(context, sam).unwrap());
+            assert_noun_eq(&mut context.stack, jet_res, res);
         }
 
-        pub fn assert_jet_ubig(stack: &mut NockStack, jet: Jet, sam: Noun, res: UBig) {
-            let res = A(stack, &res);
-            assert_jet(stack, jet, sam, res);
+        pub fn assert_jet_ubig(context: &mut Context, jet: Jet, sam: Noun, res: UBig) {
+            let res = A(&mut context.stack, &res);
+            assert_jet(context, jet, sam, res);
         }
 
-        pub fn assert_nary_jet_ubig(stack: &mut NockStack, jet: Jet, sam: &[Noun], res: UBig) {
-            let sam = T(stack, sam);
-            assert_jet_ubig(stack, jet, sam, res);
+        pub fn assert_nary_jet_ubig(context: &mut Context, jet: Jet, sam: &[Noun], res: UBig) {
+            let sam = T(&mut context.stack, sam);
+            assert_jet_ubig(context, jet, sam, res);
         }
 
-        pub fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
-            let sam = T(stack, &[D(0), sam, D(0)]);
-            let jet_res = jet(stack, &mut None, sam);
+        pub fn assert_jet_err(context: &mut Context, jet: Jet, sam: Noun, err: JetErr) {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let jet_res = jet(context, sam);
             assert!(
                 jet_res.is_err(),
                 "with sample: {}, expected err: {:?}, got: {:?}",
@@ -346,23 +386,51 @@ pub mod util {
                 &jet_res
             );
             let jet_err = jet_res.unwrap_err();
-            assert_eq!(
-                jet_err, err,
-                "with sample: {}, expected err: {:?}, got: {:?}",
-                sam, err, jet_err
-            );
+            match (jet_err, err) {
+                (JetErr::Punt, JetErr::Punt) => {}
+                (JetErr::Fail(actual_err), JetErr::Fail(expected_err)) => {
+                    match (actual_err, expected_err) {
+                        (Error::ScryBlocked(mut actual), Error::ScryBlocked(mut expected))
+                        | (Error::ScryCrashed(mut actual), Error::ScryCrashed(mut expected))
+                        | (Error::Deterministic(mut actual), Error::Deterministic(mut expected))
+                        | (
+                            Error::NonDeterministic(mut actual),
+                            Error::NonDeterministic(mut expected),
+                        ) => unsafe {
+                            assert!(unifying_equality(
+                                &mut context.stack,
+                                &mut actual,
+                                &mut expected
+                            ));
+                        },
+                        _ => {
+                            panic!(
+                                "with sample: {}, expected err: {:?}, got: {:?}",
+                                sam, expected_err, actual_err
+                            );
+                        }
+                    }
+                }
+                _ => {
+                    panic!(
+                        "with sample: {}, expected err: {:?}, got: {:?}",
+                        sam, err, jet_err
+                    );
+                }
+            }
         }
     }
 
     #[cfg(test)]
     mod tests {
-        use super::test::{init_stack, A};
+        use super::test::{init_context, A};
         use super::*;
         use ibig::ubig;
 
         #[test]
         fn test_met() {
-            let s = &mut init_stack();
+            let c = &mut init_context();
+            let s = &mut c.stack;
 
             let a = A(s, &ubig!(0xdeadbeef12345678fedcba9876543210))
                 .as_atom()

@@ -1,6 +1,9 @@
 use crate::assert_acyclic;
+use crate::assert_no_forwarding_pointers;
+use crate::assert_no_junior_pointers;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use crate::snapshot::pma::{pma_in_arena, pma_malloc_w};
+use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
 use libc::{c_void, memcmp};
@@ -83,6 +86,19 @@ impl NockStack {
             memory,
             pc: false,
         }
+    }
+
+    /** Resets the NockStack. */
+    pub fn reset(&mut self, top_slots: usize) {
+        self.frame_pointer = unsafe { self.start.add(RESERVED + top_slots) } as *mut u64;
+        self.stack_pointer = self.frame_pointer;
+        self.alloc_pointer = unsafe { self.start.add(self.size) } as *mut u64;
+        self.pc = false;
+        unsafe {
+            *self.frame_pointer.sub(FRAME + 1) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
+            *self.frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
+            *self.frame_pointer.sub(ALLOC + 1) = ptr::null::<u64>() as u64; // "alloc pointer" from "previous" frame
+        };
     }
 
     /** Current frame pointer of this NockStack */
@@ -355,6 +371,10 @@ impl NockStack {
     }
 
     unsafe fn copy(&mut self, noun: &mut Noun) {
+        assert_acyclic!(*noun);
+        assert_no_forwarding_pointers!(*noun);
+        assert_no_junior_pointers!(self, *noun);
+
         self.pre_copy();
         assert!(self.stack_is_empty());
         let noun_ptr = noun as *mut Noun;
@@ -442,7 +462,68 @@ impl NockStack {
             }
         }
         // Set saved previous allocation pointer its new value after this allocation
+
         assert_acyclic!(*noun);
+        assert_no_forwarding_pointers!(*noun);
+        assert_no_junior_pointers!(self, *noun);
+    }
+
+    pub unsafe fn assert_struct_is_in<T>(&self, ptr: *const T, count: usize) {
+        let ap = (if self.pc {
+            *(self.prev_alloc_pointer_pointer())
+        } else {
+            self.alloc_pointer
+        }) as usize;
+        let sp = (if self.pc {
+            *(self.prev_stack_pointer_pointer())
+        } else {
+            self.stack_pointer
+        }) as usize;
+        let (low, hi) = if ap > sp { (sp, ap) } else { (ap, sp) };
+        if ((ptr as usize) < low && (ptr.add(count) as usize) <= low)
+            || ((ptr as usize) >= hi && (ptr.add(count) as usize) > hi)
+        {
+            return;
+        }
+        panic!(
+            "Use after free: allocation from {:#x} to {:#x}, free space from {:#x} to {:#x}",
+            ptr as usize,
+            ptr.add(count) as usize,
+            low,
+            hi
+        );
+    }
+
+    unsafe fn assert_noun_in(&self, noun: Noun) {
+        let mut dbg_stack = Vec::new();
+        dbg_stack.push(noun);
+        let ap = (if self.pc {
+            *(self.prev_alloc_pointer_pointer())
+        } else {
+            self.alloc_pointer
+        }) as usize;
+        let sp = (if self.pc {
+            *(self.prev_stack_pointer_pointer())
+        } else {
+            self.stack_pointer
+        }) as usize;
+        let (low, hi) = if ap > sp { (sp, ap) } else { (ap, sp) };
+        loop {
+            if let Some(subnoun) = dbg_stack.pop() {
+                if let Ok(a) = subnoun.as_allocated() {
+                    let np = a.to_raw_pointer() as usize;
+                    if np >= low && np < hi {
+                        panic!("noun not in {:?}: {:?}", (low, hi), subnoun);
+                    }
+                    if let Right(c) = a.as_either() {
+                        dbg_stack.push(c.tail());
+                        dbg_stack.push(c.head());
+                    }
+                }
+            } else {
+                return;
+            }
+        }
     }
 
     pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
@@ -516,7 +597,6 @@ impl NockStack {
                 },
             }
         }
-        assert_acyclic!(*noun);
     }
 
     pub unsafe fn frame_pop(&mut self) {
@@ -527,6 +607,18 @@ impl NockStack {
         self.frame_pointer = prev_frame_ptr;
         self.stack_pointer = prev_stack_ptr;
         self.alloc_pointer = prev_alloc_ptr;
+
+        if self.frame_pointer.is_null()
+            || self.stack_pointer.is_null()
+            || self.alloc_pointer.is_null()
+        {
+            permit_alloc(|| {
+                panic!(
+                    "serf: frame_pop: null NockStack pointer f={:p} s={:p} a={:p}",
+                    self.frame_pointer, self.stack_pointer, self.alloc_pointer
+                );
+            });
+        }
 
         self.pc = false;
     }
@@ -666,6 +758,88 @@ impl NockStack {
             unsafe { self.stack_pointer == self.alloc_pointer.add(RESERVED) }
         }
     }
+
+    pub fn no_junior_pointers(&self, noun: Noun) -> bool {
+        unsafe {
+            if let Ok(c) = noun.as_cell() {
+                let mut fp: *mut u64;
+                let mut sp = self.stack_pointer;
+                let mut ap = self.alloc_pointer;
+                let mut pfp = *(self.prev_frame_pointer_pointer());
+                let mut psp = *(self.prev_stack_pointer_pointer());
+                let mut pap = *(self.prev_alloc_pointer_pointer());
+
+                let mut dbg_stack = Vec::new();
+
+                // Detemine range
+                let (rlo, rhi) = loop {
+                    if psp.is_null() {
+                        psp = ((self.start as u64) + ((self.size << 3) as u64)) as *mut u64;
+                    }
+                    let (lo, hi) = if sp < ap { (ap, psp) } else { (psp, ap) };
+                    let ptr = c.to_raw_pointer() as *mut u64;
+                    if ptr >= lo && ptr < hi {
+                        break if sp < ap { (sp, ap) } else { (ap, sp) };
+                    } else {
+                        fp = pfp;
+                        sp = psp;
+                        ap = pap;
+                        if sp < ap {
+                            pfp = *(fp.sub(FRAME + 1)) as *mut u64;
+                            psp = *(fp.sub(STACK + 1)) as *mut u64;
+                            pap = *(fp.sub(ALLOC + 1)) as *mut u64;
+                        } else {
+                            pfp = *(fp.add(FRAME)) as *mut u64;
+                            psp = *(fp.add(STACK)) as *mut u64;
+                            pap = *(fp.add(ALLOC)) as *mut u64;
+                        }
+                    }
+                };
+
+                dbg_stack.push(c.head());
+                dbg_stack.push(c.tail());
+                while let Some(n) = dbg_stack.pop() {
+                    if let Ok(a) = n.as_allocated() {
+                        let ptr = a.to_raw_pointer();
+                        if ptr >= rlo && ptr < rhi {
+                            eprintln!(
+                                "\rserf: Noun {:x} has Noun {:x} in junior of range {:p}-{:p}",
+                                (noun.raw << 3),
+                                (n.raw << 3),
+                                rlo,
+                                rhi
+                            );
+                            return false;
+                        }
+                        if let Some(c) = a.cell() {
+                            dbg_stack.push(c.tail());
+                            dbg_stack.push(c.head());
+                        }
+                    }
+                }
+
+                true
+            } else {
+                true
+            }
+        }
+    }
+}
+
+#[cfg(feature = "check_junior")]
+#[macro_export]
+macro_rules! assert_no_junior_pointers {
+    ( $x:expr, $y:expr ) => {
+        assert_no_alloc::permit_alloc(|| {
+            assert!($x.no_junior_pointers($y));
+        })
+    };
+}
+
+#[cfg(not(feature = "check_junior"))]
+#[macro_export]
+macro_rules! assert_no_junior_pointers {
+    ( $x:expr, $y:expr ) => {};
 }
 
 pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
@@ -692,6 +866,13 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
      * senior noun, *never vice versa*, to avoid introducing references from more senior frames
      * into more junior frames, which would result in incorrect operation of the copier.
      */
+    assert_acyclic!(*a);
+    assert_acyclic!(*b);
+    assert_no_forwarding_pointers!(*a);
+    assert_no_forwarding_pointers!(*b);
+    assert_no_junior_pointers!(stack, *a);
+    assert_no_junior_pointers!(stack, *b);
+
     // If the nouns are already word-equal we have nothing to do
     if (*a).raw_equals(*b) {
         return true;
@@ -738,7 +919,6 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                         ) == 0
                     {
                         let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
-                        // unify
                         if x_as_ptr == junior {
                             *x = *y;
                         } else {
@@ -788,8 +968,14 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
         }
     }
     stack.frame_pop();
+
     assert_acyclic!(*a);
     assert_acyclic!(*b);
+    assert_no_forwarding_pointers!(*a);
+    assert_no_forwarding_pointers!(*b);
+    assert_no_junior_pointers!(stack, *a);
+    assert_no_junior_pointers!(stack, *b);
+
     (*a).raw_equals(*b)
 }
 
@@ -888,6 +1074,7 @@ impl NounAllocator for NockStack {
 pub trait Preserve {
     /// Ensure an object will not be invalidated by popping the NockStack
     unsafe fn preserve(&mut self, stack: &mut NockStack);
+    unsafe fn assert_in_stack(&self, stack: &NockStack);
 }
 
 impl Preserve for IndirectAtom {
@@ -896,6 +1083,9 @@ impl Preserve for IndirectAtom {
         let buf = stack.struct_alloc_in_previous_frame::<u64>(size);
         copy_nonoverlapping(self.to_raw_pointer(), buf, size);
         *self = IndirectAtom::from_raw_pointer(buf);
+    }
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        stack.assert_noun_in(self.as_atom().as_noun());
     }
 }
 
@@ -909,11 +1099,17 @@ impl Preserve for Atom {
             }
         }
     }
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        stack.assert_noun_in(self.as_noun());
+    }
 }
 
 impl Preserve for Noun {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         stack.copy(self);
+    }
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        stack.assert_noun_in(*self);
     }
 }
 

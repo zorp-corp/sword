@@ -110,6 +110,7 @@ impl Snapshot for DoubleJam {
     }
 
     fn save(&mut self, _stack: &mut NockStack, noun: &mut Noun) {
+        //  XX: I don't think this needs to be mut
         self.noun = *noun;
     }
 
