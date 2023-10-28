@@ -3,6 +3,7 @@
 use crate::interpreter::{interpret, Context};
 use crate::jets::util::*;
 use crate::jets::Result;
+use crate::mem::Preserve;
 use crate::noun::{Noun, D, NO, NONE, T, YES};
 use ares_macros::tas;
 

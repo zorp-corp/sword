@@ -9,6 +9,7 @@ use crate::jets::warm::Warm;
 use crate::jets::JetErr;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
+use crate::mem::Preserve;
 use crate::newt::Newt;
 use crate::noun;
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
@@ -289,6 +290,7 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
     assert_acyclic!(noun);
     assert_no_forwarding_pointers!(noun);
     assert_no_junior_pointers!(stack, noun);
+    // unsafe { noun.assert_in_stack(stack) };
 }
 
 /** Interpret nock */
@@ -381,6 +383,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         context.stack.pop::<NockWork>();
                     } else {
                         // Axis invalid for input Noun
+                        eprintln!("invalid axis");
                         break Err(Error::Deterministic(D(0)));
                     }
                 }
@@ -480,6 +483,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             context.stack.pop::<NockWork>();
                         } else {
                             // Cannot increment (Nock 4) a cell
+                            eprintln!("4 of cell");
                             break Err(Error::Deterministic(D(0)));
                         }
                     }
@@ -523,10 +527,12 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 push_formula(stack, cond.once, cond.tail)?;
                             } else {
                                 // Test branch of Nock 6 must return 0 or 1
+                                eprintln!("6 of not loobean");
                                 break Err(Error::Deterministic(D(0)));
                             }
                         } else {
                             // Test branch of Nock 6 must return a direct atom
+                            eprintln!("6 of something not direct");
                             break Err(Error::Deterministic(D(0)));
                         }
                     }
@@ -608,6 +614,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                             }
                                             Err(JetErr::Punt) => {}
                                             Err(err) => {
+                                                eprintln!("jet error in 9: {:?}", err);
                                                 break Err(err.into());
                                             }
                                         }
@@ -635,6 +642,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 }
                             } else {
                                 // Axis into core must be atom
+                                eprintln!("bad axis into core");
                                 break Err(Error::Deterministic(D(0)));
                             }
                         }
@@ -683,6 +691,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 push_formula(&mut context.stack, dint.hint, false)?;
                             }
                             Err(err) => {
+                                eprintln!("error in match_pre_hint {:?}", err);
                                 break Err(err);
                             }
                         }
@@ -710,6 +719,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 push_formula(&mut context.stack, dint.body, dint.tail)?;
                             }
                             Err(err) => {
+                                eprintln!("error in match_pre_nock {:?}", err);
                                 break Err(err);
                             }
                         }
@@ -724,7 +734,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             res,
                         ) {
                             Ok(Some(found)) => res = found,
-                            Err(err) => break Err(err),
+                            Err(err) => {
+                                eprintln!("error in match_post_nock. clue {}", dint.hint);
+                            },
                             _ => {}
                         }
                         context.stack.pop::<NockWork>();
@@ -747,6 +759,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 push_formula(&mut context.stack, sint.body, sint.tail)?;
                             }
                             Err(err) => {
+                                // eprintln!("error in match_pre_nock (static) {:?}", err);
                                 break Err(err);
                             }
                         }
@@ -756,7 +769,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             context, subject, sint.tag, None, sint.body, res,
                         ) {
                             Ok(Some(found)) => res = found,
-                            Err(err) => break Err(err),
+                            Err(err) => {
+                                // eprintln!("error in match_post_nock (static) {:?}", err);
+                            },
                             _ => {}
                         }
                         context.stack.pop::<NockWork>();
@@ -801,8 +816,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 Ok(noun) => match noun.as_either_atom_cell() {
                                     Left(atom) => {
                                         if atom.as_noun().raw_equals(D(0)) {
+                                            eprintln!("scry blocked {}", scry.path);
                                             break Err(Error::ScryBlocked(scry.path));
                                         } else {
+                                            eprintln!("scry crashed {}", scry.path);
                                             break Err(Error::ScryCrashed(D(0)));
                                         }
                                     }
@@ -1064,6 +1081,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<(), 
 
 pub fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error {
     unsafe {
+        eprintln!("exit {:?}", error);
         let stack = &mut context.stack;
 
         let mut preserve = match error {
@@ -1424,8 +1442,20 @@ mod hint {
                     if let Some(clue) = hint {
                         let cold_res: cold::Result = {
                             let chum = clue.slot(2)?;
-                            let parent_formula_op = clue.slot(12)?.as_atom()?.as_direct()?;
-                            let parent_formula_ax = clue.slot(13)?.as_atom()?;
+                            let mut parent = clue.slot(6)?;
+                            loop {
+                                if let Ok(parent_cell) = parent.as_cell() {
+                                    if unsafe { parent_cell.head().raw_equals(D(11)) } {
+                                        parent = parent.slot(7)?;
+                                    } else {
+                                        break;
+                                    }
+                                } else {
+                                    break;
+                                }
+                            }
+                            let parent_formula_op = parent.slot(2)?.as_atom()?.as_direct()?;
+                            let parent_formula_ax = parent.slot(3)?.as_atom()?;
 
                             if parent_formula_op.data() == 1 {
                                 if parent_formula_ax.as_direct()?.data() == 0 {

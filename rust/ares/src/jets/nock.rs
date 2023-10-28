@@ -254,16 +254,18 @@ pub mod util {
                         }
                         Right(cell) => {
                             'tank: {
-                                if let Ok(tone) = mink(context, dat, cell.head()) {
-                                    if let Some(cell) = tone.cell() {
-                                        if cell.head().raw_equals(D(0)) {
-                                            //  XX: need to check that this is
-                                            //      actually a path;
-                                            //      return leaf+"mook.mean" if not
-                                            break 'tank cell.tail();
-                                        }
-                                    }
-                                }
+                                // if let Ok(tone) = mink(context, dat, cell.head()) {
+                                //     if let Some(cell) = tone.cell() {
+                                //         if cell.head().raw_equals(D(0)) {
+                                //             //  XX: need to check that this is
+                                //             //      actually a path;
+                                //             //      return leaf+"mook.mean" if not
+                                //             break 'tank cell.tail();
+                                //         }
+                                //     }
+                                // }
+
+
 
                                 let stack = &mut context.stack;
                                 let tape = tape(stack, "####");
@@ -275,6 +277,8 @@ pub mod util {
                         let stack = &mut context.stack;
 
                         let spot = dat.as_cell()?;
+                        eprintln!("spot: {}", spot);
+
                         let pint = spot.tail().as_cell()?;
                         let pstr = pint.head().as_cell()?;
                         let pend = pint.tail().as_cell()?;

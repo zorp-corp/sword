@@ -38,7 +38,7 @@ impl Context {
         // TODO: switch to Pma when ready
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
         let mut snapshot = DoubleJam::new(snap_path);
-        let mut stack = NockStack::new(256 << 10 << 10, 0);
+        let mut stack = NockStack::new(1024 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new();
 
