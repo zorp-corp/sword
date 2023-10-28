@@ -1449,22 +1449,11 @@ mod hint {
                             Err(cold::Error::NoParent) => {
                                 //  XX: Need better message in slog; need better slogging tools
                                 //      format!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
-                                let tape1 = tape(
+                                let tape = tape(
                                     stack,
                                     "serf: cold: register: could not find parent battery at given axis",
                                 );
-                                //slog_leaf(stack, newt, tape1);
-                                assert_no_alloc::permit_alloc(|| {
-                                    eprintln!("serf: cold: register: could not find parent battery at given axis");
-                                });
-                                if cold.is_null() {
-                                    let tape2 = tape(stack, "serf: cold: null cold state");
-                                    assert_no_alloc::permit_alloc(|| {
-                                        eprintln!("serf: cold: null cold state");
-                                        panic!("dummy panic")
-                                    })
-                                //    slog_leaf(stack, newt, tape2);
-                                };
+                                slog_leaf(stack, newt, tape);
                             }
                             Err(cold::Error::BadNock) => {
                                 //  XX: Need better message in slog; need better slogging tools

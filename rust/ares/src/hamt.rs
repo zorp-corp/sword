@@ -259,9 +259,6 @@ assert_eq_size!(&[Entry<()>], Stem<()>);
 pub struct Hamt<T: Copy>(Stem<T>);
 
 impl<T: Copy + Preserve> Hamt<T> {
-    pub fn is_null(&self) -> bool {
-        self.0.bitmap == 0
-    }
     // Make a new, empty HAMT
     pub fn new() -> Self {
         Hamt(Stem {
