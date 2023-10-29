@@ -341,6 +341,23 @@ impl Cold {
         }
     }
 
+    /** Try to match a core directly to the cold state, print the resulting path if found
+     */
+    pub fn matches(&mut self, stack: &mut NockStack, core: &mut Noun) -> Option<Noun> {
+        let mut battery = (*core).slot(2).ok()?;
+        unsafe {
+            let paths = (*(self.0)).battery_to_paths.lookup(stack, &mut battery)?;
+            for path in paths {
+                if let Some(batteries_list) = (*(self.0)).path_to_batteries.lookup(stack, &mut (*path)) {
+                    if let Some(_batt) = batteries_list.matches(stack, *path) {
+                        return Some(*path);
+                    }
+                }
+            };
+            return None;
+        }
+    }
+
     /// register a core, return a boolean of whether we actually needed to register (false ->
     /// already registered)
     ///
