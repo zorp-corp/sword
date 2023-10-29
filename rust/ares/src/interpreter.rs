@@ -423,6 +423,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                             break Err(err.into());
                                         }
                                     }
+                                } else if let Some(path) = context.cold.matches(&mut context.stack, &mut vale.subject) {
+                                    assert_no_alloc::permit_alloc(|| {
+                                        eprintln!("Missed jet: {}", path);
+                                    });
                                 }
                             };
 
@@ -611,6 +615,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                                 break Err(err.into());
                                             }
                                         }
+                                    } else if let Some(path) = context.cold.matches(&mut context.stack, &mut res) {
+                                        assert_no_alloc::permit_alloc(|| {
+                                            eprintln!("Missed jet: {}", path);
+                                        });
                                     }
                                 };
 
