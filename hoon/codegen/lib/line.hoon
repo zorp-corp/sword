@@ -6,7 +6,7 @@
 =|  =hill
 =|  hots=(map [path @] [j=@jet =need])
 =>
-~%  %line  +15  ~
+~%  %line.1  +15  ~
 |%
 :: difference between hill and moan
 ++  peck
@@ -1001,7 +1001,7 @@
   hill
 --
 ::  codegen stateful core
-~%  %doge  +3  ~
+~%  %runt.1  +3  ~
 |%
 ++  this  .
 ::  Read out generated code
@@ -1042,9 +1042,10 @@
   =*  thus  .
   ~/  %wink
   |=  [p=$-(^ (unit (unit))) s=* f=*]
+  =*  wink  .
   ^-  [tone _this]
   =/  hull  (peek s f)
-  =?  thus  ?=(~ hull)  (poke %comp s f ~)
+  =?  thus  ?=(~ hull)  (poke %comp ~ s f)
   =?  hull  ?=(~ hull)  (peek s f)
   ?>  ?=(^ hull)
   =/  bell  bell.u.hull
@@ -1055,6 +1056,7 @@
     [will.pyre (~(put in *(map @uvre *)) sire.pyre s) *(list [@ta *]) *(set @uvre)] 
   =|  tack=(list [then=bile r=@uvre _fram])
   =/  bloc  (~(got by will.pyre) wish.pyre)
+  ~%  %wink-loop  wink  ~
   |^  ^-  [tone _this]
     :: XX dedent
     ?^  body.bloc
@@ -1214,7 +1216,7 @@
       =/  s  (r u.x)
       =/  f  (r f.x)
       =/  hull  (peek s f)
-      =?  thus  ?=(~ hull)  (poke %comp s f ~)
+      =?  thus  ?=(~ hull)  (poke %comp ~ s f)
       =?  hull  ?=(~ hull)  (peek s f)
       ?>  ?=(^ hull)
       =.  hill  hall.u.hull
@@ -1253,7 +1255,7 @@
       =/  s  (r u.x)
       =/  f  (r f.x)
       =/  hull  (peek s f)
-      =?  thus  ?=(~ hull)  (poke %comp s f ~)
+      =?  thus  ?=(~ hull)  (poke %comp ~ s f)
       =?  hull  ?=(~ hull)  (peek s f)
       ?>  ?=(^ hull)
       =.  hill  hall.u.hull
@@ -1330,22 +1332,27 @@
   --
 ++  xray
   |_  will=(map bile blob)
+  ::  print a bell as an @q-ed mug
   ++  ring
     |=  a=bell
     ^-  tank
     >`@q`(mug a)<
+  ::  print a bile as thus and axe + a pretty bell
   ++  rung
     |=  b=bile
     ^-  tank
     [%rose ["." "|" "|"] >thus.b< >axe.b< (ring +>+.b) ~]
+  ::  print a register
   ++  near
     |=  r=@uvre
     ^-  tank
     [%leaf 'r' (a-co:co r)]
+  ::  instruction print helper
   ++  pink
     |=  [t=@tas l=(list tank)]
     ^-  tank
     [%palm [" " "" "" ""] [%leaf (trip t)] l]
+  :: print a value instruction
   ++  ping
     |=  i=pole
     ?-  -.i
@@ -1418,6 +1425,7 @@
         %ipb
       (pink -.i (turn s.i near))
     ==
+  :: print a control flow instruction
   ++  pine
     |=  i=site
     ^-  tank
@@ -1467,10 +1475,12 @@
         %bom
       (pink -.i ~)
     ==
+  :: print a basic block
   ++  plop
     |=  =blob
     ^-  tank
     [%rose [";" "" ""] (snoc (turn body.blob ping) (pine bend.blob))]
+  :: print the whole code for this arm
   ++  parm
     ^-  tank
     :*  %rose  [" " "" ""]
@@ -1478,6 +1488,7 @@
         |=  [l=bile b=blob]
         [%palm ["" "" "->" ""] (rung l) (plop b) ~]
     ==
+  :: print register value assignments
   ++  vals
     |=  v=(map @uvre *)
     ^-  tank
@@ -1486,9 +1497,22 @@
        |=  [r=@uvre n=*]
        [%palm ["=" "" "" ""] (near r) >n< ~]
     ==
+  :: print which value a register gets
   ++  gals
     |=  [x=@uvre v=(map @uvre *)]
     ^-  tank
     [%palm ["<--" "" "" ""] (near x) (vals v) ~]
   --
+:: print code for an arm, if it exists
+++  rake
+  |=  [s=* f=*]
+  ^-  tank
+  =/  a  (peek s f)
+  ?~  a  [%leaf "no code generated for arm"]
+  ~(parm xray will:(~(got by hall.u.a) bell.u.a))
+:: debug-print code for an arm, if it exists
+++  rack
+  |=  [s=* f=*]
+  ^-  ~
+  ((slog (rake s f) ~) ~)
 --

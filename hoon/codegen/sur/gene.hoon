@@ -1,6 +1,6 @@
 /+  sack
 =>  sack
-~%  %gene  +3  ~
+~%  %gene.1  +3  ~
 |%
 ::  hot state
 ::
@@ -13,7 +13,7 @@
   (list [p=path a=@ j=@jet =need])
 :: pokes
 +$  gist
-  $%  [%comp s=* f=* slow=path]
+  $%  [%comp slow=path s=* f=*]
       [%heat =heat]
   ==
 ::  external label
@@ -161,12 +161,12 @@
 +$  blob  [body=(list pole) bend=site]
 ::  compilation unit
 +$  pile
-  $:  long=bile  :: starting label for direct calls
-      want=need  :: input registers for direct calls
-      wish=bile  :: starting label for indirect calls
-      sire=@uvre :: input register for indirect calls
-      will=(map bile blob)
-      sans=@uvre ::  next SSA register
+  $:  long=bile  :: starting label for direct calls    axis 2
+      want=need  :: input registers for direct calls   axis 6
+      wish=bile  :: starting label for indirect calls  axis 14
+      sire=@uvre :: input register for indirect calls  axis 30
+      will=(map bile blob) :: code table               axis 62
+      sans=@uvre ::  next SSA register                 axis 63
   ==
 ::  code table
 +$  hill  (map bell pile)
