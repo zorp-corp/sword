@@ -5,7 +5,9 @@
 ::  operations on $cape
 ++  ca
   |_  one=cape
-  ::  axes of yes
+  ::    axes of yes
+  ::
+  ::  list all axes of %.y in a cape
   ++  yea
     ^-  (list @)
     =/  axe  1
@@ -15,6 +17,8 @@
       %&  ~[axe]
       ^  (weld $(one -.one, axe (peg axe 2)) $(one +.one, axe (peg axe 3)))
     ==
+  ::    cape intersection
+  ::
   ::  intersect two capes
   ++  int
     |=  two=cape
@@ -32,7 +36,9 @@
         ?:(?&(?=(@ l) =(l r)) l [l r])
       ==
     ==
-  ::  apply a cape as a mask to a sock
+  ::    apply a cape as a mask to a sock
+  ::  
+  ::  mask unknown axes in a cape out of a sock
   ++  app
     |=  know=sock
     |-  ^-  sock
@@ -50,7 +56,9 @@
       =/  r  $(one +.one, data.know +.data.know)
       [[cape.l cape.r] data.l data.r]
     ==
-  ::  unify two capes
+  ::    union two capes
+  ::
+  ::  
   ++  uni
     |=  two=cape
     ^-  cape
@@ -67,8 +75,11 @@
         ?:(?&(?=(@ l) =(l r)) l [l r])
       ==
     ==
-  ::  does two add axes to one?
-  ::  XX make big and huge consistent
+  ::    Added axes?
+  ::
+  ::  big returns true if any subaxis of a masked axis in one
+  ::  is unmasked in two. Note that this is not an ordering relation as
+  ::  it is not antisymmetric
   ++  big
     |=  two=cape
     ^-  ?
@@ -79,12 +90,17 @@
       ?@  two  ?|($(one -.one) $(one +.one))
       ?|($(one -.one, two -.two) $(one +.one, two +.two))
     ==
-  ::  does one actually have any axes
+  ::    non-null?
+  ::
+  ::  true if there are any unmasked axes
   ++  any
     ^-  ?
     ?@  one  one
     ?|(any(one -.one) any(one +.one))
-  ::  push a cape down to an axis
+  ::    push a cape down to an axis
+  ::
+  ::  this builds a path described by the input axis with one at the
+  ::  bottom
   ++  pat
     |=  axe=@
     ?<  =(0 axe)
@@ -94,7 +110,10 @@
       %2  [$(axe (mas axe)) |]
       %3  [| $(axe (mas axe))]
     ==
-  ::  split a cape
+  ::    split a cape
+  ::
+  ::  assume a cape will be applied to a cell,
+  ::  and provide capes for the head and tail of the cell.
   ++  rip
     ^-  [cape cape]
     ?-  one
@@ -102,7 +121,10 @@
       %&  [& &]
       ^   one
     ==
-  ::  poke a hole in a cape
+  ::    poke a hole in a cape
+  ::
+  ::  mask an axis out of a cape, and return a cape
+  ::  describing which subaxes were unmasked
   ++  awl
     |=  axe=@
     ?<  =(0 axe)
@@ -136,7 +158,7 @@
 ::  operations on sock
 ++  so
   |_  one=sock
-  ::  check that a sock is a vaid representation
+  ::    valid?
   ++  apt
     |-  ^-  ?
     ?@  cape.one
@@ -146,7 +168,8 @@
     ?&  $(cape.one -.cape.one, data.one -.data.one)
         $(cape.one +.cape.one, data.one +.data.one)
     ==
-  ::  normalize, throwing away unknown axes in data
+  ::    normalize
+  ::  throw away unknown axes in data (setting to ~)
   ++  norm
     |-  ^-  sock
     ?-  cape.one
@@ -162,7 +185,10 @@
         [| ~]
       [[cape.l cape.r] data.l data.r]
     ==
-  ::  nesting
+  ::    nesting
+  ::
+  ::  true if there are no axes unmasked in two but masked in one,
+  ::  and if all axes unmasked in both have the same data
   ++  huge
     |=  two=sock
     ^-  ?
@@ -176,7 +202,10 @@
     ?&  $(one [lope -.data.one], two [loop -.data.two])
         $(one [rope +.data.one], two [roop +.data.two])
     ==
-  ::  axis
+  ::    axis
+  ::
+  ::  create a sock that is known to be cells down the given axis
+  ::  and at that axis is one
   ++  pull
     |=  axe=@
     ^-  (unit sock)
@@ -189,7 +218,9 @@
       %2  $(data.one -.data.one, cape.one ?:(?=(^ cape.one) -.cape.one &), axe (mas axe))
       %3  $(data.one +.data.one, cape.one ?:(?=(^ cape.one) +.cape.one &), axe (mas axe))
     ==
-  ::  make a pair
+  ::    pair
+  ::
+  ::  takes a pair of socks to a sock of a pair.
   ++  knit
     |=  two=sock
     ^-  sock
@@ -199,7 +230,10 @@
         ?.  cape.two  |  [cape.one cape.two]
       [cape.one cape.two]
     [data.one data.two]
-  ::  intersect
+  ::    intersect
+  ::
+  ::  output is unmasked only where both one and two are unmasked and
+  ::  they both agree in data
   ++  purr
     |=  two=sock
     |-  ^-  sock
@@ -228,7 +262,9 @@
     ?^  data.two  [| ~]
     ?>  ?=(@ cape.two)
     ?:  =(data.one data.two)  one  [| ~]
-  ::  edit
+  ::    edit
+  ::
+  ::  update mask and data at an axis into a sock
   ++  darn
     |=  [axe=@ two=sock]
     ^-  (unit sock)
@@ -268,11 +304,10 @@
       `[[-.cape.one cape.u.luck] -.data.one data.u.luck]
     ==
   --
+::    apt assertion
+::
+::  assert a sock is apt:so
 ++  sap
-  |=  know=sock
-  ?>  ~(apt so know)
-  know
-++  sop
   |=  know=sock
   ?>  ~(apt so know)
   know

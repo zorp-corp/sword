@@ -1,10 +1,27 @@
 /-  noir
 =>  noir
 ~%  %sack.1  +15  ~
+::    finished code table
+::
+::  entries describe input and output knowledge
+::  and analyzed code.
+::  Key to the jar is a formula.
+::  Call labels are the key formula and the soot face of each entry
 =|  moan=(jar * hone) :: finished code table
+::    cold state
+::
+::  see $cool in sur/noir/hoon
 =|  cole=cool :: cold state
 |%
+::
+::    core reference
 ++  thus  .
+::
+::    outer work loop
+::
+::  analyze nock and subject and emit %nomm.
+::  Usually the sock will simply be  [%.y <subject>] for an indirect
+::  call or outer runtime invocation
 ++  rout
   |=  [soot=sock form=*]
   ^-  _thus
@@ -24,7 +41,15 @@
     =>  espy
     =>  ruin
     ?~(work thus $)
+  ::
+  ::    inner core reference
   ++  this  .
+  ::    lower to nomm
+  ::
+  ::  - translate syntactic crashes to [%not 0]
+  ::  - translate [8 b c] to (nomm of) [7 [b 0 1] c]
+  ::  - translate [9 b c] to (nomm of) [7 c 2 [0 1] 0 c]
+  ::  - label 2 and 11 with formula axes for decoration
   ++  raid
     =/  cork  work
     |-  ^-  _this
@@ -119,7 +144,11 @@
           $(form walk.form, hail (peg hail 7))
       ==
     ==
-  ::  learn/backpropagate battery masks
+  ::    battery masks
+  ::
+  ::  given the current set of known formulas,
+  ::  discover a mask of which axes in each callsite subject are
+  ::  actually used to fix which formulas are evaluated
   ++  espy
     =/  cork  work
     |-  ^-  _this
@@ -216,7 +245,11 @@
       %+  ~(jab by moot)  hail
       |=(=toot toot(sake soon))
     $(cork t.cork)
-  ::  propagate subject knowledge forward
+  ::    propagate subject knowledge forward
+  ::
+  ::  propagate knowledge from where it is known to new callsites,
+  ::  possibly discovering new formulas at previously indirect
+  ::  callsites.
   ++  loot
     =/  cork  work
     |-  ^-  _this
@@ -497,7 +530,14 @@
         $(soda t.soda, salt [u.kids t.t.salt])
       $(soda t.soda, salt [i.salt t.t.salt])
     ==
-  ::  recursion detection
+  ::    work discovery
+  ::
+  ::  - find newly direct call sites, and check if they are recursive
+  ::  - add new non-recursive direct callsites to worklist
+  ::  - finalize calls which contain no newly direct non-recursive
+  ::    callsites
+  ::  - add finalized callsites and their call-tree children to moan
+  ::    and cole (cold state)
   ++  ruin
     =/  mile=(list @hail)  ~(tap in mite)
     =.  work  ~  :: non-recursive direct calls
@@ -685,7 +725,8 @@
       ==
     [norm ices leap]
   --
-:: parse a fast hint
+::
+::   parse fast hint
 ++  past
   |=  a=*
   ^-  (unit [name=term park=(unit @) hock=(list [term @])])
@@ -702,7 +743,14 @@
   ?:  =(0 +<-.a)  `[u.nume `+<+.a (flop hock)]
   ?:  =([1 0] +<.a)  `[u.nume ~ (flop hock)]
   ~&  [%fast-isnt a]  ~
-:: recursively take apart autocons
+::
+::   battery members
+::
+:: we can discover all possible formulas in a battery by observing that
+:: a pair of two valid formulas is itself a valid formula. Therefore we
+:: treat the whole battery as a formula, but recursively decompose it
+:: along autocons. This allows us to analyze all possible batteries in a
+:: formula to enter them into the cold state
 ++  peel
   |=  f=*
   ^-  (list [axe=@ form=*])
@@ -714,7 +762,12 @@
       $(tack [[(peg -.i.tack 2) +<.i.tack] [(peg -.i.tack 3) +>.i.tack] t.tack])
     $(tack t.tack, salt [i.tack salt])
   salt
-::  parse a $chum from a fast hint and turn it into a term
+::
+::    parse $chum 
+::
+::  paths are composed of terms but fast hints label cores with $chum,
+::  so we need to translate the cell case of $chum into a concatenated
+::  term
 ++  bait
   |=  a=*
   ^-  (unit term)

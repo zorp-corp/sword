@@ -16,18 +16,29 @@
       root=sock  rake=cape
       sire=(unit @hail)
   ==
-::  cold state
+::    cold state
+::
+::   core: nested batteries by path
+::   batt: paths by outer batteries
+::   call: arms to exact call label
+::   back: path/axis labels by bell
 +$  cool
-  $:  core=(jug path sock)         ::  nested batteries by path
-      batt=(jug ^ path)            ::  paths by outer batteries
-      call=(jug [path @] [sock *]) ::  arms to exact call label
-      back=(map [sock *] [path @]) ::  path/axis labels by bell
+  $:  core=(jug path sock)         
+      batt=(jug ^ path)            
+      call=(jug [path @] [sock *]) 
+      back=(map [sock *] [path @]) 
   ==
-::  hint table entry
+::    hint table entry
+::
+::  stored information about a hint
 +$  hind
   $@  ~
   [%fast tire=(unit [cone=path bats=sock matt=(map @ [@hail *])])]
 ::    call table entry
+::
+::  soot: known subject for the call
+::  norm: nomm and decoration (see $food)
+::  root: known output of the call
 +$  hone  [soot=sock norm=food root=sock]
 ::    Nomm (Nock--)
 ::
@@ -48,12 +59,21 @@
       [%elf rent=nomm walk=nomm]                   :: "Nock 12"
       [%not here=@]                                :: Nock 0
   ==
+::    Stack computation marker
+::
+::  used to describe remaining work in tail-recursive work-stack
+::  algorithms over $nomm
 +$  toms
   $@  $?(%par %wot %the %for %ivy %six %eve %vee %elf)
   $%  [%two rail=@hail]
       [%ten here=@]
       [%tip hint=@ rail=@hail]
   ==
+::    call site data
+::
+::  nomm: lowered nock for called formula
+::  ices: labels for direct calls
+::  loop: set of direct calls which are recursive
 +$  food
   [=nomm ices=(map @hail [=sock form=*]) loop=(set [=sock form=*])]
 --

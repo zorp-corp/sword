@@ -2,7 +2,8 @@
 =>  sack
 ~%  %gene.1  +3  ~
 |%
-::  hot state
+::
+::    hot state
 ::
 ::  faces (per element):
 ::  j - jet ID
@@ -11,29 +12,54 @@
 ::  need - how this jet expects the subject
 +$  heat
   (list [p=path a=@ j=@jet =need])
-:: pokes
+::
+::   pokes
+::
+::  the codegen core can be updated either by asking it to analyze new
+::  code or by updating the jet hot state
 +$  gist
   $%  [%comp slow=path s=* f=*]
       [%heat =heat]
   ==
-::  external label
+::
+::    external label
+::
+::  labels an arm by what is known of its subject paired with its
+::  formula
 +$  bell  [text=sock form=*]
-::  internal label
+::
+::    internal label
+::
+::  labels a basic block within generated code for an arm
 +$  bile  [%bile axe=@ thus=@tas bell]
-::  ssa shape of a noun
+::    noun shape
+::
+::  labels axes of an abstract noun with SSA registers, possibly
+::  ignoring some axes
 +$  need
   $%  [%this sass=@uvre]
       [%both sass=@uvre left=need rite=need]
       [%none ~]
   ==
+::    linear control flow
+::
+::  a label for code for some nock, and the shape of its subject
 +$  next  $>(%next goal)
-::  destination
+::
+::    destination
+::  
+::  codegen destination
+::
+::  %pick: result will be used as a loobean for Nock 6
+::  %done: nock is in tail position, return result
+::  %next: jump to given label with result in given $need
 +$  goal
   $%  [%pick sass=@uvre zero=bile once=bile]
       [%done ~]
       [%next what=need then=bile]
   ==
-::  instructions in a block
+::
+::    instructions in a block
 ::
 ::  faces:
 ::  n - noun
@@ -95,11 +121,17 @@
       [%poi d=@uvre]
       [%ipb s=(list @uvre)]
   ==
+::
+::    origin description
+::
+::  %hed - register is head of given register
+::  %tal - register is tail of given register
 +$  pool
   $%  [%hed s=@uvre]
       [%tal s=@uvre]
   ==
-::  instructions ending a block
+::
+::    instructions ending a block
 ::
 ::  faces:
 ::  a - target arm
@@ -157,17 +189,33 @@
       [%don s=@uvre]
       [%bom ~]
   ==
-::  basic block
+::    basic block
+::
+::  zero or more dataflow instructions executed in order, followed by a
+::  single control-flow instruction
 +$  blob  [body=(list pole) bend=site]
-::  compilation unit
+::
+::    compilation unit
+::
+::  basic blocks and entry information for an arm
+::
+::  long: starting label for direct calls    axis 2
+::  want: input registers for direct calls   axis 6
+::  wish: starting label for indirect calls  axis 14
+::  sire: input register for indirect calls  axis 30
+::  will: code table for arm                 axis 62
+::  sans: next SSA register                  axis 63
 +$  pile
-  $:  long=bile  :: starting label for direct calls    axis 2
-      want=need  :: input registers for direct calls   axis 6
-      wish=bile  :: starting label for indirect calls  axis 14
-      sire=@uvre :: input register for indirect calls  axis 30
-      will=(map bile blob) :: code table               axis 62
-      sans=@uvre ::  next SSA register                 axis 63
+  $:  long=bile  
+      want=need  
+      wish=bile  
+      sire=@uvre 
+      will=(map bile blob)
+      sans=@uvre
   ==
-::  code table
+::
+::    code table
+::
+::  code entry information for arms
 +$  hill  (map bell pile)
 --
