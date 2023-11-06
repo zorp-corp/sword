@@ -8,7 +8,10 @@
 =>
 ~%  %line.1  +15  ~
 |%
-:: difference between hill and moan
+::   work
+::
+::  new: set of bells in moan, not in hill (require codegen)
+::  old: set of bells in hill, not in moan (should be dropped from hill)
 ++  peck
   ^-  [new=(set bell) old=(set bell)]
   =|  miel=(list bell)
@@ -21,7 +24,10 @@
   =/  jell  ~(key by hill)
   =/  mell  (~(gas in *(set bell)) miel)
   [(~(dif in mell) jell) (~(dif in jell) mell)] :: want mif-in
-:: look up an arm in moan
+::   
+::   look up analysis
+::
+:: look up an arm in the moan face of the sack core
 ++  puck
   |=  =bell
   ^-  (unit hone)
@@ -31,7 +37,10 @@
     ?:  =(text.bell soot.i.hose)  `i.hose
     $(hose t.hose)
   ~
-:: create a worklist, terminal arms first
+::    worklist
+::
+::  create a worklist, terminal arms (those with no non-recursive direct
+::  calls) first
 ++  work
   ^-  (list bell)
   =+  peck
@@ -69,14 +78,25 @@
   ?^  back
     $(queu (flop back), back ~)
   toil
-::  internal state
+::
+::    internal state
+::
+::  redo: arms called without knowing registerization
+::  will: code table
+::  sans: next SSA register
+::  sick: registers which should be checked for crashing at next mean
+::    boundary
 +$  gen  [redo=(list bile) will=(map bile blob) sans=@uvre sick=(set @uvre)]
-::  core codegen operations
+::    codegen
+::
+::  door containing core codegen operations
 ++  jean
   =/  fax  1
   =/  =goal  [%done ~]
   |_  [=bell =gen like=(map bell need)]
-  :: core codegen: iterate (RLN) over nomm and emit linearized code
+  ::   codegen loop
+  :: 
+  :: traverse nomm RLN and emit linearized code
   ++  cuts
     =+  =/  huns  (puck bell)
         ?>  ?=(^ huns)
@@ -473,7 +493,15 @@
         (copy then.paid what.paid what.trot)
       ==
     ==
-  ::  generate call setup for a call after we know its registerization
+  ::
+  ::    redo callsite registerization
+  ::
+  ::  given recursion, we may not know the registerization for an arm
+  ::  when we generate a direct call to it. Thus, once we have generated
+  ::  code for all arms in the call tree and know their
+  ::  registerizations, we return to callsites and generate
+  ::  properly-registerized calls, without changing the registerization
+  ::  of the calling arm.
   ++  redo
     |=  =bile
     ^-  _gen
@@ -520,9 +548,11 @@
       =^  [rush=_bile i=@uvre]  gen  (kerf %rush [%next n.urge reed])
       (emir bile [%mov i.v.bend.blob i]~ %hop rush)
     ==
-  :: split register to need
-  :: XX todo this needs to take a tas because we might have 2 at the
-  :: same axis in redo case
+  ::   split register to need
+  ::
+  ::  given a destination, generate code which splits a noun in one
+  ::  register to the registers described by the $need, and return the
+  ::  one register and a label for the splitting code
   ++  kerf
     |=  [thus=@tas =next]
     ^-  [[bile @uvre] _gen]
@@ -544,27 +574,44 @@
       =?  pose  ?=(^ rule)  [[%tal sass.need u.rule] pose]
       $(tack [left.need rite.need t.tack])
     $(tack t.tack)
-  ::  add a block, returning a label
+  ::    emit basic block
+  ::
+  ::  given a fixed label and a basic block,
+  ::  add the basic block to the code table
   ++  emit
     |=  [thus=@tas =blob]
     ^-  [bile _gen]
     =/  bill  [%bile fax thus bell]
     [bill (emir bill blob)]
-  :: add a block given a label
+  ::    emit basic block (raw label)
+  ::
+  :: given a raw bile and a basic block, add the basic block to the code
+  :: tabel at that label.
   ++  emir
     |=  [=bile =blob]
     ^-  _gen
     gen(will (~(put by will.gen) bile blob))
-  ::  generate a register
+  ::
+  ::    generate a register
+  ::
+  ::  return the current next SSA register and increment the next SSA
+  ::  register in the codegen state
   ++  rain
     ^-  [@uvre _gen]
     [sans.gen gen(sans .+(sans.gen))]
-  ::  generate a register and add it to sick.gen
+  ::  
+  ::    generate a poisonable register
+  ::
+  ::  rain, but add the register to sick: the set of possibly poisoned
+  ::  registers
   ++  rein
     =^  r  gen  rain
     =.  sick.gen  (~(put in sick.gen) r)
     [r gen(sick (~(put in sick.gen) r))]
-  ::  split a need for autocons
+  ::
+  ::    split need
+  ::
+  ::  split a need into two, generating cons instruction if necessary
   ++  lyse
     |=  =next
     ^-  [[bile need need] _gen]
@@ -581,7 +628,11 @@
       =^  lizz  gen  (emit %lyse [%con l r sass.what.next]~ %hop then.next)
       [[lizz [%this l] [%this r]] gen]
     ==
-  ::  get the top register for a need, if there is one
+  ::
+  ::    outermost register
+  ::
+  ::  get the outermost register of a need (or ~ if the need is %none):
+  ::  used for noun-splitting code
   ++  sass
     |=  =need
     ^-  (unit @uvre)
@@ -590,7 +641,15 @@
       %this  `sass.need
       %none  ~
     ==
-  ::  match two branching needs for a subject
+  ::    intersect needs
+  ::
+  ::  match needs from branching control flow, generating noun-splitting
+  ::  code for each branch as necessary
+  ::
+  ::  this generates the maximally common split of registers between
+  ::  both branches. If one branch expects a cell at an axis but the other does
+  ::  not, then we must expect that axis in a register so we do not
+  ::  crash when the more permissive branch would be taken
   ++  sect
     |=  [zero=next once=next]
     =|  lose=(list pole)
@@ -663,7 +722,12 @@
       =.  rose  [[%mov sass.z.p.i.tack sass.o.p.i.tack] rose]
       $(tack t.tack, salt [z.p.i.tack salt])
     ==
-  ::  match two sequential needs for a subject
+  ::
+  ::    union needs
+  ::
+  ::  generate a need split as far as either input need is split,
+  ::  generating cons code for less-split need. This is used when two
+  ::  sequential subformulas read from the same subject
   ++  copy
     |=  [then=bile feed=need seed=need]
     =|  pose=(list pole)
@@ -726,14 +790,27 @@
           t.tack
       ==
     ==
-  ::  crash  (return next)
+  ::
+  ::    crash
+  ::
+  ::  generate unconditional crashing code
   ++  bomb
     =^  b  gen  boom
     [[%next [%none ~] b] gen]
-  ::  crash (return bile)
+  ::
+  ::    crash
+  ::
+  ::  like +bomb, but return only the label and not the need
   ++  boom
     (emit %boom ~ %bom ~)
-  ::  crash if register is in sick, otherwise poison
+  ::  
+  ::    possibly defer crash
+  ::
+  ::  if a the given register is in sick, then generate an immediate
+  ::  crash. Otherwise, unconditionally poison the register.
+  ::
+  ::  This used when a value is known to not match the expectation of a
+  ::  need
   ++  mine
     |=  [r=@uvre t=bile]
     ^-  [next _gen]
@@ -748,15 +825,26 @@
     =.  sick.gen  ~
     ?~  sick  [bile gen]
     (emit %wash [%ipb sick]~ %hop bile)
-  ::  create a label (used for phi generation)
+  ::  
+  ::    create label
+  ::
+  ::  emit a label with the given fixed name in the current context
   ++  vial
     |=  t=@tas
     [%bile fax t bell]
-  ::  create a come-from block
+  ::  
+  ::    label come-from
+  ::
+  ::  emit an instruction which explicitly records the jump origin
+  ::  useful for evaluating phi instructions in the jump destination
   ++  come
     |=  [f=bile t=bile]
     [f gen(will (~(put by will.gen) f [~ %hop t]))]
-  ::  create join code for a goal
+  ::
+  ::    emit phi node
+  ::
+  ::  given a destination common to two branches, generate a phi node
+  ::  and come-from blocks
   ++  phil
     |=  =next
     =/  tack=(list (each [zp=@uvre op=@uvre] need))  [%| what.next]~
@@ -810,7 +898,15 @@
         ==
       ==
     ==
-  ::  generate argument lists and needs for a call
+  ::
+  ::    direct call information
+  ::
+  ::  when we emit code for a direct call, we hope to know the
+  ::  registerization already. If we don't, we need to add the call to
+  ::  the redo set. If we do, then we need a linear list of poison
+  ::  registers and a linear list of argument registers, as well as a
+  ::  need which describes which parts of the call subject go in which
+  ::  registers
   ++  args
     |=  =_bell
     ^-  [[b=(list @uvre) v=(list @uvre) n=need r=?] _gen]
@@ -857,7 +953,10 @@
         $(rv [vr rv], salt [[%this vr] salt], tack t.tack)
       ==
     ==
-  ::  push down a need along an axis
+  ::    need at axis
+  ::
+  ::  push a need down by adding %both cases along the path described by
+  ::  the axis. Used for nock 0 / %not.
   ++  from
     |=  [axe=@ =need]
     ?<  =(0 axe)
@@ -873,7 +972,12 @@
       =^  r  gen  $(axe (mas axe))
       [[%both barf [%none ~] r] gen]
     ==
-  :: split a need along an axis, for editing
+  ::
+  ::    split need at axis
+  ::
+  ::  split a need along an axis to describe an edit operation.
+  ::  the first returned need is for the patch noun, and the second is
+  ::  for the noun to be edited
   ++  into
     |=  [axe=@ =next]
     =*  twig  what.next
@@ -950,7 +1054,11 @@
         %3
       $(tres t.tres, tree [%both p.i.tres need.i.tres tree])
     ==
-  :: split an immediate to a need
+  ::
+  ::    split immediate
+  ::
+  ::  given a noun and a need, generate instructions to emit that noun
+  ::  into the registers of that need
   ++  mede
     |=  [=bile n=* =need]
     =|  todo=(list pole)
@@ -969,8 +1077,12 @@
       $(tack [[+.n.i.tack rite.need.i.tack] [-.n.i.tack left.need.i.tack] t.tack])
     ==
   --
-:: reverse (RLN) pass: generate linearized code and splice in registers
-:: for redos
+::    
+::    loop over redos
+::
+::  run redo:jean on each arm in the redo list, which will generate
+::  code to properly registerize callsites whose registerization was
+::  deferred, without changing the registerization of the calling arm
 ++  mill
   =|  todo=(list [=bell dire=next =gen])
   =|  like=(map bell need)
@@ -1000,12 +1112,19 @@
     ==
   hill
 --
-::  codegen stateful core
+::    codegen interface
 ~%  %runt.1  +3  ~
 |%
+::  
+::    core reference
 ++  this  .
-::  Read out generated code
-++  peek  :: should optionally return a path to be checked against hot state, to invoke jets on indirect
+::
+::    look for code
+::
+::  check if code exists for a given subject and formula
+::  XX should optionally return a path to be checked against hot state, 
+::  to invoke jets on indirect
+++  peek
   |=  [s=* f=*]
   ^-  (unit [=bell hall=_hill])
   =/  moat  (~(get ja moan) f)
@@ -1017,10 +1136,10 @@
       ~
     $(moat t.moat)
   ~
-::  Stateful actions on the core
-::  defined by $gist
-::  %comp - compile/codegen the given nock
-::  %head - update the hot state and recompile existing arms
+::
+::    core state interface
+::  [%comp ...]: generate code for given subject/formula pair
+::  [%heat ...]: update hot state
 ++  poke
   |=  =gist
   ^-  _this
@@ -1037,7 +1156,12 @@
     =.  hill  mill
     this
   ==
-:: run nock code with a scry gate
+::
+::   run nock
+::
+::  interpret nock, generating code for the outer invocation and any
+::  indirect calls encountered. This should be considered the formal
+::  entry point for Ares codegen
 ++  wink
   =*  thus  .
   ~/  %wink
@@ -1304,11 +1428,14 @@
     ::
       %bom  no
     ==
-  ::  get register value
+  ::
+  ::    get register value
   ++  r  |=(x=@uvre ~_((~(gals xray will.fram) x regs.fram) (~(got by regs.fram) x)))
-  ::  crash with the mean stack
+  ::
+  ::    crash with the mean stack
   ++  no  [[%2 mean.fram] this]
-  ::  match up call arguments
+  ::
+  ::    match up call arguments
   ++  args
     |=  [=need call-sick=(list ?) call-args=(list *)]
     =|  [sick=(set @uvre) regs=(map @uvre *)]
@@ -1330,29 +1457,35 @@
         %none  $(tack t.tack)
     ==
   --
+::    pretty-printing door
 ++  xray
   |_  will=(map bile blob)
-  ::  print a bell as an @q-ed mug
+  ::
+  ::    print a bell as an @q-ed mug
   ++  ring
     |=  a=bell
     ^-  tank
     >`@q`(mug a)<
-  ::  print a bile as thus and axe + a pretty bell
+  ::
+  ::    print a bile as thus and axe + a pretty bell
   ++  rung
     |=  b=bile
     ^-  tank
     [%rose ["." "|" "|"] >thus.b< >axe.b< (ring +>+.b) ~]
+  ::
   ::  print a register
   ++  near
     |=  r=@uvre
     ^-  tank
     [%leaf 'r' (a-co:co r)]
-  ::  instruction print helper
+  ::
+  ::    instruction print helper
   ++  pink
     |=  [t=@tas l=(list tank)]
     ^-  tank
     [%palm [" " "" "" ""] [%leaf (trip t)] l]
-  :: print a value instruction
+  ::
+  ::   print a dataflow instruction
   ++  ping
     |=  i=pole
     ?-  -.i
@@ -1425,7 +1558,8 @@
         %ipb
       (pink -.i (turn s.i near))
     ==
-  :: print a control flow instruction
+  ::
+  ::   print a control flow instruction
   ++  pine
     |=  i=site
     ^-  tank
@@ -1475,12 +1609,14 @@
         %bom
       (pink -.i ~)
     ==
-  :: print a basic block
+  ::
+  ::   print a basic block
   ++  plop
     |=  =blob
     ^-  tank
     [%rose [";" "" ""] (snoc (turn body.blob ping) (pine bend.blob))]
-  :: print the whole code for this arm
+  ::
+  ::   print the whole code for this arm
   ++  parm
     ^-  tank
     :*  %rose  [" " "" ""]
@@ -1488,7 +1624,8 @@
         |=  [l=bile b=blob]
         [%palm ["" "" "->" ""] (rung l) (plop b) ~]
     ==
-  :: print register value assignments
+  ::
+  ::   print register value assignments
   ++  vals
     |=  v=(map @uvre *)
     ^-  tank
@@ -1497,20 +1634,23 @@
        |=  [r=@uvre n=*]
        [%palm ["=" "" "" ""] (near r) >n< ~]
     ==
-  :: print which value a register gets
+  ::
+  ::   print value assigned to register
   ++  gals
     |=  [x=@uvre v=(map @uvre *)]
     ^-  tank
     [%palm ["<--" "" "" ""] (near x) (vals v) ~]
   --
-:: print code for an arm, if it exists
+::
+::   print code for an arm, if it exists
 ++  rake
   |=  [s=* f=*]
   ^-  tank
   =/  a  (peek s f)
   ?~  a  [%leaf "no code generated for arm"]
   ~(parm xray will:(~(got by hall.u.a) bell.u.a))
-:: debug-print code for an arm, if it exists
+::
+::   debug-print code for an arm, if it exists
 ++  rack
   |=  [s=* f=*]
   ^-  ~
