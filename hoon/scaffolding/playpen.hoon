@@ -209,6 +209,7 @@
 ++  flop                                                ::  reverse
   ~/  %flop
   |*  a=(list)
+  ~>  %sham.%flop
   =>  .(a (homo a))
   ^+  a
   =+  b=`_a`~
@@ -412,6 +413,13 @@
   ~/  %swp
   |=  [a=bloq b=@]
   (rep a (flop (rip a b)))
+::
+++  xeb                                                 ::  binary logarithm
+  ~/  %xeb
+  |=  a=@
+  ~>  %sham.%xeb
+  ^-  @
+  (met 0 a)
 ::
 ::  Modular arithmetic
 ::

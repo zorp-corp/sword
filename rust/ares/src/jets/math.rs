@@ -250,12 +250,13 @@ pub fn jet_sub(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(sub(&mut context.stack, a, b)?.as_noun())
+    Ok(util::sub(&mut context.stack, a, b)?.as_noun())
 }
 
 pub mod util {
     use crate::mem::NockStack;
-    use crate::noun::{Atom, Noun, NO, YES};
+    use crate::noun::{Atom, Error, Noun, Result, NO, YES};
+    use ibig::UBig;
 
     pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
@@ -272,6 +273,32 @@ pub mod util {
             YES
         } else {
             NO
+        }
+    }
+
+    /// Subtraction
+    pub fn sub(stack: &mut NockStack, a: Atom, b: Atom) -> Result<Atom> {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            let a_small = a.data();
+            let b_small = b.data();
+
+            if a_small < b_small {
+                Err(Error::NotRepresentable)
+            } else {
+                Ok(Atom::new(stack, a_small - b_small))
+            }
+        } else {
+            let a_big = a.as_ubig(stack);
+            let b_big = b.as_ubig(stack);
+
+            if a_big < b_big {
+                Err(Error::NotRepresentable)
+            } else {
+                let a_big = a.as_ubig(stack);
+                let b_big = b.as_ubig(stack);
+                let res = UBig::sub_stack(stack, a_big, b_big);
+                Ok(Atom::from_ubig(stack, &res))
+            }
         }
     }
 }
