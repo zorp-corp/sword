@@ -349,7 +349,8 @@ impl Cold {
             let paths = (*(self.0)).battery_to_paths.lookup(stack, &mut battery)?;
             for path in paths {
                 if let Some(batteries_list) = (*(self.0)).path_to_batteries.lookup(stack, &mut (*path)) {
-                    if let Some(_batt) = batteries_list.matches(stack, *path) {
+
+                    if let Some(_batt) = batteries_list.matches(stack, *core) {
                         return Some(*path);
                     }
                 }
