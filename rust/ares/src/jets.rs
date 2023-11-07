@@ -7,6 +7,7 @@ pub mod form;
 pub mod hash;
 pub mod math;
 pub mod nock;
+pub mod serial;
 pub mod sort;
 pub mod text;
 pub mod tree;
@@ -19,6 +20,7 @@ use crate::jets::hash::*;
 use crate::jets::hot::Hot;
 use crate::jets::math::*;
 use crate::jets::nock::*;
+use crate::jets::serial::*;
 use crate::jets::sort::*;
 use crate::jets::text::*;
 use crate::jets::tree::*;
@@ -105,6 +107,9 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"dor") => Some(jet_dor),
         tas!(b"gor") => Some(jet_gor),
         tas!(b"mor") => Some(jet_mor),
+        //
+        tas!(b"cue") => Some(jet_cue),
+        tas!(b"jam") => Some(jet_jam),
         //
         tas!(b"scow") => Some(jet_scow),
         //
