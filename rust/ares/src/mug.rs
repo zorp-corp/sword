@@ -20,7 +20,7 @@ fn muk_u32(syd: u32, len: usize, key: Atom) -> u32 {
  *
  * Assumes atom is normalized
  */
-fn met3_usize(atom: Atom) -> usize {
+pub fn met3_usize(atom: Atom) -> usize {
     match atom.as_either() {
         Left(direct) => (64 - (direct.data().leading_zeros() as usize) + 7) >> 3,
         Right(indirect) => {

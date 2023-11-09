@@ -79,6 +79,7 @@ fn main() -> io::Result<()> {
         warm,
         hot,
         scry_stack: D(0),
+        trace_info: None,
     };
     let result =
         interpret(&mut context, input_cell.head(), input_cell.tail()).expect("nock failed");
@@ -103,3 +104,4 @@ fn main() -> io::Result<()> {
     };
     Ok(())
 }
+

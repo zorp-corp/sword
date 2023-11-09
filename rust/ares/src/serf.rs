@@ -1,6 +1,6 @@
 use crate::hamt::Hamt;
 use crate::interpreter;
-use crate::interpreter::{inc, interpret, Error};
+use crate::interpreter::{inc, interpret, Error, TraceInfo};
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::list::util::{lent, zing};
@@ -16,13 +16,19 @@ use ares_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;
 use std::fs::create_dir_all;
-use std::io;
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
+use std::time::Instant;
+use std::fs::File;
+use json::object;
+
 crate::gdb!();
+
+const FLAG_TRACE: u32 = 1 << 8;
 
 struct Context {
     epoch: u64,
@@ -34,7 +40,7 @@ struct Context {
 }
 
 impl Context {
-    pub fn new(snap_path: &PathBuf) -> Self {
+    pub fn new(snap_path: &PathBuf, trace_info: Option<TraceInfo>) -> Self {
         // TODO: switch to Pma when ready
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
         let mut snapshot = DoubleJam::new(snap_path);
@@ -57,6 +63,7 @@ impl Context {
             hot,
             cache,
             scry_stack: D(0),
+            trace_info,
         };
 
         Context {
@@ -179,15 +186,99 @@ pub fn serf() -> io::Result<()> {
     signal_hook::flag::register_conditional_shutdown(SIGINT, 1, Arc::clone(&TERMINATOR))?;
     signal_hook::flag::register(SIGINT, Arc::clone(&TERMINATOR))?;
 
-    let snap_path_string = std::env::args()
+    let pier_path_string = std::env::args()
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
-    let mut snap_path = PathBuf::from(snap_path_string);
+    let pier_path = PathBuf::from(pier_path_string);
+    let mut snap_path = pier_path.clone();
     snap_path.push(".urb");
     snap_path.push("chk");
     create_dir_all(&snap_path)?;
 
-    let mut context = Context::new(&snap_path);
+    let wag: u32 = std::env::args().nth(4).ok_or(io::Error::new(io::ErrorKind::Other, "no flag bitmap"))?.parse().or(Err(io::Error::new(io::ErrorKind::Other, "flag bitmap is not integer")))?;
+
+    let trace_info =
+        if wag & FLAG_TRACE != 0 {
+            let mut trace_dir_path = pier_path.clone();
+            trace_dir_path.push(".urb");
+            trace_dir_path.push("put");
+            trace_dir_path.push("trace");
+            create_dir_all(&trace_dir_path)?;
+
+            let mut trace_idx = 0u32;
+            loop {
+                let mut trace_path = trace_dir_path.clone();
+                trace_path.push(format!("{}.json", trace_idx));
+                if trace_path.exists() {
+                    trace_idx += 1;
+                } else {
+                    let mut file = File::create(trace_path)?;
+                    let process_start = Instant::now();
+                    let pid = std::process::id();
+
+                    file.write("[ ".as_bytes())?;
+
+                    // write metadata to trace file
+
+                    (object!{
+                        name: "process_name",
+                        ph: "M",
+                        pid: pid,
+                        args: object! { name: "urbit", },
+                    }).write(&mut file)?;
+                    file.write(",\n".as_bytes())?;
+
+                    (object!{
+                        name: "thread_name",
+                        ph: "M",
+                        pid: pid,
+                        tid: 1,
+                        args: object!{ name: "Event Processing", },
+                    }).write(&mut file)?;
+                    file.write(",\n".as_bytes())?;
+
+                    (object!{
+                        name: "thread_sort_index",
+                        ph: "M",
+                        pid: pid,
+                        tid: 1,
+                        args: object!{ sort_index: 1, },
+                    }).write(&mut file)?;
+                    file.write(",\n".as_bytes())?;
+
+                    (object!{
+                        name: "thread_name",
+                        ph: "M",
+                        pid: pid,
+                        tid: 2,
+                        args: object!{ name: "Nock", },
+                    }).write(&mut file)?;
+                    file.write(",\n".as_bytes())?;
+
+                    (object!{
+                        name: "thread_sort_index",
+                        ph: "M",
+                        pid: pid,
+                        tid: 2,
+                        args: object!{ sort_index: 2, },
+                    }).write(&mut file)?;
+                    file.write(",\n".as_bytes())?;
+
+                    file.sync_data()?;
+
+                    break Some(TraceInfo {
+                        file,
+                        pid,
+                        process_start,
+                    });
+                }
+            }
+
+        } else {
+            None
+        };
+
+    let mut context = Context::new(&snap_path, trace_info);
     context.ripe();
 
     // Can't use for loop because it borrows newt
