@@ -823,7 +823,9 @@ checksum = "3354b9ac3fae1ff6755cb6db53683adb661634f67557942dea4facebec0fee4b"
 
 [[package]]
 name = "urcrypt-sys"
-version = "0.1.0"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ced751f95a527a3458eb67c75e4ae7093d41585edaa7565f5769101502473019"
 dependencies = [
  "bindgen",
  "pkg-config",
