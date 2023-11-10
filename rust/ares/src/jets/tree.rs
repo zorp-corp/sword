@@ -1,11 +1,9 @@
 /** Tree jets
  */
 use crate::interpreter::{Context, Error};
-use crate::jets;
-use crate::jets::bits;
 use crate::jets::util::*;
 use crate::jets::{JetErr, Result};
-use crate::noun::{Noun, D};
+use crate::noun::{IndirectAtom, Noun, D};
 
 crate::gdb!();
 
@@ -27,43 +25,55 @@ pub fn jet_cap(_context: &mut Context, subject: Noun) -> Result {
 
 pub fn jet_mas(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
-    let arg = slot(subject, 6)?;
-    let tom = arg.as_atom()?;
+    let tom = slot(subject, 6)?.as_atom()?;
     let met = met(0, tom);
 
     if met < 2 {
         Err(JetErr::Fail(Error::Deterministic(D(0))))
     } else {
-        let c = bex(stack, met - 1);
-        let d = bex(stack, met - 2);
-        let e = sub(stack, tom, c)?;
-
-        Ok(con(stack, e, d).as_noun())
+        let out_bits = met - 1;
+        let out_words = (out_bits + 63) << 6;
+        let (mut indirect_out, out_bs) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words) };
+        out_bs.set(met - 2, true); // Set MSB
+        if met > 2 {
+            out_bs[0..met - 2].copy_from_bitslice(&tom.as_bitslice()[0..met - 2]);
+        };
+        unsafe {
+            Ok(indirect_out.normalize_as_atom().as_noun())
+        }
     }
 }
 
 pub fn jet_peg(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
-    let a = slot(arg, 2)?;
-    let b = slot(arg, 3)?;
+    let a = slot(arg, 2)?.as_atom()?;
+    let b = slot(arg, 3)?.as_atom()?;
 
     unsafe {
-        if a.raw_equals(D(0)) {
+        if a.as_noun().raw_equals(D(0)) {
             return Err(JetErr::Fail(Error::Deterministic(D(0))));
-        }
-        //  XX: Import jet mistmatch from Vere
-        if b.raw_equals(D(0)) {
-            return Err(JetErr::Fail(Error::Deterministic(D(0))));
-        }
-    };
+        };
 
-    let c = met(0, b.as_atom()?);
-    let d = c - 1;
-    let e = bits::util::lsh(stack, 0, d, D(1).as_atom()?)?;
-    let f = jets::util::sub(stack, b.as_atom()?, e)?;
-    let g = bits::util::lsh(stack, 0, d, a.as_atom()?)?;
-    Ok(jets::util::add(stack, f, g).as_noun())
+        if b.as_noun().raw_equals(D(0)) {
+            return Err(JetErr::Fail(Error::Deterministic(D(0))));
+        };
+    }
+
+    let a_bits = met(0, a);
+    let b_bits = met(0, b);
+    let out_bits = a_bits + b_bits - 1;
+
+    let out_words = (out_bits + 63) << 6; // bits to 8-byte words
+
+    let (mut indirect_out, out_bs) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words) };
+
+    out_bs[0..b_bits - 1].copy_from_bitslice(&b.as_bitslice()[0..b_bits - 1]);
+    out_bs[b_bits - 1..out_bits].copy_from_bitslice(&a.as_bitslice()[0..a_bits]);
+
+    unsafe {
+        Ok(indirect_out.normalize_as_atom().as_noun())
+    }
 }
 
 #[cfg(test)]
