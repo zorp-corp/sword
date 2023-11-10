@@ -3,6 +3,7 @@ pub mod hot;
 pub mod warm;
 
 pub mod bits;
+pub mod lock;
 pub mod form;
 pub mod hash;
 pub mod list;
@@ -27,6 +28,9 @@ use crate::jets::serial::*;
 use crate::jets::sort::*;
 
 use crate::jets::tree::*;
+// use crate::jets::lock::aes::*;
+use crate::jets::lock::ed::*;
+use crate::jets::lock::sha::*;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::newt::Newt;
@@ -124,6 +128,14 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"scow") => Some(jet_scow),
         //
         tas!(b"mink") => Some(jet_mink),
+        // sha
+        tas!(b"sha1") => Some(jet_sha1),
+        tas!(b"shal") => Some(jet_shal),
+        tas!(b"shas") => Some(jet_shas),
+        tas!(b"shax") => Some(jet_shax),
+        tas!(b"shay") => Some(jet_shay),
+        // ed
+        tas!(b"puck") => Some(jet_puck),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None
