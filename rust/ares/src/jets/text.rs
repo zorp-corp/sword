@@ -48,48 +48,27 @@ pub mod util {
 
     pub fn zing(stack: &mut NockStack, mut list: Noun) -> jets::Result {
         unsafe {
-            let (mut new_cell, mut new_memory) = Cell::new_raw_mut(stack);
-            #[allow(unused_assignments)]
-            let (mut cell, mut memory) = (new_cell, new_memory);
             let mut res: Noun = D(0);
-            let mut flag = false;
+            let mut dest = &mut res as *mut Noun;
 
-            loop {
-                if list.raw_equals(D(0)) {
-                    break;
-                }
-
+            while !list.raw_equals(D(0)) {
                 let pair = list.as_cell()?;
-                let mut sub_list = pair.head();
-
-                loop {
-                    if sub_list.raw_equals(D(0)) {
-                        break;
-                    }
-
-                    let elem = sub_list.as_cell()?;
-                    let head = elem.head();
-
-                    if flag {
-                        (new_cell, new_memory) = Cell::new_raw_mut(stack);
-                        (*memory).tail = new_cell.as_noun();
-                        memory = new_memory;
-                    } else {
-                        (cell, memory) = Cell::new_raw_mut(stack);
-                        res = cell.as_noun();
-                        flag = true;
-                    }
-                    (*memory).head = head;
-
-                    sub_list = elem.tail();
-                }
-
+                let mut sublist = pair.head();
                 list = pair.tail();
-            }
 
-            if flag {
-                (*memory).tail = D(0);
+                while !sublist.raw_equals(D(0)) {
+                    let it = sublist.as_cell()?;
+                    let i = it.head();
+                    sublist = it.tail();
+
+                    let (new_cell, new_memory) = Cell::new_raw_mut(stack);
+                    (*new_memory).head = i;
+                    *dest = new_cell.as_noun();
+                    dest = &mut (*new_memory).tail;
+                }
             }
+            
+            *dest = D(0);
             Ok(res)
         }
     }
