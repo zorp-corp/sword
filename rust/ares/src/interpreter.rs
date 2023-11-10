@@ -387,6 +387,13 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 let ts = (*trace_stack).start.saturating_duration_since(info.process_start).as_micros() as f64;
                                 let dur = now.saturating_duration_since((*trace_stack).start).as_micros() as f64;
 
+                                // Don't write out traces less than 33us
+                                // (same threshhold used in vere)
+                                if dur < 33.0 {
+                                    trace_stack = (*trace_stack).next;
+                                    continue;
+                                }
+
                                 let pc = path_to_cord(stack, (*trace_stack).path);
                                 let pclen = met3_usize(pc);
                                 if let Ok(pc_str) = std::str::from_utf8(&pc.as_bytes()[0..pclen]) {
