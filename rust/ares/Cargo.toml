@@ -20,6 +20,7 @@ criterion = "0.4"
 either = "1.9.0"
 ibig = { path = "../ibig-rs" }
 intmap = "1.1.0"
+json = "0.12.4"
 lazy_static = "1.4.0"
 libc = "0.2.126"
 memmap = "0.7.0"
