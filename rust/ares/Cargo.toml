@@ -13,7 +13,8 @@ edition = "2018"
 [dependencies]
 ares_macros = { path = "../ares_macros" }
 assert_no_alloc = "1.1.2"
-urcrypt-sys = "0.1.0"
+#urcrypt-sys = "0.1.0"
+urcrypt-sys = { path = "../../../urcrypt-sys" }
 # use this when debugging requires allocation (e.g. eprintln)
 # assert_no_alloc = {version="1.1.2", features=["warn_debug"]}
 bitvec = "1.0.0"

@@ -208,6 +208,16 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
         jet_jam,
     ),
     //
+    ( &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shal")], 1, jet_shal ),
+    //
+    ( &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"sha1")], 1, jet_sha1 ),
+    //
+    ( &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shas")], 1, jet_shas ),
+    //
+    ( &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shax")], 1, jet_shax ),
+    //
+    ( &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shay")], 1, jet_shay ),
+    //
     (
         &[
             K_139,
@@ -358,6 +368,14 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
         1,
         jet_ut_rest,
     ),
+    //
+    ( &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"pen"), Left(b"hex"), Left(b"coed"), Left(b"ed"), Left(b"sign")], 1, jet_sign),
+    //
+    ( &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"pen"), Left(b"hex"), Left(b"coed"), Left(b"ed"), Left(b"veri")], 1, jet_veri),
+    //
+    ( &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"pen"), Left(b"hex"), Left(b"coed"), Left(b"ed"), Left(b"shar")], 1, jet_shar),
+    //
+    ( &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"pen"), Left(b"hex"), Left(b"coed"), Left(b"ed"), Left(b"puck")], 1, jet_puck),
 ];
 
 #[derive(Copy, Clone)]

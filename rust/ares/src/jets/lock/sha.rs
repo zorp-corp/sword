@@ -1,20 +1,21 @@
-use crate::jets::util::{met, slot};
+use crate::jets::util::slot;
+use crate::jets::bits::util::met;
 use crate::jets::{JetErr, Result};
-use crate::mem::NockStack;
-use crate::newt::Newt;
-use crate::noun::{IndirectAtom, Noun};
+use crate::interpreter::{Context, Error};
+use crate::noun::{IndirectAtom, Noun, D};
 use urcrypt_sys::*;
 
 crate::gdb!();
 
-pub fn jet_sha1(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
     let wid = slot(sam, 2)?.as_atom()?;
     let dat = slot(sam, 3)?.as_atom()?;
 
     let width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::NonDeterministic),
+        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
 
     unsafe {
@@ -28,14 +29,16 @@ pub fn jet_sha1(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
     }
 }
 
-pub fn jet_shal(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
+
+    let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
     let wid = slot(sam, 2)?.as_atom()?;
     let dat = slot(sam, 3)?.as_atom()?;
 
     let width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::NonDeterministic),
+        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
 
     let message = &(dat.as_bytes())[0..met(3, dat)]; // drop trailing zeros
@@ -47,7 +50,8 @@ pub fn jet_shal(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
     }
 }
 
-pub fn jet_shas(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
     let sal = slot(sam, 2)?.as_atom()?;
     let ruz= slot(sam, 3)?.as_atom()?;
@@ -65,7 +69,8 @@ pub fn jet_shas(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
     }
 }
 
-pub fn jet_shax(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
     let msg = sam.as_atom()?;
     let len = met(3, msg);
@@ -77,14 +82,15 @@ pub fn jet_shax(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: N
     }
 }
 
-pub fn jet_shay(stack: &mut NockStack, _newt: &mut Option<&mut Newt>, subject: Noun) -> Result {
+pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
     let wid = slot(sam, 2)?.as_atom()?;
     let dat = slot(sam, 3)?.as_atom()?;
 
     let width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::NonDeterministic),
+        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
 
     let message = dat.as_bytes();
@@ -127,12 +133,12 @@ mod tests {
         let big = DIRECT_MAX + 1;
         let ida = unsafe { IndirectAtom::new_raw_bytes(s, 8, &big as *const u64 as *const u8) };
         let sam = T(s, &[ida.as_noun(), D(478560413032)]);
-        assert_jet_err(s, jet_shay, sam, JetErr::NonDeterministic);
+        assert_jet_err(s, jet_shay, sam, JetErr::Fail(Error::NonDeterministic(D(0))));
 
         let big: u128 = (DIRECT_MAX as u128) << 64;
         let ida = unsafe { IndirectAtom::new_raw_bytes(s, 8, &big as *const u128 as *const u8) };
         let sam = T(s, &[ida.as_noun(), D(478560413032)]);
-        assert_jet_err(s, jet_shay, sam, JetErr::NonDeterministic);
+        assert_jet_err(s, jet_shay, sam, JetErr::Fail(Error::NonDeterministic(D(0))));
     }
 
     #[test]
@@ -228,7 +234,7 @@ mod tests {
             s,
             jet_shal,
             sam,
-            JetErr::NonDeterministic
+            JetErr::Fail(Error::NonDeterministic(D(0)))
         );
 
         let wid = A(s, &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72));
@@ -237,7 +243,7 @@ mod tests {
             s,
             jet_shal,
             sam,
-            JetErr::NonDeterministic
+            JetErr::Fail(Error::NonDeterministic(D(0)))
         );
     }
 
@@ -268,7 +274,7 @@ mod tests {
             s,
             jet_sha1,
             sam,
-            JetErr::NonDeterministic
+            JetErr::Fail(Error::NonDeterministic(D(0)))
         );
 
         let wid = A(s, &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72));
@@ -277,7 +283,7 @@ mod tests {
             s,
             jet_sha1,
             sam,
-            JetErr::NonDeterministic
+            JetErr::Fail(Error::NonDeterministic(D(0)))
         );
     }
 }

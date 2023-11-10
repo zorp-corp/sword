@@ -1,23 +1,23 @@
-use crate::jets::util::{met, slot};
-use crate::jets::{JetErr, Result};
-use crate::mem::NockStack;
-use crate::newt::Newt;
-use crate::noun::{IndirectAtom, Noun};
+use crate::jets::util::slot;
+use crate::jets::bits::util::met;
+use crate::jets::{JetErr, Result, Error};
+use crate::noun::{IndirectAtom, Noun, D};
+use crate::interpreter::Context;
 use urcrypt_sys::*;
 
 crate::gdb!();
 
-pub fn jet_sivc_en(stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
+pub fn jet_sivc_en(context: &mut Context,
     subject: Noun
 ) -> Result {
+    let stack = &mut context.stack;
     let txt = slot(subject, 6)?.as_atom()?;
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
 
     if (met(3, key) as usize) > 64 {
         // XX vere punts; we should do the same in the future
-        Err(JetErr::NonDeterministic)
+        Err(JetErr::Punt)
     } else {
         unsafe {
             let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
@@ -33,10 +33,10 @@ pub fn jet_sivc_en(stack: &mut NockStack,
     }
 }
 
-pub fn jet_sivc_de(stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
+pub fn jet_sivc_de(context: &mut Context,
     subject: Noun
 ) -> Result {
+    let stack = &mut context.stack;
     let iv  = slot(subject, 12)?.as_atom()?;
     let len = slot(subject, 26)?.as_atom()?;
     let txt = slot(subject, 27)?.as_atom()?;
@@ -57,17 +57,17 @@ pub fn jet_sivc_de(stack: &mut NockStack,
     }
 }
 
-pub fn jet_sivb_en(stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
+pub fn jet_sivb_en(context: &mut Context,
     subject: Noun
 ) -> Result {
+    let stack = &mut context.stack;
     let txt = slot(subject, 6)?.as_atom()?;
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
 
     if (met(3, key) as usize) > 48 {
         // XX vere punts; we should do the same in the future
-        Err(JetErr::NonDeterministic)
+        Err(JetErr::Fail(Error::NonDeterministic(D(0))))
     } else {
         unsafe {
             let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
@@ -83,10 +83,10 @@ pub fn jet_sivb_en(stack: &mut NockStack,
     }
 }
 
-pub fn jet_sivb_de(stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
+pub fn jet_sivb_de(context: &mut Context,
     subject: Noun
 ) -> Result {
+    let stack = &mut context.stack;
     let iv  = slot(subject, 12)?.as_atom()?;
     let len = slot(subject, 26)?.as_atom()?;
     let txt = slot(subject, 27)?.as_atom()?;
@@ -107,17 +107,17 @@ pub fn jet_sivb_de(stack: &mut NockStack,
     }
 }
 
-pub fn jet_siva_en(stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
+pub fn jet_siva_en(context: &mut Context,
     subject: Noun
 ) -> Result {
+    let stack = &mut context.stack;
     let txt = slot(subject, 6)?.as_atom()?;
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
 
     if (met(3, key) as usize) > 32 {
         // XX vere punts; we should do the same in the future
-        Err(JetErr::NonDeterministic)
+        Err(JetErr::Punt)
     } else {
         unsafe {
             let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
@@ -133,10 +133,10 @@ pub fn jet_siva_en(stack: &mut NockStack,
     }
 }
 
-pub fn jet_siva_de(stack: &mut NockStack,
-    _newt: &mut Option<&mut Newt>,
+pub fn jet_siva_de(context: &mut Context,
     subject: Noun
 ) -> Result {
+    let stack = &mut context.stack;
     let iv  = slot(subject, 12)?.as_atom()?;
     let len = slot(subject, 26)?.as_atom()?;
     let txt = slot(subject, 27)?.as_atom()?;
@@ -160,7 +160,7 @@ pub fn jet_siva_de(stack: &mut NockStack,
 mod util {
     use crate::mem::NockStack;
     use crate::noun::{Atom, D, T, Noun, IndirectAtom};
-    use crate::jets::util::met;
+    use crate::jets::bits::util::met;
     use urcrypt_sys::urcrypt_aes_siv_data;
     use std::ptr::null_mut;
 
