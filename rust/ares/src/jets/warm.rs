@@ -133,11 +133,11 @@ impl Warm {
     /// Walk through the linked list of WarmEntry objects and do a partial check
     /// against the subject using Batteries (walk to root of parent batteries).
     /// If there's a match, then we've found a valid jet.
-    pub fn find_jet(&mut self, stack: &mut NockStack, s: &mut Noun, f: &mut Noun) -> Option<Jet> {
+    pub fn find_jet(&mut self, stack: &mut NockStack, s: &mut Noun, f: &mut Noun) -> Option<(Jet, Noun)> {
         let warm_it = self.0.lookup(stack, f)?;
-        for (_path, batteries, jet) in warm_it {
+        for (path, batteries, jet) in warm_it {
             if batteries.matches(stack, *s) {
-                return Some(jet);
+                return Some((jet, path));
             }
         }
         None
