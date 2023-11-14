@@ -6,6 +6,7 @@ pub mod bits;
 pub mod form;
 pub mod hash;
 pub mod list;
+pub mod parse;
 pub mod math;
 pub mod nock;
 pub mod serial;
@@ -19,6 +20,7 @@ use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::hot::Hot;
 use crate::jets::list::*;
+use crate::jets::parse::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::serial::*;
@@ -28,7 +30,7 @@ use crate::jets::tree::*;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{self, Noun, Slots, D};
+use crate::noun::{self, Noun, Atom, Slots, D};
 use ares_macros::tas;
 
 crate::gdb!();
@@ -239,6 +241,21 @@ pub mod util {
 
         dest[to_b..to_b + step_b].copy_from_bitslice(&source[from_b..from_b + step_b]);
         Ok(())
+    }
+
+    pub fn kick(context: &mut Context, core: Noun, axis: Atom) -> result::Result<Noun, JetErr> {
+        Err(JetErr::Punt)
+    }
+
+    pub fn kink(context: &mut Context, core: Noun, axis: Atom) -> result::Result<Noun, JetErr> {
+        let pro = kick(core, axis);
+        match pro {
+            Ok(_) => pro,
+            Err(JetErr::Punt) => {
+                interpret(context, )
+            }
+            Err(JetErr::Fail(_)) => {}
+        }
     }
 
     pub mod test {
