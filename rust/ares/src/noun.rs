@@ -1,4 +1,5 @@
 use crate::mem::{word_size_of, NockStack};
+use ares_macros::tas;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::{Either, Left, Right};
 use ibig::{Stack, UBig};
