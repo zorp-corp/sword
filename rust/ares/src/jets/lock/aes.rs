@@ -378,30 +378,31 @@ mod tests {
     use super::*;
     use ibig::ubig;
     use crate::noun::{Cell, D, T};
-    use crate::jets::util::test::{A, init_stack, assert_noun_eq};
+    use crate::jets::util::test::{A, assert_noun_eq, init_context};
     use crate::jets::Jet;
+    use crate::mem::NockStack;
 
     pub fn assert_jet_in_door(
-        stack: &mut NockStack,
+        c: &mut Context,
         jet: Jet,
         sam: &[fn(&mut NockStack) -> Noun],  // regular sample
         ctx: &[fn(&mut NockStack) -> Noun],  // door sample as context
         res: Noun) {
-        let sam: Vec<Noun> = sam.iter().map(|f| f(stack)).collect();
-        let ctx: Vec<Noun> = ctx.iter().map(|f| f(stack)).collect();
-        let sam = if sam.len() > 1 { T(stack, &sam) } else { sam[0] };
-        let ctx = if ctx.len() > 1 { T(stack, &ctx) } else { ctx[0] };
-        let pay = Cell::new(stack, sam, ctx).as_noun();
-        let sbj = Cell::new(stack, D(0), pay).as_noun();
+        let sam: Vec<Noun> = sam.iter().map(|f| f(&mut c.stack)).collect();
+        let ctx: Vec<Noun> = ctx.iter().map(|f| f(&mut c.stack)).collect();
+        let sam = if sam.len() > 1 { T(&mut c.stack, &sam) } else { sam[0] };
+        let ctx = if ctx.len() > 1 { T(&mut c.stack, &ctx) } else { ctx[0] };
+        let pay = Cell::new(&mut c.stack, sam, ctx).as_noun();
+        let sbj = Cell::new(&mut c.stack, D(0), pay).as_noun();
         // std::io::stderr().flush().unwrap();
-        let jet_res = jet(stack, &mut None, sbj).unwrap();
+        let jet_res = jet(c, sbj).unwrap();
         // std::io::stderr().flush().unwrap();
-        assert_noun_eq(stack, jet_res, res);
+        assert_noun_eq(&mut c.stack, jet_res, res);
     }
 
     #[test]
     pub fn test_siva_en() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
         /*
         > (~(en siva:aes:crypto [key=0x0 vec=~]) txt=0x0)
         [p=0xb0f7.a0df.be76.c85b.5e29.bb31.aaec.fc77 q=0 r=0x0]
@@ -415,9 +416,9 @@ mod tests {
             T(s, &[D(0), sample, D(0)])
         }
 
-        let siv = A(s, &ubig!(0xb0f7a0dfbe76c85b5e29bb31aaecfc77));
-        let res = T(s, &[siv, D(0), D(0x0)]);
-        assert_jet_in_door(s, jet_siva_en, &[sample], &[context], res);
+        let siv = A(&mut c.stack, &ubig!(0xb0f7a0dfbe76c85b5e29bb31aaecfc77));
+        let res = T(&mut c.stack, &[siv, D(0), D(0x0)]);
+        assert_jet_in_door(c, jet_siva_en, &[sample], &[context], res);
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -433,16 +434,17 @@ mod tests {
             let sample = T(s, &[key, vec]);
             T(s, &[D(0), sample, D(0)])
         }
-        let iv = A(s, &ubig!(0x85632d07c6e8f37f950acd320a2ecc93));
+        let iv = A(&mut c.stack, &ubig!(0x85632d07c6e8f37f950acd320a2ecc93));
         let len = D(14);
-        let cyp = A(s, &ubig!(0x40c02b9690c4dc04daef7f6afe5c));
-        let res = T(s, &[iv, len, cyp]);
-        assert_jet_in_door(s, jet_siva_en, &[gate_sample], &[gate_context], res);
+        let cyp = A(&mut c.stack, &ubig!(0x40c02b9690c4dc04daef7f6afe5c));
+        let res = T(&mut c.stack, &[iv, len, cyp]);
+        assert_jet_in_door(c, jet_siva_en, &[gate_sample], &[gate_context], res);
     }
 
     #[test]
     pub fn test_sivb_en() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -462,12 +464,13 @@ mod tests {
         let len = D(14);
         let cyp = A(s, &ubig!(0xf313e667b56478a032b9913e923c));
         let res = T(s, &[iv, len, cyp]);
-        assert_jet_in_door(s, jet_sivb_en, &[gate_sample], &[gate_context], res);
+        assert_jet_in_door(c, jet_sivb_en, &[gate_sample], &[gate_context], res);
     }
 
     #[test]
     pub fn test_sivc_en() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -487,12 +490,13 @@ mod tests {
         let len = D(14);
         let cyp = A(s, &ubig!(0x1206291a35ad3db0212773440fd0));
         let res = T(s, &[iv, len, cyp]);
-        assert_jet_in_door(s, jet_sivc_en, &[gate_sample], &[gate_context], res);
+        assert_jet_in_door(c, jet_sivc_en, &[gate_sample], &[gate_context], res);
     }
 
     #[test]
     pub fn test_siva_de() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -512,12 +516,13 @@ mod tests {
         }
         let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
         let res = T(s, &[D(0), txt]);
-        assert_jet_in_door(s, jet_siva_de, &[gate_sample], &[gate_context], res);
+        assert_jet_in_door(c, jet_siva_de, &[gate_sample], &[gate_context], res);
     }
 
     #[test]
     pub fn test_sivb_de() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -537,12 +542,13 @@ mod tests {
         }
         let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
         let res = T(s, &[D(0), txt]);
-        assert_jet_in_door(s, jet_sivb_de, &[gate_sample], &[gate_context], res);
+        assert_jet_in_door(c, jet_sivb_de, &[gate_sample], &[gate_context], res);
     }
 
     #[test]
     pub fn test_sivc_de() {
-        let s = &mut init_stack();
+        let c = &mut init_context();
+        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -562,6 +568,6 @@ mod tests {
         }
         let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
         let res = T(s, &[D(0), txt]);
-        assert_jet_in_door(s, jet_sivc_de, &[gate_sample], &[gate_context], res);
+        assert_jet_in_door(c, jet_sivc_de, &[gate_sample], &[gate_context], res);
     }
 }
