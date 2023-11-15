@@ -6,6 +6,7 @@ pub mod bits;
 pub mod form;
 pub mod hash;
 pub mod list;
+pub mod lute;
 pub mod math;
 pub mod nock;
 pub mod serial;
