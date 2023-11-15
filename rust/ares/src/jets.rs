@@ -13,7 +13,7 @@ pub mod serial;
 pub mod sort;
 pub mod tree;
 
-use crate::interpreter::{Context, Error};
+use crate::interpreter::{interpret, Context, Error};
 use crate::jets::bits::*;
 use crate::jets::cold::Cold;
 use crate::jets::form::*;
@@ -143,7 +143,7 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
-    use crate::noun::{Noun, D};
+    use crate::noun::{Noun, D, T};
     use bitvec::prelude::{BitSlice, Lsb0};
     use std::result;
 
@@ -243,19 +243,9 @@ pub mod util {
         Ok(())
     }
 
-    pub fn kick(context: &mut Context, core: Noun, axis: Atom) -> result::Result<Noun, JetErr> {
-        Err(JetErr::Punt)
-    }
-
-    pub fn kink(context: &mut Context, core: Noun, axis: Atom) -> result::Result<Noun, JetErr> {
-        let pro = kick(core, axis);
-        match pro {
-            Ok(_) => pro,
-            Err(JetErr::Punt) => {
-                interpret(context, )
-            }
-            Err(JetErr::Fail(_)) => {}
-        }
+    pub fn kick(context: &mut Context, core: Noun, axis: Noun) -> result::Result<Noun, JetErr> {
+        let formula: Noun = T(&mut context.stack, &[D(9), axis, D(0), D(1)]);
+        interpret(context, core, formula).map_err(|err| JetErr::Fail(err))
     }
 
     pub mod test {
