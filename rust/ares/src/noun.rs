@@ -464,6 +464,24 @@ impl IndirectAtom {
         UBig::from_le_bytes_stack(stack, self.as_bytes())
     }
 
+    pub unsafe fn as_u64(self) -> Result<u64> {
+        if self.size() == 1 {
+            Ok(*(self.data_pointer()))
+        } else {
+            Err(Error::NotRepresentable)
+        }
+    }
+
+    pub unsafe fn as_u128_pair(self) -> Result<[u64; 2]> {
+        if self.size() <= 2 {
+            let mut u128_array = &mut [0u64; 2];
+            u128_array.copy_from_slice(&(self.as_slice()[0..2]));
+            Ok(unsafe { *u128_array })
+        } else {
+            Err(Error::NotRepresentable)
+        }
+    }
+
     /** Ensure that the size does not contain any trailing 0 words */
     pub unsafe fn normalize(&mut self) -> &Self {
         let mut index = self.size() - 1;
@@ -823,24 +841,6 @@ impl Atom {
             self.indirect.normalize_as_atom()
         } else {
             *self
-        }
-    }
-
-    pub unsafe fn as_u64(self) -> Result<u64> {
-        if self.size() == 1 {
-            Ok(*(self.data_pointer()))
-        } else {
-            Err(Error::NotRepresentable)
-        }
-    }
-
-    pub unsafe fn as_u128_pair(self) -> Result<[u64; 2]> {
-        if self.size() <= 2 {
-            let mut u128_array = &mut [0u64; 2];
-            u128_array.copy_from_slice(&(self.as_slice()[0..2]));
-            Ok(unsafe { *u128_array })
-        } else {
-            Err(Error::NotRepresentable)
         }
     }
 
