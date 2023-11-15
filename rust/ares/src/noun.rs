@@ -472,7 +472,7 @@ impl IndirectAtom {
         }
     }
 
-    /* SoftFloat-compatible ordered pair of 64-bit words */
+    /** Produce a SoftFloat-compatible ordered pair of 64-bit words */
     pub unsafe fn as_u64_pair(self) -> Result<[u64; 2]> {
         if self.size() <= 2 {
             let u128_array = &mut [0u64; 2];
@@ -765,7 +765,7 @@ impl Atom {
         }
     }
 
-    /* SoftFloat-compatible ordered pair of 64-bit words */
+    /** Produce a SoftFloat-compatible ordered pair of 64-bit words */
     pub unsafe fn as_u64_pair(self) -> Result<[u64; 2]> {
         if self.is_direct() {
             let u128_array = &mut [0u64; 2];
