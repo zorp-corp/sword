@@ -44,6 +44,14 @@ pub fn jet_pose(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+pub fn jet_last(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let zyc = slot(sam, 2)?;
+    let naz = slot(sam, 3)?;
+
+    util::last(zyc, naz)
+}
+
 pub mod util {
     use crate::interpreter::{Context, interpret};
     use crate::jets::util::slot;
