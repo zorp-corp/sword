@@ -358,6 +358,10 @@ impl IndirectAtom {
         *(indirect.normalize())
     }
 
+    pub unsafe fn new_raw_bytes_ref<A: NounAllocator>(allocator: &mut A, data: &[u8]) -> Self {
+        IndirectAtom::new_raw_bytes(allocator, data.len(), data.as_ptr())
+    }
+
     /** Make an indirect atom that can be written into. Return the atom (which should not be used
      * until it is written and normalized) and a mutable pointer which is the data buffer for the
      * indirect atom, to be written into.

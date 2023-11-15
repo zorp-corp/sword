@@ -9,24 +9,12 @@ use std::cmp::Ordering;
 
 crate::gdb!();
 
-pub fn jet_mor(context: &mut Context, subject: Noun) -> jets::Result {
-    let stack = &mut context.stack;
-
+pub fn jet_dor(context: &mut Context, subject: Noun) -> jets::Result {
     let sam = slot(subject, 6)?;
     let a = slot(sam, 2)?;
     let b = slot(sam, 3)?;
 
-    let c = mug(stack, a);
-    let d = mug(stack, b);
-
-    let e = mug(stack, c.as_noun());
-    let f = mug(stack, d.as_noun());
-
-    match e.data().cmp(&f.data()) {
-        Ordering::Greater => Ok(NO),
-        Ordering::Less => Ok(YES),
-        Ordering::Equal => Ok(util::dor(stack, a, b)),
-    }
+    Ok(util::dor(&mut context.stack, a, b))
 }
 
 pub fn jet_gor(context: &mut Context, subject: Noun) -> jets::Result {
@@ -46,12 +34,24 @@ pub fn jet_gor(context: &mut Context, subject: Noun) -> jets::Result {
     }
 }
 
-pub fn jet_dor(context: &mut Context, subject: Noun) -> jets::Result {
+pub fn jet_mor(context: &mut Context, subject: Noun) -> jets::Result {
+    let stack = &mut context.stack;
+
     let sam = slot(subject, 6)?;
     let a = slot(sam, 2)?;
     let b = slot(sam, 3)?;
 
-    Ok(util::dor(&mut context.stack, a, b))
+    let c = mug(stack, a);
+    let d = mug(stack, b);
+
+    let e = mug(stack, c.as_noun());
+    let f = mug(stack, d.as_noun());
+
+    match e.data().cmp(&f.data()) {
+        Ordering::Greater => Ok(NO),
+        Ordering::Less => Ok(YES),
+        Ordering::Equal => Ok(util::dor(stack, a, b)),
+    }
 }
 
 pub mod util {

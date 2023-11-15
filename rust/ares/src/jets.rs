@@ -20,6 +20,7 @@ use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::hot::Hot;
 use crate::jets::list::*;
+use crate::jets::lute::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::serial::*;
