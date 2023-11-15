@@ -474,9 +474,9 @@ impl IndirectAtom {
 
     pub unsafe fn as_u128_pair(self) -> Result<[u64; 2]> {
         if self.size() <= 2 {
-            let mut u128_array = &mut [0u64; 2];
+            let u128_array = &mut [0u64; 2];
             u128_array.copy_from_slice(&(self.as_slice()[0..2]));
-            Ok(unsafe { *u128_array })
+            Ok(*u128_array)
         } else {
             Err(Error::NotRepresentable)
         }
@@ -766,10 +766,10 @@ impl Atom {
 
     pub unsafe fn as_u128_pair(self) -> Result<[u64; 2]> {
         if self.is_direct() {
-            let mut u128_array = &mut [0u64; 2];
-            u128_array[0] = 0x0 as u64;
-            u128_array[1] = self.as_direct()?.data() as u64;
-            Ok(unsafe { *u128_array })
+            let u128_array = &mut [0u64; 2];
+            u128_array[0] = 0x0_u64;
+            u128_array[1] = self.as_direct()?.data();
+            Ok(*u128_array)
         } else {
             unsafe { self.indirect.as_u128_pair() }
         }
