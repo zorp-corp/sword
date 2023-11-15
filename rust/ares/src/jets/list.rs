@@ -7,6 +7,11 @@ use crate::noun::{Noun, D};
 
 crate::gdb!();
 
+pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    util::flop(&mut context.stack, sam)
+}
+
 pub fn jet_lent(_context: &mut Context, subject: Noun) -> Result {
     let list = slot(subject, 6)?;
     util::lent(list).map(|x| D(x as u64))
@@ -21,13 +26,29 @@ pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
 
 pub mod util {
     use crate::interpreter::Error;
-    use crate::jets;
-    use crate::jets::JetErr;
+    use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
-    use crate::noun::{Cell, Noun, D};
-    use std::result::Result;
+    use crate::noun::{Cell, Noun, D, T};
+    use std::result;
 
-    pub fn lent(tape: Noun) -> Result<usize, JetErr> {
+    /// Reverse order of list
+    pub fn flop(stack: &mut NockStack, noun: Noun) -> Result {
+        let mut list = noun;
+        let mut tsil = D(0);
+        loop {
+            if unsafe { list.raw_equals(D(0)) } {
+                break;
+            }
+
+            let cell = list.as_cell()?;
+            tsil = T(stack, &[cell.head(), tsil]);
+            list = cell.tail();
+        }
+
+        Ok(tsil)
+    }
+
+    pub fn lent(tape: Noun) -> result::Result<usize, JetErr> {
         let mut len = 0usize;
         let mut list = tape;
         loop {
@@ -46,7 +67,7 @@ pub mod util {
         Ok(len)
     }
 
-    pub fn zing(stack: &mut NockStack, mut list: Noun) -> jets::Result {
+    pub fn zing(stack: &mut NockStack, mut list: Noun) -> Result {
         unsafe {
             let mut res: Noun = D(0);
             let mut dest = &mut res as *mut Noun;
@@ -67,7 +88,7 @@ pub mod util {
                     dest = &mut (*new_memory).tail;
                 }
             }
-            
+
             *dest = D(0);
             Ok(res)
         }
@@ -81,6 +102,43 @@ mod tests {
     use crate::jets::util::test::{assert_jet, assert_jet_err, init_context};
     use crate::jets::JetErr;
     use crate::noun::{D, T};
+
+    #[test]
+    fn test_flop() {
+        let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
+        let res = T(&mut c.stack, &[D(3), D(2), D(1), D(0)]);
+        assert_jet(c, jet_flop, sam, res);
+
+        #[rustfmt::skip]
+        let sam = T(
+            &mut c.stack,
+            &[
+                D(0xd), D(0xe), D(0xa), D(0xd), D(0xb), D(0xe), D(0xe), D(0xf),
+                D(0x1), D(0x2), D(0x3), D(0x4), D(0x5), D(0x6), D(0x7), D(0x8),
+                D(0xf), D(0xe), D(0xd), D(0xc), D(0xb), D(0xa), D(0x9), D(0x8),
+                D(0x7), D(0x6), D(0x5), D(0x4), D(0x3), D(0x2), D(0x1), D(0x0),
+                D(0x0),
+            ],
+        );
+        #[rustfmt::skip]
+        let res = T(
+            &mut c.stack,
+            &[
+                D(0x0), D(0x1), D(0x2), D(0x3), D(0x4), D(0x5), D(0x6), D(0x7),
+                D(0x8), D(0x9), D(0xa), D(0xb), D(0xc), D(0xd), D(0xe), D(0xf),
+                D(0x8), D(0x7), D(0x6), D(0x5), D(0x4), D(0x3), D(0x2), D(0x1),
+                D(0xf), D(0xe), D(0xe), D(0xb), D(0xd), D(0xa), D(0xe), D(0xd),
+                D(0x0),
+            ],
+        );
+        assert_jet(c, jet_flop, sam, res);
+
+        assert_jet_err(c, jet_flop, D(1), JetErr::Fail(Error::Deterministic(D(0))));
+        let sam = T(&mut c.stack, &[D(1), D(2), D(3)]);
+        assert_jet_err(c, jet_flop, sam, JetErr::Fail(Error::Deterministic(D(0))));
+    }
 
     #[test]
     fn test_lent() {

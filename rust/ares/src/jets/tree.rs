@@ -1,6 +1,8 @@
 /** Tree jets
  */
 use crate::interpreter::{Context, Error};
+use crate::jets::bits::util::*;
+use crate::jets::math::util::*;
 use crate::jets::util::*;
 use crate::jets::{JetErr, Result};
 use crate::noun::{Noun, D};
