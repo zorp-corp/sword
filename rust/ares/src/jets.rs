@@ -49,6 +49,12 @@ pub enum JetErr {
     Fail(Error), // Error; do not retry
 }
 
+impl From<Error> for JetErr {
+    fn from(err: Error) -> Self {
+        Self::Fail(err)
+    }
+}
+
 impl From<noun::Error> for JetErr {
     fn from(_err: noun::Error) -> Self {
         Self::Fail(Error::Deterministic(D(0)))
