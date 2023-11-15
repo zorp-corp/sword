@@ -31,7 +31,7 @@ pub fn jet_crop(context: &mut Context, subject: Noun) -> Result {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
-            context.cache = context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
+            context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
             Ok(pro)
         }
     }
