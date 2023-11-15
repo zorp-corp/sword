@@ -31,7 +31,7 @@ pub fn jet_crop(context: &mut Context, subject: Noun) -> Result {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
-            context.cache.insert(&mut context.stack, &mut key, pro);
+            context.cache = context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
             Ok(pro)
         }
     }
@@ -61,7 +61,7 @@ pub fn jet_fish(context: &mut Context, subject: Noun) -> Result {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
-            context.cache.insert(&mut context.stack, &mut key, pro);
+            context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
             Ok(pro)
         }
     }
@@ -90,7 +90,7 @@ pub fn jet_ut_fuse(context: &mut Context, subject: Noun) -> Result {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
-            context.cache.insert(&mut context.stack, &mut key, pro);
+            context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
             Ok(pro)
         }
     }
@@ -112,7 +112,7 @@ pub fn jet_ut_mint(context: &mut Context, subject: Noun) -> Result {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
-            context.cache.insert(&mut context.stack, &mut key, pro);
+            context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
             Ok(pro)
         }
     }
@@ -143,7 +143,7 @@ pub fn jet_ut_mull(context: &mut Context, subject: Noun) -> Result {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
-            context.cache.insert(&mut context.stack, &mut key, pro);
+            context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
             Ok(pro)
         }
     }
@@ -181,7 +181,7 @@ pub fn jet_ut_nest(context: &mut Context, subject: Noun) -> Result {
             if unsafe { pro.raw_equals(YES) && reg.raw_equals(D(0)) }
                 || unsafe { pro.raw_equals(NO) && seg.raw_equals(D(0)) }
             {
-                context.cache.insert(&mut context.stack, &mut key, pro);
+                context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
             }
             Ok(pro)
         }
@@ -211,7 +211,7 @@ pub fn jet_ut_rest(context: &mut Context, subject: Noun) -> Result {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
-            context.cache.insert(&mut context.stack, &mut key, pro);
+            context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
             Ok(pro)
         }
     }
