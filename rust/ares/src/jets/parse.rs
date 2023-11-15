@@ -54,11 +54,10 @@ pub mod util {
         let zyl = zyc.as_cell()?;
         let nal = naz.as_cell()?;
 
-        //  XX Vere asserts that these are direct atoms
-        assert!(zyl.head().is_atom());
-        assert!(zyl.tail().is_atom());
-        assert!(nal.head().is_atom());
-        assert!(nal.tail().is_atom());
+        assert!(zyl.head().is_direct());
+        assert!(zyl.tail().is_direct());
+        assert!(nal.head().is_direct());
+        assert!(nal.tail().is_direct());
 
         if zyl.head().raw_equals(nal.head()) {
             if zyl.tail().as_direct().as_u64() > nal.tail().as_direct().as_u64() {
