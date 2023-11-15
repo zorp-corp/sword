@@ -751,14 +751,12 @@ impl Atom {
             let mut u128_array = &mut [0u64; 2];
             u128_array[0] = 0x0 as u64;
             u128_array[1] = self.as_direct()?.data() as u64;
-            Ok(unsafe { *u128_array } )
+            Ok(unsafe { *u128_array })
         } else {
-            unsafe {
-                self.indirect.as_u128_pair()
-            }
+            unsafe { self.indirect.as_u128_pair() }
         }
     }
-    
+
     pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         if self.is_indirect() {
             unsafe { self.indirect.as_bitslice() }
