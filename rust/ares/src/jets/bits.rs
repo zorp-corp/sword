@@ -130,17 +130,7 @@ pub fn jet_lsh(context: &mut Context, subject: Noun) -> Result {
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
 
-    let len = util::met(bloq, a);
-    if len == 0 {
-        return Ok(D(0));
-    }
-
-    let new_size = bits_to_word(checked_add(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
-    unsafe {
-        let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(&mut context.stack, new_size);
-        chop(bloq, 0, len, step, dest, a.as_bitslice())?;
-        Ok(atom.normalize_as_atom().as_noun())
-    }
+    util::lsh(&mut context.stack, bloq, step, a)
 }
 
 pub fn jet_met(_context: &mut Context, subject: Noun) -> Result {
@@ -373,6 +363,20 @@ pub mod util {
         }
     }
 
+    pub fn lsh(stack: &mut NockStack, bloq: usize, step: usize, a: Atom) -> Result {
+        let len = met(bloq, a);
+        if len == 0 {
+            return Ok(D(0));
+        }
+
+        let new_size = bits_to_word(checked_add(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
+        unsafe {
+            let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+            chop(bloq, 0, len, step, dest, a.as_bitslice())?;
+            Ok(atom.normalize_as_atom().as_noun())
+        }
+    }
+
     /// Measure the number of bloqs in an atom
     pub fn met(bloq: usize, a: Atom) -> usize {
         if unsafe { a.as_noun().raw_equals(D(0)) } {
@@ -458,7 +462,7 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, assert_jet_ubig, init_context, A};
+    use crate::jets::util::test::*;
     use crate::mem::NockStack;
     use crate::noun::{Noun, D, T};
     use ibig::ubig;
@@ -633,9 +637,8 @@ mod tests {
     fn test_lsh() {
         let c = &mut init_context();
 
-        let (a0, a24, _a63, a96, a128) = atoms(&mut c.stack);
-        let sam = T(&mut c.stack, &[a0, a24]);
-        assert_jet(c, jet_lsh, sam, D(0x10eca86));
+        let (_, a24, _a63, a96, a128) = atoms(&mut c.stack);
+        assert_common_jet_noun(c, jet_lsh, &[atom_0, atom_24], D(0x10eca86));
         let sam = T(&mut c.stack, &[D(3), a24]);
         assert_jet(c, jet_lsh, sam, D(0x87654300));
         let sam = T(&mut c.stack, &[D(7), a24]);
