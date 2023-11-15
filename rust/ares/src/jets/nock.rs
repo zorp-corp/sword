@@ -194,13 +194,7 @@ pub mod util {
         let tag = tone.head().as_direct()?;
         let original_list = tone.tail();
 
-        match tag.data() {
-            x if x < 2 => return Ok(tone),
-            x if x > 2 => return Err(JetErr::Fail(Error::Deterministic(D(0)))),
-            _ => {}
-        }
-
-        if unsafe { original_list.raw_equals(D(0)) } {
+        if (tag.data() != 2) | unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
         } else if original_list.atom().is_some() {
             return Err(JetErr::Fail(Error::Deterministic(D(0))));
