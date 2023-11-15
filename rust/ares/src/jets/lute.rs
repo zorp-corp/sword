@@ -37,7 +37,6 @@ pub fn jet_ut_crop(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-
 pub fn jet_ut_fish(context: &mut Context, subject: Noun) -> Result {
     //  axe must be Atom, though we use it as Noun
     let axe = slot(subject, 6)?.as_atom()?;
