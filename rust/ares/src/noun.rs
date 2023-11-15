@@ -738,6 +738,29 @@ impl Atom {
         }
     }
 
+    pub fn as_u64(self) -> Result<u64> {
+        if self.is_direct() {
+            Ok(unsafe { self.direct.data() })
+        } else {
+            unsafe {
+                self.indirect.as_u64()
+            }
+        }
+    }
+
+    pub unsafe fn as_u128_pair(self) -> Result<[u64; 2]> {
+        if self.is_direct() {
+            let mut u128_array = &mut [0u64; 2];
+            u128_array[0] = 0x0 as u64;
+            u128_array[1] = self.as_direct()?.data() as u64;
+            Ok(unsafe { *u128_array } )
+        } else {
+            unsafe {
+                self.indirect.as_u128_pair()
+            }
+        }
+    }
+    
     pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         if self.is_indirect() {
             unsafe { self.indirect.as_bitslice() }
@@ -804,6 +827,24 @@ impl Atom {
             self.indirect.normalize_as_atom()
         } else {
             *self
+        }
+    }
+
+    pub unsafe fn as_u64(self) -> Result<u64> {
+        if self.size() == 1 {
+            Ok(*(self.data_pointer()))
+        } else {
+            Err(Error::NotRepresentable)
+        }
+    }
+
+    pub unsafe fn as_u128_pair(self) -> Result<[u64; 2]> {
+        if self.size() <= 2 {
+            let mut u128_array = &mut [0u64; 2];
+            u128_array.copy_from_slice(&(self.as_slice()[0..2]));
+            Ok(unsafe { *u128_array } )
+        } else {
+            Err(Error::NotRepresentable)
         }
     }
 
