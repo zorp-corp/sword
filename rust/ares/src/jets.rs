@@ -421,6 +421,14 @@ pub mod util {
             }
         }
 
+        pub fn assert_jet_size(context: &mut Context, jet: Jet, sam: Noun, siz: usize) {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let res = assert_no_alloc(|| jet(context, sam).unwrap());
+            assert!(res.is_atom(), "jet result not atom");
+            let res_siz = res.atom().unwrap().size();
+            assert!(siz == res_siz, "got: {}, need: {}", res_siz, siz);
+        }
+
         pub fn assert_common_jet(
             context: &mut Context,
             jet: Jet,
@@ -451,6 +459,17 @@ pub mod util {
             let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
             let sam = T(&mut context.stack, &sam);
             assert_jet_err(context, jet, sam, err);
+        }
+
+        pub fn assert_common_jet_size(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            siz: usize,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet_size(context, jet, sam, siz)
         }
     }
 

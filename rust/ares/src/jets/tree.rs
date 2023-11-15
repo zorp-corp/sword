@@ -32,15 +32,14 @@ pub fn jet_mas(context: &mut Context, subject: Noun) -> Result {
         Err(JetErr::Fail(Error::Deterministic(D(0))))
     } else {
         let out_bits = met - 1;
-        let out_words = (out_bits + 63) << 6;
-        let (mut indirect_out, out_bs) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words) };
+        let out_words = (out_bits + 63) >> 6;
+        let (mut indirect_out, out_bs) =
+            unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words) };
         out_bs.set(met - 2, true); // Set MSB
         if met > 2 {
-            out_bs[0..met - 2].copy_from_bitslice(&tom.as_bitslice()[0..met - 2]);
+            out_bs[0..(met - 2)].copy_from_bitslice(&tom.as_bitslice()[0..(met - 2)]);
         };
-        unsafe {
-            Ok(indirect_out.normalize_as_atom().as_noun())
-        }
+        unsafe { Ok(indirect_out.normalize_as_atom().as_noun()) }
     }
 }
 
@@ -64,16 +63,15 @@ pub fn jet_peg(context: &mut Context, subject: Noun) -> Result {
     let b_bits = met(0, b);
     let out_bits = a_bits + b_bits - 1;
 
-    let out_words = (out_bits + 63) << 6; // bits to 8-byte words
+    let out_words = (out_bits + 63) >> 6; // bits to 8-byte words
 
-    let (mut indirect_out, out_bs) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words) };
+    let (mut indirect_out, out_bs) =
+        unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words) };
 
     out_bs[0..b_bits - 1].copy_from_bitslice(&b.as_bitslice()[0..b_bits - 1]);
     out_bs[b_bits - 1..out_bits].copy_from_bitslice(&a.as_bitslice()[0..a_bits]);
 
-    unsafe {
-        Ok(indirect_out.normalize_as_atom().as_noun())
-    }
+    unsafe { Ok(indirect_out.normalize_as_atom().as_noun()) }
 }
 
 #[cfg(test)]
@@ -102,8 +100,16 @@ mod tests {
         D(0x4000000000000000)
     }
 
+    fn atom_64(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(_0x8000000000000000))
+    }
+
     fn atom_65(stack: &mut NockStack) -> Noun {
         A(stack, &ubig!(_0x10000000000000000))
+    }
+
+    fn atom_66(stack: &mut NockStack) -> Noun {
+        A(stack, &ubig!(_0x20000000000000000))
     }
 
     fn pos_2(_stack: &mut NockStack) -> Noun {
@@ -137,10 +143,16 @@ mod tests {
     #[test]
     fn test_mas() {
         let c = &mut init_context();
+        let a63 = atom_63(&mut c.stack);
+        let a64 = atom_64(&mut c.stack);
+        let a65 = atom_65(&mut c.stack);
+        let a66 = atom_66(&mut c.stack);
 
+        // Test invalid input
         assert_jet_err(c, jet_mas, D(0), JetErr::Fail(Error::Deterministic(D(0))));
         assert_jet_err(c, jet_mas, D(1), JetErr::Fail(Error::Deterministic(D(0))));
 
+        // Test direct
         assert_jet(c, jet_mas, D(2), D(1));
         assert_jet(c, jet_mas, D(3), D(1));
         assert_jet(c, jet_mas, D(4), D(2));
@@ -148,6 +160,16 @@ mod tests {
         assert_jet(c, jet_mas, D(6), D(2));
         assert_jet(c, jet_mas, D(7), D(3));
         assert_jet(c, jet_mas, D(8), D(4));
+
+        // Test indirect
+        assert_jet(c, jet_mas, a64, a63);
+        assert_jet(c, jet_mas, a65, a64);
+        assert_jet(c, jet_mas, a66, a65);
+
+        // Test allocation
+        assert_jet_size(c, jet_mas, D(2), 1_usize);
+        assert_jet_size(c, jet_mas, a65, 1_usize);
+        assert_jet_size(c, jet_mas, a66, 2_usize);
     }
 
     #[test]
@@ -184,5 +206,10 @@ mod tests {
             &[atom_65, atom_65],
             ubig!(_0x100000000000000000000000000000000),
         );
+
+        // Test allocation
+        assert_common_jet_size(c, jet_peg, &[atom_65, atom_1], 2_usize);
+        assert_common_jet_size(c, jet_peg, &[atom_1, atom_65], 2_usize);
+        assert_common_jet_size(c, jet_peg, &[atom_65, atom_65], 3_usize);
     }
 }
