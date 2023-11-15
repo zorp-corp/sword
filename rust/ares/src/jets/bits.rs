@@ -14,7 +14,7 @@ crate::gdb!();
 
 pub fn jet_bex(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?.as_direct()?.data() as usize;
-    Ok(bex(&mut context.stack, arg).as_noun())
+    Ok(util::bex(&mut context.stack, arg).as_noun())
 }
 
 pub fn jet_can(context: &mut Context, subject: Noun) -> Result {
@@ -70,8 +70,8 @@ pub fn jet_cat(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 6)?.as_atom()?;
     let b = slot(arg, 7)?.as_atom()?;
 
-    let len_a = met(bloq, a);
-    let len_b = met(bloq, b);
+    let len_a = util::met(bloq, a);
+    let len_b = util::met(bloq, b);
     let new_len = bite_to_word(bloq, checked_add(len_a, len_b)?)?;
     if new_len == 0 {
         Ok(a.as_noun())
@@ -113,7 +113,7 @@ pub fn jet_end(context: &mut Context, subject: Noun) -> Result {
 
     if step == 0 {
         Ok(D(0))
-    } else if step >= met(bloq, a) {
+    } else if step >= util::met(bloq, a) {
         Ok(a.as_noun())
     } else {
         unsafe {
@@ -130,7 +130,7 @@ pub fn jet_lsh(context: &mut Context, subject: Noun) -> Result {
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
 
-    util::lsh(&mut context.stack, bloq, step, a).map(|a| a.as_noun())
+    util::lsh(&mut context.stack, bloq, step, a)
 }
 
 pub fn jet_met(_context: &mut Context, subject: Noun) -> Result {
@@ -138,7 +138,7 @@ pub fn jet_met(_context: &mut Context, subject: Noun) -> Result {
     let bloq = bloq(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
 
-    Ok(D(met(bloq, a) as u64))
+    Ok(D(util::met(bloq, a) as u64))
 }
 
 pub fn jet_rap(context: &mut Context, subject: Noun) -> Result {
@@ -155,7 +155,7 @@ pub fn jet_rap(context: &mut Context, subject: Noun) -> Result {
 
         let cell = list.as_cell()?;
 
-        len = checked_add(len, met(bloq, cell.head().as_atom()?))?;
+        len = checked_add(len, util::met(bloq, cell.head().as_atom()?))?;
         list = cell.tail();
     }
 
@@ -175,7 +175,7 @@ pub fn jet_rap(context: &mut Context, subject: Noun) -> Result {
 
                 let cell = list.as_cell()?;
                 let atom = cell.head().as_atom()?;
-                let step = met(bloq, atom);
+                let step = util::met(bloq, atom);
                 chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
 
                 pos += step;
@@ -272,7 +272,7 @@ pub fn jet_rip(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let atom = slot(arg, 3)?.as_atom()?;
-    rip(&mut context.stack, bloq, step, atom)
+    util::rip(&mut context.stack, bloq, step, atom)
 }
 
 pub fn jet_rsh(context: &mut Context, subject: Noun) -> Result {
@@ -280,7 +280,7 @@ pub fn jet_rsh(context: &mut Context, subject: Noun) -> Result {
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
 
-    let len = met(bloq, a);
+    let len = util::met(bloq, a);
     if step >= len {
         return Ok(D(0));
     }
@@ -302,7 +302,7 @@ pub fn jet_con(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(con(&mut context.stack, a, b).as_noun())
+    Ok(util::con(&mut context.stack, a, b).as_noun())
 }
 
 pub fn jet_dis(context: &mut Context, subject: Noun) -> Result {
@@ -337,24 +337,124 @@ pub fn jet_mix(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+pub fn jet_xeb(_context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let a = slot(sam, 1)?.as_atom()?;
+    Ok(D(util::met(0, a) as u64))
+}
+
 pub mod util {
     use crate::jets::util::*;
-    use crate::jets::JetErr;
+    use crate::jets::Result;
     use crate::mem::NockStack;
-    use crate::noun::{Atom, IndirectAtom, D};
-    use std::result::Result;
+    use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, D};
+    use std::cmp;
 
-    pub fn lsh(stack: &mut NockStack, bloq: usize, step: usize, a: Atom) -> Result<Atom, JetErr> {
+    /// Binary exponent
+    pub fn bex(stack: &mut NockStack, arg: usize) -> Atom {
+        unsafe {
+            if arg < 63 {
+                DirectAtom::new_unchecked(1 << arg).as_atom()
+            } else {
+                let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, (arg + 7) >> 3);
+                dest.set(arg, true);
+                atom.normalize_as_atom()
+            }
+        }
+    }
+
+    pub fn lsh(stack: &mut NockStack, bloq: usize, step: usize, a: Atom) -> Result {
         let len = met(bloq, a);
         if len == 0 {
-            return Ok(D(0).as_atom()?);
+            return Ok(D(0));
         }
 
         let new_size = bits_to_word(checked_add(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
         unsafe {
             let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
             chop(bloq, 0, len, step, dest, a.as_bitslice())?;
-            Ok(atom.normalize_as_atom())
+            Ok(atom.normalize_as_atom().as_noun())
+        }
+    }
+
+    /// Measure the number of bloqs in an atom
+    pub fn met(bloq: usize, a: Atom) -> usize {
+        if unsafe { a.as_noun().raw_equals(D(0)) } {
+            0
+        } else if bloq < 6 {
+            (a.bit_size() + ((1 << bloq) - 1)) >> bloq
+        } else {
+            let bloq_word = bloq - 6;
+            (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
+        }
+    }
+
+    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> Result {
+        let len = (met(bloq, atom) + step - 1) / step;
+        let mut list = D(0);
+        for i in (0..len).rev() {
+            let new_atom = unsafe {
+                let (mut new_indirect, new_slice) =
+                    IndirectAtom::new_raw_mut_bitslice(stack, step << bloq);
+                chop(bloq, i * step, step, 0, new_slice, atom.as_bitslice())?;
+                new_indirect.normalize_as_atom()
+            };
+            list = Cell::new(stack, new_atom.as_noun(), list).as_noun();
+        }
+
+        Ok(list)
+    }
+
+    /// Binary OR
+    pub fn con(stack: &mut NockStack, a: Atom, b: Atom) -> Atom {
+        let new_size = cmp::max(a.size(), b.size());
+
+        unsafe {
+            let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
+            let a_bit = a.as_bitslice();
+            dest[..a_bit.len()].copy_from_bitslice(a_bit);
+            *dest |= b.as_bitslice();
+            atom.normalize_as_atom()
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::jets::util::test::A;
+        use crate::noun::D;
+        use ibig::ubig;
+
+        fn init_stack() -> NockStack {
+            NockStack::new(8 << 10 << 10, 0)
+        }
+
+        #[test]
+        fn test_met() {
+            let s = &mut init_stack();
+
+            let a = A(s, &ubig!(0xdeadbeef12345678fedcba9876543210))
+                .as_atom()
+                .unwrap();
+            assert_eq!(met(0, a), 128);
+            assert_eq!(met(1, a), 64);
+            assert_eq!(met(2, a), 32);
+            assert_eq!(met(3, a), 16);
+            assert_eq!(met(4, a), 8);
+            assert_eq!(met(5, a), 4);
+            assert_eq!(met(6, a), 2);
+            assert_eq!(met(7, a), 1);
+            assert_eq!(met(8, a), 1);
+
+            let a = D(0x7fffffffffffffff).as_atom().unwrap();
+            assert_eq!(met(0, a), 63);
+            assert_eq!(met(1, a), 32);
+            assert_eq!(met(2, a), 16);
+            assert_eq!(met(3, a), 8);
+            assert_eq!(met(4, a), 4);
+            assert_eq!(met(5, a), 2);
+            assert_eq!(met(6, a), 1);
+            assert_eq!(met(7, a), 1);
         }
     }
 }
@@ -750,5 +850,17 @@ mod tests {
         assert_jet(c, jet_mix, sam, a128);
         let sam = T(&mut c.stack, &[a128, a0]);
         assert_jet(c, jet_mix, sam, a128);
+    }
+
+    #[test]
+    fn test_xeb() {
+        let c = &mut init_context();
+
+        let (a0, a24, a63, a96, a128) = atoms(&mut c.stack);
+        assert_jet(c, jet_xeb, a0, D(0));
+        assert_jet(c, jet_xeb, a24, D(24));
+        assert_jet(c, jet_xeb, a63, D(63));
+        assert_jet(c, jet_xeb, a96, D(96));
+        assert_jet(c, jet_xeb, a128, D(128));
     }
 }
