@@ -472,7 +472,8 @@ impl IndirectAtom {
         }
     }
 
-    pub unsafe fn as_u128_pair(self) -> Result<[u64; 2]> {
+    /* SoftFloat-compatible ordered pair of 64-bit words */
+    pub unsafe fn as_u64_pair(self) -> Result<[u64; 2]> {
         if self.size() <= 2 {
             let u128_array = &mut [0u64; 2];
             u128_array.copy_from_slice(&(self.as_slice()[0..2]));
@@ -764,14 +765,15 @@ impl Atom {
         }
     }
 
-    pub unsafe fn as_u128_pair(self) -> Result<[u64; 2]> {
+    /* SoftFloat-compatible ordered pair of 64-bit words */
+    pub unsafe fn as_u64_pair(self) -> Result<[u64; 2]> {
         if self.is_direct() {
             let u128_array = &mut [0u64; 2];
             u128_array[0] = 0x0_u64;
             u128_array[1] = self.as_direct()?.data();
             Ok(*u128_array)
         } else {
-            unsafe { self.indirect.as_u128_pair() }
+            unsafe { self.indirect.as_u64_pair() }
         }
     }
 
