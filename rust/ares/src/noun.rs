@@ -742,9 +742,7 @@ impl Atom {
         if self.is_direct() {
             Ok(unsafe { self.direct.data() })
         } else {
-            unsafe {
-                self.indirect.as_u64()
-            }
+            unsafe { self.indirect.as_u64() }
         }
     }
 
@@ -842,7 +840,7 @@ impl Atom {
         if self.size() <= 2 {
             let mut u128_array = &mut [0u64; 2];
             u128_array.copy_from_slice(&(self.as_slice()[0..2]));
-            Ok(unsafe { *u128_array } )
+            Ok(unsafe { *u128_array })
         } else {
             Err(Error::NotRepresentable)
         }
