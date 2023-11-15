@@ -130,7 +130,7 @@ pub fn jet_lsh(context: &mut Context, subject: Noun) -> Result {
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
 
-    util::lsh(&mut context.stack, bloq, step, a).map(|a| a.as_noun())
+    util::lsh(&mut context.stack, bloq, step, a)
 }
 
 pub fn jet_met(_context: &mut Context, subject: Noun) -> Result {
@@ -344,13 +344,11 @@ pub fn jet_mix(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
-    use crate::jets;
     use crate::jets::util::*;
-    use crate::jets::JetErr;
+    use crate::jets::Result;
     use crate::mem::NockStack;
     use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, D};
     use std::cmp;
-    use std::result;
 
     /// Binary exponent
     pub fn bex(stack: &mut NockStack, arg: usize) -> Atom {
@@ -365,22 +363,17 @@ pub mod util {
         }
     }
 
-    pub fn lsh(
-        stack: &mut NockStack,
-        bloq: usize,
-        step: usize,
-        a: Atom,
-    ) -> result::Result<Atom, JetErr> {
+    pub fn lsh(stack: &mut NockStack, bloq: usize, step: usize, a: Atom) -> Result {
         let len = met(bloq, a);
         if len == 0 {
-            return Ok(D(0).as_atom()?);
+            return Ok(D(0));
         }
 
         let new_size = bits_to_word(checked_add(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
         unsafe {
             let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
             chop(bloq, 0, len, step, dest, a.as_bitslice())?;
-            Ok(atom.normalize_as_atom())
+            Ok(atom.normalize_as_atom().as_noun())
         }
     }
 
@@ -396,7 +389,7 @@ pub mod util {
         }
     }
 
-    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> jets::Result {
+    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> Result {
         let len = (met(bloq, atom) + step - 1) / step;
         let mut list = D(0);
         for i in (0..len).rev() {

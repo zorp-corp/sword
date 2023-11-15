@@ -9,12 +9,12 @@ crate::gdb!();
 
 pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
-    Ok(util::flop(&mut context.stack, sam)?)
+    util::flop(&mut context.stack, sam)
 }
 
 pub fn jet_lent(_context: &mut Context, subject: Noun) -> Result {
-    let tape = slot(subject, 6)?;
-    util::lent(tape).map(|x| D(x as u64))
+    let list = slot(subject, 6)?;
+    util::lent(list).map(|x| D(x as u64))
 }
 
 pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
@@ -26,14 +26,13 @@ pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
 
 pub mod util {
     use crate::interpreter::Error;
-    use crate::jets;
-    use crate::jets::JetErr;
+    use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
     use crate::noun::{Cell, Noun, D, T};
-    use std::result::Result;
+    use std::result;
 
     /// Reverse order of list
-    pub fn flop(stack: &mut NockStack, noun: Noun) -> Result<Noun, Error> {
+    pub fn flop(stack: &mut NockStack, noun: Noun) -> Result {
         let mut list = noun;
         let mut tsil = D(0);
         loop {
@@ -49,7 +48,7 @@ pub mod util {
         Ok(tsil)
     }
 
-    pub fn lent(tape: Noun) -> Result<usize, JetErr> {
+    pub fn lent(tape: Noun) -> result::Result<usize, JetErr> {
         let mut len = 0usize;
         let mut list = tape;
         loop {
@@ -68,50 +67,29 @@ pub mod util {
         Ok(len)
     }
 
-    pub fn zing(stack: &mut NockStack, mut list: Noun) -> jets::Result {
+    pub fn zing(stack: &mut NockStack, mut list: Noun) -> Result {
         unsafe {
-            let (mut new_cell, mut new_memory) = Cell::new_raw_mut(stack);
-            #[allow(unused_assignments)]
-            let (mut cell, mut memory) = (new_cell, new_memory);
             let mut res: Noun = D(0);
-            let mut flag = false;
+            let mut dest = &mut res as *mut Noun;
 
-            loop {
-                if list.raw_equals(D(0)) {
-                    break;
-                }
-
+            while !list.raw_equals(D(0)) {
                 let pair = list.as_cell()?;
-                let mut sub_list = pair.head();
-
-                loop {
-                    if sub_list.raw_equals(D(0)) {
-                        break;
-                    }
-
-                    let elem = sub_list.as_cell()?;
-                    let head = elem.head();
-
-                    if flag {
-                        (new_cell, new_memory) = Cell::new_raw_mut(stack);
-                        (*memory).tail = new_cell.as_noun();
-                        memory = new_memory;
-                    } else {
-                        (cell, memory) = Cell::new_raw_mut(stack);
-                        res = cell.as_noun();
-                        flag = true;
-                    }
-                    (*memory).head = head;
-
-                    sub_list = elem.tail();
-                }
-
+                let mut sublist = pair.head();
                 list = pair.tail();
+
+                while !sublist.raw_equals(D(0)) {
+                    let it = sublist.as_cell()?;
+                    let i = it.head();
+                    sublist = it.tail();
+
+                    let (new_cell, new_memory) = Cell::new_raw_mut(stack);
+                    (*new_memory).head = i;
+                    *dest = new_cell.as_noun();
+                    dest = &mut (*new_memory).tail;
+                }
             }
 
-            if flag {
-                (*memory).tail = D(0);
-            }
+            *dest = D(0);
             Ok(res)
         }
     }
