@@ -13,18 +13,16 @@ use crate::noun::{Cell, Noun, Slots, D, T};
 use crate::snapshot::double_jam::DoubleJam;
 use crate::snapshot::Snapshot;
 use ares_macros::tas;
+use json::object;
 use signal_hook;
 use signal_hook::consts::SIGINT;
-use std::fs::create_dir_all;
+use std::fs::{create_dir_all, File};
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-
 use std::time::Instant;
-use std::fs::File;
-use json::object;
 
 crate::gdb!();
 
@@ -195,88 +193,103 @@ pub fn serf() -> io::Result<()> {
     snap_path.push("chk");
     create_dir_all(&snap_path)?;
 
-    let wag: u32 = std::env::args().nth(4).ok_or(io::Error::new(io::ErrorKind::Other, "no flag bitmap"))?.parse().or(Err(io::Error::new(io::ErrorKind::Other, "flag bitmap is not integer")))?;
+    let wag: u32 = std::env::args()
+        .nth(4)
+        .ok_or(io::Error::new(io::ErrorKind::Other, "no flag bitmap"))?
+        .parse()
+        .or(Err(io::Error::new(
+            io::ErrorKind::Other,
+            "flag bitmap is not integer",
+        )))?;
 
-    let trace_info =
-        if wag & FLAG_TRACE != 0 {
-            let mut trace_dir_path = pier_path.clone();
-            trace_dir_path.push(".urb");
-            trace_dir_path.push("put");
-            trace_dir_path.push("trace");
-            create_dir_all(&trace_dir_path)?;
+    let trace_info = if wag & FLAG_TRACE != 0 {
+        let mut trace_dir_path = pier_path.clone();
+        trace_dir_path.push(".urb");
+        trace_dir_path.push("put");
+        trace_dir_path.push("trace");
+        create_dir_all(&trace_dir_path)?;
 
-            let mut trace_idx = 0u32;
-            loop {
-                let mut trace_path = trace_dir_path.clone();
-                trace_path.push(format!("{}.json", trace_idx));
-                if trace_path.exists() {
-                    trace_idx += 1;
-                } else {
-                    let mut file = File::create(trace_path)?;
-                    let process_start = Instant::now();
-                    let pid = std::process::id();
+        let trace_path: PathBuf;
+        let mut trace_idx = 0u32;
+        loop {
+            let mut prospective_path = trace_dir_path.clone();
+            prospective_path.push(format!("{}.json", trace_idx));
 
-                    file.write("[ ".as_bytes())?;
-
-                    // write metadata to trace file
-
-                    (object!{
-                        name: "process_name",
-                        ph: "M",
-                        pid: pid,
-                        args: object! { name: "urbit", },
-                    }).write(&mut file)?;
-                    file.write(",\n".as_bytes())?;
-
-                    (object!{
-                        name: "thread_name",
-                        ph: "M",
-                        pid: pid,
-                        tid: 1,
-                        args: object!{ name: "Event Processing", },
-                    }).write(&mut file)?;
-                    file.write(",\n".as_bytes())?;
-
-                    (object!{
-                        name: "thread_sort_index",
-                        ph: "M",
-                        pid: pid,
-                        tid: 1,
-                        args: object!{ sort_index: 1, },
-                    }).write(&mut file)?;
-                    file.write(",\n".as_bytes())?;
-
-                    (object!{
-                        name: "thread_name",
-                        ph: "M",
-                        pid: pid,
-                        tid: 2,
-                        args: object!{ name: "Nock", },
-                    }).write(&mut file)?;
-                    file.write(",\n".as_bytes())?;
-
-                    (object!{
-                        name: "thread_sort_index",
-                        ph: "M",
-                        pid: pid,
-                        tid: 2,
-                        args: object!{ sort_index: 2, },
-                    }).write(&mut file)?;
-                    file.write(",\n".as_bytes())?;
-
-                    file.sync_data()?;
-
-                    break Some(TraceInfo {
-                        file,
-                        pid,
-                        process_start,
-                    });
-                }
+            if prospective_path.exists() {
+                trace_idx += 1;
+            } else {
+                trace_path = prospective_path.clone();
+                break;
             }
+        }
 
-        } else {
-            None
-        };
+        let mut file = File::create(trace_path)?;
+        let process_start = Instant::now();
+        let pid = std::process::id();
+
+        // write metadata to trace file
+
+        file.write_all("[ ".as_bytes())?;
+
+        (object! {
+            name: "process_name",
+            ph: "M",
+            pid: pid,
+            args: object! { name: "urbit", },
+        })
+        .write(&mut file)?;
+        file.write_all(",\n".as_bytes())?;
+
+        (object! {
+            name: "thread_name",
+            ph: "M",
+            pid: pid,
+            tid: 1,
+            args: object!{ name: "Event Processing", },
+        })
+        .write(&mut file)?;
+        file.write_all(",\n".as_bytes())?;
+
+        (object! {
+            name: "thread_sort_index",
+            ph: "M",
+            pid: pid,
+            tid: 1,
+            args: object!{ sort_index: 1, },
+        })
+        .write(&mut file)?;
+        file.write_all(",\n".as_bytes())?;
+
+        (object! {
+            name: "thread_name",
+            ph: "M",
+            pid: pid,
+            tid: 2,
+            args: object!{ name: "Nock", },
+        })
+        .write(&mut file)?;
+        file.write_all(",\n".as_bytes())?;
+
+        (object! {
+            name: "thread_sort_index",
+            ph: "M",
+            pid: pid,
+            tid: 2,
+            args: object!{ sort_index: 2, },
+        })
+        .write(&mut file)?;
+        file.write_all(",\n".as_bytes())?;
+
+        file.sync_data()?;
+
+        Some(TraceInfo {
+            file,
+            pid,
+            process_start,
+        })
+    } else {
+        None
+    };
 
     let mut context = Context::new(&snap_path, trace_info);
     context.ripe();

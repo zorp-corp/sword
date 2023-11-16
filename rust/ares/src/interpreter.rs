@@ -2,13 +2,13 @@ use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
 use crate::hamt::Hamt;
+use crate::jets::bits::util::rap;
 use crate::jets::cold;
 use crate::jets::cold::Cold;
+use crate::jets::form::util::scow;
 use crate::jets::hot::Hot;
 use crate::jets::warm::Warm;
 use crate::jets::JetErr;
-use crate::jets::form::util::scow;
-use crate::jets::bits::util::rap;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::mug::met3_usize;
@@ -20,14 +20,13 @@ use ares_macros::tas;
 use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::*;
+use json::object;
+use std::fs::File;
+use std::io::Write;
 use std::result;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-
-use std::fs::File;
 use std::time::Instant;
-use json::object;
-use std::io::Write;
 
 crate::gdb!();
 
@@ -281,9 +280,9 @@ pub struct TraceInfo {
 }
 
 pub struct TraceStack {
-   pub start: Instant,
-   pub path: Noun,
-   pub next: *const TraceStack,
+    pub start: Instant,
+    pub path: Noun,
+    pub next: *const TraceStack,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -325,9 +324,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     // Setup stack for Nock computation
     unsafe {
         context.stack.frame_push(2);
+
         // Bottom of mean stack
         *(context.stack.local_noun_pointer(0)) = D(0);
-
         // Bottom of trace stack
         *(context.stack.local_noun_pointer(1) as *mut *const TraceStack) = std::ptr::null();
 
@@ -378,14 +377,18 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
                     // Write fast-hinted traces to file
                     if let Some(ref mut info) = &mut context.trace_info {
-                        let mut trace_stack = *(stack.local_noun_pointer(1) as *const *const TraceStack);
+                        let mut trace_stack =
+                            *(stack.local_noun_pointer(1) as *const *const TraceStack);
                         let now = Instant::now();
                         assert_no_alloc::permit_alloc(|| {
-                            loop {
-                                if trace_stack.is_null() { break; }
-                                
-                                let ts = (*trace_stack).start.saturating_duration_since(info.process_start).as_micros() as f64;
-                                let dur = now.saturating_duration_since((*trace_stack).start).as_micros() as f64;
+                            while !trace_stack.is_null() {
+                                let ts = (*trace_stack)
+                                    .start
+                                    .saturating_duration_since(info.process_start)
+                                    .as_micros() as f64;
+                                let dur = now
+                                    .saturating_duration_since((*trace_stack).start)
+                                    .as_micros() as f64;
 
                                 // Don't write out traces less than 33us
                                 // (same threshhold used in vere)
@@ -396,33 +399,32 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
                                 let pc = path_to_cord(stack, (*trace_stack).path);
                                 let pclen = met3_usize(pc);
-                                if let Ok(pc_str) = std::str::from_utf8(&pc.as_bytes()[0..pclen]) {
-                                    let obj = object!{
-                                        cat: "nock",
-                                        name: pc_str,
-                                        ph: "X",
-                                        pid: info.pid,
-                                        tid: 2,
-                                        ts: ts,
-                                        dur: dur,
-                                    };
-                                    
-                                    if let Err(e) = obj.write(&mut info.file) {
-                                        eprintln!("Error writing trace to file: {:?}", e);
-                                        break;
-                                    };
+                                let pc_str = &pc.as_bytes()[0..pclen];
 
-                                    if let Err(e) = info.file.write(",\n".as_bytes()) {
-                                        eprintln!("Error writing trace to file: {:?}", e);
-                                        break;
-                                    };
+                                let obj = object! {
+                                    cat: "nock",
+                                    name: pc_str,
+                                    ph: "X",
+                                    pid: info.pid,
+                                    tid: 2,
+                                    ts: ts,
+                                    dur: dur,
+                                };
+                                if let Err(e) = obj.write(&mut info.file) {
+                                    eprintln!("\rError writing trace to file: {:?}", e);
+                                    break;
+                                };
+                                //  XX: success above but failure here permanently malforms the trace file
+                                if let Err(e) = info.file.write(",\n".as_bytes()) {
+                                    eprintln!("\rError writing trace to file: {:?}", e);
+                                    break;
+                                };
 
-                                }
                                 trace_stack = (*trace_stack).next;
                             }
                         });
                         if let Err(e) = info.file.sync_data() {
-                            eprintln!("Error syncing trace file: {:?}", e);
+                            eprintln!("\rError syncing trace file: {:?}", e);
                         };
                     }
 
@@ -696,17 +698,22 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 if kale.tail {
                                     stack.pop::<NockWork>();
 
-                                    if let Some(_info) = &context.trace_info {
+                                    // We could trace on 2 as well, but 2 only comes from Hoon via
+                                    // '.*', so we can assume it's never directly used to invoke
+                                    // jetted code.
+                                    if context.trace_info.is_some() {
                                         if let Some(path) = context.cold.matches(stack, &mut res) {
                                             // Push onto the tracing stack
-                                            let trace_stack = *(stack.local_noun_pointer(1) as *const *const TraceStack);
+                                            let trace_stack = *(stack.local_noun_pointer(1)
+                                                as *const *const TraceStack);
                                             let new_trace_entry = stack.struct_alloc(1);
                                             *new_trace_entry = TraceStack {
                                                 path,
                                                 start: Instant::now(),
                                                 next: trace_stack,
                                             };
-                                            *(stack.local_noun_pointer(1) as *mut *const TraceStack) = new_trace_entry;
+                                            *(stack.local_noun_pointer(1)
+                                                as *mut *const TraceStack) = new_trace_entry;
                                         };
                                     };
 
@@ -726,20 +733,24 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     *stack.push() = NockWork::Ret;
                                     push_formula(stack, formula, true)?;
 
-                                    if let Some(_info) = &context.trace_info {
+                                    // We could trace on 2 as well, but 2 only comes from Hoon via
+                                    // '.*', so we can assume it's never directly used to invoke
+                                    // jetted code.
+                                    if context.trace_info.is_some() {
                                         if let Some(path) = context.cold.matches(stack, &mut res) {
                                             // Push onto the tracing stack
-                                            let trace_stack = *(stack.local_noun_pointer(1) as *const *const TraceStack);
+                                            let trace_stack = *(stack.local_noun_pointer(1)
+                                                as *const *const TraceStack);
                                             let new_trace_entry = stack.struct_alloc(1);
                                             *new_trace_entry = TraceStack {
                                                 path,
                                                 start: Instant::now(),
                                                 next: trace_stack,
                                             };
-                                            *(stack.local_noun_pointer(1) as *mut *const TraceStack) = new_trace_entry;
+                                            *(stack.local_noun_pointer(1)
+                                                as *mut *const TraceStack) = new_trace_entry;
                                         };
                                     };
-
                                 }
                             } else {
                                 // Axis into core must be atom
@@ -1302,36 +1313,35 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
     }
 }
 
+//  XX: Need Rust string interpolation helper that doesn't allocate
 fn path_to_cord(stack: &mut NockStack, path: Noun) -> Atom {
     let mut cursor = path;
     let mut length = 0usize;
 
     // count how much size we need
-    loop {
-        if let Ok(c) = cursor.as_cell() {
-            unsafe {
-                match c.head().as_either_atom_cell() {
-                    Left(a) => {
-                        length += 1;
-                        length += met3_usize(a);
-                    },
-                    Right(ch) => {
-                        if let Ok(nm) = ch.head().as_atom() {
-                            if let Ok(kv) = ch.tail().as_atom() {
-                                let kvt = scow(stack, DirectAtom::new_unchecked(tas!(b"ud")), kv).expect("scow should succeed in path_to_cord");
-                                let kvc = rap(stack, 3, kvt).expect("rap should succeed in path_to_cord");
-                                length += 1;
-                                length += met3_usize(nm);
-                                length += met3_usize(kvc);
-                            }
+    while let Ok(c) = cursor.as_cell() {
+        unsafe {
+            match c.head().as_either_atom_cell() {
+                Left(a) => {
+                    length += 1;
+                    length += met3_usize(a);
+                }
+                Right(ch) => {
+                    if let Ok(nm) = ch.head().as_atom() {
+                        if let Ok(kv) = ch.tail().as_atom() {
+                            let kvt = scow(stack, DirectAtom::new_unchecked(tas!(b"ud")), kv)
+                                .expect("scow should succeed in path_to_cord");
+                            let kvc =
+                                rap(stack, 3, kvt).expect("rap should succeed in path_to_cord");
+                            length += 1;
+                            length += met3_usize(nm);
+                            length += met3_usize(kvc);
                         }
                     }
                 }
             }
-            cursor = c.tail();
-        } else {
-            break;
         }
+        cursor = c.tail();
     }
 
     // reset cursor, then actually write the path
@@ -1339,45 +1349,41 @@ fn path_to_cord(stack: &mut NockStack, path: Noun) -> Atom {
     let mut idx = 0;
     let (mut deres, buffer) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, length) };
     let slash = (b"/")[0];
-    
-    loop {
-        if let Ok(c) = cursor.as_cell() {
-            unsafe {
-                match c.head().as_either_atom_cell() {
-                    Left(a) => {
-                        buffer[idx] = slash;
-                        idx += 1;
-                        let bytelen = met3_usize(a);
-                        buffer[idx..idx+bytelen].copy_from_slice(&a.as_bytes()[0..bytelen]);
-                        idx += bytelen;
-                    },
-                    Right(ch) => {
-                        if let Ok(nm) = ch.head().as_atom() {
-                            if let Ok(kv) = ch.tail().as_atom() {
-                                let kvt = scow(stack, DirectAtom::new_unchecked(tas!(b"ud")), kv).expect("scow should succeed in path_to_cord");
-                                let kvc = rap(stack, 3, kvt).expect("rap should succeed in path_to_cord");
-                                buffer[idx] = slash;
-                                idx += 1;
-                                let nmlen = met3_usize(nm);
-                                buffer[idx..idx+nmlen].copy_from_slice(&nm.as_bytes()[0..nmlen]);
-                                idx += nmlen;
-                                let kvclen = met3_usize(kvc);
-                                buffer[idx..idx+kvclen].copy_from_slice(&kvc.as_bytes()[0..kvclen]);
-                                idx += kvclen;
-                            }
+
+    while let Ok(c) = cursor.as_cell() {
+        unsafe {
+            match c.head().as_either_atom_cell() {
+                Left(a) => {
+                    buffer[idx] = slash;
+                    idx += 1;
+                    let bytelen = met3_usize(a);
+                    buffer[idx..idx + bytelen].copy_from_slice(&a.as_bytes()[0..bytelen]);
+                    idx += bytelen;
+                }
+                Right(ch) => {
+                    if let Ok(nm) = ch.head().as_atom() {
+                        if let Ok(kv) = ch.tail().as_atom() {
+                            let kvt = scow(stack, DirectAtom::new_unchecked(tas!(b"ud")), kv)
+                                .expect("scow should succeed in path_to_cord");
+                            let kvc =
+                                rap(stack, 3, kvt).expect("rap should succeed in path_to_cord");
+                            buffer[idx] = slash;
+                            idx += 1;
+                            let nmlen = met3_usize(nm);
+                            buffer[idx..idx + nmlen].copy_from_slice(&nm.as_bytes()[0..nmlen]);
+                            idx += nmlen;
+                            let kvclen = met3_usize(kvc);
+                            buffer[idx..idx + kvclen].copy_from_slice(&kvc.as_bytes()[0..kvclen]);
+                            idx += kvclen;
                         }
-                    },
+                    }
                 }
             }
-            cursor = c.tail();
-        } else {
-            break;
         }
-    };
-    
-    unsafe {
-        deres.normalize_as_atom()
+        cursor = c.tail();
     }
+
+    unsafe { deres.normalize_as_atom() }
 }
 
 mod hint {
@@ -1688,4 +1694,3 @@ mod hint {
         newt.slog(stack, 0u64, tank);
     }
 }
-
