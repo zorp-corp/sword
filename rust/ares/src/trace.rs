@@ -139,8 +139,15 @@ pub unsafe fn write_nock_trace(
         }
 
         let pc = path_to_cord(stack, (*trace_stack).path);
-        let pclen = met3_usize(pc);
-        let pc_str = &pc.as_bytes()[0..pclen];
+        let pc_len = met3_usize(pc);
+        let pc_bytes = &pc.as_bytes()[0..pc_len];
+        let pc_str = match std::str::from_utf8(pc_bytes) {
+            Ok(valid) => valid,
+            Err(error) => {
+                let (valid, _) = pc_bytes.split_at(error.valid_up_to());
+                unsafe { std::str::from_utf8_unchecked(valid) }
+            }
+        };
 
         assert_no_alloc::permit_alloc(|| {
             let obj = object! {
