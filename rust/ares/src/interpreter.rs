@@ -334,8 +334,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
             let work: NockWork = *context.stack.top();
             match work {
                 NockWork::Done => {
-                    let stack = &mut context.stack;
+                    write_trace(context);
 
+                    let stack = &mut context.stack;
                     debug_assertions(stack, orig_subject);
                     debug_assertions(stack, subject);
                     debug_assertions(stack, res);
@@ -352,22 +353,12 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     break Ok(res);
                 }
                 NockWork::Ret => {
-                    let stack = &mut context.stack;
+                    write_trace(context);
 
+                    let stack = &mut context.stack;
                     debug_assertions(stack, orig_subject);
                     debug_assertions(stack, subject);
                     debug_assertions(stack, res);
-
-                    // Write fast-hinted traces to trace file
-                    if let Some(ref mut info) = &mut context.trace_info {
-                        let trace_stack = *(stack.local_noun_pointer(1) as *mut *const TraceStack);
-                        // Abort writing to trace file if we encountered an error. This should
-                        // result in a well-formed partial trace file.
-                        if let Err(e) = write_nock_trace(stack, info, trace_stack) {
-                            eprintln!("\rError writing trace to file: {:?}", e);
-                            context.trace_info = None;
-                        }
-                    }
 
                     stack.preserve(&mut context.cache);
                     stack.preserve(&mut context.cold);
@@ -1245,6 +1236,19 @@ fn append_trace(stack: &mut NockStack, path: Noun) {
             next: trace_stack,
         };
         *(stack.local_noun_pointer(1) as *mut *const TraceStack) = new_trace_entry;
+    }
+}
+
+/// Write fast-hinted traces to trace file
+unsafe fn write_trace(context: &mut Context) {
+    if let Some(ref mut info) = &mut context.trace_info {
+        let trace_stack = *(context.stack.local_noun_pointer(1) as *mut *const TraceStack);
+        // Abort writing to trace file if we encountered an error. This should
+        // result in a well-formed partial trace file.
+        if let Err(e) = write_nock_trace(&mut context.stack, info, trace_stack) {
+            eprintln!("\rError writing trace to file: {:?}", e);
+            context.trace_info = None;
+        }
     }
 }
 
