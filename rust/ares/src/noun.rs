@@ -769,8 +769,8 @@ impl Atom {
     pub unsafe fn as_u64_pair(self) -> Result<[u64; 2]> {
         if self.is_direct() {
             let u128_array = &mut [0u64; 2];
-            u128_array[0] = 0x0_u64;
-            u128_array[1] = self.as_direct()?.data();
+            u128_array[0] = self.as_direct()?.data();
+            u128_array[1] = 0x0_u64;
             Ok(*u128_array)
         } else {
             unsafe { self.indirect.as_u64_pair() }
