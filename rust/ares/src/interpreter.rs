@@ -361,7 +361,12 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     // Write fast-hinted traces to trace file
                     if let Some(ref mut info) = &mut context.trace_info {
                         let trace_stack = *(stack.local_noun_pointer(1) as *mut *const TraceStack);
-                        write_nock_trace(stack, info, trace_stack);
+                        // Abort writing to trace file if we encountered an error. This should
+                        // result in a well-formed partial trace file.
+                        if let Err(e) = write_nock_trace(stack, info, trace_stack) {
+                            eprintln!("\rError writing trace to file: {:?}", e);
+                            context.trace_info = None;
+                        }
                     }
 
                     stack.preserve(&mut context.cache);

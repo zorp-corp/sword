@@ -208,7 +208,10 @@ pub fn serf() -> io::Result<()> {
     };
 
     if let Some(ref mut info) = trace_info.as_mut() {
-        write_metadata(info);
+        if let Err(e) = write_metadata(info) {
+            eprintln!("\rError initializing trace file: {:?}", e);
+            trace_info = None;
+        }
     }
 
     let mut context = Context::new(&snap_path, trace_info);

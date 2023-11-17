@@ -59,8 +59,8 @@ pub fn create_trace_file(pier_path: PathBuf) -> Result<TraceInfo, Error> {
 }
 
 /// Write metadata to trace file
-pub fn write_metadata(info: &mut TraceInfo) {
-    info.file.write_all("[ ".as_bytes());
+pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
+    info.file.write_all("[ ".as_bytes())?;
 
     (object! {
         name: "process_name",
@@ -68,8 +68,8 @@ pub fn write_metadata(info: &mut TraceInfo) {
         pid: info.pid,
         args: object! { name: "urbit", },
     })
-    .write(&mut info.file);
-    info.file.write_all(",\n".as_bytes());
+    .write(&mut info.file)?;
+    info.file.write_all(",\n".as_bytes())?;
 
     (object! {
         name: "thread_name",
@@ -78,8 +78,8 @@ pub fn write_metadata(info: &mut TraceInfo) {
         tid: 1,
         args: object!{ name: "Event Processing", },
     })
-    .write(&mut info.file);
-    info.file.write_all(",\n".as_bytes());
+    .write(&mut info.file)?;
+    info.file.write_all(",\n".as_bytes())?;
 
     (object! {
         name: "thread_sort_index",
@@ -88,8 +88,8 @@ pub fn write_metadata(info: &mut TraceInfo) {
         tid: 1,
         args: object!{ sort_index: 1, },
     })
-    .write(&mut info.file);
-    info.file.write_all(",\n".as_bytes());
+    .write(&mut info.file)?;
+    info.file.write_all(",\n".as_bytes())?;
 
     (object! {
         name: "thread_name",
@@ -98,8 +98,8 @@ pub fn write_metadata(info: &mut TraceInfo) {
         tid: 2,
         args: object!{ name: "Nock", },
     })
-    .write(&mut info.file);
-    info.file.write_all(",\n".as_bytes());
+    .write(&mut info.file)?;
+    info.file.write_all(",\n".as_bytes())?;
 
     (object! {
         name: "thread_sort_index",
@@ -108,66 +108,59 @@ pub fn write_metadata(info: &mut TraceInfo) {
         tid: 2,
         args: object!{ sort_index: 2, },
     })
-    .write(&mut info.file);
-    info.file.write_all(",\n".as_bytes());
+    .write(&mut info.file)?;
+    info.file.write_all(",\n".as_bytes())?;
 
-    info.file.sync_data();
+    info.file.sync_data()?;
+    Ok(())
 }
 
-pub fn write_nock_trace(
+pub unsafe fn write_nock_trace(
     stack: &mut NockStack,
     info: &mut TraceInfo,
     mut trace_stack: *const TraceStack,
-) {
+) -> Result<(), Error> {
     let now = Instant::now();
-    unsafe {
+
+    while !trace_stack.is_null() {
+        let ts = (*trace_stack)
+            .start
+            .saturating_duration_since(info.process_start)
+            .as_micros() as f64;
+        let dur = now
+            .saturating_duration_since((*trace_stack).start)
+            .as_micros() as f64;
+
+        // Don't write out traces less than 33us
+        // (same threshhold used in vere)
+        if dur < 33.0 {
+            trace_stack = (*trace_stack).next;
+            continue;
+        }
+
+        let pc = path_to_cord(stack, (*trace_stack).path);
+        let pclen = met3_usize(pc);
+        let pc_str = &pc.as_bytes()[0..pclen];
+
         assert_no_alloc::permit_alloc(|| {
-            while !trace_stack.is_null() {
-                let ts = (*trace_stack)
-                    .start
-                    .saturating_duration_since(info.process_start)
-                    .as_micros() as f64;
-                let dur = now
-                    .saturating_duration_since((*trace_stack).start)
-                    .as_micros() as f64;
+            let obj = object! {
+                cat: "nock",
+                name: pc_str,
+                ph: "X",
+                pid: info.pid,
+                tid: 2,
+                ts: ts,
+                dur: dur,
+            };
+            obj.write(&mut info.file)
+        })?;
+        info.file.write_all(",\n".as_bytes())?;
 
-                // Don't write out traces less than 33us
-                // (same threshhold used in vere)
-                if dur < 33.0 {
-                    trace_stack = (*trace_stack).next;
-                    continue;
-                }
-
-                let pc = path_to_cord(stack, (*trace_stack).path);
-                let pclen = met3_usize(pc);
-                let pc_str = &pc.as_bytes()[0..pclen];
-
-                let obj = object! {
-                    cat: "nock",
-                    name: pc_str,
-                    ph: "X",
-                    pid: info.pid,
-                    tid: 2,
-                    ts: ts,
-                    dur: dur,
-                };
-                if let Err(e) = obj.write(&mut info.file) {
-                    eprintln!("\rError writing trace to file: {:?}", e);
-                    break;
-                };
-                //  XX: success above but failure here permanently malforms the trace file
-                if let Err(e) = info.file.write(",\n".as_bytes()) {
-                    eprintln!("\rError writing trace to file: {:?}", e);
-                    break;
-                };
-
-                trace_stack = (*trace_stack).next;
-            }
-        });
+        trace_stack = (*trace_stack).next;
     }
-    if let Err(e) = info.file.sync_data() {
-        eprintln!("\rError syncing trace file: {:?}", e);
-    };
+
+    info.file.sync_data()?;
+    Ok(())
 }
 
 //  XX: Need Rust string interpolation helper that doesn't allocate
