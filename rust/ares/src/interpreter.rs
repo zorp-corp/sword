@@ -1246,7 +1246,7 @@ unsafe fn write_trace(context: &mut Context) {
         // Abort writing to trace file if we encountered an error. This should
         // result in a well-formed partial trace file.
         if let Err(e) = write_nock_trace(&mut context.stack, info, trace_stack) {
-            eprintln!("\rError writing trace to file: {:?}", e);
+            eprintln!("\rserf: error writing nock trace to file: {:?}", e);
             context.trace_info = None;
         }
     }

@@ -12,7 +12,7 @@ use crate::newt::Newt;
 use crate::noun::{Cell, Noun, Slots, D, T};
 use crate::snapshot::double_jam::DoubleJam;
 use crate::snapshot::Snapshot;
-use crate::trace::{create_trace_file, write_metadata, TraceInfo};
+use crate::trace::*;
 use ares_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;
@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Instant;
 
 crate::gdb!();
 
@@ -206,7 +207,6 @@ pub fn serf() -> io::Result<()> {
     } else {
         None
     };
-
     if let Some(ref mut info) = trace_info.as_mut() {
         if let Err(e) = write_metadata(info) {
             eprintln!("\rError initializing trace file: {:?}", e);
@@ -365,7 +365,36 @@ fn play_list(context: &mut Context, mut lit: Noun) {
 }
 
 fn work(context: &mut Context, job: Noun) {
-    match soft(context, job) {
+    let soft_res = if context.nock_context.trace_info.is_some() {
+        let start = Instant::now();
+        //  XX: good luck making this safe AND rust idiomatic!
+        let wire = job.slot(6).expect("serf: work: job missing wire");
+        let vent = job
+            .slot(14)
+            .expect("serf: work: job missing event tag")
+            .as_atom()
+            .expect("serf: work: event tag not atom");
+        let res = soft(context, job);
+
+        // Abort writing to trace file if we encountered an error. This should
+        // result in a well-formed partial trace file.
+        if let Err(e) = write_event_trace(
+            &mut context.nock_context.stack,
+            context.nock_context.trace_info.as_mut().unwrap(),
+            wire,
+            vent,
+            start,
+        ) {
+            eprintln!("\rserf: work: error writing event trace to file: {:?}", e);
+            context.nock_context.trace_info = None;
+        }
+
+        res
+    } else {
+        soft(context, job)
+    };
+
+    match soft_res {
         Ok(res) => {
             let cell = res.as_cell().expect("serf: work: +slam returned atom");
             let fec = cell.head();

@@ -115,6 +115,57 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
     Ok(())
 }
 
+pub fn write_event_trace(
+    stack: &mut NockStack,
+    info: &mut TraceInfo,
+    wire: Noun,
+    vent: Atom,
+    start: Instant,
+) -> Result<(), Error> {
+    let dur = Instant::now().saturating_duration_since(start).as_micros() as f64;
+    let ts = start
+        .saturating_duration_since(info.process_start)
+        .as_micros() as f64;
+
+    let wpc = path_to_cord(stack, wire);
+    let wpc_len = met3_usize(wpc);
+    let wpc_bytes = &wpc.as_bytes()[0..wpc_len];
+    let wpc_str = match std::str::from_utf8(wpc_bytes) {
+        Ok(valid) => valid,
+        Err(error) => {
+            let (valid, _) = wpc_bytes.split_at(error.valid_up_to());
+            unsafe { std::str::from_utf8_unchecked(valid) }
+        }
+    };
+
+    let vc_len = met3_usize(vent);
+    let vc_bytes = &vent.as_bytes()[0..vc_len];
+    let vc_str = match std::str::from_utf8(vc_bytes) {
+        Ok(valid) => valid,
+        Err(error) => {
+            let (valid, _) = vc_bytes.split_at(error.valid_up_to());
+            unsafe { std::str::from_utf8_unchecked(valid) }
+        }
+    };
+
+    assert_no_alloc::permit_alloc(|| {
+        let name = format!("work [{} {}]", wpc_str, vc_str);
+        let obj = object! {
+            cat: "event",
+            name: name,
+            ph: "X",
+            pid: info.pid,
+            tid: 1,
+            ts: ts,
+            dur: dur,
+        };
+        obj.write(&mut info.file)
+    })?;
+    info.file.write_all(",\n".as_bytes())?;
+
+    Ok(())
+}
+
 pub unsafe fn write_nock_trace(
     stack: &mut NockStack,
     info: &mut TraceInfo,
