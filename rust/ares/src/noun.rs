@@ -473,7 +473,7 @@ impl IndirectAtom {
     }
 
     /** Produce a SoftFloat-compatible ordered pair of 64-bit words */
-    pub unsafe fn as_u64_pair(self) -> Result<[u64; 2]> {
+    pub fn as_u64_pair(self) -> Result<[u64; 2]> {
         if self.size() <= 2 {
             let u128_array = &mut [0u64; 2];
             u128_array.copy_from_slice(&(self.as_slice()[0..2]));
