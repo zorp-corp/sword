@@ -295,16 +295,7 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
         let trace_name = "peek";
         let start = Instant::now();
         let slam_res = slam(context, PEEK_AXIS, ovo);
-        // Abort writing to trace file if we encountered an error. This should result in a
-        // well-formed partial trace file.
-        if let Err(e) = write_serf_trace(
-            context.nock_context.trace_info.as_mut().unwrap(),
-            trace_name,
-            start,
-        ) {
-            eprintln!("\rserf: error writing event trace to file: {:?}", e);
-            context.nock_context.trace_info = None;
-        }
+        write_serf_trace_safe(&mut context.nock_context.trace_info, trace_name, start);
 
         slam_res.expect("peek error handling unimplemented")
     } else {
@@ -331,17 +322,11 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
     let slam_res = if context.nock_context.trace_info.is_some() {
         let start = Instant::now();
         let slam_res = slam(context, POKE_AXIS, ovo);
-
-        // Abort writing to trace file if we encountered an error. This should result in a
-        // well-formed partial trace file.
-        if let Err(e) = write_serf_trace(
-            context.nock_context.trace_info.as_mut().unwrap(),
+        write_serf_trace_safe(
+            &mut context.nock_context.trace_info,
             trace_name.as_ref().unwrap(),
             start,
-        ) {
-            eprintln!("\rserf: error writing event trace to file: {:?}", e);
-            context.nock_context.trace_info = None;
-        }
+        );
 
         slam_res
     } else {
@@ -369,16 +354,7 @@ fn play_life(context: &mut Context, eve: Noun) {
         let trace_name = "boot";
         let start = Instant::now();
         let boot_res = interpret(&mut context.nock_context, eve, lyf);
-        // Abort writing to trace file if we encountered an error. This should result in a
-        // well-formed partial trace file.
-        if let Err(e) = write_serf_trace(
-            context.nock_context.trace_info.as_mut().unwrap(),
-            trace_name,
-            start,
-        ) {
-            eprintln!("\rserf: error writing event trace to file: {:?}", e);
-            context.nock_context.trace_info = None;
-        }
+        write_serf_trace_safe(&mut context.nock_context.trace_info, trace_name, start);
 
         boot_res
     } else {
