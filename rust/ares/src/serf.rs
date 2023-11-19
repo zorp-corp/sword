@@ -292,7 +292,6 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
     if context.nock_context.trace_info.is_some() {
         //  XX: way too many cases in the input to pull the actual vane, care, and path out
         let trace_name = "peek";
-
         let _ = write_serf_trace_start(
             context.nock_context.trace_info.as_mut().unwrap(),
             trace_name,
@@ -301,7 +300,7 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
 
         // Abort writing to trace file if we encountered an error. This should result in a
         // well-formed partial trace file.
-        if let Err(e) = write_serf_trace_start(
+        if let Err(e) = write_serf_trace_end(
             context.nock_context.trace_info.as_mut().unwrap(),
             trace_name,
         ) {
@@ -368,7 +367,30 @@ fn play_life(context: &mut Context, eve: Noun) {
     let stack = &mut context.nock_context.stack;
     let sub = T(stack, &[D(0), D(3)]);
     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
-    match interpret(&mut context.nock_context, eve, lyf) {
+    let res = if context.nock_context.trace_info.is_some() {
+        let trace_name = "boot";
+        let _ = write_serf_trace_start(
+            context.nock_context.trace_info.as_mut().unwrap(),
+            trace_name,
+        );
+        let boot_res = interpret(&mut context.nock_context, eve, lyf);
+
+        // Abort writing to trace file if we encountered an error. This should result in a
+        // well-formed partial trace file.
+        if let Err(e) = write_serf_trace_end(
+            context.nock_context.trace_info.as_mut().unwrap(),
+            trace_name,
+        ) {
+            eprintln!("\rserf: error writing event trace to file: {:?}", e);
+            context.nock_context.trace_info = None;
+        }
+
+        boot_res
+    } else {
+        interpret(&mut context.nock_context, eve, lyf)
+    };
+
+    match res {
         Ok(gat) => {
             let eved = lent(eve).expect("serf: play: boot event number failure") as u64;
             let arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
