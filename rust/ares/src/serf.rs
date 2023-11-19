@@ -244,6 +244,7 @@ pub fn serf() -> io::Result<()> {
         //  XX: Such data should go in the PMA once that's available
         unsafe {
             let stack = &mut context.nock_context.stack;
+            stack.preserve(&mut context.arvo);
             stack.preserve(&mut context.nock_context.cold);
             stack.preserve(&mut context.nock_context.warm);
             stack.frame_pop();
