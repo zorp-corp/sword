@@ -7,9 +7,9 @@ use crate::jets::list::util::{lent, zing};
 use crate::jets::nock::util::mook;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
-use crate::mug::mug_u32;
+use crate::mug::*;
 use crate::newt::Newt;
-use crate::noun::{Cell, Noun, Slots, D, T};
+use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
 use crate::snapshot::double_jam::DoubleJam;
 use crate::snapshot::Snapshot;
 use crate::trace::*;
@@ -22,7 +22,6 @@ use std::path::PathBuf;
 use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
 
 crate::gdb!();
 
@@ -302,9 +301,31 @@ fn goof(context: &mut Context, traces: Noun) -> Noun {
     T(&mut context.nock_context.stack, &[D(tas!(b"exit")), tang])
 }
 
-/** Run slam, process stack trace to tang if error */
-fn soft(context: &mut Context, ovo: Noun) -> Result<Noun, Noun> {
-    match slam(context, POKE_AXIS, ovo) {
+/** Run slam; process stack trace to tang if error.
+ *  Generate tracing events, if JSON tracing enabled.
+ */
+fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<Noun, Noun> {
+    if let Some(ref mut info) = &mut context.nock_context.trace_info {
+        // Abort writing to trace file if we encountered an error. This should result in a
+        // well-formed partial trace file.
+        if let Err(e) = write_serf_trace_start(info, trace_name.as_ref().unwrap()) {
+            eprintln!("\rserf: error writing event trace to file: {:?}", e);
+            context.nock_context.trace_info = None;
+        }
+    }
+
+    let slam_res = slam(context, POKE_AXIS, ovo);
+
+    if let Some(ref mut info) = &mut context.nock_context.trace_info {
+        // Abort writing to trace file if we encountered an error. This should result in a
+        // well-formed partial trace file.
+        if let Err(e) = write_serf_trace_end(info, trace_name.as_ref().unwrap()) {
+            eprintln!("\rserf: error writing event trace to file: {:?}", e);
+            context.nock_context.trace_info = None;
+        }
+    }
+
+    match slam_res {
         Ok(res) => Ok(res),
         Err(error) => match error {
             Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
@@ -335,7 +356,7 @@ fn play_life(context: &mut Context, eve: Noun) {
                 context.play_bail(goof);
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
-                panic!("serf: soft: .^ invalid outside of virtual Nock")
+                panic!("serf: play: .^ invalid outside of virtual Nock")
             }
         },
     }
@@ -345,7 +366,13 @@ fn play_list(context: &mut Context, mut lit: Noun) {
     let mut eve = context.event_num;
     while let Ok(cell) = lit.as_cell() {
         let ovo = cell.head();
-        match soft(context, ovo) {
+        let trace_name = if context.nock_context.trace_info.is_some() {
+            Some(format!("play [{}]", eve))
+        } else {
+            None
+        };
+
+        match soft(context, ovo, trace_name) {
             Ok(res) => {
                 let arvo = res
                     .as_cell()
@@ -365,8 +392,7 @@ fn play_list(context: &mut Context, mut lit: Noun) {
 }
 
 fn work(context: &mut Context, job: Noun) {
-    let soft_res = if context.nock_context.trace_info.is_some() {
-        let start = Instant::now();
+    let trace_name = if context.nock_context.trace_info.is_some() {
         //  XX: good luck making this safe AND rust idiomatic!
         let wire = job.slot(6).expect("serf: work: job missing wire");
         let vent = job
@@ -374,27 +400,13 @@ fn work(context: &mut Context, job: Noun) {
             .expect("serf: work: job missing event tag")
             .as_atom()
             .expect("serf: work: event tag not atom");
-        let res = soft(context, job);
 
-        // Abort writing to trace file if we encountered an error. This should
-        // result in a well-formed partial trace file.
-        if let Err(e) = write_event_trace(
-            &mut context.nock_context.stack,
-            context.nock_context.trace_info.as_mut().unwrap(),
-            wire,
-            vent,
-            start,
-        ) {
-            eprintln!("\rserf: work: error writing event trace to file: {:?}", e);
-            context.nock_context.trace_info = None;
-        }
-
-        res
+        Some(work_trace_name(&mut context.nock_context.stack, wire, vent))
     } else {
-        soft(context, job)
+        None
     };
 
-    match soft_res {
+    match soft(context, job, trace_name) {
         Ok(res) => {
             let cell = res.as_cell().expect("serf: work: +slam returned atom");
             let fec = cell.head();
@@ -417,21 +429,31 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
     clear_interrupt();
 
     let stack = &mut context.nock_context.stack;
-    //  crud = [+(now) [%$ %arvo ~] [%crud goof ovo]]
+    //  crud ovo = [+(now) [%$ %arvo ~] [%crud goof ovo]]
     let job_cell = job.as_cell().expect("serf: work: job not a cell");
     let job_now = job_cell.head().as_atom().expect("serf: work: now not atom");
     let now = inc(stack, job_now).as_noun();
     let wire = T(stack, &[D(0), D(tas!(b"arvo")), D(0)]);
-    let crud = T(stack, &[now, wire, D(tas!(b"crud")), goof, job_cell.tail()]);
+    let crud = DirectAtom::new_panic(tas!(b"crud"));
+    let ovo = T(stack, &[now, wire, crud.as_noun(), goof, job_cell.tail()]);
+    let trace_name = if context.nock_context.trace_info.is_some() {
+        Some(work_trace_name(
+            &mut context.nock_context.stack,
+            wire,
+            crud.as_atom(),
+        ))
+    } else {
+        None
+    };
 
-    match soft(context, crud) {
+    match soft(context, ovo, trace_name) {
         Ok(res) => {
             let cell = res.as_cell().expect("serf: work: crud +slam returned atom");
             let fec = cell.head();
             let eve = context.event_num;
 
             context.event_update(eve + 1, cell.tail());
-            context.work_swap(crud, fec);
+            context.work_swap(ovo, fec);
         }
         Err(goof_crud) => {
             work_bail(context, &[goof_crud, goof]);
@@ -444,6 +466,31 @@ fn work_bail(context: &mut Context, goofs: &[Noun]) {
     let lest = T(stack, goofs);
     let lud = T(stack, &[lest, D(0)]);
     context.work_bail(lud);
+}
+
+fn work_trace_name(stack: &mut NockStack, wire: Noun, vent: Atom) -> String {
+    let wpc = path_to_cord(stack, wire);
+    let wpc_len = met3_usize(wpc);
+    let wpc_bytes = &wpc.as_bytes()[0..wpc_len];
+    let wpc_str = match std::str::from_utf8(wpc_bytes) {
+        Ok(valid) => valid,
+        Err(error) => {
+            let (valid, _) = wpc_bytes.split_at(error.valid_up_to());
+            unsafe { std::str::from_utf8_unchecked(valid) }
+        }
+    };
+
+    let vc_len = met3_usize(vent);
+    let vc_bytes = &vent.as_bytes()[0..vc_len];
+    let vc_str = match std::str::from_utf8(vc_bytes) {
+        Ok(valid) => valid,
+        Err(error) => {
+            let (valid, _) = vc_bytes.split_at(error.valid_up_to());
+            unsafe { std::str::from_utf8_unchecked(valid) }
+        }
+    };
+
+    format!("work [{} {}]", wpc_str, vc_str)
 }
 
 fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {

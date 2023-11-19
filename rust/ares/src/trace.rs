@@ -75,7 +75,7 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
         name: "thread_name",
         ph: "M",
         pid: info.pid,
-        tid: 1,
+        tid: 1,             //  XX: get tid in Rust
         args: object!{ name: "Event Processing", },
     })
     .write(&mut info.file)?;
@@ -85,7 +85,7 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
         name: "thread_sort_index",
         ph: "M",
         pid: info.pid,
-        tid: 1,
+        tid: 1,             //  XX: get tid in Rust
         args: object!{ sort_index: 1, },
     })
     .write(&mut info.file)?;
@@ -95,7 +95,7 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
         name: "thread_name",
         ph: "M",
         pid: info.pid,
-        tid: 2,
+        tid: 2,             //  XX: get tid in Rust
         args: object!{ name: "Nock", },
     })
     .write(&mut info.file)?;
@@ -105,7 +105,7 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
         name: "thread_sort_index",
         ph: "M",
         pid: info.pid,
-        tid: 2,
+        tid: 2,             //  XX: get tid in Rust
         args: object!{ sort_index: 2, },
     })
     .write(&mut info.file)?;
@@ -115,49 +115,29 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn write_event_trace(
-    stack: &mut NockStack,
-    info: &mut TraceInfo,
-    wire: Noun,
-    vent: Atom,
-    start: Instant,
-) -> Result<(), Error> {
-    let dur = Instant::now().saturating_duration_since(start).as_micros() as f64;
-    let ts = start
+pub fn write_serf_trace_start(info: &mut TraceInfo, name: &str) -> Result<(), Error> {
+    let phase = "B";
+    write_serf_trace_event(info, name, phase)
+}
+
+pub fn write_serf_trace_end(info: &mut TraceInfo, name: &str) -> Result<(), Error> {
+    let phase = "E";
+    write_serf_trace_event(info, name, phase)
+}
+
+pub fn write_serf_trace_event(info: &mut TraceInfo, name: &str, phase: &str) -> Result<(), Error> {
+    let ts = Instant::now()
         .saturating_duration_since(info.process_start)
         .as_micros() as f64;
 
-    let wpc = path_to_cord(stack, wire);
-    let wpc_len = met3_usize(wpc);
-    let wpc_bytes = &wpc.as_bytes()[0..wpc_len];
-    let wpc_str = match std::str::from_utf8(wpc_bytes) {
-        Ok(valid) => valid,
-        Err(error) => {
-            let (valid, _) = wpc_bytes.split_at(error.valid_up_to());
-            unsafe { std::str::from_utf8_unchecked(valid) }
-        }
-    };
-
-    let vc_len = met3_usize(vent);
-    let vc_bytes = &vent.as_bytes()[0..vc_len];
-    let vc_str = match std::str::from_utf8(vc_bytes) {
-        Ok(valid) => valid,
-        Err(error) => {
-            let (valid, _) = vc_bytes.split_at(error.valid_up_to());
-            unsafe { std::str::from_utf8_unchecked(valid) }
-        }
-    };
-
     assert_no_alloc::permit_alloc(|| {
-        let name = format!("work [{} {}]", wpc_str, vc_str);
         let obj = object! {
             cat: "event",
             name: name,
-            ph: "X",
+            ph: phase,
             pid: info.pid,
-            tid: 1,
+            tid: 1,             //  XX: get tid in Rust
             ts: ts,
-            dur: dur,
         };
         obj.write(&mut info.file)
     })?;
@@ -206,7 +186,7 @@ pub unsafe fn write_nock_trace(
                 name: pc_str,
                 ph: "X",
                 pid: info.pid,
-                tid: 2,
+                tid: 2,             //  XX: get tid in Rust
                 ts: ts,
                 dur: dur,
             };
@@ -222,7 +202,7 @@ pub unsafe fn write_nock_trace(
 }
 
 //  XX: Need Rust string interpolation helper that doesn't allocate
-fn path_to_cord(stack: &mut NockStack, path: Noun) -> Atom {
+pub fn path_to_cord(stack: &mut NockStack, path: Noun) -> Atom {
     let mut cursor = path;
     let mut length = 0usize;
 
