@@ -75,7 +75,7 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
         name: "thread_name",
         ph: "M",
         pid: info.pid,
-        tid: 1,             //  XX: get tid in Rust
+        tid: 1,
         args: object!{ name: "Event Processing", },
     })
     .write(&mut info.file)?;
@@ -85,28 +85,8 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
         name: "thread_sort_index",
         ph: "M",
         pid: info.pid,
-        tid: 1,             //  XX: get tid in Rust
+        tid: 1,
         args: object!{ sort_index: 1, },
-    })
-    .write(&mut info.file)?;
-    info.file.write_all(",\n".as_bytes())?;
-
-    (object! {
-        name: "thread_name",
-        ph: "M",
-        pid: info.pid,
-        tid: 2,             //  XX: get tid in Rust
-        args: object!{ name: "Nock", },
-    })
-    .write(&mut info.file)?;
-    info.file.write_all(",\n".as_bytes())?;
-
-    (object! {
-        name: "thread_sort_index",
-        ph: "M",
-        pid: info.pid,
-        tid: 2,             //  XX: get tid in Rust
-        args: object!{ sort_index: 2, },
     })
     .write(&mut info.file)?;
     info.file.write_all(",\n".as_bytes())?;
@@ -137,7 +117,7 @@ pub fn write_serf_trace(info: &mut TraceInfo, name: &str, start: Instant) -> Res
             name: name,
             ph: "X",
             pid: info.pid,
-            tid: 1,             //  XX: get tid in Rust
+            tid: 1,
             ts: ts,
             dur: dur,
         };
@@ -188,7 +168,7 @@ pub unsafe fn write_nock_trace(
                 name: pc_str,
                 ph: "X",
                 pid: info.pid,
-                tid: 2,             //  XX: get tid in Rust
+                tid: 1,
                 ts: ts,
                 dur: dur,
             };
