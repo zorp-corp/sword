@@ -409,26 +409,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             push_formula(&mut context.stack, vale.formula, false)?;
                         }
                         Todo2::ComputeResult => {
-                            if !cfg!(feature = "sham_hints") {
-                                if let Some(jet) = context.warm.find_jet(
-                                    &mut context.stack,
-                                    &mut vale.subject,
-                                    &mut res,
-                                ) {
-                                    match jet(context, vale.subject) {
-                                        Ok(jet_res) => {
-                                            res = jet_res;
-                                            context.stack.pop::<NockWork>();
-                                            continue;
-                                        }
-                                        Err(JetErr::Punt) => {}
-                                        Err(err) => {
-                                            break Err(err.into());
-                                        }
-                                    }
-                                }
-                            };
-
                             let stack = &mut context.stack;
                             if vale.tail {
                                 stack.pop::<NockWork>();
