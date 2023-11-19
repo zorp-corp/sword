@@ -22,6 +22,7 @@ use std::path::PathBuf;
 use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Instant;
 
 crate::gdb!();
 
@@ -292,17 +293,14 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
     if context.nock_context.trace_info.is_some() {
         //  XX: way too many cases in the input to pull the actual vane, care, and path out
         let trace_name = "peek";
-        let _ = write_serf_trace_start(
-            context.nock_context.trace_info.as_mut().unwrap(),
-            trace_name,
-        );
+        let start = Instant::now();
         let slam_res = slam(context, PEEK_AXIS, ovo);
-
         // Abort writing to trace file if we encountered an error. This should result in a
         // well-formed partial trace file.
-        if let Err(e) = write_serf_trace_end(
+        if let Err(e) = write_serf_trace(
             context.nock_context.trace_info.as_mut().unwrap(),
             trace_name,
+            start,
         ) {
             eprintln!("\rserf: error writing event trace to file: {:?}", e);
             context.nock_context.trace_info = None;
@@ -330,25 +328,25 @@ fn goof(context: &mut Context, traces: Noun) -> Noun {
  *  Generate tracing events, if JSON tracing enabled.
  */
 fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<Noun, Noun> {
-    if let Some(ref mut info) = &mut context.nock_context.trace_info {
+    let slam_res = if context.nock_context.trace_info.is_some() {
+        let start = Instant::now();
+        let slam_res = slam(context, POKE_AXIS, ovo);
+
         // Abort writing to trace file if we encountered an error. This should result in a
         // well-formed partial trace file.
-        if let Err(e) = write_serf_trace_start(info, trace_name.as_ref().unwrap()) {
+        if let Err(e) = write_serf_trace(
+            context.nock_context.trace_info.as_mut().unwrap(),
+            trace_name.as_ref().unwrap(),
+            start,
+        ) {
             eprintln!("\rserf: error writing event trace to file: {:?}", e);
             context.nock_context.trace_info = None;
         }
-    }
 
-    let slam_res = slam(context, POKE_AXIS, ovo);
-
-    if let Some(ref mut info) = &mut context.nock_context.trace_info {
-        // Abort writing to trace file if we encountered an error. This should result in a
-        // well-formed partial trace file.
-        if let Err(e) = write_serf_trace_end(info, trace_name.as_ref().unwrap()) {
-            eprintln!("\rserf: error writing event trace to file: {:?}", e);
-            context.nock_context.trace_info = None;
-        }
-    }
+        slam_res
+    } else {
+        slam(context, POKE_AXIS, ovo)
+    };
 
     match slam_res {
         Ok(res) => Ok(res),
@@ -369,17 +367,14 @@ fn play_life(context: &mut Context, eve: Noun) {
     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
     let res = if context.nock_context.trace_info.is_some() {
         let trace_name = "boot";
-        let _ = write_serf_trace_start(
-            context.nock_context.trace_info.as_mut().unwrap(),
-            trace_name,
-        );
+        let start = Instant::now();
         let boot_res = interpret(&mut context.nock_context, eve, lyf);
-
         // Abort writing to trace file if we encountered an error. This should result in a
         // well-formed partial trace file.
-        if let Err(e) = write_serf_trace_end(
+        if let Err(e) = write_serf_trace(
             context.nock_context.trace_info.as_mut().unwrap(),
             trace_name,
+            start,
         ) {
             eprintln!("\rserf: error writing event trace to file: {:?}", e);
             context.nock_context.trace_info = None;

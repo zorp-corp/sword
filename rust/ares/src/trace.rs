@@ -115,29 +115,21 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn write_serf_trace_start(info: &mut TraceInfo, name: &str) -> Result<(), Error> {
-    let phase = "B";
-    write_serf_trace_event(info, name, phase)
-}
-
-pub fn write_serf_trace_end(info: &mut TraceInfo, name: &str) -> Result<(), Error> {
-    let phase = "E";
-    write_serf_trace_event(info, name, phase)
-}
-
-pub fn write_serf_trace_event(info: &mut TraceInfo, name: &str, phase: &str) -> Result<(), Error> {
-    let ts = Instant::now()
+pub fn write_serf_trace(info: &mut TraceInfo, name: &str, start: Instant) -> Result<(), Error> {
+    let ts = start
         .saturating_duration_since(info.process_start)
         .as_micros() as f64;
+    let dur = Instant::now().saturating_duration_since(start).as_micros() as f64;
 
     assert_no_alloc::permit_alloc(|| {
         let obj = object! {
             cat: "event",
             name: name,
-            ph: phase,
+            ph: "X",
             pid: info.pid,
             tid: 1,             //  XX: get tid in Rust
             ts: ts,
+            dur: dur,
         };
         obj.write(&mut info.file)
     })?;
