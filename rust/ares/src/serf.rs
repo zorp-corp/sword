@@ -242,9 +242,8 @@ pub fn serf() -> io::Result<()> {
                 context.live();
             }
             tas!(b"peek") => {
-                let sam = slot(writ, 7)?;
-                let res =
-                    slam(&mut context, PEEK_AXIS, sam).expect("peek error handling unimplemented");
+                let ovo = slot(writ, 7)?;
+                let res = peek(&mut context, ovo);
                 context.peek_done(res);
             }
             tas!(b"play") => {
@@ -287,6 +286,33 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
     interpret(&mut context.nock_context, sub, fol)
+}
+
+fn peek(context: &mut Context, ovo: Noun) -> Noun {
+    if context.nock_context.trace_info.is_some() {
+        //  XX: way too many cases in the input to pull the actual vane, care, and path out
+        let trace_name = "peek";
+
+        let _ = write_serf_trace_start(
+            context.nock_context.trace_info.as_mut().unwrap(),
+            trace_name,
+        );
+        let slam_res = slam(context, PEEK_AXIS, ovo);
+
+        // Abort writing to trace file if we encountered an error. This should result in a
+        // well-formed partial trace file.
+        if let Err(e) = write_serf_trace_start(
+            context.nock_context.trace_info.as_mut().unwrap(),
+            trace_name,
+        ) {
+            eprintln!("\rserf: error writing event trace to file: {:?}", e);
+            context.nock_context.trace_info = None;
+        }
+
+        slam_res.expect("peek error handling unimplemented")
+    } else {
+        slam(context, PEEK_AXIS, ovo).expect("peek error handling unimplemented")
+    }
 }
 
 fn goof(context: &mut Context, traces: Noun) -> Noun {
