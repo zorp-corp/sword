@@ -13,6 +13,7 @@ use crate::newt::Newt;
 use crate::noun;
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
 use crate::serf::TERMINATOR;
+use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
 use ares_macros::tas;
 use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
@@ -20,6 +21,7 @@ use either::Either::*;
 use std::result;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Instant;
 
 crate::gdb!();
 
@@ -263,6 +265,7 @@ pub struct Context {
     // Per-event cache; option to share cache with virtualized events
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
+    pub trace_info: Option<TraceInfo>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -303,9 +306,13 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
     // Setup stack for Nock computation
     unsafe {
-        context.stack.frame_push(1);
+        context.stack.frame_push(2);
+
         // Bottom of mean stack
         *(context.stack.local_noun_pointer(0)) = D(0);
+        // Bottom of trace stack
+        *(context.stack.local_noun_pointer(1) as *mut *const TraceStack) = std::ptr::null();
+
         *(context.stack.push()) = NockWork::Done;
     };
 
@@ -327,8 +334,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
             let work: NockWork = *context.stack.top();
             match work {
                 NockWork::Done => {
-                    let stack = &mut context.stack;
+                    write_trace(context);
 
+                    let stack = &mut context.stack;
                     debug_assertions(stack, orig_subject);
                     debug_assertions(stack, subject);
                     debug_assertions(stack, res);
@@ -345,8 +353,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     break Ok(res);
                 }
                 NockWork::Ret => {
-                    let stack = &mut context.stack;
+                    write_trace(context);
 
+                    let stack = &mut context.stack;
                     debug_assertions(stack, orig_subject);
                     debug_assertions(stack, subject);
                     debug_assertions(stack, res);
@@ -620,6 +629,16 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 let stack = &mut context.stack;
                                 if kale.tail {
                                     stack.pop::<NockWork>();
+
+                                    // We could trace on 2 as well, but 2 only comes from Hoon via
+                                    // '.*', so we can assume it's never directly used to invoke
+                                    // jetted code.
+                                    if context.trace_info.is_some() {
+                                        if let Some(path) = context.cold.matches(stack, &mut res) {
+                                            append_trace(stack, path);
+                                        };
+                                    };
+
                                     subject = res;
                                     push_formula(stack, formula, true)?;
                                 } else {
@@ -635,6 +654,15 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     mean_frame_push(stack, 0);
                                     *stack.push() = NockWork::Ret;
                                     push_formula(stack, formula, true)?;
+
+                                    // We could trace on 2 as well, but 2 only comes from Hoon via
+                                    // '.*', so we can assume it's never directly used to invoke
+                                    // jetted code.
+                                    if context.trace_info.is_some() {
+                                        if let Some(path) = context.cold.matches(stack, &mut res) {
+                                            append_trace(stack, path);
+                                        };
+                                    };
                                 }
                             } else {
                                 // Axis into core must be atom
@@ -1067,7 +1095,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> result::Res
     Ok(())
 }
 
-pub fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error {
+fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error {
     unsafe {
         let stack = &mut context.stack;
 
@@ -1100,8 +1128,9 @@ pub fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> E
 fn mean_frame_push(stack: &mut NockStack, slots: usize) {
     unsafe {
         let trace = *(stack.local_noun_pointer(0));
-        stack.frame_push(slots + 1);
+        stack.frame_push(slots + 2);
         *(stack.local_noun_pointer(0)) = trace;
+        *(stack.local_noun_pointer(1) as *mut *const TraceStack) = std::ptr::null();
     }
 }
 
@@ -1192,6 +1221,33 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
                     new_indirect.as_atom()
                 }
             }
+        }
+    }
+}
+
+/// Push onto the tracing stack
+fn append_trace(stack: &mut NockStack, path: Noun) {
+    unsafe {
+        let trace_stack = *(stack.local_noun_pointer(1) as *const *const TraceStack);
+        let new_trace_entry = stack.struct_alloc(1);
+        *new_trace_entry = TraceStack {
+            path,
+            start: Instant::now(),
+            next: trace_stack,
+        };
+        *(stack.local_noun_pointer(1) as *mut *const TraceStack) = new_trace_entry;
+    }
+}
+
+/// Write fast-hinted traces to trace file
+unsafe fn write_trace(context: &mut Context) {
+    if let Some(ref mut info) = &mut context.trace_info {
+        let trace_stack = *(context.stack.local_noun_pointer(1) as *mut *const TraceStack);
+        // Abort writing to trace file if we encountered an error. This should
+        // result in a well-formed partial trace file.
+        if let Err(e) = write_nock_trace(&mut context.stack, info, trace_stack) {
+            eprintln!("\rserf: error writing nock trace to file: {:?}", e);
+            context.trace_info = None;
         }
     }
 }

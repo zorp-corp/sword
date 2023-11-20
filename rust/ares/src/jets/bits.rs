@@ -145,46 +145,7 @@ pub fn jet_rap(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let bloq = bloq(slot(arg, 2)?)?;
     let original_list = slot(arg, 3)?;
-
-    let mut len = 0usize;
-    let mut list = original_list;
-    loop {
-        if unsafe { list.raw_equals(D(0)) } {
-            break;
-        }
-
-        let cell = list.as_cell()?;
-
-        len = checked_add(len, util::met(bloq, cell.head().as_atom()?))?;
-        list = cell.tail();
-    }
-
-    if len == 0 {
-        Ok(D(0))
-    } else {
-        unsafe {
-            let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(&mut context.stack, bite_to_word(bloq, len)?);
-            let mut pos = 0;
-            let mut list = original_list;
-
-            loop {
-                if list.raw_equals(D(0)) {
-                    break;
-                }
-
-                let cell = list.as_cell()?;
-                let atom = cell.head().as_atom()?;
-                let step = util::met(bloq, atom);
-                chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
-
-                pos += step;
-                list = cell.tail();
-            }
-
-            Ok(new_indirect.normalize_as_atom().as_noun())
-        }
-    }
+    Ok(util::rap(&mut context.stack, bloq, original_list)?.as_noun())
 }
 
 pub fn jet_rep(context: &mut Context, subject: Noun) -> Result {
@@ -345,10 +306,11 @@ pub fn jet_mix(context: &mut Context, subject: Noun) -> Result {
 
 pub mod util {
     use crate::jets::util::*;
-    use crate::jets::Result;
+    use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
-    use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, D};
+    use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
     use std::cmp;
+    use std::result;
 
     /// Binary exponent
     pub fn bex(stack: &mut NockStack, arg: usize) -> Atom {
@@ -415,6 +377,52 @@ pub mod util {
             dest[..a_bit.len()].copy_from_bitslice(a_bit);
             *dest |= b.as_bitslice();
             atom.normalize_as_atom()
+        }
+    }
+
+    pub fn rap(
+        stack: &mut NockStack,
+        bloq: usize,
+        original_list: Noun,
+    ) -> result::Result<Atom, JetErr> {
+        let mut len = 0usize;
+        let mut list = original_list;
+        loop {
+            if unsafe { list.raw_equals(D(0)) } {
+                break;
+            }
+
+            let cell = list.as_cell()?;
+
+            len = checked_add(len, met(bloq, cell.head().as_atom()?))?;
+            list = cell.tail();
+        }
+
+        if len == 0 {
+            Ok(Atom::new(stack, 0))
+        } else {
+            unsafe {
+                let (mut new_indirect, new_slice) =
+                    IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+                let mut pos = 0;
+                let mut list = original_list;
+
+                loop {
+                    if list.raw_equals(D(0)) {
+                        break;
+                    }
+
+                    let cell = list.as_cell()?;
+                    let atom = cell.head().as_atom()?;
+                    let step = met(bloq, atom);
+                    chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
+
+                    pos += step;
+                    list = cell.tail();
+                }
+
+                Ok(new_indirect.normalize_as_atom())
+            }
         }
     }
 

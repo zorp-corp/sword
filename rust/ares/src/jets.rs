@@ -268,6 +268,7 @@ pub mod util {
                 hot,
                 cache,
                 scry_stack: D(0),
+                trace_info: None,
             }
         }
 
