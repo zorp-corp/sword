@@ -464,6 +464,25 @@ impl IndirectAtom {
         UBig::from_le_bytes_stack(stack, self.as_bytes())
     }
 
+    pub unsafe fn as_u64(self) -> Result<u64> {
+        if self.size() == 1 {
+            Ok(*(self.data_pointer()))
+        } else {
+            Err(Error::NotRepresentable)
+        }
+    }
+
+    /** Produce a SoftFloat-compatible ordered pair of 64-bit words */
+    pub fn as_u64_pair(self) -> Result<[u64; 2]> {
+        if self.size() <= 2 {
+            let u128_array = &mut [0u64; 2];
+            u128_array.copy_from_slice(&(self.as_slice()[0..2]));
+            Ok(*u128_array)
+        } else {
+            Err(Error::NotRepresentable)
+        }
+    }
+
     /** Ensure that the size does not contain any trailing 0 words */
     pub unsafe fn normalize(&mut self) -> &Self {
         let mut index = self.size() - 1;
@@ -735,6 +754,26 @@ impl Atom {
             unsafe { Right(self.indirect) }
         } else {
             unsafe { Left(self.direct) }
+        }
+    }
+
+    pub fn as_u64(self) -> Result<u64> {
+        if self.is_direct() {
+            Ok(unsafe { self.direct.data() })
+        } else {
+            unsafe { self.indirect.as_u64() }
+        }
+    }
+
+    /** Produce a SoftFloat-compatible ordered pair of 64-bit words */
+    pub unsafe fn as_u64_pair(self) -> Result<[u64; 2]> {
+        if self.is_direct() {
+            let u128_array = &mut [0u64; 2];
+            u128_array[0] = self.as_direct()?.data();
+            u128_array[1] = 0x0_u64;
+            Ok(*u128_array)
+        } else {
+            unsafe { self.indirect.as_u64_pair() }
         }
     }
 
