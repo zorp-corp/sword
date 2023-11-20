@@ -117,7 +117,7 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
 
         // we need to copy because the atom might be less than 32 bytes and urcrypt expects a
         // 32-byte buffer
-        std::ptr::copy_nonoverlapping(sed_bytes.as_ptr(), sed_buffer as *mut u8, sed_bytes.len());
+        std::ptr::copy_nonoverlapping(sed_bytes.as_ptr(), sed_buffer, sed_bytes.len());
 
         let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         urcrypt_ed_puck(sed_buffer as *const u8, pub_key.as_mut_ptr());
