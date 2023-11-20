@@ -274,8 +274,8 @@ struct ColdMem {
     /// value: possible registered paths for core
     ///
     /// Identical nock can exist in multiple places, so the outermost battery
-    /// yield multiple paths. Instead of matching on the entire core in the Hamt
-    /// (which would require iterating through every possible pait), we match
+    /// yields multiple paths. Instead of matching on the entire core in the Hamt
+    /// (which would require iterating through every possible pair), we match
     /// the outermost battery to a path, then compare the core to the registered
     /// cores for that path.
     battery_to_paths: Hamt<NounList>,
@@ -348,15 +348,16 @@ impl Cold {
         unsafe {
             let paths = (*(self.0)).battery_to_paths.lookup(stack, &mut battery)?;
             for path in paths {
-                if let Some(batteries_list) = (*(self.0)).path_to_batteries.lookup(stack, &mut (*path)) {
-
+                if let Some(batteries_list) =
+                    (*(self.0)).path_to_batteries.lookup(stack, &mut (*path))
+                {
                     if let Some(_batt) = batteries_list.matches(stack, *core) {
                         return Some(*path);
                     }
                 }
-            };
-            return None;
-        }
+            }
+        };
+        None
     }
 
     /// register a core, return a boolean of whether we actually needed to register (false ->
