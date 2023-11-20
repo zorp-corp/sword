@@ -307,6 +307,7 @@ pub mod util {
         }
     }
 
+    /// Less than
     pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             if a.data() < b.data() {

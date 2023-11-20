@@ -130,7 +130,7 @@ pub fn jet_lsh(context: &mut Context, subject: Noun) -> Result {
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
 
-    util::lsh(&mut context.stack, bloq, step, a).map(|a| a.as_noun())
+    util::lsh(&mut context.stack, bloq, step, a)
 }
 
 pub fn jet_met(_context: &mut Context, subject: Noun) -> Result {
@@ -147,7 +147,6 @@ pub fn jet_rap(context: &mut Context, subject: Noun) -> Result {
     let original_list = slot(arg, 3)?;
     Ok(util::rap(&mut context.stack, bloq, original_list)?.as_noun())
 }
-
 
 pub fn jet_rep(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
@@ -306,11 +305,10 @@ pub fn jet_mix(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
-    use crate::jets;
     use crate::jets::util::*;
-    use crate::jets::JetErr;
+    use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
-    use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, D, Noun};
+    use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
     use std::cmp;
     use std::result;
 
@@ -327,22 +325,17 @@ pub mod util {
         }
     }
 
-    pub fn lsh(
-        stack: &mut NockStack,
-        bloq: usize,
-        step: usize,
-        a: Atom,
-    ) -> result::Result<Atom, JetErr> {
+    pub fn lsh(stack: &mut NockStack, bloq: usize, step: usize, a: Atom) -> Result {
         let len = met(bloq, a);
         if len == 0 {
-            return Ok(D(0).as_atom()?);
+            return Ok(D(0));
         }
 
         let new_size = bits_to_word(checked_add(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
         unsafe {
             let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
             chop(bloq, 0, len, step, dest, a.as_bitslice())?;
-            Ok(atom.normalize_as_atom())
+            Ok(atom.normalize_as_atom().as_noun())
         }
     }
 
@@ -358,7 +351,7 @@ pub mod util {
         }
     }
 
-    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> jets::Result {
+    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> Result {
         let len = (met(bloq, atom) + step - 1) / step;
         let mut list = D(0);
         for i in (0..len).rev() {
@@ -387,20 +380,24 @@ pub mod util {
         }
     }
 
-    pub fn rap(stack: &mut NockStack, bloq: usize, original_list: Noun) -> Result<Atom, JetErr> {
+    pub fn rap(
+        stack: &mut NockStack,
+        bloq: usize,
+        original_list: Noun,
+    ) -> result::Result<Atom, JetErr> {
         let mut len = 0usize;
         let mut list = original_list;
         loop {
             if unsafe { list.raw_equals(D(0)) } {
                 break;
             }
-    
+
             let cell = list.as_cell()?;
-    
+
             len = checked_add(len, met(bloq, cell.head().as_atom()?))?;
             list = cell.tail();
         }
-    
+
         if len == 0 {
             Ok(Atom::new(stack, 0))
         } else {
@@ -409,21 +406,21 @@ pub mod util {
                     IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
                 let mut pos = 0;
                 let mut list = original_list;
-    
+
                 loop {
                     if list.raw_equals(D(0)) {
                         break;
                     }
-    
+
                     let cell = list.as_cell()?;
                     let atom = cell.head().as_atom()?;
                     let step = met(bloq, atom);
                     chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
-    
+
                     pos += step;
                     list = cell.tail();
                 }
-    
+
                 Ok(new_indirect.normalize_as_atom())
             }
         }
