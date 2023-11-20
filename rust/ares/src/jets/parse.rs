@@ -2,11 +2,10 @@ use either::Either::{Left, Right};
 
 /** Parsing jets
  */
-use crate::interpreter::{Context, interpret};
-use crate::jets::util::{slot, kick};
+use crate::interpreter::Context;
+use crate::jets::util::{kick, slot};
 use crate::jets::Result;
 use crate::noun::{Noun, D, T};
-use crate::jets::nock::util::slam_gate_fol;
 
 crate::gdb!();
 
@@ -28,23 +27,24 @@ pub fn jet_pose(context: &mut Context, subject: Noun) -> Result {
 
     match vex.as_either_atom_cell() {
         Left(_a) => {
-            assert!(vex.raw_equals(D(0)));
+            assert!(unsafe { vex.raw_equals(D(0)) });
 
             //let fol = slam_gate_fol(&mut context.stack);
             let roq = kick(context, sab, D(2))?;
 
-            Ok(T(&mut context.stack,
-                &[util::last(vex.as_cell()?.head(),
-                                 roq.as_cell()?.head())?,
-                      roq.as_cell()?.tail()]))
-        },
-        Right(_c) => {
-            Ok(vex)
+            Ok(T(
+                &mut context.stack,
+                &[
+                    util::last(vex.as_cell()?.head(), roq.as_cell()?.head())?,
+                    roq.as_cell()?.tail(),
+                ],
+            ))
         }
+        Right(_c) => Ok(vex),
     }
 }
 
-pub fn jet_last(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_last(_context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let zyc = slot(sam, 2)?;
     let naz = slot(sam, 3)?;
@@ -53,12 +53,10 @@ pub fn jet_last(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
-    use crate::interpreter::{Context, interpret};
-    use crate::jets::util::slot;
     use crate::jets::Result;
-    use crate::noun::{Noun, D};
-    
-    pub fn last(zyc: Noun, naz:Noun) -> Result {
+    use crate::noun::Noun;
+
+    pub fn last(zyc: Noun, naz: Noun) -> Result {
         let zyl = zyc.as_cell()?;
         let nal = naz.as_cell()?;
 
@@ -67,22 +65,22 @@ pub mod util {
         assert!(nal.head().is_direct());
         assert!(nal.tail().is_direct());
 
-        if zyl.head().raw_equals(nal.head()) {
-            if zyl.tail().as_direct().as_u64() > nal.tail().as_direct().as_u64() {
-                Ok(zyc)
+        unsafe {
+            if zyl.head().raw_equals(nal.head()) {
+                if zyl.tail().as_atom()?.as_u64()? > nal.tail().as_atom()?.as_u64()? {
+                    Ok(zyc)
+                } else {
+                    Ok(naz)
+                }
             } else {
-                Ok(naz)
-            }
-        } else {
-            if zyl.head().as_direct().as_u64() > nal.head().as_direct().as_u64() {
-                Ok(zyc)
-            } else {
-                Ok(naz)
+                if zyl.head().as_atom()?.as_u64()? > nal.head().as_atom()?.as_u64()? {
+                    Ok(zyc)
+                } else {
+                    Ok(naz)
+                }
             }
         }
     }
 }
 
-pub mod test {
-
-}
+pub mod test {}

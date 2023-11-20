@@ -6,10 +6,10 @@ pub mod bits;
 pub mod form;
 pub mod hash;
 pub mod list;
-pub mod parse;
 pub mod lute;
 pub mod math;
 pub mod nock;
+pub mod parse;
 pub mod serial;
 pub mod sort;
 pub mod tree;
@@ -21,10 +21,10 @@ use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::hot::Hot;
 use crate::jets::list::*;
-use crate::jets::parse::*;
 use crate::jets::lute::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
+use crate::jets::parse::*;
 use crate::jets::serial::*;
 use crate::jets::sort::*;
 
@@ -32,7 +32,7 @@ use crate::jets::tree::*;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::newt::Newt;
-use crate::noun::{self, Noun, Atom, Slots, D};
+use crate::noun::{self, Noun, Slots, D};
 use ares_macros::tas;
 
 crate::gdb!();
@@ -126,6 +126,9 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"scow") => Some(jet_scow),
         //
         tas!(b"mink") => Some(jet_mink),
+        //
+        tas!(b"pose") => Some(jet_pose),
+        tas!(b"last") => Some(jet_last),
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None
