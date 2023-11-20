@@ -28,6 +28,7 @@ jobs:
         run: |
           # install apt packages
           sudo apt-get install -y \
+            autoconf-archive      \
             libcrypto++-dev       \
             openssl               \
             cmake                 \
