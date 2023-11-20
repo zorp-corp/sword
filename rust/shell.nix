@@ -17,6 +17,7 @@ pkgs.mkShell {
     gdb
     urcrypt
     pkg-config
+    autoconf-archive
     llvmPackages.clang
   ];
 }
