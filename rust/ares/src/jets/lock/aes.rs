@@ -255,8 +255,7 @@ mod util {
                     std::alloc::Layout::from_size_align(head_bytes.len(), 8).unwrap(),
                 );
                 // copy the bytes from head_bytes into the buffer pointed to by data[i].bytes (which is a *mut u8)
-                let data_bytes: &mut [u8] =
-                    std::slice::from_raw_parts_mut(ptr as *mut u8, head_bytes.len());
+                let data_bytes: &mut [u8] = std::slice::from_raw_parts_mut(ptr, head_bytes.len());
                 data_bytes.copy_from_slice(head_bytes);
                 data[i].bytes = data_bytes.as_mut_ptr();
                 i += 1;
@@ -322,16 +321,14 @@ mod util {
             );
         }
 
-        let ret = T(
+        T(
             stack,
             &[
                 unsafe { iv.normalize_as_atom().as_noun() },
                 D(txt_len as u64),
                 out_atom,
             ],
-        );
-
-        ret
+        )
     }
 
     pub fn _siv_de(
@@ -382,9 +379,7 @@ mod util {
             );
         }
 
-        let ret = T(stack, &[D(0), out_atom]);
-
-        ret
+        T(stack, &[D(0), out_atom])
     }
 }
 
@@ -432,8 +427,7 @@ mod tests {
         [p=0xb0f7.a0df.be76.c85b.5e29.bb31.aaec.fc77 q=0 r=0x0]
          */
         fn sample(_s: &mut NockStack) -> Noun {
-            let txt = D(0);
-            txt
+            D(0)
         }
         fn context(s: &mut NockStack) -> Noun {
             let sample = T(s, &[D(0), D(0)]);
@@ -448,8 +442,7 @@ mod tests {
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
          */
         fn gate_sample(s: &mut NockStack) -> Noun {
-            let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
-            txt
+            A(s, &ubig!(0x112233445566778899aabbccddee))
         }
         fn gate_context(s: &mut NockStack) -> Noun {
             let key = A(
@@ -480,8 +473,7 @@ mod tests {
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
          */
         fn gate_sample(s: &mut NockStack) -> Noun {
-            let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
-            txt
+            A(s, &ubig!(0x112233445566778899aabbccddee))
         }
         fn gate_context(s: &mut NockStack) -> Noun {
             let key = A(s, &ubig!(_0xfffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff00112233445566778899aabbccddeeff));
@@ -509,8 +501,7 @@ mod tests {
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
          */
         fn gate_sample(s: &mut NockStack) -> Noun {
-            let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
-            txt
+            A(s, &ubig!(0x112233445566778899aabbccddee))
         }
         fn gate_context(s: &mut NockStack) -> Noun {
             let key = A(s, &ubig!(_0xfffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff));
