@@ -1228,10 +1228,16 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 fn assert_normalized(atom: Atom, path: Noun) {
     unsafe {
         if let Ok(indirect) = atom.as_indirect() {
-            if indirect.size() == 1 && *indirect.data_pointer() <= crate::noun::DIRECT_MAX{
-                panic!("Un-normalized indirect_atom (should be direct) returned from jet for {:?}", path);
+            if indirect.size() == 1 && *indirect.data_pointer() <= crate::noun::DIRECT_MAX {
+                panic!(
+                    "Un-normalized indirect_atom (should be direct) returned from jet for {:?}",
+                    path
+                );
             } else if *indirect.data_pointer().add(indirect.size() - 1) == 0 {
-                panic!("Un-normalized indirect_atom (last word 0) returned from jet for {:?}", path);
+                panic!(
+                    "Un-normalized indirect_atom (last word 0) returned from jet for {:?}",
+                    path
+                );
             }
         } // nothing to do for direct atom
     }
@@ -1239,13 +1245,15 @@ fn assert_normalized(atom: Atom, path: Noun) {
 
 pub fn assert_all_normalized(res: Noun, path: Noun, depth: usize) {
     match res.as_either_atom_cell() {
-        Left(atom) => { assert_normalized(atom, path); },
+        Left(atom) => {
+            assert_normalized(atom, path);
+        }
         Right(cell) => {
             if depth > 0 {
-              assert_all_normalized(cell.head(), path, depth - 1);
-              assert_all_normalized(cell.tail(), path, depth - 1);
+                assert_all_normalized(cell.head(), path, depth - 1);
+                assert_all_normalized(cell.tail(), path, depth - 1);
             }
-        },
+        }
     }
 }
 

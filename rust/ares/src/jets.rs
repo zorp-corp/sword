@@ -3,10 +3,10 @@ pub mod hot;
 pub mod warm;
 
 pub mod bits;
-pub mod lock;
 pub mod form;
 pub mod hash;
 pub mod list;
+pub mod lock;
 pub mod lute;
 pub mod math;
 pub mod nock;
