@@ -7,6 +7,7 @@ pub mod form;
 pub mod hash;
 pub mod list;
 pub mod parse;
+pub mod lute;
 pub mod math;
 pub mod nock;
 pub mod serial;
@@ -21,6 +22,7 @@ use crate::jets::hash::*;
 use crate::jets::hot::Hot;
 use crate::jets::list::*;
 use crate::jets::parse::*;
+use crate::jets::lute::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::serial::*;
@@ -148,6 +150,7 @@ pub mod util {
     use std::result;
 
     /**
+     * Address-based size checks.
      * Currently, only addresses indexable by the first 48 bits are reachable by
      * modern 64-bit CPUs.
      */
@@ -160,7 +163,7 @@ pub mod util {
             .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
     }
 
-    /// Performs addition that returns None on Noun size overflow
+    /// Performs subtraction that returns None on Noun size overflow
     pub fn checked_sub(a: usize, b: usize) -> result::Result<usize, JetErr> {
         a.checked_sub(b)
             .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
@@ -272,6 +275,7 @@ pub mod util {
                 hot,
                 cache,
                 scry_stack: D(0),
+                trace_info: None,
             }
         }
 
@@ -344,6 +348,57 @@ pub mod util {
                     );
                 }
             }
+        }
+
+        pub fn assert_jet_size(context: &mut Context, jet: Jet, sam: Noun, siz: usize) {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let res = assert_no_alloc(|| jet(context, sam).unwrap());
+            assert!(res.is_atom(), "jet result not atom");
+            let res_siz = res.atom().unwrap().size();
+            assert!(siz == res_siz, "got: {}, need: {}", res_siz, siz);
+        }
+
+        pub fn assert_common_jet(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            res: UBig,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            assert_nary_jet_ubig(context, jet, &sam, res);
+        }
+
+        pub fn assert_common_jet_noun(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            res: Noun,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet(context, jet, sam, res);
+        }
+
+        pub fn assert_common_jet_err(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            err: JetErr,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet_err(context, jet, sam, err);
+        }
+
+        pub fn assert_common_jet_size(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            siz: usize,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet_size(context, jet, sam, siz)
         }
     }
 }

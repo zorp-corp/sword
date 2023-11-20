@@ -51,18 +51,19 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
         Err(error) => match error {
             Error::NonDeterministic(_) => Err(JetErr::Fail(error)),
             Error::ScryCrashed(trace) => {
-                // When we enter a +mink call, we record what the scry handler stack looked like on
-                // entry. Each scry pulls the scry handler off the top of the scry handler stack and
-                // and calls interpret() with the remainder of the scry handler stack. When a scry
-                // succeeds, it replaces the scry handler it used at the top of the stack. However,
-                // it never does so when it fails. Therefore, we can tell which particular
-                // virtualization instance failed if the scry handler stack at the time of failure
-                // is identical to the scry handler stack on entry to the +mink call. Therefore,
-                // when a virtual nock call returns ScryCrashed, mink compares the root of the scry
-                // handler stack currently in the context object with the one that was on the stack
-                // when the mink call was initiated. If they match, it's this mink call that crashed
-                // so convert the Error::ScryCrashed into a Error::Deterministic. Otherwise, pass
-                // the Error::ScryCrashed up to the senior virtualizer.
+                // When we enter a +mink call, we record the state of the scry handler stack at the
+                // time (i.e. the Noun representing (list scry)). Each scry will pop the head off of
+                // this scry handler stack and calls interpret(), using the rest of the scry handler
+                // stack in the event that it scries again recursively. When a scry succeeds, it
+                // replaces the scry handler that it used by pushing it back onto the top of the
+                // scry handler stack. However, it never does so when it fails. Therefore, we can
+                // tell which particular virtualization instance failed by comparing the scry
+                // handler stack at the time of failure (i.e. the scry handler stack in the context
+                // after a failed scry) with the scry handler stack at the time of the virtualization
+                // call. Thus, whenever a virtualized interpret() call fails with a
+                // Error::ScryCrashed, jet_mink() compares the two scry handler stack Nouns> If they
+                // are identical, jet_mink() bails with Error::Deterministic. Otherwise, it forwards
+                // the Error::ScryCrashed to the senior virtualization call.
                 if unsafe { context.scry_stack.raw_equals(old_scry_stack) } {
                     Err(JetErr::Fail(Error::Deterministic(trace)))
                 } else {
@@ -251,19 +252,20 @@ pub mod util {
                             let tape = rip(stack, 3, 1, atom)?;
                             T(stack, &[LEAF, tape])
                         }
-                        Right(cell) => {
-                            'tank: {
-                                if let Ok(tone) = mink(context, dat, cell.head()) {
-                                    if let Some(cell) = tone.cell() {
-                                        if cell.head().raw_equals(D(0)) {
-                                            //  XX: need to check that this is
-                                            //      actually a path;
-                                            //      return leaf+"mook.mean" if not
-                                            break 'tank cell.tail();
-                                        }
-                                    }
-                                }
+                        Right(_cell) => {
+                            // 'tank: {
+                            // if let Ok(tone) = mink(context, dat, cell.head()) {
+                            //     if let Some(cell) = tone.cell() {
+                            //         if cell.head().raw_equals(D(0)) {
+                            //             //  XX: need to check that this is
+                            //             //      actually a path;
+                            //             //      return leaf+"mook.mean" if not
+                            //             break 'tank cell.tail();
+                            //         }
+                            //     }
+                            // }
 
+                            {
                                 let stack = &mut context.stack;
                                 let tape = tape(stack, "####");
                                 T(stack, &[LEAF, tape])

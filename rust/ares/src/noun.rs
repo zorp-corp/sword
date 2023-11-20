@@ -1,4 +1,5 @@
 use crate::mem::{word_size_of, NockStack};
+use ares_macros::tas;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::{Either, Left, Right};
 use ibig::{Stack, UBig};
@@ -39,6 +40,7 @@ const FORWARDING_MASK: u64 = CELL_MASK;
 /** Loobeans */
 pub const YES: Noun = D(0);
 pub const NO: Noun = D(1);
+pub const NONE: Noun = unsafe { DirectAtom::new_unchecked(tas!(b"MORMAGIC")).as_noun() };
 
 #[cfg(feature = "check_acyclic")]
 #[macro_export]
@@ -356,6 +358,10 @@ impl IndirectAtom {
         *(indirect.normalize())
     }
 
+    pub unsafe fn new_raw_bytes_ref<A: NounAllocator>(allocator: &mut A, data: &[u8]) -> Self {
+        IndirectAtom::new_raw_bytes(allocator, data.len(), data.as_ptr())
+    }
+
     /** Make an indirect atom that can be written into. Return the atom (which should not be used
      * until it is written and normalized) and a mutable pointer which is the data buffer for the
      * indirect atom, to be written into.
@@ -456,6 +462,25 @@ impl IndirectAtom {
 
     pub fn as_ubig<S: Stack>(&self, stack: &mut S) -> UBig {
         UBig::from_le_bytes_stack(stack, self.as_bytes())
+    }
+
+    pub unsafe fn as_u64(self) -> Result<u64> {
+        if self.size() == 1 {
+            Ok(*(self.data_pointer()))
+        } else {
+            Err(Error::NotRepresentable)
+        }
+    }
+
+    /** Produce a SoftFloat-compatible ordered pair of 64-bit words */
+    pub fn as_u64_pair(self) -> Result<[u64; 2]> {
+        if self.size() <= 2 {
+            let u128_array = &mut [0u64; 2];
+            u128_array.copy_from_slice(&(self.as_slice()[0..2]));
+            Ok(*u128_array)
+        } else {
+            Err(Error::NotRepresentable)
+        }
     }
 
     /** Ensure that the size does not contain any trailing 0 words */
@@ -732,6 +757,26 @@ impl Atom {
         }
     }
 
+    pub fn as_u64(self) -> Result<u64> {
+        if self.is_direct() {
+            Ok(unsafe { self.direct.data() })
+        } else {
+            unsafe { self.indirect.as_u64() }
+        }
+    }
+
+    /** Produce a SoftFloat-compatible ordered pair of 64-bit words */
+    pub unsafe fn as_u64_pair(self) -> Result<[u64; 2]> {
+        if self.is_direct() {
+            let u128_array = &mut [0u64; 2];
+            u128_array[0] = self.as_direct()?.data();
+            u128_array[1] = 0x0_u64;
+            Ok(*u128_array)
+        } else {
+            unsafe { self.indirect.as_u64_pair() }
+        }
+    }
+
     pub fn as_bitslice(&self) -> &BitSlice<u64, Lsb0> {
         if self.is_indirect() {
             unsafe { self.indirect.as_bitslice() }
@@ -916,6 +961,10 @@ pub union Noun {
 }
 
 impl Noun {
+    pub fn is_none(self) -> bool {
+        unsafe { self.raw == u64::MAX }
+    }
+
     pub fn is_direct(&self) -> bool {
         unsafe { is_direct_atom(self.raw) }
     }
