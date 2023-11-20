@@ -467,7 +467,6 @@ mod tests {
     #[test]
     pub fn test_sivb_en() {
         let c = &mut init_context();
-        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -485,17 +484,16 @@ mod tests {
             let sample = T(s, &[key, vec]);
             T(s, &[D(0), sample, D(0)])
         }
-        let iv = A(s, &ubig!(0x89e869b93256785154f0963962fe0740));
+        let iv = A(&mut c.stack, &ubig!(0x89e869b93256785154f0963962fe0740));
         let len = D(14);
-        let cyp = A(s, &ubig!(0xf313e667b56478a032b9913e923c));
-        let res = T(s, &[iv, len, cyp]);
+        let cyp = A(&mut c.stack, &ubig!(0xf313e667b56478a032b9913e923c));
+        let res = T(&mut c.stack, &[iv, len, cyp]);
         assert_jet_in_door(c, jet_sivb_en, &[gate_sample], &[gate_context], res);
     }
 
     #[test]
     pub fn test_sivc_en() {
         let c = &mut init_context();
-        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -513,17 +511,16 @@ mod tests {
             let sample = T(s, &[key, vec]);
             T(s, &[D(0), sample, D(0)])
         }
-        let iv = A(s, &ubig!(0x724dfb2eaf94dbb19b0ba3a299a0801e));
+        let iv = A(&mut c.stack, &ubig!(0x724dfb2eaf94dbb19b0ba3a299a0801e));
         let len = D(14);
-        let cyp = A(s, &ubig!(0x1206291a35ad3db0212773440fd0));
-        let res = T(s, &[iv, len, cyp]);
+        let cyp = A(&mut c.stack, &ubig!(0x1206291a35ad3db0212773440fd0));
+        let res = T(&mut c.stack, &[iv, len, cyp]);
         assert_jet_in_door(c, jet_sivc_en, &[gate_sample], &[gate_context], res);
     }
 
     #[test]
     pub fn test_siva_de() {
         let c = &mut init_context();
-        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -547,15 +544,14 @@ mod tests {
             let sample = T(s, &[key, vec]);
             T(s, &[D(0), sample, D(0)])
         }
-        let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
-        let res = T(s, &[D(0), txt]);
+        let txt = A(&mut c.stack, &ubig!(0x112233445566778899aabbccddee));
+        let res = T(&mut c.stack, &[D(0), txt]);
         assert_jet_in_door(c, jet_siva_de, &[gate_sample], &[gate_context], res);
     }
 
     #[test]
     pub fn test_sivb_de() {
         let c = &mut init_context();
-        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -576,15 +572,14 @@ mod tests {
             let sample = T(s, &[key, vec]);
             T(s, &[D(0), sample, D(0)])
         }
-        let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
-        let res = T(s, &[D(0), txt]);
+        let txt = A(&mut c.stack, &ubig!(0x112233445566778899aabbccddee));
+        let res = T(&mut c.stack, &[D(0), txt]);
         assert_jet_in_door(c, jet_sivb_de, &[gate_sample], &[gate_context], res);
     }
 
     #[test]
     pub fn test_sivc_de() {
         let c = &mut init_context();
-        let s = &mut c.stack;
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
@@ -605,8 +600,8 @@ mod tests {
             let sample = T(s, &[key, vec]);
             T(s, &[D(0), sample, D(0)])
         }
-        let txt = A(s, &ubig!(0x112233445566778899aabbccddee));
-        let res = T(s, &[D(0), txt]);
+        let txt = A(&mut c.stack, &ubig!(0x112233445566778899aabbccddee));
+        let res = T(&mut c.stack, &[D(0), txt]);
         assert_jet_in_door(c, jet_sivc_de, &[gate_sample], &[gate_context], res);
     }
 }

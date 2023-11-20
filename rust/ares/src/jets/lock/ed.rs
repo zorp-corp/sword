@@ -137,7 +137,6 @@ mod tests {
     fn test_puck() {
         let c = &mut init_context();
 
-        // let sam = A(&mut c.stack, &ubig!(_0x9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60));
         let sam = A(
             &mut c.stack,
             &ubig!(_0x607fae1c03ac3b701969327b69c54944c42cec92f44a84ba605afdef9db1619d),
