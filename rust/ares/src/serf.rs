@@ -62,6 +62,7 @@ impl Context {
             cache,
             scry_stack: D(0),
             trace_info,
+            line: D(0),
         };
 
         Context {
