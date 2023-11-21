@@ -266,6 +266,7 @@ pub struct Context {
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
+    pub line: Noun, // codegen core
 }
 
 #[derive(Clone, Copy, Debug)]
