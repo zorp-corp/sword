@@ -24,7 +24,7 @@
   =/  jell  ~(key by hill)
   =/  mell  (~(gas in *(set bell)) miel)
   [(~(dif in mell) jell) (~(dif in jell) mell)] :: want mif-in
-::   
+::
 ::   look up analysis
 ::
 :: look up an arm in the moan face of the sack core
@@ -95,7 +95,7 @@
   =/  =goal  [%done ~]
   |_  [=bell =gen like=(map bell need)]
   ::   codegen loop
-  :: 
+  ::
   :: traverse nomm RLN and emit linearized code
   ++  cuts
     =+  =/  huns  (puck bell)
@@ -238,7 +238,7 @@
         =^  tare  gen  rain
         =/  tile  (vial %tile)
         =^  fare  gen  rain
-        =/  file  (vial %file)  
+        =/  file  (vial %file)
         =^  thin  gen
           %:  emit
               %thin
@@ -306,7 +306,7 @@
         =/  fill  (vial %fill)
         =^  ward  gen
           (emit %ward [%phi ~[[till tare] [fill fare]] sass.what.goal]~ %hop then.goal)
-        =^  weir  gen  (come till ward) 
+        =^  weir  gen  (come till ward)
         =^  mere  gen  (come fill ward)
         =^  ware  gen  (emit %ware [%imm 0 tare]~ %hop weir)
         =^  mare  gen  (emit %mare [%imm 1 fare]~ %hop mere)
@@ -408,7 +408,7 @@
       ==
     ::
         %tip
-      ?+    hint.nomm 
+      ?+    hint.nomm
         =^  thin  gen  $(nomm then.nomm, fax (peg fax 7))
         =^  fake  gen
           $(nomm vice.nomm, fax (peg fax 13), goal [%next [%none ~] then.thin])
@@ -566,7 +566,7 @@
     ?~  tack
       =^  thin  gen  (emit thus (flop pose) %hop then.next)
       [[thin u.ui] gen]
-    =*  need  i.tack 
+    =*  need  i.tack
     ?:  ?=(%both -.need)
       =/  lure  (sass left.need)
       =/  rule  (sass rite.need)
@@ -599,7 +599,7 @@
   ++  rain
     ^-  [@uvre _gen]
     [sans.gen gen(sans .+(sans.gen))]
-  ::  
+  ::
   ::    generate a poisonable register
   ::
   ::  rain, but add the register to sick: the set of possibly poisoned
@@ -803,7 +803,7 @@
   ::  like +bomb, but return only the label and not the need
   ++  boom
     (emit %boom ~ %bom ~)
-  ::  
+  ::
   ::    possibly defer crash
   ::
   ::  if a the given register is in sick, then generate an immediate
@@ -825,14 +825,14 @@
     =.  sick.gen  ~
     ?~  sick  [bile gen]
     (emit %wash [%ipb sick]~ %hop bile)
-  ::  
+  ::
   ::    create label
   ::
   ::  emit a label with the given fixed name in the current context
   ++  vial
     |=  t=@tas
     [%bile fax t bell]
-  ::  
+  ::
   ::    label come-from
   ::
   ::  emit an instruction which explicitly records the jump origin
@@ -848,7 +848,7 @@
   ++  phil
     |=  =next
     =/  tack=(list (each [zp=@uvre op=@uvre] need))  [%| what.next]~
-    =|  salt=(list [z=need o=need]) 
+    =|  salt=(list [z=need o=need])
     =|  pose=(list pole)
     =/  zb  (vial %zebu)
     =/  ob  (vial %oboe)
@@ -866,7 +866,7 @@
       ?>  ?=(^ t.salt)
       %=  $
           tack  t.tack
-          salt 
+          salt
         :_  salt
         :-  [%both zp.p.i.tack z.i.t.salt z.i.salt]
         [%both op.p.i.tack o.i.t.salt o.i.salt]
@@ -942,7 +942,7 @@
             tack
           :*  [%| left.p.i.tack]
               [%| rite.p.i.tack]
-              [%& br] 
+              [%& br]
               t.tack
           ==
         ==
@@ -1044,7 +1044,7 @@
       ==
     =/  tree=need  [%none ~]
     |-  ^-  [[need need bile] _gen]
-    ?~  tres 
+    ?~  tres
       =^  tint  gen  (emit %into pose %hop then.next)
       [[twig tree tint] gen]
     ?-  lr.i.tres
@@ -1077,7 +1077,7 @@
       $(tack [[+.n.i.tack rite.need.i.tack] [-.n.i.tack left.need.i.tack] t.tack])
     ==
   --
-::    
+::
 ::    loop over redos
 ::
 ::  run redo:jean on each arm in the redo list, which will generate
@@ -1086,7 +1086,7 @@
 ++  mill
   =|  todo=(list [=bell dire=next =gen])
   =|  like=(map bell need)
-  =/  toil  work 
+  =/  toil  work
   |-  ^-  _hill
   ?^  toil
     =/  [dire=next =gen]  ~(cuts jean i.toil *gen like)
@@ -1115,14 +1115,14 @@
 ::    codegen interface
 ~%  %runt.1  +3  ~
 |%
-::  
+::
 ::    core reference
 ++  this  .
 ::
 ::    look for code
 ::
 ::  check if code exists for a given subject and formula
-::  XX should optionally return a path to be checked against hot state, 
+::  XX should optionally return a path to be checked against hot state,
 ::  to invoke jets on indirect
 ++  peek
   |=  [s=* f=*]
@@ -1177,7 +1177,7 @@
   =|  from=bile
   =/  pyre  (~(got by hill) bell)
   =/  fram=[will=(map bile blob) regs=(map @uvre *) mean=(list [@ta *]) sick=(set @uvre)]
-    [will.pyre (~(put in *(map @uvre *)) sire.pyre s) *(list [@ta *]) *(set @uvre)] 
+    [will.pyre (~(put in *(map @uvre *)) sire.pyre s) *(list [@ta *]) *(set @uvre)]
   =|  tack=(list [then=bile r=@uvre _fram])
   =/  bloc  (~(got by will.pyre) wish.pyre)
   ~%  %wink-loop  wink  ~
@@ -1234,7 +1234,7 @@
           %hed
         =/  c  (r s.x)
         =?  sick.fram  ?=(@ c)  (~(put in sick.fram) s.x)
-        =?  regs.fram  ?=(^ c)  (~(put by regs.fram) d.x -.c) 
+        =?  regs.fram  ?=(^ c)  (~(put by regs.fram) d.x -.c)
         go
       ::
           %hci
@@ -1247,7 +1247,7 @@
           %tal
         =/  c  (r s.x)
         =?  sick.fram  ?=(@ c)  (~(put in sick.fram) s.x)
-        =?  regs.fram  ?=(^ c)  (~(put by regs.fram) d.x +.c) 
+        =?  regs.fram  ?=(^ c)  (~(put by regs.fram) d.x +.c)
         go
       ::
           %tci
@@ -1324,7 +1324,7 @@
     ::
         %brn
       =/  b  (r s.x)
-      ?+  b  no 
+      ?+  b  no
         %0  (goto z.x)
         %1  (goto o.x)
       ==
