@@ -3,10 +3,11 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
 
 defaults:
   run:
-    working-directory: rust/ares
+    working-directory: rust
 
 jobs:
   build:
@@ -14,29 +15,38 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Makes it easier to determine why CI might differ from local linter/build
-      #
-      - name: Version
-        run: rustc --version
+      # Install nix, required by nix-shell-action
+      - uses: cachix/install-nix-action@v23
+        name: Install Nix
+        with:
+          extra_nix_config: "extra-experimental-features = nix-command flakes"
 
+      # Check formatting
       - name: Format
-        run: cargo fmt --check
+        run: |
+          cd ares
+          nix develop --command bash -c "cargo fmt --check"
 
       # See clippy linter docs: https://github.com/rust-lang/rust-clippy
       #
       # First linter is set to fail for all warnings, then ignored warnings are
       # explicitly listed
       #
+      # XX TODO make a script with all the flags for the linter
       - name: Lint
         run: |
-          cargo clippy \
-            --all-targets \
-            --no-deps \
-            -- -D warnings \
-            -A clippy::missing_safety_doc
+          cd ares
+          nix develop --command bash -c "cargo clippy --all-targets --no-deps -- -D warnings -A clippy::missing_safety_doc"
 
+      # Build Ares
       - name: Build
-        run: cargo build --release --verbose --features check_all
+        run: |
+          cd ares
+          nix develop --command bash -c "cargo build --release --verbose --features check_all"
 
-      - name: Run tests
-        run: cargo test --verbose -- --test-threads=1
+      # Run tests
+      - name: Test
+        run: |
+          cd ares
+          nix develop --command bash -c "cargo test --verbose -- --test-threads=1"
+
