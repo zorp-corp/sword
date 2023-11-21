@@ -5,28 +5,33 @@ pub mod warm;
 pub mod bits;
 pub mod form;
 pub mod hash;
+pub mod list;
+pub mod lute;
 pub mod math;
 pub mod nock;
+pub mod serial;
 pub mod sort;
-pub mod text;
 pub mod tree;
 
-use crate::interpreter::Context;
+use crate::interpreter::{Context, Error};
 use crate::jets::bits::*;
 use crate::jets::cold::Cold;
 use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::hot::Hot;
+use crate::jets::list::*;
+use crate::jets::lute::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
+use crate::jets::serial::*;
 use crate::jets::sort::*;
-use crate::jets::text::*;
+
 use crate::jets::tree::*;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
-use crate::noun::{self, Noun, Slots};
+use crate::newt::Newt;
+use crate::noun::{self, Noun, Slots, D};
 use ares_macros::tas;
-use std::cmp;
 
 crate::gdb!();
 
@@ -38,21 +43,35 @@ pub type Jet = fn(&mut Context, Noun) -> Result;
  * Only return a deterministic error if the Nock would have deterministically
  * crashed.
  */
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 pub enum JetErr {
-    Punt,             // Retry with the raw nock
-    Deterministic,    // The Nock would have crashed
-    NonDeterministic, // Other error
+    Punt,        // Retry with the raw nock
+    Fail(Error), // Error; do not retry
+}
+
+impl From<Error> for JetErr {
+    fn from(err: Error) -> Self {
+        Self::Fail(err)
+    }
 }
 
 impl From<noun::Error> for JetErr {
     fn from(_err: noun::Error) -> Self {
-        Self::Deterministic
+        Self::Fail(Error::Deterministic(D(0)))
     }
 }
 
 impl From<JetErr> for () {
     fn from(_: JetErr) -> Self {}
+}
+
+impl From<JetErr> for Error {
+    fn from(e: JetErr) -> Self {
+        match e {
+            JetErr::Fail(f) => f,
+            JetErr::Punt => panic!("unhandled JetErr::Punt"),
+        }
+    }
 }
 
 pub fn get_jet(jet_name: Noun) -> Option<Jet> {
@@ -72,6 +91,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"cap") => Some(jet_cap),
         tas!(b"mas") => Some(jet_mas),
         //
+        tas!(b"flop") => Some(jet_flop),
         tas!(b"lent") => Some(jet_lent),
         //
         tas!(b"bex") => Some(jet_bex),
@@ -86,6 +106,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"rev") => Some(jet_rev),
         tas!(b"rip") => Some(jet_rip),
         tas!(b"rsh") => Some(jet_rsh),
+        tas!(b"xeb") => Some(jet_xeb),
         //
         tas!(b"con") => Some(jet_con),
         tas!(b"dis") => Some(jet_dis),
@@ -96,6 +117,9 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"dor") => Some(jet_dor),
         tas!(b"gor") => Some(jet_gor),
         tas!(b"mor") => Some(jet_mor),
+        //
+        tas!(b"cue") => Some(jet_cue),
+        tas!(b"jam") => Some(jet_jam),
         //
         tas!(b"scow") => Some(jet_scow),
         //
@@ -119,13 +143,12 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
-    use crate::noun::Error::NotRepresentable;
-    use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
+    use crate::noun::{Noun, D};
     use bitvec::prelude::{BitSlice, Lsb0};
-    use ibig::UBig;
     use std::result;
 
     /**
+     * Address-based size checks.
      * Currently, only addresses indexable by the first 48 bits are reachable by
      * modern 64-bit CPUs.
      */
@@ -135,12 +158,13 @@ pub mod util {
     pub fn checked_add(a: usize, b: usize) -> result::Result<usize, JetErr> {
         a.checked_add(b)
             .filter(|x| x <= &MAX_BIT_LENGTH)
-            .ok_or(JetErr::NonDeterministic)
+            .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
     }
 
-    /// Performs addition that returns None on Noun size overflow
+    /// Performs subtraction that returns None on Noun size overflow
     pub fn checked_sub(a: usize, b: usize) -> result::Result<usize, JetErr> {
-        a.checked_sub(b).ok_or(JetErr::NonDeterministic)
+        a.checked_sub(b)
+            .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
     }
 
     pub fn checked_left_shift(bloq: usize, a: usize) -> result::Result<usize, JetErr> {
@@ -148,7 +172,7 @@ pub mod util {
 
         // Catch overflow
         if (res >> bloq) < a || res > MAX_BIT_LENGTH {
-            Err(JetErr::NonDeterministic)
+            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
         } else {
             Ok(res)
         }
@@ -165,14 +189,15 @@ pub mod util {
     }
 
     pub fn slot(noun: Noun, axis: u64) -> Result {
-        noun.slot(axis).map_err(|_e| JetErr::Deterministic)
+        noun.slot(axis)
+            .map_err(|_e| JetErr::Fail(Error::Deterministic(D(0))))
     }
 
     /// Extract a bloq and check that it's computable by the current system
     pub fn bloq(a: Noun) -> result::Result<usize, JetErr> {
         let bloq = a.as_direct()?.data() as usize;
         if bloq >= 47 {
-            Err(JetErr::NonDeterministic)
+            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
         } else {
             Ok(bloq)
         }
@@ -219,86 +244,6 @@ pub mod util {
         Ok(())
     }
 
-    /// Subtraction
-    pub fn sub(stack: &mut NockStack, a: Atom, b: Atom) -> noun::Result<Atom> {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            let a_small = a.data();
-            let b_small = b.data();
-
-            if a_small < b_small {
-                Err(NotRepresentable)
-            } else {
-                Ok(Atom::new(stack, a_small - b_small))
-            }
-        } else {
-            let a_big = a.as_ubig(stack);
-            let b_big = b.as_ubig(stack);
-
-            if a_big < b_big {
-                Err(NotRepresentable)
-            } else {
-                let a_big = a.as_ubig(stack);
-                let b_big = b.as_ubig(stack);
-                let res = UBig::sub_stack(stack, a_big, b_big);
-                Ok(Atom::from_ubig(stack, &res))
-            }
-        }
-    }
-
-    /// Binary exponent
-    pub fn bex(stack: &mut NockStack, arg: usize) -> Atom {
-        unsafe {
-            if arg < 63 {
-                DirectAtom::new_unchecked(1 << arg).as_atom()
-            } else {
-                let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, (arg + 7) >> 3);
-                dest.set(arg, true);
-                atom.normalize_as_atom()
-            }
-        }
-    }
-
-    /// Measure the number of bloqs in an atom
-    pub fn met(bloq: usize, a: Atom) -> usize {
-        if unsafe { a.as_noun().raw_equals(D(0)) } {
-            0
-        } else if bloq < 6 {
-            (a.bit_size() + ((1 << bloq) - 1)) >> bloq
-        } else {
-            let bloq_word = bloq - 6;
-            (a.size() + ((1 << bloq_word) - 1)) >> bloq_word
-        }
-    }
-
-    pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> Result {
-        let len = (met(bloq, atom) + step - 1) / step;
-        let mut list = D(0);
-        for i in (0..len).rev() {
-            let new_atom = unsafe {
-                let (mut new_indirect, new_slice) =
-                    IndirectAtom::new_raw_mut_bitslice(stack, step << bloq);
-                chop(bloq, i * step, step, 0, new_slice, atom.as_bitslice())?;
-                new_indirect.normalize_as_atom()
-            };
-            list = Cell::new(stack, new_atom.as_noun(), list).as_noun();
-        }
-
-        Ok(list)
-    }
-
-    /// Binary OR
-    pub fn con(stack: &mut NockStack, a: Atom, b: Atom) -> Atom {
-        let new_size = cmp::max(a.size(), b.size());
-
-        unsafe {
-            let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
-            let a_bit = a.as_bitslice();
-            dest[..a_bit.len()].copy_from_bitslice(a_bit);
-            *dest |= b.as_bitslice();
-            atom.normalize_as_atom()
-        }
-    }
-
     pub mod test {
         use super::*;
         use crate::hamt::Hamt;
@@ -307,8 +252,24 @@ pub mod util {
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
 
-        pub fn init_stack() -> NockStack {
-            NockStack::new(8 << 10 << 10, 0)
+        pub fn init_context() -> Context {
+            let mut stack = NockStack::new(8 << 10 << 10, 0);
+            let newt = Newt::new_mock();
+            let cold = Cold::new(&mut stack);
+            let warm = Warm::new();
+            let hot = Hot::init(&mut stack);
+            let cache = Hamt::<Noun>::new();
+
+            Context {
+                stack,
+                newt,
+                cold,
+                warm,
+                hot,
+                cache,
+                scry_stack: D(0),
+                trace_info: None,
+            }
         }
 
         #[allow(non_snake_case)]
@@ -321,51 +282,25 @@ pub mod util {
             assert!(eq, "got: {}, need: {}", a, b);
         }
 
-        pub fn assert_jet(stack: &mut NockStack, jet: Jet, sam: Noun, res: Noun) {
-            //  XX: consider making a mock context singleton that tests can use
-            let mut cache = Hamt::<Noun>::new();
-            let mut cold = Cold::new(stack);
-            let mut warm = Warm::new();
-            let hot = Hot::init(stack);
-            let mut context = Context {
-                stack,
-                newt: None,
-                cache: &mut cache,
-                cold: &mut cold,
-                warm: &mut warm,
-                hot: &hot,
-            };
-            let sam = T(context.stack, &[D(0), sam, D(0)]);
-            let jet_res = assert_no_alloc(|| jet(&mut context, sam).unwrap());
-            assert_noun_eq(stack, jet_res, res);
+        pub fn assert_jet(context: &mut Context, jet: Jet, sam: Noun, res: Noun) {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let jet_res = assert_no_alloc(|| jet(context, sam).unwrap());
+            assert_noun_eq(&mut context.stack, jet_res, res);
         }
 
-        pub fn assert_jet_ubig(stack: &mut NockStack, jet: Jet, sam: Noun, res: UBig) {
-            let res = A(stack, &res);
-            assert_jet(stack, jet, sam, res);
+        pub fn assert_jet_ubig(context: &mut Context, jet: Jet, sam: Noun, res: UBig) {
+            let res = A(&mut context.stack, &res);
+            assert_jet(context, jet, sam, res);
         }
 
-        pub fn assert_nary_jet_ubig(stack: &mut NockStack, jet: Jet, sam: &[Noun], res: UBig) {
-            let sam = T(stack, sam);
-            assert_jet_ubig(stack, jet, sam, res);
+        pub fn assert_nary_jet_ubig(context: &mut Context, jet: Jet, sam: &[Noun], res: UBig) {
+            let sam = T(&mut context.stack, sam);
+            assert_jet_ubig(context, jet, sam, res);
         }
 
-        pub fn assert_jet_err(stack: &mut NockStack, jet: Jet, sam: Noun, err: JetErr) {
-            //  XX: consider making a mock context singleton that tests can use
-            let mut cache = Hamt::<Noun>::new();
-            let mut cold = Cold::new(stack);
-            let mut warm = Warm::new();
-            let hot = Hot::init(stack);
-            let mut context = Context {
-                stack,
-                newt: None,
-                cache: &mut cache,
-                cold: &mut cold,
-                warm: &mut warm,
-                hot: &hot,
-            };
-            let sam = T(context.stack, &[D(0), sam, D(0)]);
-            let jet_res = jet(&mut context, sam);
+        pub fn assert_jet_err(context: &mut Context, jet: Jet, sam: Noun, err: JetErr) {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let jet_res = jet(context, sam);
             assert!(
                 jet_res.is_err(),
                 "with sample: {}, expected err: {:?}, got: {:?}",
@@ -374,46 +309,89 @@ pub mod util {
                 &jet_res
             );
             let jet_err = jet_res.unwrap_err();
-            assert_eq!(
-                jet_err, err,
-                "with sample: {}, expected err: {:?}, got: {:?}",
-                sam, err, jet_err
-            );
+            match (jet_err, err) {
+                (JetErr::Punt, JetErr::Punt) => {}
+                (JetErr::Fail(actual_err), JetErr::Fail(expected_err)) => {
+                    match (actual_err, expected_err) {
+                        (Error::ScryBlocked(mut actual), Error::ScryBlocked(mut expected))
+                        | (Error::ScryCrashed(mut actual), Error::ScryCrashed(mut expected))
+                        | (Error::Deterministic(mut actual), Error::Deterministic(mut expected))
+                        | (
+                            Error::NonDeterministic(mut actual),
+                            Error::NonDeterministic(mut expected),
+                        ) => unsafe {
+                            assert!(unifying_equality(
+                                &mut context.stack,
+                                &mut actual,
+                                &mut expected
+                            ));
+                        },
+                        _ => {
+                            panic!(
+                                "with sample: {}, expected err: {:?}, got: {:?}",
+                                sam, expected_err, actual_err
+                            );
+                        }
+                    }
+                }
+                _ => {
+                    panic!(
+                        "with sample: {}, expected err: {:?}, got: {:?}",
+                        sam, err, jet_err
+                    );
+                }
+            }
         }
-    }
 
-    #[cfg(test)]
-    mod tests {
-        use super::test::{init_stack, A};
-        use super::*;
-        use ibig::ubig;
+        pub fn assert_jet_size(context: &mut Context, jet: Jet, sam: Noun, siz: usize) {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let res = assert_no_alloc(|| jet(context, sam).unwrap());
+            assert!(res.is_atom(), "jet result not atom");
+            let res_siz = res.atom().unwrap().size();
+            assert!(siz == res_siz, "got: {}, need: {}", res_siz, siz);
+        }
 
-        #[test]
-        fn test_met() {
-            let s = &mut init_stack();
+        pub fn assert_common_jet(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            res: UBig,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            assert_nary_jet_ubig(context, jet, &sam, res);
+        }
 
-            let a = A(s, &ubig!(0xdeadbeef12345678fedcba9876543210))
-                .as_atom()
-                .unwrap();
-            assert_eq!(met(0, a), 128);
-            assert_eq!(met(1, a), 64);
-            assert_eq!(met(2, a), 32);
-            assert_eq!(met(3, a), 16);
-            assert_eq!(met(4, a), 8);
-            assert_eq!(met(5, a), 4);
-            assert_eq!(met(6, a), 2);
-            assert_eq!(met(7, a), 1);
-            assert_eq!(met(8, a), 1);
+        pub fn assert_common_jet_noun(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            res: Noun,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet(context, jet, sam, res);
+        }
 
-            let a = D(0x7fffffffffffffff).as_atom().unwrap();
-            assert_eq!(met(0, a), 63);
-            assert_eq!(met(1, a), 32);
-            assert_eq!(met(2, a), 16);
-            assert_eq!(met(3, a), 8);
-            assert_eq!(met(4, a), 4);
-            assert_eq!(met(5, a), 2);
-            assert_eq!(met(6, a), 1);
-            assert_eq!(met(7, a), 1);
+        pub fn assert_common_jet_err(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            err: JetErr,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet_err(context, jet, sam, err);
+        }
+
+        pub fn assert_common_jet_size(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[fn(&mut NockStack) -> Noun],
+            siz: usize,
+        ) {
+            let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
+            let sam = T(&mut context.stack, &sam);
+            assert_jet_size(context, jet, sam, siz)
         }
     }
 }

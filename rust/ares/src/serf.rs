@@ -1,17 +1,18 @@
 use crate::hamt::Hamt;
 use crate::interpreter;
-use crate::interpreter::{inc, interpret, Tone};
+use crate::interpreter::{inc, interpret, Error};
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
+use crate::jets::list::util::{lent, zing};
 use crate::jets::nock::util::mook;
-use crate::jets::text::util::lent;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
-use crate::mug::mug_u32;
+use crate::mug::*;
 use crate::newt::Newt;
-use crate::noun::{Cell, Noun, Slots, D, T};
+use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
 use crate::snapshot::double_jam::DoubleJam;
 use crate::snapshot::Snapshot;
+use crate::trace::*;
 use ares_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;
@@ -21,8 +22,11 @@ use std::path::PathBuf;
 use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Instant;
 
 crate::gdb!();
+
+const FLAG_TRACE: u32 = 1 << 8;
 
 struct Context {
     epoch: u64,
@@ -30,21 +34,15 @@ struct Context {
     snapshot: DoubleJam,
     arvo: Noun,
     mug: u32,
-    stack: NockStack,
-    newt: Newt,
-    cache: Hamt<Noun>,
-    //  XX: persistent memo cache
-    cold: Cold,
-    warm: Warm,
-    hot: Hot,
+    nock_context: interpreter::Context,
 }
 
 impl Context {
-    pub fn new(snap_path: &PathBuf) -> Self {
+    pub fn new(snap_path: &PathBuf, trace_info: Option<TraceInfo>) -> Self {
         // TODO: switch to Pma when ready
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
         let mut snapshot = DoubleJam::new(snap_path);
-        let mut stack = NockStack::new(256 << 10 << 10, 0);
+        let mut stack = NockStack::new(1024 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new();
 
@@ -55,51 +53,24 @@ impl Context {
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
         let mug = mug_u32(&mut stack, arvo);
 
+        let nock_context = interpreter::Context {
+            stack,
+            newt,
+            cold,
+            warm,
+            hot,
+            cache,
+            scry_stack: D(0),
+            trace_info,
+        };
+
         Context {
             epoch,
             event_num,
             snapshot,
             arvo,
             mug,
-            stack,
-            newt,
-            cache,
-            cold,
-            warm,
-            hot,
-        }
-    }
-
-    //
-    // Getters
-    //
-
-    pub fn epoch(&self) -> u64 {
-        self.epoch
-    }
-
-    pub fn event_num(&self) -> u64 {
-        self.event_num
-    }
-
-    pub fn arvo(&self) -> Noun {
-        self.arvo
-    }
-
-    pub fn stack_as_mut(&mut self) -> &mut NockStack {
-        &mut self.stack
-    }
-
-    pub fn for_interpreter(&mut self) -> interpreter::Context {
-        self.cache = Hamt::<Noun>::new();
-
-        interpreter::Context {
-            stack: &mut self.stack,
-            newt: Some(&mut self.newt),
-            cache: &mut self.cache,
-            cold: &mut self.cold,
-            warm: &mut self.warm,
-            hot: &self.hot,
+            nock_context,
         }
     }
 
@@ -111,8 +82,9 @@ impl Context {
         //  XX: assert event numbers are continuous
         self.arvo = new_arvo;
         self.event_num = new_event_num;
-        self.snapshot.save(&mut self.stack, &mut self.arvo);
-        self.mug = mug_u32(&mut self.stack, self.arvo);
+        self.snapshot
+            .save(&mut self.nock_context.stack, &mut self.arvo);
+        self.mug = mug_u32(&mut self.nock_context.stack, self.arvo);
     }
 
     //
@@ -121,7 +93,7 @@ impl Context {
 
     pub fn sync(&mut self) {
         self.snapshot
-            .sync(&mut self.stack, self.epoch, self.event_num);
+            .sync(&mut self.nock_context.stack, self.epoch, self.event_num);
     }
 
     //
@@ -129,43 +101,65 @@ impl Context {
     //
 
     pub fn next(&mut self) -> Option<Noun> {
-        self.newt.next(&mut self.stack)
+        self.nock_context.newt.next(&mut self.nock_context.stack)
     }
 
     pub fn ripe(&mut self) {
-        self.newt
-            .ripe(&mut self.stack, self.event_num, self.mug as u64);
+        self.nock_context.newt.ripe(
+            &mut self.nock_context.stack,
+            self.event_num,
+            self.mug as u64,
+        );
     }
 
     pub fn live(&mut self) {
-        self.newt.live(&mut self.stack);
+        self.nock_context.newt.live(&mut self.nock_context.stack);
     }
 
     pub fn peek_done(&mut self, dat: Noun) {
-        self.newt.peek_done(&mut self.stack, dat);
+        self.nock_context
+            .newt
+            .peek_done(&mut self.nock_context.stack, dat);
     }
 
     pub fn play_done(&mut self) {
-        self.newt.play_done(&mut self.stack, self.mug as u64);
+        self.nock_context
+            .newt
+            .play_done(&mut self.nock_context.stack, self.mug as u64);
     }
 
     pub fn play_bail(&mut self, dud: Noun) {
-        self.newt
-            .play_bail(&mut self.stack, self.event_num, self.mug as u64, dud);
+        self.nock_context.newt.play_bail(
+            &mut self.nock_context.stack,
+            self.event_num,
+            self.mug as u64,
+            dud,
+        );
     }
 
     pub fn work_done(&mut self, fec: Noun) {
-        self.newt
-            .work_done(&mut self.stack, self.event_num, self.mug as u64, fec);
+        self.nock_context.newt.work_done(
+            &mut self.nock_context.stack,
+            self.event_num,
+            self.mug as u64,
+            fec,
+        );
     }
 
     pub fn work_swap(&mut self, job: Noun, fec: Noun) {
-        self.newt
-            .work_swap(&mut self.stack, self.event_num, self.mug as u64, job, fec);
+        self.nock_context.newt.work_swap(
+            &mut self.nock_context.stack,
+            self.event_num,
+            self.mug as u64,
+            job,
+            fec,
+        );
     }
 
     pub fn work_bail(&mut self, lud: Noun) {
-        self.newt.work_bail(&mut self.stack, lud);
+        self.nock_context
+            .newt
+            .work_bail(&mut self.nock_context.stack, lud);
     }
 }
 
@@ -190,21 +184,46 @@ pub fn serf() -> io::Result<()> {
     signal_hook::flag::register_conditional_shutdown(SIGINT, 1, Arc::clone(&TERMINATOR))?;
     signal_hook::flag::register(SIGINT, Arc::clone(&TERMINATOR))?;
 
-    let snap_path_string = std::env::args()
+    let pier_path_string = std::env::args()
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
-    let mut snap_path = PathBuf::from(snap_path_string);
+    let pier_path = PathBuf::from(pier_path_string);
+    let mut snap_path = pier_path.clone();
     snap_path.push(".urb");
     snap_path.push("chk");
     create_dir_all(&snap_path)?;
 
-    let mut context = Context::new(&snap_path);
+    let wag: u32 = std::env::args()
+        .nth(4)
+        .ok_or(io::Error::new(io::ErrorKind::Other, "no flag bitmap"))?
+        .parse()
+        .or(Err(io::Error::new(
+            io::ErrorKind::Other,
+            "flag bitmap is not integer",
+        )))?;
+
+    let mut trace_info = if wag & FLAG_TRACE != 0 {
+        create_trace_file(pier_path).ok()
+    } else {
+        None
+    };
+    if let Some(ref mut info) = trace_info.as_mut() {
+        if let Err(e) = write_metadata(info) {
+            eprintln!("\rError initializing trace file: {:?}", e);
+            trace_info = None;
+        }
+    }
+
+    let mut context = Context::new(&snap_path, trace_info);
     context.ripe();
 
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {
-        //  XX: probably want to bookend this logic frame_push / frame_pop
-        //      preserve jet state and persistent cache, lose everything else
+        // Reset the local cache and scry handler stack
+        context.nock_context.cache = Hamt::<Noun>::new();
+        context.nock_context.scry_stack = D(0);
+        context.nock_context.stack.frame_push(0);
+
         let tag = slot(writ, 2)?.as_direct().unwrap();
         match tag.data() {
             tas!(b"live") => {
@@ -224,14 +243,13 @@ pub fn serf() -> io::Result<()> {
                 context.live();
             }
             tas!(b"peek") => {
-                let sam = slot(writ, 7)?;
-                let res =
-                    slam(&mut context, PEEK_AXIS, sam).expect("peek error handling unimplemented");
+                let ovo = slot(writ, 7)?;
+                let res = peek(&mut context, ovo);
                 context.peek_done(res);
             }
             tas!(b"play") => {
                 let lit = slot(writ, 7)?;
-                if context.epoch() == 0 && context.event_num() == 0 {
+                if context.epoch == 0 && context.event_num == 0 {
                     // apply lifecycle to first batch
                     play_life(&mut context, lit);
                 } else {
@@ -247,54 +265,104 @@ pub fn serf() -> io::Result<()> {
         };
 
         clear_interrupt();
+
+        // Persist data that should survive between events
+        //  XX: Such data should go in the PMA once that's available
+        unsafe {
+            let stack = &mut context.nock_context.stack;
+            stack.preserve(&mut context.arvo);
+            stack.preserve(&mut context.nock_context.cold);
+            stack.preserve(&mut context.nock_context.warm);
+            stack.frame_pop();
+        }
     }
 
     Ok(())
 }
 
-fn burn(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Tone> {
-    let burn_context = &mut context.for_interpreter();
-    interpret(burn_context, subject, formula)
+fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
+    let arvo = context.arvo;
+    let stack = &mut context.nock_context.stack;
+    let pul = T(stack, &[D(9), D(axis), D(0), D(2)]);
+    let sam = T(stack, &[D(6), D(0), D(7)]);
+    let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
+    let sub = T(stack, &[arvo, ovo]);
+    interpret(&mut context.nock_context, sub, fol)
 }
 
-fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Tone> {
-    let arvo = context.arvo();
-    let pul = T(context.stack_as_mut(), &[D(9), D(axis), D(0), D(2)]);
-    let sam = T(context.stack_as_mut(), &[D(6), D(0), D(7)]);
-    let fol = T(
-        context.stack_as_mut(),
-        &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)],
-    );
-    let sub = T(context.stack_as_mut(), &[arvo, ovo]);
-    burn(context, sub, fol)
+fn peek(context: &mut Context, ovo: Noun) -> Noun {
+    if context.nock_context.trace_info.is_some() {
+        //  XX: way too many cases in the input to pull the actual vane, care, and path out
+        let trace_name = "peek";
+        let start = Instant::now();
+        let slam_res = slam(context, PEEK_AXIS, ovo);
+        write_serf_trace_safe(&mut context.nock_context.trace_info, trace_name, start);
+
+        slam_res.expect("peek error handling unimplemented")
+    } else {
+        slam(context, PEEK_AXIS, ovo).expect("peek error handling unimplemented")
+    }
 }
 
-fn goof(context: &mut Context, trace: Noun) -> Noun {
-    let tone = Cell::new(context.stack_as_mut(), D(2), trace);
-    let mook_context = &mut context.for_interpreter();
-
-    let tang = mook(mook_context, tone, false)
+fn goof(context: &mut Context, traces: Noun) -> Noun {
+    let trace = zing(&mut context.nock_context.stack, traces).unwrap();
+    let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
+    let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
         .tail();
-    //  XX: noun::Tone or noun::NockErr should use a bail enum system similar to u3m_bail motes;
+    //  XX: noun::Error should use a bail enum system similar to u3m_bail motes;
     //      might be able to replace NockErr with mote and map determinism to individual motes;
     //      for, always set to %exit
-    T(mook_context.stack, &[D(tas!(b"exit")), tang])
+    T(&mut context.nock_context.stack, &[D(tas!(b"exit")), tang])
 }
 
-/** Run slam, process stack trace to tang if error */
-fn soft(context: &mut Context, ovo: Noun) -> Result<Noun, Noun> {
-    match slam(context, POKE_AXIS, ovo) {
+/** Run slam; process stack trace to tang if error.
+ *  Generate tracing events, if JSON tracing enabled.
+ */
+fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<Noun, Noun> {
+    let slam_res = if context.nock_context.trace_info.is_some() {
+        let start = Instant::now();
+        let slam_res = slam(context, POKE_AXIS, ovo);
+        write_serf_trace_safe(
+            &mut context.nock_context.trace_info,
+            trace_name.as_ref().unwrap(),
+            start,
+        );
+
+        slam_res
+    } else {
+        slam(context, POKE_AXIS, ovo)
+    };
+
+    match slam_res {
         Ok(res) => Ok(res),
-        Err(Tone::Error(_, trace)) => Err(goof(context, trace)),
-        Err(Tone::Blocked(_)) => panic!("soft: blocked err handling unimplemented"),
+        Err(error) => match error {
+            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
+                Err(goof(context, trace))
+            }
+            Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
+                panic!("serf: soft: .^ invalid outside of virtual Nock")
+            }
+        },
     }
 }
 
 fn play_life(context: &mut Context, eve: Noun) {
-    let sub = T(context.stack_as_mut(), &[D(0), D(3)]);
-    let lyf = T(context.stack_as_mut(), &[D(2), sub, D(0), D(2)]);
-    match burn(context, eve, lyf) {
+    let stack = &mut context.nock_context.stack;
+    let sub = T(stack, &[D(0), D(3)]);
+    let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
+    let res = if context.nock_context.trace_info.is_some() {
+        let trace_name = "boot";
+        let start = Instant::now();
+        let boot_res = interpret(&mut context.nock_context, eve, lyf);
+        write_serf_trace_safe(&mut context.nock_context.trace_info, trace_name, start);
+
+        boot_res
+    } else {
+        interpret(&mut context.nock_context, eve, lyf)
+    };
+
+    match res {
         Ok(gat) => {
             let eved = lent(eve).expect("serf: play: boot event number failure") as u64;
             let arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
@@ -302,21 +370,29 @@ fn play_life(context: &mut Context, eve: Noun) {
             context.event_update(eved, arvo);
             context.play_done();
         }
-        Err(Tone::Error(_, trace)) => {
-            let goof = goof(context, trace);
-            context.play_bail(goof);
-        }
-        Err(Tone::Blocked(_)) => {
-            panic!("play: blocked err handling unimplemented")
-        }
+        Err(error) => match error {
+            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
+                let goof = goof(context, trace);
+                context.play_bail(goof);
+            }
+            Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
+                panic!("serf: play: .^ invalid outside of virtual Nock")
+            }
+        },
     }
 }
 
 fn play_list(context: &mut Context, mut lit: Noun) {
-    let mut eve = context.event_num();
+    let mut eve = context.event_num;
     while let Ok(cell) = lit.as_cell() {
         let ovo = cell.head();
-        match soft(context, ovo) {
+        let trace_name = if context.nock_context.trace_info.is_some() {
+            Some(format!("play [{}]", eve))
+        } else {
+            None
+        };
+
+        match soft(context, ovo, trace_name) {
             Ok(res) => {
                 let arvo = res
                     .as_cell()
@@ -336,11 +412,25 @@ fn play_list(context: &mut Context, mut lit: Noun) {
 }
 
 fn work(context: &mut Context, job: Noun) {
-    match soft(context, job) {
+    let trace_name = if context.nock_context.trace_info.is_some() {
+        //  XX: good luck making this safe AND rust idiomatic!
+        let wire = job.slot(6).expect("serf: work: job missing wire");
+        let vent = job
+            .slot(14)
+            .expect("serf: work: job missing event tag")
+            .as_atom()
+            .expect("serf: work: event tag not atom");
+
+        Some(work_trace_name(&mut context.nock_context.stack, wire, vent))
+    } else {
+        None
+    };
+
+    match soft(context, job, trace_name) {
         Ok(res) => {
             let cell = res.as_cell().expect("serf: work: +slam returned atom");
             let fec = cell.head();
-            let eve = context.event_num();
+            let eve = context.event_num;
 
             context.event_update(eve + 1, cell.tail());
             context.work_done(fec);
@@ -358,24 +448,32 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
 
     clear_interrupt();
 
-    //  crud = [+(now) [%$ %arvo ~] [%crud goof ovo]]
+    let stack = &mut context.nock_context.stack;
+    //  crud ovo = [+(now) [%$ %arvo ~] [%crud goof ovo]]
     let job_cell = job.as_cell().expect("serf: work: job not a cell");
     let job_now = job_cell.head().as_atom().expect("serf: work: now not atom");
-    let now = inc(context.stack_as_mut(), job_now).as_noun();
-    let wire = T(context.stack_as_mut(), &[D(0), D(tas!(b"arvo")), D(0)]);
-    let crud = T(
-        context.stack_as_mut(),
-        &[now, wire, D(tas!(b"crud")), goof, job_cell.tail()],
-    );
+    let now = inc(stack, job_now).as_noun();
+    let wire = T(stack, &[D(0), D(tas!(b"arvo")), D(0)]);
+    let crud = DirectAtom::new_panic(tas!(b"crud"));
+    let ovo = T(stack, &[now, wire, crud.as_noun(), goof, job_cell.tail()]);
+    let trace_name = if context.nock_context.trace_info.is_some() {
+        Some(work_trace_name(
+            &mut context.nock_context.stack,
+            wire,
+            crud.as_atom(),
+        ))
+    } else {
+        None
+    };
 
-    match soft(context, crud) {
+    match soft(context, ovo, trace_name) {
         Ok(res) => {
             let cell = res.as_cell().expect("serf: work: crud +slam returned atom");
             let fec = cell.head();
-            let eve = context.event_num();
+            let eve = context.event_num;
 
             context.event_update(eve + 1, cell.tail());
-            context.work_swap(crud, fec);
+            context.work_swap(ovo, fec);
         }
         Err(goof_crud) => {
             work_bail(context, &[goof_crud, goof]);
@@ -384,9 +482,35 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
 }
 
 fn work_bail(context: &mut Context, goofs: &[Noun]) {
-    let lest = T(context.stack_as_mut(), goofs);
-    let lud = T(context.stack_as_mut(), &[lest, D(0)]);
+    let stack = &mut context.nock_context.stack;
+    let lest = T(stack, goofs);
+    let lud = T(stack, &[lest, D(0)]);
     context.work_bail(lud);
+}
+
+fn work_trace_name(stack: &mut NockStack, wire: Noun, vent: Atom) -> String {
+    let wpc = path_to_cord(stack, wire);
+    let wpc_len = met3_usize(wpc);
+    let wpc_bytes = &wpc.as_bytes()[0..wpc_len];
+    let wpc_str = match std::str::from_utf8(wpc_bytes) {
+        Ok(valid) => valid,
+        Err(error) => {
+            let (valid, _) = wpc_bytes.split_at(error.valid_up_to());
+            unsafe { std::str::from_utf8_unchecked(valid) }
+        }
+    };
+
+    let vc_len = met3_usize(vent);
+    let vc_bytes = &vent.as_bytes()[0..vc_len];
+    let vc_str = match std::str::from_utf8(vc_bytes) {
+        Ok(valid) => valid,
+        Err(error) => {
+            let (valid, _) = vc_bytes.split_at(error.valid_up_to());
+            unsafe { std::str::from_utf8_unchecked(valid) }
+        }
+    };
+
+    format!("work [{} {}]", wpc_str, vc_str)
 }
 
 fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
