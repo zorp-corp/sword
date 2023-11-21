@@ -9,18 +9,6 @@ use crate::noun::{Noun, D, T};
 
 crate::gdb!();
 
-/*
-u3_noun roq = u3x_good(u3n_kick_on(u3k(sab)));
-u3_noun p_roq, q_roq;
-u3_noun ret;
-
-u3x_cell(roq, &p_roq, &q_roq);
-ret = u3nc(_last(p_vex, p_roq),
-            u3k(q_roq));
-
-u3z(roq);
-return ret;
-*/
 pub fn jet_pose(context: &mut Context, subject: Noun) -> Result {
     let vex = slot(subject, 12)?;
     let sab = slot(subject, 13)?;
