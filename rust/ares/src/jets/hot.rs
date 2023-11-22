@@ -214,30 +214,6 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
             Left(b"one"),
             Left(b"two"),
             Left(b"tri"),
-            Left(b"shal"),
-        ],
-        1,
-        jet_shal,
-    ),
-    //
-    (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"sha1"),
-        ],
-        1,
-        jet_sha1,
-    ),
-    //
-    (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
             Left(b"shas"),
         ],
         1,
@@ -266,6 +242,31 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
         ],
         1,
         jet_shay,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"shal"),
+        ],
+        1,
+        jet_shal,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"sha"),
+            Left(b"sha1"),
+        ],
+        1,
+        jet_sha1,
     ),
     //
     (
@@ -430,27 +431,10 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
             Left(b"hex"),
             Left(b"coed"),
             Left(b"ed"),
-            Left(b"sign"),
+            Left(b"puck"),
         ],
         1,
-        jet_sign,
-    ),
-    //
-    (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"pen"),
-            Left(b"hex"),
-            Left(b"coed"),
-            Left(b"ed"),
-            Left(b"veri"),
-        ],
-        1,
-        jet_veri,
+        jet_puck,
     ),
     //
     (
@@ -481,10 +465,27 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
             Left(b"hex"),
             Left(b"coed"),
             Left(b"ed"),
-            Left(b"puck"),
+            Left(b"sign"),
         ],
         1,
-        jet_puck,
+        jet_sign,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"pen"),
+            Left(b"hex"),
+            Left(b"coed"),
+            Left(b"ed"),
+            Left(b"veri"),
+        ],
+        1,
+        jet_veri,
     ),
 ];
 
