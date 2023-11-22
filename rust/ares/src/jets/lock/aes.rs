@@ -47,7 +47,7 @@ pub fn jet_siva_de(context: &mut Context, subject: Noun) -> Result {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        Ok(util::_siv_de(
+        util::_siv_de(
             stack,
             key_bytes,
             ads,
@@ -55,7 +55,7 @@ pub fn jet_siva_de(context: &mut Context, subject: Noun) -> Result {
             len,
             txt,
             urcrypt_aes_siva_de,
-        ))
+        )
     }
 }
 
@@ -99,7 +99,7 @@ pub fn jet_sivb_de(context: &mut Context, subject: Noun) -> Result {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        Ok(util::_siv_de(
+        util::_siv_de(
             stack,
             key_bytes,
             ads,
@@ -107,7 +107,7 @@ pub fn jet_sivb_de(context: &mut Context, subject: Noun) -> Result {
             len,
             txt,
             urcrypt_aes_sivb_de,
-        ))
+        )
     }
 }
 
@@ -147,7 +147,7 @@ pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        Ok(util::_siv_de(
+        util::_siv_de(
             stack,
             key_bytes,
             ads,
@@ -155,12 +155,14 @@ pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
             len,
             txt,
             urcrypt_aes_sivc_de,
-        ))
+        )
     }
 }
 
 mod util {
+    use crate::jets::JetErr;
     use crate::jets::bits::util::met;
+    use crate::interpreter::Error;
     use crate::mem::NockStack;
     use crate::noun::{Atom, IndirectAtom, Noun, D, T};
     use std::ptr::null_mut;
@@ -347,19 +349,16 @@ mod util {
         len: Atom,
         txt: Atom,
         fun: UrcryptSiv,
-    ) -> Noun {
+    ) -> Result<Noun, JetErr> {
         let siv_data = _allocate_atoms(ads);
 
         let (_iv_ida, iv_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 16) };
         iv_bytes[0..16].copy_from_slice(&(iv.as_bytes()[0..16]));
 
-        let txt_len = if met(5, len) > 1 {
-            0
-        } else {
-            let len_bytes = len.as_bytes();
-            len_bytes[0] as usize // XX this might be wrong
+        let txt_len = match len.as_direct() {
+            Ok(direct) => direct.data() as usize,
+            Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
         };
-        // XX vere bail:fails on txt_len == 0
         let (_txt_ida, txt_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, txt_len) };
         txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
 
@@ -387,7 +386,7 @@ mod util {
             );
         }
 
-        T(stack, &[D(0), out_atom])
+        Ok(T(stack, &[D(0), out_atom]))
     }
 }
 
