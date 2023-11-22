@@ -24,6 +24,7 @@
             ])
             pkgs.cargo-watch
             pkgs.gdb
+            pkgs.iconv
           ];
         };
       }
