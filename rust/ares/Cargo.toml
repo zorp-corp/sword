@@ -29,8 +29,10 @@ num-derive = "0.3"
 num-traits = "0.2"
 signal-hook = "0.3"
 static_assertions = "1.1.0"
+urcrypt-sys = "0.1.1"
 
 [build-dependencies]
+autotools = "0.2.6"
 cc = "1.0.79"
 
 [[bin]]
