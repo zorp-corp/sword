@@ -7,7 +7,7 @@ env:
 
 defaults:
   run:
-    working-directory: rust
+    working-directory: rust/ares
 
 jobs:
   build:
@@ -24,7 +24,6 @@ jobs:
       # Check formatting
       - name: Format
         run: |
-          cd ares
           nix develop --command bash -c "cargo fmt --check"
 
       # See clippy linter docs: https://github.com/rust-lang/rust-clippy
@@ -35,18 +34,15 @@ jobs:
       # XX TODO make a script with all the flags for the linter
       - name: Lint
         run: |
-          cd ares
           nix develop --command bash -c "cargo clippy --all-targets --no-deps -- -D warnings -A clippy::missing_safety_doc"
 
       # Build Ares
       - name: Build
         run: |
-          cd ares
           nix develop --command bash -c "cargo build --release --verbose --features check_all"
 
       # Run tests
       - name: Test
         run: |
-          cd ares
           nix develop --command bash -c "cargo test --verbose -- --test-threads=1"
 
