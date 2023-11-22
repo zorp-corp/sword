@@ -1,8 +1,8 @@
 use crate::interpreter::Context;
 use crate::jets::bits::util::met;
 use crate::jets::util::slot;
-use crate::jets::{Error, JetErr, Result};
-use crate::noun::{IndirectAtom, Noun, D};
+use crate::jets::{JetErr, Result};
+use crate::noun::{IndirectAtom, Noun};
 use urcrypt_sys::*;
 
 crate::gdb!();
@@ -13,8 +13,7 @@ pub fn jet_siva_en(context: &mut Context, subject: Noun) -> Result {
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
 
-    if (met(3, key) as usize) > 32 {
-        // XX vere punts; we should do the same in the future
+    if met(3, key) > 32 {
         Err(JetErr::Punt)
     } else {
         unsafe {
@@ -40,6 +39,10 @@ pub fn jet_siva_de(context: &mut Context, subject: Noun) -> Result {
     let key = slot(subject, 60)?.as_atom()?;
     let ads = slot(subject, 61)?;
 
+    if met(3, key) > 64 {
+        return Err(JetErr::Punt);
+    }
+
     unsafe {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
@@ -62,9 +65,8 @@ pub fn jet_sivb_en(context: &mut Context, subject: Noun) -> Result {
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
 
-    if (met(3, key) as usize) > 48 {
-        // XX vere punts; we should do the same in the future
-        Err(JetErr::Fail(Error::NonDeterministic(D(0))))
+    if met(3, key) > 48 {
+        Err(JetErr::Punt)
     } else {
         unsafe {
             let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
@@ -89,6 +91,10 @@ pub fn jet_sivb_de(context: &mut Context, subject: Noun) -> Result {
     let key = slot(subject, 60)?.as_atom()?;
     let ads = slot(subject, 61)?;
 
+    if met(3, key) > 48 {
+        return Err(JetErr::Punt);
+    }
+
     unsafe {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
@@ -111,8 +117,7 @@ pub fn jet_sivc_en(context: &mut Context, subject: Noun) -> Result {
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
 
-    if (met(3, key) as usize) > 64 {
-        // XX vere punts; we should do the same in the future
+    if met(3, key) > 64 {
         Err(JetErr::Punt)
     } else {
         unsafe {

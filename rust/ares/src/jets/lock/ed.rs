@@ -95,13 +95,11 @@ pub fn jet_veri(context: &mut Context, subject: Noun) -> Result {
 
     unsafe {
         let sig_bytes = sig.as_bytes();
-        // vere punts; we should do the same in the future
         if sig_bytes.len() > 64 {
             return Err(JetErr::Punt);
         };
 
         let pub_bytes = puk.as_bytes();
-        // vere punts; we should do the same in the future
         if pub_bytes.len() > 32 {
             return Err(JetErr::Punt);
         };
