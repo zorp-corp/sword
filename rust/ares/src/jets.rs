@@ -140,6 +140,13 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"sign") => Some(jet_sign),
         tas!(b"veri") => Some(jet_veri),
         //
+        tas!(b"siva_en") => Some(jet_siva_en),
+        tas!(b"siva_de") => Some(jet_siva_de),
+        tas!(b"sivb_en") => Some(jet_sivb_en),
+        tas!(b"sivb_de") => Some(jet_sivb_de),
+        tas!(b"sivc_en") => Some(jet_sivc_en),
+        tas!(b"sivc_de") => Some(jet_sivc_de),
+        //
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None
