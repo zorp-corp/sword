@@ -7,48 +7,6 @@ use urcrypt_sys::*;
 
 crate::gdb!();
 
-pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
-    let stack = &mut context.stack;
-    let sam = slot(subject, 6)?;
-    let wid = slot(sam, 2)?.as_atom()?;
-    let dat = slot(sam, 3)?.as_atom()?;
-
-    let width = match wid.as_direct() {
-        Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
-    };
-
-    unsafe {
-        let msg_bytes = dat.as_bytes();
-        let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
-        msg.copy_from_slice(msg_bytes);
-
-        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
-        urcrypt_sha1(msg.as_mut_ptr(), width, out.as_mut_ptr());
-        Ok(out_ida.normalize_as_atom().as_noun())
-    }
-}
-
-pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
-    let stack = &mut context.stack;
-    let sam = slot(subject, 6)?;
-    let wid = slot(sam, 2)?.as_atom()?;
-    let dat = slot(sam, 3)?.as_atom()?;
-
-    let width = match wid.as_direct() {
-        Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
-    };
-
-    let message = &(dat.as_bytes())[0..met(3, dat)]; // drop trailing zeros
-
-    unsafe {
-        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        urcrypt_shal(message.as_ptr(), width, out.as_mut_ptr());
-        Ok(ida.normalize_as_atom().as_noun())
-    }
-}
-
 pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
@@ -107,6 +65,48 @@ pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
+    let sam = slot(subject, 6)?;
+    let wid = slot(sam, 2)?.as_atom()?;
+    let dat = slot(sam, 3)?.as_atom()?;
+
+    let width = match wid.as_direct() {
+        Ok(direct) => direct.data() as usize,
+        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+    };
+
+    let message = &(dat.as_bytes())[0..met(3, dat)]; // drop trailing zeros
+
+    unsafe {
+        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        urcrypt_shal(message.as_ptr(), width, out.as_mut_ptr());
+        Ok(ida.normalize_as_atom().as_noun())
+    }
+}
+
+pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
+    let stack = &mut context.stack;
+    let sam = slot(subject, 6)?;
+    let wid = slot(sam, 2)?.as_atom()?;
+    let dat = slot(sam, 3)?.as_atom()?;
+
+    let width = match wid.as_direct() {
+        Ok(direct) => direct.data() as usize,
+        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+    };
+
+    unsafe {
+        let msg_bytes = dat.as_bytes();
+        let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
+        msg.copy_from_slice(msg_bytes);
+
+        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
+        urcrypt_sha1(msg.as_mut_ptr(), width, out.as_mut_ptr());
+        Ok(out_ida.normalize_as_atom().as_noun())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -114,6 +114,84 @@ mod tests {
     use crate::jets::JetErr;
     use crate::noun::{D, DIRECT_MAX, T};
     use ibig::ubig;
+
+    #[test]
+    fn test_shas() {
+        let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(1), D(1)]);
+        assert_jet_ubig(
+            c,
+            jet_shas,
+            sam,
+            ubig!(_0x547da92584bc986e5784edb746c29504bfd6b34572c83b7b96440ca77d35cdfc),
+        );
+
+        let sam = T(&mut c.stack, &[D(2), D(2)]);
+        assert_jet_ubig(
+            c,
+            jet_shas,
+            sam,
+            ubig!(_0x4cf01fe7cc56ef70d17735322488de0d31857afcfe451e199abe6295f78f5328),
+        );
+
+        let a = A(
+            &mut c.stack,
+            &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
+        );
+        let b = A(
+            &mut c.stack,
+            &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73),
+        );
+        let sam = T(&mut c.stack, &[a, b]);
+        assert_jet_ubig(
+            c,
+            jet_shas,
+            sam,
+            ubig!(_0xf7569a89650553ef13f9a8f0bb751fd42b70a4821be6bc1cbe197af33ce4843c),
+        );
+    }
+
+    #[test]
+    fn test_shax() {
+        let c = &mut init_context();
+
+        assert_jet_ubig(
+            c,
+            jet_shax,
+            D(7303014), // 'foo'
+            ubig!(_0xaee76662885e8af9a0bf8364702d42133441301d3c459bf98fc6ff686bb4262c),
+        );
+
+        let a = A(
+            &mut c.stack,
+            &ubig!(_0xaee76662885e8af9a0bf8364702d42133441301d3c459bf98fc6ff686bb4262c),
+        );
+        assert_jet_ubig(
+            c,
+            jet_shax,
+            a,
+            ubig!(_0x9ee26e46c2028aa4a9c463aa722b82ed8bf6e185c3e5a5a69814a2c78fe8adc7),
+        );
+
+        assert_jet_ubig(
+            c,
+            jet_shax,
+            D(123456789),
+            ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
+        );
+
+        let a = A(
+            &mut c.stack,
+            &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
+        );
+        assert_jet_ubig(
+            c,
+            jet_shax,
+            a,
+            ubig!(_0xf90f3184d7347a20cfdd2d5f7ac5c82eb9ab7af54c9419fbc18832c5a33360c9),
+        )
+    }
 
     #[test]
     fn test_shay() {
@@ -169,84 +247,6 @@ mod tests {
             jet_shay,
             sam,
             JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
-    }
-
-    #[test]
-    fn test_shax() {
-        let c = &mut init_context();
-
-        assert_jet_ubig(
-            c,
-            jet_shax,
-            D(7303014), // 'foo'
-            ubig!(_0xaee76662885e8af9a0bf8364702d42133441301d3c459bf98fc6ff686bb4262c),
-        );
-
-        let a = A(
-            &mut c.stack,
-            &ubig!(_0xaee76662885e8af9a0bf8364702d42133441301d3c459bf98fc6ff686bb4262c),
-        );
-        assert_jet_ubig(
-            c,
-            jet_shax,
-            a,
-            ubig!(_0x9ee26e46c2028aa4a9c463aa722b82ed8bf6e185c3e5a5a69814a2c78fe8adc7),
-        );
-
-        assert_jet_ubig(
-            c,
-            jet_shax,
-            D(123456789),
-            ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
-        );
-
-        let a = A(
-            &mut c.stack,
-            &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
-        );
-        assert_jet_ubig(
-            c,
-            jet_shax,
-            a,
-            ubig!(_0xf90f3184d7347a20cfdd2d5f7ac5c82eb9ab7af54c9419fbc18832c5a33360c9),
-        )
-    }
-
-    #[test]
-    fn test_shas() {
-        let c = &mut init_context();
-
-        let sam = T(&mut c.stack, &[D(1), D(1)]);
-        assert_jet_ubig(
-            c,
-            jet_shas,
-            sam,
-            ubig!(_0x547da92584bc986e5784edb746c29504bfd6b34572c83b7b96440ca77d35cdfc),
-        );
-
-        let sam = T(&mut c.stack, &[D(2), D(2)]);
-        assert_jet_ubig(
-            c,
-            jet_shas,
-            sam,
-            ubig!(_0x4cf01fe7cc56ef70d17735322488de0d31857afcfe451e199abe6295f78f5328),
-        );
-
-        let a = A(
-            &mut c.stack,
-            &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
-        );
-        let b = A(
-            &mut c.stack,
-            &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73),
-        );
-        let sam = T(&mut c.stack, &[a, b]);
-        assert_jet_ubig(
-            c,
-            jet_shas,
-            sam,
-            ubig!(_0xf7569a89650553ef13f9a8f0bb751fd42b70a4821be6bc1cbe197af33ce4843c),
         );
     }
 

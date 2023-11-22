@@ -7,18 +7,18 @@ use urcrypt_sys::*;
 
 crate::gdb!();
 
-pub fn jet_sivc_en(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_siva_en(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let txt = slot(subject, 6)?.as_atom()?;
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
 
-    if (met(3, key) as usize) > 64 {
+    if (met(3, key) as usize) > 32 {
         // XX vere punts; we should do the same in the future
         Err(JetErr::Punt)
     } else {
         unsafe {
-            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
             key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
             Ok(util::_siv_en(
@@ -26,21 +26,22 @@ pub fn jet_sivc_en(context: &mut Context, subject: Noun) -> Result {
                 key_bytes,
                 atoms,
                 txt,
-                urcrypt_aes_sivc_en,
+                urcrypt_aes_siva_en,
             ))
         }
     }
 }
 
-pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_siva_de(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let iv = slot(subject, 12)?.as_atom()?;
     let len = slot(subject, 26)?.as_atom()?;
     let txt = slot(subject, 27)?.as_atom()?;
     let key = slot(subject, 60)?.as_atom()?;
     let ads = slot(subject, 61)?;
+
     unsafe {
-        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
         Ok(util::_siv_de(
@@ -50,7 +51,7 @@ pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
             iv,
             len,
             txt,
-            urcrypt_aes_sivc_de,
+            urcrypt_aes_siva_de,
         ))
     }
 }
@@ -87,6 +88,7 @@ pub fn jet_sivb_de(context: &mut Context, subject: Noun) -> Result {
     let txt = slot(subject, 27)?.as_atom()?;
     let key = slot(subject, 60)?.as_atom()?;
     let ads = slot(subject, 61)?;
+
     unsafe {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
@@ -103,18 +105,18 @@ pub fn jet_sivb_de(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_siva_en(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_sivc_en(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let txt = slot(subject, 6)?.as_atom()?;
     let key = slot(subject, 60)?.as_atom()?;
     let atoms = slot(subject, 61)?;
 
-    if (met(3, key) as usize) > 32 {
+    if (met(3, key) as usize) > 64 {
         // XX vere punts; we should do the same in the future
         Err(JetErr::Punt)
     } else {
         unsafe {
-            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
             key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
             Ok(util::_siv_en(
@@ -122,21 +124,22 @@ pub fn jet_siva_en(context: &mut Context, subject: Noun) -> Result {
                 key_bytes,
                 atoms,
                 txt,
-                urcrypt_aes_siva_en,
+                urcrypt_aes_sivc_en,
             ))
         }
     }
 }
 
-pub fn jet_siva_de(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let iv = slot(subject, 12)?.as_atom()?;
     let len = slot(subject, 26)?.as_atom()?;
     let txt = slot(subject, 27)?.as_atom()?;
     let key = slot(subject, 60)?.as_atom()?;
     let ads = slot(subject, 61)?;
+
     unsafe {
-        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
         Ok(util::_siv_de(
@@ -146,7 +149,7 @@ pub fn jet_siva_de(context: &mut Context, subject: Noun) -> Result {
             iv,
             len,
             txt,
-            urcrypt_aes_siva_de,
+            urcrypt_aes_sivc_de,
         ))
     }
 }
