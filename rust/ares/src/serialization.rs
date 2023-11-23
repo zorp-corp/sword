@@ -23,6 +23,13 @@ pub fn met0_u64_to_usize(x: u64) -> usize {
     }
 }
 
+pub fn cue_bytes(stack: &mut NockStack, buffer: &[u8]) -> Noun {
+    let buffer_atom = unsafe {
+        IndirectAtom::new_raw_bytes(stack, buffer.len(), buffer.as_ptr()).normalize_as_atom()
+    };
+    cue(stack, buffer_atom)
+}
+
 pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
     let buffer_bitslice = buffer.as_bitslice();
     let mut cursor: usize = 0;
