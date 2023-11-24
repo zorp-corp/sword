@@ -1559,7 +1559,7 @@ mod debug {
     fn assert_normalized_helper(noun: Noun, path: Noun, depth: Option<usize>) {
         match noun.as_either_atom_cell() {
             Left(atom) => {
-                if atom.is_normalized() {
+                if !atom.is_normalized() {
                     if atom.size() == 1 {
                         panic!(
                             "Un-normalized indirect_atom (should be direct) returned from jet for {:?}",

@@ -739,12 +739,12 @@ impl Atom {
                 if (indirect.size() == 1 && *indirect.data_pointer() <= DIRECT_MAX)
                     || *indirect.data_pointer().add(indirect.size() - 1) == 0
                 {
-                    return true;
+                    return false;
                 }
             } // nothing to do for direct atom
         };
 
-        false
+        true
     }
 
     pub fn as_direct(&self) -> Result<DirectAtom> {
