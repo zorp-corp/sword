@@ -12,6 +12,7 @@ pub mod newt;
 pub mod noun;
 pub mod serf;
 //pub mod bytecode;
+pub mod load;
 pub mod serialization;
 pub mod snapshot;
 pub mod trace;
