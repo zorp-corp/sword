@@ -12,7 +12,7 @@
     let supportedSystems = ["x86_64-linux" "x86_64-darwin" "aarch64-darwin"];
     in flake-utils.lib.eachSystem supportedSystems
     (system:
-      let pkgs = import nixpkgs { inherit system; };
+      let pkgs = import nixpkgs { inherit system; overlays = [(import ./nix/overlay.nix)]; };
       in { devShells.default = pkgs.mkShell {
           buildInputs = [
             (fenix.packages.${system}.complete.withComponents [
@@ -30,6 +30,7 @@
             pkgs.iconv
             pkgs.openssl
             pkgs.pkg-config
+            pkgs.urcrypt
           ];
         };
       }
