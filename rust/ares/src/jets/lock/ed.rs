@@ -135,6 +135,9 @@ mod tests {
     use crate::noun::{D, T};
     use ibig::ubig;
 
+    //  XX: Should use the test vectors from Section 7.1 of RFC 8032:
+    //      https://tools.ietf.org/html/rfc8032#section-7.1
+
     #[test]
     fn test_puck() {
         let c = &mut init_context();
