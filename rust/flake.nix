@@ -13,6 +13,7 @@
     in flake-utils.lib.eachSystem supportedSystems
     (system:
       let pkgs = import nixpkgs { inherit system; };
+          parsedSystem = pkgs.lib.systems.parse.mkSystemFromString system;
       in { devShells.default = pkgs.mkShell {
           buildInputs = [
             (fenix.packages.${system}.complete.withComponents [
@@ -23,9 +24,9 @@
               "rust-src"
             ])
             pkgs.cargo-watch
-            pkgs.gdb
             pkgs.iconv
-          ];
+          ] ++
+          (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin") pkgs.gdb); # nixpkgs won't build gdb for darwin
         };
       }
     );
