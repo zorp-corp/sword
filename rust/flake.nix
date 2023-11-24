@@ -8,7 +8,7 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = {self, fenix, flake-utils, nixpkgs}: 
+  outputs = {self, fenix, flake-utils, nixpkgs}:
     let supportedSystems = ["x86_64-linux" "x86_64-darwin" "aarch64-darwin"];
     in flake-utils.lib.eachSystem supportedSystems
     (system:
@@ -22,9 +22,14 @@
               "rustfmt"
               "rust-src"
             ])
+            pkgs.autoconf-archive
+            pkgs.automake
             pkgs.cargo-watch
-            pkgs.gdb
+            pkgs.cmake
+            (pkgs.lib.optional (system == "x86_64-linux") pkgs.gdb)
             pkgs.iconv
+            pkgs.openssl
+            pkgs.pkg-config
           ];
         };
       }
