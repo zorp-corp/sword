@@ -9,11 +9,15 @@ crate::gdb!();
 
 pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
-    let sed = slot(subject, 6)?.as_direct()?;
+    let sed = slot(subject, 6)?.as_atom()?;
+
+    if met(3, sed) > 32 {
+        return Err(JetErr::Fail(Error::Deterministic(D(0))));
+    }
 
     unsafe {
+        let sed_bytes = &(sed.as_bytes()[0..met(3, sed)]); // drop trailing zeros
         let (mut _seed_ida, seed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        let sed_bytes = sed.data().to_le_bytes();
         seed[0..sed_bytes.len()].copy_from_slice(&sed_bytes[..]);
 
         let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
@@ -25,17 +29,23 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
 
 pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
-    let pub_key = slot(subject, 12)?.as_direct()?;
-    let sec_key = slot(subject, 13)?.as_direct()?;
+    let pub_key = slot(subject, 12)?.as_atom()?;
+    let sec_key = slot(subject, 13)?.as_atom()?;
+
+    if met(3, pub_key) > 32 {
+        return Err(JetErr::Punt);
+    }
+    else if met(3, sec_key) > 32 {
+        return Err(JetErr::Fail(Error::Deterministic(D(0))));
+    }
 
     unsafe {
-        let (_, public) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        let (_, secret) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-
-        let pub_bytes = pub_key.data().to_le_bytes();
-        let sec_bytes = sec_key.data().to_le_bytes();
-
+        let pub_bytes = pub_key.as_bytes();
+        let (_pub_ida, public) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         public[0..pub_bytes.len()].copy_from_slice(&pub_bytes[..]);
+
+        let sec_bytes = sec_key.as_bytes();
+        let (_sec_ida, secret) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         secret[0..sec_bytes.len()].copy_from_slice(&sec_bytes[..]);
 
         let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytes(stack, 32);
@@ -126,12 +136,6 @@ mod tests {
             &ubig!(_0xfb099b0acc4d1ce37f9982a2ed331245e0cdfdf6979364b7676a142b8233e53b),
         );
         assert_jet(c, jet_puck, D(32), ret);
-
-        let sam = A(
-            &mut c.stack,
-            &ubig!(_0xfb099b0acc4d1ce37f9982a2ed331245e0cdfdf6979364b7676a142b8233e53b),
-        );
-        assert_jet_err(c, jet_puck, sam, JetErr::Fail(Error::Deterministic(D(0))));
     }
 
     #[test]
