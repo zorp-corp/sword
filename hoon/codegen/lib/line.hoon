@@ -1,5 +1,3 @@
-/-  gene
-=>  gene
 =*  sack  +3
 =*  moan  moan.sack
 =*  cole  cole.sack

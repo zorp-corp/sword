@@ -1,5 +1,3 @@
-/-  noir
-=>  noir
 ~%  %sack.1  +15  ~
 ::    finished code table
 ::

@@ -1,5 +1,3 @@
-/-  sock
-=>  sock
 ~%  %soak.1  +3  ~
 |%
 ::  operations on $cape
