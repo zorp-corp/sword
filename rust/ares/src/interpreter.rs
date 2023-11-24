@@ -1205,38 +1205,6 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
     }
 }
 
-fn assert_normalized(atom: Atom, path: Noun) {
-    unsafe {
-        if let Ok(indirect) = atom.as_indirect() {
-            if indirect.size() == 1 && *indirect.data_pointer() <= crate::noun::DIRECT_MAX {
-                panic!(
-                    "Un-normalized indirect_atom (should be direct) returned from jet for {:?}",
-                    path
-                );
-            } else if *indirect.data_pointer().add(indirect.size() - 1) == 0 {
-                panic!(
-                    "Un-normalized indirect_atom (last word 0) returned from jet for {:?}",
-                    path
-                );
-            }
-        } // nothing to do for direct atom
-    }
-}
-
-pub fn assert_all_normalized(res: Noun, path: Noun, depth: usize) {
-    match res.as_either_atom_cell() {
-        Left(atom) => {
-            assert_normalized(atom, path);
-        }
-        Right(cell) => {
-            if depth > 0 {
-                assert_all_normalized(cell.head(), path, depth - 1);
-                assert_all_normalized(cell.tail(), path, depth - 1);
-            }
-        }
-    }
-}
-
 /// Push onto the tracing stack
 fn append_trace(stack: &mut NockStack, path: Noun) {
     unsafe {
@@ -1570,5 +1538,48 @@ mod hint {
     fn slog_leaf(stack: &mut NockStack, newt: &mut Newt, tape: Noun) {
         let tank = T(stack, &[LEAF, tape]);
         newt.slog(stack, 0u64, tank);
+    }
+}
+
+mod debug {
+    use crate::noun::Noun;
+    use either::Either::*;
+
+    #[allow(dead_code)]
+    pub fn assert_normalized(noun: Noun, path: Noun) {
+        assert_normalized_helper(noun, path, None);
+    }
+
+    #[allow(dead_code)]
+    pub fn assert_normalized_depth(noun: Noun, path: Noun, depth: usize) {
+        assert_normalized_helper(noun, path, Some(depth));
+    }
+
+    #[allow(dead_code)]
+    fn assert_normalized_helper(noun: Noun, path: Noun, depth: Option<usize>) {
+        match noun.as_either_atom_cell() {
+            Left(atom) => {
+                if atom.is_normalized() {
+                    if atom.size() == 1 {
+                        panic!(
+                            "Un-normalized indirect_atom (should be direct) returned from jet for {:?}",
+                            path
+                        );
+                    } else {
+                        panic!(
+                            "Un-normalized indirect_atom (last word 0) returned from jet for {:?}",
+                            path
+                        );
+                    }
+                }
+            }
+            Right(cell) => {
+                if !depth.is_some_and(|d| d == 0) {
+                    let new_depth = depth.map(|x| x - 1);
+                    assert_normalized_helper(cell.head(), path, new_depth);
+                    assert_normalized_helper(cell.tail(), path, new_depth);
+                }
+            }
+        }
     }
 }
