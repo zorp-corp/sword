@@ -13,6 +13,7 @@
     in flake-utils.lib.eachSystem supportedSystems
     (system:
       let pkgs = import nixpkgs { inherit system; overlays = [(import ./nix/overlay.nix)]; };
+          parsedSystem = pkgs.lib.systems.parse.mkSystemFromString system;
       in { devShells.default = pkgs.mkShell {
           buildInputs = [
             (fenix.packages.${system}.complete.withComponents [
@@ -25,13 +26,12 @@
             pkgs.autoconf-archive
             pkgs.automake
             pkgs.cargo-watch
-            pkgs.cmake
-            (pkgs.lib.optional (system == "x86_64-linux") pkgs.gdb)
             pkgs.iconv
             pkgs.openssl
             pkgs.pkg-config
             pkgs.urcrypt
-          ];
+          ] ++
+          (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin") pkgs.gdb); # nixpkgs won't build gdb for darwin
         };
       }
     );
