@@ -143,6 +143,10 @@ pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
     let key = slot(subject, 60)?.as_atom()?;
     let ads = slot(subject, 61)?;
 
+    if met(3, key) > 64 {
+        return Err(JetErr::Punt);
+    }
+
     unsafe {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());

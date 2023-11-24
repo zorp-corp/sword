@@ -11,10 +11,6 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sed = slot(subject, 6)?.as_direct()?;
 
-    if sed.bit_size() > 32 {
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
-    }
-
     unsafe {
         let (mut _seed_ida, seed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         let sed_bytes = sed.data().to_le_bytes();
@@ -31,14 +27,6 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let pub_key = slot(subject, 12)?.as_direct()?;
     let sec_key = slot(subject, 13)?.as_direct()?;
-
-    if sec_key.bit_size() > 32 {
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
-    }
-    if pub_key.bit_size() > 32 {
-        // vere punts; we should do the same in the future
-        return Err(JetErr::Punt);
-    }
 
     unsafe {
         let (_, public) = IndirectAtom::new_raw_mut_bytes(stack, 32);
