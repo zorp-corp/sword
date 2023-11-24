@@ -15,6 +15,7 @@
       let pkgs = import nixpkgs { inherit system; overlays = [(import ./nix/overlay.nix)]; };
           parsedSystem = pkgs.lib.systems.parse.mkSystemFromString system;
       in { devShells.default = pkgs.mkShell {
+          LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
           buildInputs = [
             (fenix.packages.${system}.complete.withComponents [
               "cargo"
@@ -24,12 +25,12 @@
               "rust-src"
             ])
             pkgs.autoconf-archive
-            pkgs.automake
             pkgs.cargo-watch
             pkgs.iconv
             pkgs.openssl
             pkgs.pkg-config
             pkgs.urcrypt
+            pkgs.llvmPackages.clang
           ] ++
           (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin") pkgs.gdb); # nixpkgs won't build gdb for darwin
         };
