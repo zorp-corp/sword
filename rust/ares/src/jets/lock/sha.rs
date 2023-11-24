@@ -97,7 +97,7 @@ pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
     };
 
     unsafe {
-        let msg_bytes = dat.as_bytes();
+        let msg_bytes = &(dat.as_bytes()[0..met(3, dat)]); // drop trailing zeroes
         let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
         msg.copy_from_slice(msg_bytes);
 
