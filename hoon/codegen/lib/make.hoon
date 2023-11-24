@@ -1,5 +1,5 @@
 |%
-::  emits [
+::  emits a trap that will produce the Ares codegen core.
 ::
 ::  This trap can be built and included in Ares, where it will be run if
 ::  an Ares instance does not have an existing codegen core

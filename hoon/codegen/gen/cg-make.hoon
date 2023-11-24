@@ -1,3 +1,5 @@
+:: XX this needs to actually get the desk from the beak once we can get
+:: the correct desk
 /+  make
 :-  %say
 |=  [[now=@da eny=@uvJ bec=beak] *]
