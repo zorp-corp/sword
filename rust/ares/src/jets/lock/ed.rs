@@ -16,12 +16,12 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
     }
 
     unsafe {
-        let sed_bytes = &(sed.as_bytes()[0..met(3, sed)]); // drop trailing zeros
-        let (mut _seed_ida, seed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        seed[0..sed_bytes.len()].copy_from_slice(&sed_bytes[..]);
+        let sed_bytes = sed.as_bytes();
+        let sed_buf = &mut [0u8; 32] as *mut u8;
+        std::ptr::copy_nonoverlapping(sed_bytes.as_ptr(), sed_buf as *mut u8, sed_bytes.len());
 
         let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_ed_puck(seed.as_ptr(), pub_key.as_mut_ptr());
+        urcrypt_ed_puck(sed_buf as *const u8, pub_key.as_mut_ptr());
 
         Ok(pub_ida.normalize_as_atom().as_noun())
     }
@@ -41,22 +41,21 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
 
     unsafe {
         let pub_bytes = pub_key.as_bytes();
-        let (_pub_ida, public) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        public[0..pub_bytes.len()].copy_from_slice(&pub_bytes[..]);
+        let pub_buf = &mut [0u8; 32] as *mut u8;
+        std::ptr::copy_nonoverlapping(pub_bytes.as_ptr(), pub_buf as *mut u8, pub_bytes.len());
 
         let sec_bytes = sec_key.as_bytes();
-        let (_sec_ida, secret) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        secret[0..sec_bytes.len()].copy_from_slice(&sec_bytes[..]);
+        let sec_buf = &mut [0u8; 32] as *mut u8;
+        std::ptr::copy_nonoverlapping(sec_bytes.as_ptr(), sec_buf as *mut u8, sec_bytes.len());
 
         let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_ed_shar(public.as_ptr(), secret.as_ptr(), shar.as_mut_ptr());
+        urcrypt_ed_shar(pub_buf as *const u8, sec_buf as *const u8, shar.as_mut_ptr());
 
         Ok(shar_ida.normalize_as_atom().as_noun())
     }
 }
 
 pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
-    let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
     let msg = slot(sam, 2)?.as_atom()?;
     let sed = slot(sam, 3)?.as_atom()?;
@@ -69,14 +68,15 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
 
         let msg_bytes = &(msg.as_bytes())[0..met(3, msg)]; // drop trailing zeros
 
-        let (mut _seed_ida, seed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        seed.copy_from_slice(sed_bytes);
+        let sed_bytes = sed.as_bytes();
+        let sed_buf = &mut [0u8; 32] as *mut u8;
+        std::ptr::copy_nonoverlapping(sed_bytes.as_ptr(), sed_buf as *mut u8, sed_bytes.len());
 
-        let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytes(&mut context.stack, 64);
         urcrypt_ed_sign(
             msg_bytes.as_ptr(),
             msg_bytes.len(),
-            seed.as_ptr(),
+            sed_buf as *const u8,
             sig.as_mut_ptr(),
         );
         sig.reverse(); // LSB first
@@ -85,8 +85,7 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_veri(context: &mut Context, subject: Noun) -> Result {
-    let stack = &mut context.stack;
+pub fn jet_veri(_context: &mut Context, subject: Noun) -> Result {
     let sig = slot(subject, 12)?.as_atom()?;
     let msg = slot(subject, 26)?.as_atom()?;
     let puk = slot(subject, 27)?.as_atom()?;
@@ -102,18 +101,19 @@ pub fn jet_veri(context: &mut Context, subject: Noun) -> Result {
             return Err(JetErr::Punt);
         };
 
-        let (mut _sig_ida, signature) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        signature.copy_from_slice(sig_bytes);
-        let (mut _pub_ida, public_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        public_key.copy_from_slice(pub_bytes);
+        let sig_buf = &mut [0u8; 64] as *mut u8;
+        std::ptr::copy_nonoverlapping(sig_bytes.as_ptr(), sig_buf as *mut u8, sig_bytes.len());
+
+        let pub_buf = &mut [0u8; 64] as *mut u8;
+        std::ptr::copy_nonoverlapping(pub_bytes.as_ptr(), pub_buf as *mut u8, pub_bytes.len());
 
         let message = &(msg.as_bytes())[0..met(3, msg)]; // drop trailing zeros
 
         let valid = urcrypt_ed_veri(
             message.as_ptr(),
             message.len(),
-            public_key.as_ptr(),
-            signature.as_ptr(),
+            pub_buf as *const u8,
+            sig_buf as *const u8,
         );
 
         Ok(if valid { YES } else { NO })
