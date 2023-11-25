@@ -304,7 +304,7 @@ pub mod util {
                 cache,
                 scry_stack: D(0),
                 trace_info: None,
-                line: D(0),
+                line: None,
             }
         }
 

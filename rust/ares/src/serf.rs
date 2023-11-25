@@ -6,6 +6,7 @@ use crate::jets::hot::Hot;
 use crate::jets::list::util::{lent, zing};
 use crate::jets::nock::util::mook;
 use crate::jets::warm::Warm;
+use crate::load::load_cg_trap;
 use crate::mem::NockStack;
 use crate::mug::*;
 use crate::newt::Newt;
@@ -53,7 +54,9 @@ impl Context {
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
         let mug = mug_u32(&mut stack, arvo);
 
-        let nock_context = interpreter::Context {
+        let (cg_formula, cg_trap) = load_cg_trap(&mut stack).unwrap();
+
+        let mut nock_context = interpreter::Context {
             stack,
             newt,
             cold,
@@ -62,8 +65,11 @@ impl Context {
             cache,
             scry_stack: D(0),
             trace_info,
-            line: D(0),
+            line: None,
         };
+
+        let line = interpret(&mut nock_context, cg_trap, cg_formula).unwrap();
+        nock_context.line = Some(line);
 
         Context {
             epoch,
