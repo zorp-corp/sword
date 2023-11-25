@@ -33,14 +33,16 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
 
 pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
-    let pub_key = slot(subject, 12)?.as_direct()?;
-    let sec_key = slot(subject, 13)?.as_direct()?;
+    let pub_key = slot(subject, 12)?.as_atom()?;
+    let sec_key = slot(subject, 13)?.as_atom()?;
 
-    if sec_key.bit_size() > 32 {
+    if met(3, sec_key) > 32 {
+        // sek is size checked by +puck via +suck
         return Err(JetErr::Fail(Error::Deterministic(D(0))));
     }
-    if pub_key.bit_size() > 32 {
-        // vere punts; we should do the same in the future
+    if met(3, pub_key) > 32 {
+        // pub is not size checked in Hoon, but it must be 32 bytes or less for
+        // ucrypt. Therefore, punt on larger values.
         return Err(JetErr::Punt);
     }
 
@@ -48,11 +50,11 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
         let (_, public) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         let (_, secret) = IndirectAtom::new_raw_mut_bytes(stack, 32);
 
-        let pub_bytes = pub_key.data().to_le_bytes();
-        let sec_bytes = sec_key.data().to_le_bytes();
+        let pub_bytes = pub_key.as_bytes();
+        let sec_bytes = sec_key.as_bytes();
 
-        public[0..pub_bytes.len()].copy_from_slice(&pub_bytes[..]);
-        secret[0..sec_bytes.len()].copy_from_slice(&sec_bytes[..]);
+        public[0..pub_bytes.len()].copy_from_slice(pub_bytes);
+        secret[0..sec_bytes.len()].copy_from_slice(sec_bytes);
 
         let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         urcrypt_ed_shar(public.as_ptr(), secret.as_ptr(), shar.as_mut_ptr());
@@ -63,9 +65,8 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
 
 pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
-    let sam = slot(subject, 6)?;
-    let msg = slot(sam, 2)?.as_atom()?;
-    let sed = slot(sam, 3)?.as_atom()?;
+    let msg = slot(subject, 12)?.as_atom()?;
+    let sed = slot(subject, 13)?.as_atom()?;
 
     unsafe {
         let sed_bytes = sed.as_bytes();
@@ -98,14 +99,15 @@ pub fn jet_veri(context: &mut Context, subject: Noun) -> Result {
     let puk = slot(subject, 27)?.as_atom()?;
 
     unsafe {
+        // Both are size checked by Hoon, but without crashing
         let sig_bytes = sig.as_bytes();
         if sig_bytes.len() > 64 {
-            return Err(JetErr::Punt);
+            return Ok(NO);
         };
 
         let pub_bytes = puk.as_bytes();
         if pub_bytes.len() > 32 {
-            return Err(JetErr::Punt);
+            return Ok(NO);
         };
 
         let (mut _sig_ida, signature) = IndirectAtom::new_raw_mut_bytes(stack, 64);

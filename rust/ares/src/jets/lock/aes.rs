@@ -7,6 +7,11 @@ use urcrypt_sys::*;
 
 crate::gdb!();
 
+//  Note:   The Hoon code for these functions doesn't explicitly check key
+//          sizes. However, the implementations of these functions in urcrypt
+//          have fixed maximum key sizes, therefore we must punt if the key is
+//          too large.
+
 pub fn jet_siva_en(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let txt = slot(subject, 6)?.as_atom()?;
@@ -39,15 +44,15 @@ pub fn jet_siva_de(context: &mut Context, subject: Noun) -> Result {
     let key = slot(subject, 60)?.as_atom()?;
     let ads = slot(subject, 61)?;
 
-    if met(3, key) > 64 {
-        return Err(JetErr::Punt);
-    }
+    if met(3, key) > 32 {
+        Err(JetErr::Punt)
+    } else {
+        unsafe {
+            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+            key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-    unsafe {
-        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
-
-        util::_siv_de(stack, key_bytes, ads, iv, len, txt, urcrypt_aes_siva_de)
+            util::_siv_de(stack, key_bytes, ads, iv, len, txt, urcrypt_aes_siva_de)
+        }
     }
 }
 
@@ -84,14 +89,14 @@ pub fn jet_sivb_de(context: &mut Context, subject: Noun) -> Result {
     let ads = slot(subject, 61)?;
 
     if met(3, key) > 48 {
-        return Err(JetErr::Punt);
-    }
+        Err(JetErr::Punt)
+    } else {
+        unsafe {
+            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
+            key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-    unsafe {
-        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
-        key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
-
-        util::_siv_de(stack, key_bytes, ads, iv, len, txt, urcrypt_aes_sivb_de)
+            util::_siv_de(stack, key_bytes, ads, iv, len, txt, urcrypt_aes_sivb_de)
+        }
     }
 }
 
@@ -127,18 +132,22 @@ pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
     let key = slot(subject, 60)?.as_atom()?;
     let ads = slot(subject, 61)?;
 
-    unsafe {
-        let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
+    if met(3, key) > 64 {
+        Err(JetErr::Punt)
+    } else {
+        unsafe {
+            let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+            key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_de(stack, key_bytes, ads, iv, len, txt, urcrypt_aes_sivc_de)
+            util::_siv_de(stack, key_bytes, ads, iv, len, txt, urcrypt_aes_sivc_de)
+        }
     }
 }
 
 mod util {
     use crate::interpreter::Error;
     use crate::jets::bits::util::met;
-    use crate::jets::JetErr;
+    use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
     use crate::noun::{Atom, IndirectAtom, Noun, D, T};
     use std::ptr::null_mut;
@@ -163,7 +172,7 @@ mod util {
     ///
     /// * `atoms` - the list of atoms to measure
     ///
-    pub fn _measure_atoms(atoms: Noun) -> (usize, usize, usize) {
+    fn _measure_atoms(atoms: Noun) -> (usize, usize, usize) {
         let length;
         let bytes;
         let size;
@@ -220,7 +229,7 @@ mod util {
     /// * `bytes` - the encoding size
     /// * `data` - the data allocation
     ///
-    pub fn _encode_atoms(atoms: Noun, data: &mut [urcrypt_aes_siv_data]) {
+    fn _encode_atoms(atoms: Noun, data: &mut [urcrypt_aes_siv_data]) {
         let mut t = atoms;
         let mut i = 0;
         unsafe {
@@ -249,10 +258,11 @@ mod util {
         }
     }
 
-    pub fn _allocate_atoms(atoms: Noun) -> &'static mut [urcrypt_aes_siv_data] {
+    fn _allocate_atoms(atoms: Noun) -> &'static mut [urcrypt_aes_siv_data] {
         if unsafe { atoms.raw_equals(D(0)) } {
             return &mut [];
         }
+
         let (length, _, size) = _measure_atoms(atoms);
         let siv_data: &mut [urcrypt_aes_siv_data] = unsafe {
             let ptr = std::alloc::alloc(std::alloc::Layout::from_size_align(size, 8).unwrap());
@@ -325,12 +335,7 @@ mod util {
         len: Atom,
         txt: Atom,
         fun: UrcryptSiv,
-    ) -> Result<Noun, JetErr> {
-        let siv_data = _allocate_atoms(ads);
-
-        let (_iv_ida, iv_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 16) };
-        iv_bytes[0..16].copy_from_slice(&(iv.as_bytes()[0..16]));
-
+    ) -> Result {
         let txt_len = match len.as_direct() {
             Ok(direct) => direct.data() as usize,
             Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
@@ -338,15 +343,13 @@ mod util {
         let (_txt_ida, txt_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, txt_len) };
         txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
 
-        let (out_atom, out_bytes) = match txt_len {
-            0 => (D(0), &mut [] as &mut [u8]),
-            _ => unsafe {
-                let (out_ida, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
-                (out_ida.as_noun(), out_bytes)
-            },
-        };
+        let (_iv_ida, iv_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 16) };
+        iv_bytes[0..16].copy_from_slice(&(iv.as_bytes()[0..16]));
+
+        let siv_data = _allocate_atoms(ads);
 
         unsafe {
+            let (out_atom, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
             fun(
                 if txt_len == 0 {
                     null_mut::<u8>()
@@ -360,9 +363,8 @@ mod util {
                 iv_bytes.as_mut_ptr(),
                 out_bytes.as_mut_ptr(),
             );
+            Ok(T(stack, &[D(0), out_atom.as_noun()]))
         }
-
-        Ok(T(stack, &[D(0), out_atom]))
     }
 }
 
