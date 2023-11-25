@@ -177,9 +177,10 @@ mod util {
                 let cell = atoms.as_cell()?;
                 let head = cell.head().as_atom()?;
                 let bytes = head.as_bytes();
+                let len = met(3, head);
 
                 let (mut atom, buffer) = IndirectAtom::new_raw_mut_bytes(stack, bytes.len());
-                buffer.copy_from_slice(bytes);
+                buffer[0..len].copy_from_slice(&(bytes[0..len]));
 
                 item.length = bytes.len();
                 item.bytes = atom.data_pointer_mut() as *mut u8;
@@ -198,52 +199,56 @@ mod util {
         txt: Atom,
         fun: UrcryptSiv,
     ) -> Result {
-        let siv_data = _allocate_atoms(stack, ads)?;
-
-        let txt_len = met(3, txt);
-        let (_txt_atom, txt_bytes) = match txt_len {
-            0 => (D(0), &mut [] as &mut [u8]),
-            _ => {
-                let (mut txt_ida, txt_bytes) =
-                    unsafe { IndirectAtom::new_raw_mut_bytes(stack, txt_len) };
-                txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
-                (unsafe { txt_ida.normalize_as_atom().as_noun() }, txt_bytes)
-            }
-        };
-
-        let (mut iv, iv_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 16) };
-        let (out_atom, out_bytes) = match txt_len {
-            0 => (D(0), &mut [] as &mut [u8]),
-            _ => unsafe {
-                let (out_ida, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
-                (out_ida.as_noun(), out_bytes)
-            },
-        };
-
         unsafe {
-            fun(
-                if txt_len == 0 {
-                    null_mut::<u8>()
-                } else {
-                    txt_bytes.as_mut_ptr()
-                },
-                txt_len,
-                siv_data.as_mut_ptr(),
-                siv_data.len(),
-                key.as_mut_ptr(),
-                iv_bytes.as_mut_ptr(),
-                out_bytes.as_mut_ptr(),
-            );
-        }
+            let siv_data = _allocate_atoms(stack, ads)?;
 
-        Ok(T(
-            stack,
-            &[
-                unsafe { iv.normalize_as_atom().as_noun() },
-                D(txt_len as u64),
-                out_atom,
-            ],
-        ))
+            let txt_len = met(3, txt);
+            let txt_ptr = match txt_len {
+                0 => null_mut::<u8>(),
+                _ => {
+                    let (_, txt_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
+                    txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
+                    txt_bytes.as_mut_ptr()
+                }
+            };
+
+            let (mut iv, iv_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 16);
+
+            match txt_len {
+                0 => {
+                    fun(
+                        txt_ptr,
+                        txt_len,
+                        siv_data.as_mut_ptr(),
+                        siv_data.len(),
+                        key.as_mut_ptr(),
+                        iv_bytes.as_mut_ptr(),
+                        null_mut::<u8>(),
+                    );
+                    Ok(T(stack, &[iv.normalize_as_atom().as_noun(), D(0), D(0)]))
+                }
+                _ => {
+                    let (mut out_atom, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
+                    fun(
+                        txt_ptr,
+                        txt_len,
+                        siv_data.as_mut_ptr(),
+                        siv_data.len(),
+                        key.as_mut_ptr(),
+                        iv_bytes.as_mut_ptr(),
+                        out_bytes.as_mut_ptr(),
+                    );
+                    Ok(T(
+                        stack,
+                        &[
+                            iv.normalize_as_atom().as_noun(),
+                            D(txt_len as u64),
+                            out_atom.normalize_as_atom().as_noun(),
+                        ],
+                    ))
+                }
+            }
+        }
     }
 
     pub fn _siv_de(
@@ -255,20 +260,20 @@ mod util {
         txt: Atom,
         fun: UrcryptSiv,
     ) -> Result {
-        let txt_len = match len.as_direct() {
-            Ok(direct) => direct.data() as usize,
-            Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
-        };
-        let (_txt_ida, txt_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, txt_len) };
-        txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
-
-        let (_iv_ida, iv_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 16) };
-        iv_bytes[0..16].copy_from_slice(&(iv.as_bytes()[0..16]));
-
-        let siv_data = _allocate_atoms(stack, ads)?;
-
         unsafe {
-            let (out_atom, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
+            let txt_len = match len.as_direct() {
+                Ok(direct) => direct.data() as usize,
+                Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+            };
+            let (_, txt_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
+            txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
+
+            let (_iv_ida, iv_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 16);
+            iv_bytes[0..16].copy_from_slice(&(iv.as_bytes()[0..16]));
+
+            let siv_data = _allocate_atoms(stack, ads)?;
+
+            let (mut out_atom, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
             fun(
                 if txt_len == 0 {
                     null_mut::<u8>()
@@ -282,7 +287,7 @@ mod util {
                 iv_bytes.as_mut_ptr(),
                 out_bytes.as_mut_ptr(),
             );
-            Ok(T(stack, &[D(0), out_atom.as_noun()]))
+            Ok(T(stack, &[D(0), out_atom.normalize_as_atom().as_noun()]))
         }
     }
 }
