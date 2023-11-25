@@ -587,7 +587,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         Todo9::ComputeResult => {
                             if let Ok(mut formula) = res.slot_atom(kale.axis) {
                                 if !cfg!(feature = "sham_hints") {
-                                    if let Some(jet) = context.warm.find_jet(
+                                    if let Some((jet, _path)) = context.warm.find_jet(
                                         &mut context.stack,
                                         &mut res,
                                         &mut formula,
@@ -1538,5 +1538,48 @@ mod hint {
     fn slog_leaf(stack: &mut NockStack, newt: &mut Newt, tape: Noun) {
         let tank = T(stack, &[LEAF, tape]);
         newt.slog(stack, 0u64, tank);
+    }
+}
+
+mod debug {
+    use crate::noun::Noun;
+    use either::Either::*;
+
+    #[allow(dead_code)]
+    pub fn assert_normalized(noun: Noun, path: Noun) {
+        assert_normalized_helper(noun, path, None);
+    }
+
+    #[allow(dead_code)]
+    pub fn assert_normalized_depth(noun: Noun, path: Noun, depth: usize) {
+        assert_normalized_helper(noun, path, Some(depth));
+    }
+
+    #[allow(dead_code)]
+    fn assert_normalized_helper(noun: Noun, path: Noun, depth: Option<usize>) {
+        match noun.as_either_atom_cell() {
+            Left(atom) => {
+                if !atom.is_normalized() {
+                    if atom.size() == 1 {
+                        panic!(
+                            "Un-normalized indirect_atom (should be direct) returned from jet for {:?}",
+                            path
+                        );
+                    } else {
+                        panic!(
+                            "Un-normalized indirect_atom (last word 0) returned from jet for {:?}",
+                            path
+                        );
+                    }
+                }
+            }
+            Right(cell) => {
+                if !depth.is_some_and(|d| d == 0) {
+                    let new_depth = depth.map(|x| x - 1);
+                    assert_normalized_helper(cell.head(), path, new_depth);
+                    assert_normalized_helper(cell.tail(), path, new_depth);
+                }
+            }
+        }
     }
 }

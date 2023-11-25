@@ -9,19 +9,23 @@ crate::gdb!();
 
 pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
-    let sed = slot(subject, 6)?.as_direct()?;
+    let sed = slot(subject, 6)?.as_atom()?;
 
-    if sed.bit_size() > 32 {
+    if met(3, sed) > 32 {
         return Err(JetErr::Fail(Error::Deterministic(D(0))));
     }
 
     unsafe {
-        let (mut _seed_ida, seed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        let sed_bytes = sed.data().to_le_bytes();
-        seed[0..sed_bytes.len()].copy_from_slice(&sed_bytes[..]);
+        // allocate 32 byte buffer on
+        let sed_buffer = &mut [0u8; 32] as *mut u8;
+        let sed_bytes = sed.as_bytes();
+
+        // we need to copy because the atom might be less than 32 bytes and urcrypt expects a
+        // 32-byte buffer
+        std::ptr::copy_nonoverlapping(sed_bytes.as_ptr(), sed_buffer, sed_bytes.len());
 
         let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_ed_puck(seed.as_ptr(), pub_key.as_mut_ptr());
+        urcrypt_ed_puck(sed_buffer as *const u8, pub_key.as_mut_ptr());
 
         Ok(pub_ida.normalize_as_atom().as_noun())
     }
@@ -129,21 +133,22 @@ mod tests {
     use crate::noun::{D, T};
     use ibig::ubig;
 
+    //  XX: Should use the test vectors from Section 7.1 of RFC 8032:
+    //      https://tools.ietf.org/html/rfc8032#section-7.1
+
     #[test]
     fn test_puck() {
         let c = &mut init_context();
 
-        let ret = A(
-            &mut c.stack,
-            &ubig!(_0xfb099b0acc4d1ce37f9982a2ed331245e0cdfdf6979364b7676a142b8233e53b),
-        );
-        assert_jet(c, jet_puck, D(32), ret);
-
         let sam = A(
             &mut c.stack,
-            &ubig!(_0xfb099b0acc4d1ce37f9982a2ed331245e0cdfdf6979364b7676a142b8233e53b),
+            &ubig!(_0x607fae1c03ac3b701969327b69c54944c42cec92f44a84ba605afdef9db1619d),
         );
-        assert_jet_err(c, jet_puck, sam, JetErr::Fail(Error::Deterministic(D(0))));
+        let ret = A(
+            &mut c.stack,
+            &ubig!(_0x1a5107f7681a02af2523a6daf372e10e3a0764c9d3fe4bd5b70ab18201985ad7),
+        );
+        assert_jet(c, jet_puck, sam, ret);
     }
 
     #[test]
