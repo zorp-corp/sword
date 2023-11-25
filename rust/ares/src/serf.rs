@@ -54,9 +54,7 @@ impl Context {
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
         let mug = mug_u32(&mut stack, arvo);
 
-        let (cg_formula, cg_trap) = load_cg_trap(&mut stack).unwrap();
-
-        let mut nock_context = interpreter::Context {
+        let nock_context = interpreter::Context {
             stack,
             newt,
             cold,
@@ -67,9 +65,6 @@ impl Context {
             trace_info,
             line: None,
         };
-
-        let line = interpret(&mut nock_context, cg_trap, cg_formula).unwrap();
-        nock_context.line = Some(line);
 
         Context {
             epoch,
@@ -223,6 +218,11 @@ pub fn serf() -> io::Result<()> {
 
     let mut context = Context::new(&snap_path, trace_info);
     context.ripe();
+
+    // Produce codegen core
+    let (cg_formula, cg_trap) = load_cg_trap(&mut context.nock_context.stack).expect("Failed to load codegen formula/trap");
+    let line = interpret(&mut context.nock_context, cg_trap, cg_formula).expect("Failed to produce codegen core");
+    context.nock_context.line = Some(line);
 
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {
