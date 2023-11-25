@@ -282,10 +282,11 @@ pub fn serf() -> io::Result<()> {
             stack.preserve(&mut context.arvo);
             stack.preserve(&mut context.nock_context.cold);
             stack.preserve(&mut context.nock_context.warm);
-            match &mut context.nock_context.line {
-                Some(line) => stack.preserve(line),
-                None => (),
-            }
+            context
+                .nock_context
+                .line
+                .as_mut()
+                .map(|line| stack.preserve(line));
             stack.frame_pop();
         }
     }
