@@ -47,15 +47,7 @@ pub fn jet_siva_de(context: &mut Context, subject: Noun) -> Result {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_de(
-            stack,
-            key_bytes,
-            ads,
-            iv,
-            len,
-            txt,
-            urcrypt_aes_siva_de,
-        )
+        util::_siv_de(stack, key_bytes, ads, iv, len, txt, urcrypt_aes_siva_de)
     }
 }
 
@@ -99,15 +91,7 @@ pub fn jet_sivb_de(context: &mut Context, subject: Noun) -> Result {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_de(
-            stack,
-            key_bytes,
-            ads,
-            iv,
-            len,
-            txt,
-            urcrypt_aes_sivb_de,
-        )
+        util::_siv_de(stack, key_bytes, ads, iv, len, txt, urcrypt_aes_sivb_de)
     }
 }
 
@@ -147,22 +131,14 @@ pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
         let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_de(
-            stack,
-            key_bytes,
-            ads,
-            iv,
-            len,
-            txt,
-            urcrypt_aes_sivc_de,
-        )
+        util::_siv_de(stack, key_bytes, ads, iv, len, txt, urcrypt_aes_sivc_de)
     }
 }
 
 mod util {
-    use crate::jets::JetErr;
-    use crate::jets::bits::util::met;
     use crate::interpreter::Error;
+    use crate::jets::bits::util::met;
+    use crate::jets::JetErr;
     use crate::mem::NockStack;
     use crate::noun::{Atom, IndirectAtom, Noun, D, T};
     use std::ptr::null_mut;
