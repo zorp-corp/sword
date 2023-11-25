@@ -220,8 +220,10 @@ pub fn serf() -> io::Result<()> {
     context.ripe();
 
     // Produce codegen core
-    let (cg_formula, cg_trap) = load_cg_trap(&mut context.nock_context.stack).expect("Failed to load codegen formula/trap");
-    let line = interpret(&mut context.nock_context, cg_trap, cg_formula).expect("Failed to produce codegen core");
+    let (cg_formula, cg_trap) =
+        load_cg_trap(&mut context.nock_context.stack).expect("Failed to load codegen formula/trap");
+    let line = interpret(&mut context.nock_context, cg_trap, cg_formula)
+        .expect("Failed to produce codegen core");
     context.nock_context.line = Some(line);
 
     // Can't use for loop because it borrows newt
@@ -280,6 +282,10 @@ pub fn serf() -> io::Result<()> {
             stack.preserve(&mut context.arvo);
             stack.preserve(&mut context.nock_context.cold);
             stack.preserve(&mut context.nock_context.warm);
+            match &mut context.nock_context.line {
+                Some(line) => stack.preserve(line),
+                None => (),
+            }
             stack.frame_pop();
         }
     }
