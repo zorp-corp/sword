@@ -25,13 +25,7 @@ pub fn jet_siva_en(context: &mut Context, subject: Noun) -> Result {
             let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 32);
             key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-            Ok(util::_siv_en(
-                stack,
-                key_bytes,
-                atoms,
-                txt,
-                urcrypt_aes_siva_en,
-            ))
+            util::_siv_en(stack, key_bytes, atoms, txt, urcrypt_aes_siva_en)
         }
     }
 }
@@ -69,13 +63,7 @@ pub fn jet_sivb_en(context: &mut Context, subject: Noun) -> Result {
             let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 48);
             key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-            Ok(util::_siv_en(
-                stack,
-                key_bytes,
-                atoms,
-                txt,
-                urcrypt_aes_sivb_en,
-            ))
+            util::_siv_en(stack, key_bytes, atoms, txt, urcrypt_aes_sivb_en)
         }
     }
 }
@@ -113,13 +101,7 @@ pub fn jet_sivc_en(context: &mut Context, subject: Noun) -> Result {
             let (mut _key_ida, key_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 64);
             key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-            Ok(util::_siv_en(
-                stack,
-                key_bytes,
-                atoms,
-                txt,
-                urcrypt_aes_sivc_en,
-            ))
+            util::_siv_en(stack, key_bytes, atoms, txt, urcrypt_aes_sivc_en)
         }
     }
 }
@@ -147,10 +129,12 @@ pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
 mod util {
     use crate::interpreter::Error;
     use crate::jets::bits::util::met;
+    use crate::jets::list;
     use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
     use crate::noun::{Atom, IndirectAtom, Noun, D, T};
     use std::ptr::null_mut;
+    use std::result;
     use urcrypt_sys::urcrypt_aes_siv_data;
 
     type UrcryptSiv = unsafe extern "C" fn(
@@ -163,113 +147,48 @@ mod util {
         *mut u8,
     ) -> i32;
 
-    /// Returns a tuple of (length, bytes, size):
-    /// * length: number of items in the list of atoms
-    /// * bytes: size in bytes of the associative array
-    /// * size: size of allocation (array + atom storage)
+    /// Encodes the list of atoms.
     ///
     /// # Arguments
     ///
-    /// * `atoms` - the list of atoms to measure
-    ///
-    fn _measure_atoms(atoms: Noun) -> (usize, usize, usize) {
-        let length;
-        let bytes;
-        let size;
-
-        let mut tail = atoms;
-        let mut a = 0;
-        let mut b = 0;
-        unsafe {
-            loop {
-                if tail.raw_equals(D(0)) {
-                    break;
-                }
-                let (head, ttail) = match tail.as_cell() {
-                    Ok(cell) => (cell.head(), cell.tail()),
-                    Err(_) => panic!("_measure_atoms: not a cell"),
-                };
-                let head = match head.as_atom() {
-                    Ok(a) => a,
-                    Err(_) => panic!("_measure_atoms: head not an atom"),
-                };
-                tail = ttail;
-
-                let tmp = b;
-                b += met(3, head);
-                //  could be just asserting that met returns more than 0
-                if b < tmp {
-                    panic!("_measure_atoms: overflow");
-                }
-                a += 1;
-            }
-
-            // check for size overflows
-            let tmp = a * std::mem::size_of::<urcrypt_aes_siv_data>();
-            size = tmp + b;
-            if (tmp / a) != std::mem::size_of::<urcrypt_aes_siv_data>() {
-                panic!("_measure_atoms: wrong size")
-            } else if size < tmp {
-                panic!("_measure_atoms: overflow")
-            } else {
-                length = a;
-                bytes = tmp;
-            }
-
-            (length, bytes, size)
-        }
-    }
-
-    /// Encodes the list of atoms. Assumes atoms is a
-    /// valid list of atoms, as it's already been measured.
-    ///
-    /// # Arguments
-    ///
+    /// * `stack` - the active NockStack
     /// * `atoms` - the list of atoms to allocate
-    /// * `bytes` - the encoding size
-    /// * `data` - the data allocation
     ///
-    fn _encode_atoms(atoms: Noun, data: &mut [urcrypt_aes_siv_data]) {
-        let mut t = atoms;
-        let mut i = 0;
+    fn _allocate_atoms(
+        stack: &mut NockStack,
+        mut atoms: Noun,
+    ) -> result::Result<&'static mut [urcrypt_aes_siv_data], JetErr> {
+        if unsafe { atoms.raw_equals(D(0)) } {
+            return Ok(&mut []);
+        }
+
+        // measure
+        let length = list::util::lent(atoms)?;
+
+        // allocate
+        let siv_data: &mut [urcrypt_aes_siv_data] = unsafe {
+            let ptr = stack.struct_alloc::<urcrypt_aes_siv_data>(length);
+            std::slice::from_raw_parts_mut(ptr, length)
+        };
+
+        // encode
         unsafe {
-            while !t.raw_equals(D(0)) {
-                let (head, tail) = match t.as_cell() {
-                    Ok(cell) => (cell.head(), cell.tail()),
-                    Err(_) => panic!("_encode_atoms: not a cell"),
-                };
-                let head = match head.as_atom() {
-                    Ok(a) => a,
-                    Err(_) => panic!("_encode_atoms: head not an atom"),
-                };
-                t = tail;
-                let head_bytes = head.as_bytes();
-                data[i].length = head_bytes.len();
-                // allocate enough bytes at data[i].bytes
-                let ptr = std::alloc::alloc(
-                    std::alloc::Layout::from_size_align(head_bytes.len(), 8).unwrap(),
-                );
-                // copy the bytes from head_bytes into the buffer pointed to by data[i].bytes (which is a *mut u8)
-                let data_bytes: &mut [u8] = std::slice::from_raw_parts_mut(ptr, head_bytes.len());
-                data_bytes.copy_from_slice(head_bytes);
-                data[i].bytes = data_bytes.as_mut_ptr();
-                i += 1;
+            for item in siv_data.iter_mut().take(length) {
+                let cell = atoms.as_cell()?;
+                let head = cell.head().as_atom()?;
+                let bytes = head.as_bytes();
+
+                let (mut atom, buffer) = IndirectAtom::new_raw_mut_bytes(stack, bytes.len());
+                buffer.copy_from_slice(bytes);
+
+                item.length = bytes.len();
+                item.bytes = atom.data_pointer_mut() as *mut u8;
+
+                atoms = cell.tail();
             }
         }
-    }
 
-    fn _allocate_atoms(atoms: Noun) -> &'static mut [urcrypt_aes_siv_data] {
-        if unsafe { atoms.raw_equals(D(0)) } {
-            return &mut [];
-        }
-
-        let (length, _, size) = _measure_atoms(atoms);
-        let siv_data: &mut [urcrypt_aes_siv_data] = unsafe {
-            let ptr = std::alloc::alloc(std::alloc::Layout::from_size_align(size, 8).unwrap());
-            std::slice::from_raw_parts_mut(ptr as *mut urcrypt_aes_siv_data, length)
-        };
-        _encode_atoms(atoms, siv_data);
-        siv_data
+        Ok(siv_data)
     }
 
     pub fn _siv_en(
@@ -278,8 +197,8 @@ mod util {
         ads: Noun,
         txt: Atom,
         fun: UrcryptSiv,
-    ) -> Noun {
-        let siv_data = _allocate_atoms(ads);
+    ) -> Result {
+        let siv_data = _allocate_atoms(stack, ads)?;
 
         let txt_len = met(3, txt);
         let (_txt_atom, txt_bytes) = match txt_len {
@@ -317,14 +236,14 @@ mod util {
             );
         }
 
-        T(
+        Ok(T(
             stack,
             &[
                 unsafe { iv.normalize_as_atom().as_noun() },
                 D(txt_len as u64),
                 out_atom,
             ],
-        )
+        ))
     }
 
     pub fn _siv_de(
@@ -346,7 +265,7 @@ mod util {
         let (_iv_ida, iv_bytes) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, 16) };
         iv_bytes[0..16].copy_from_slice(&(iv.as_bytes()[0..16]));
 
-        let siv_data = _allocate_atoms(ads);
+        let siv_data = _allocate_atoms(stack, ads)?;
 
         unsafe {
             let (out_atom, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
