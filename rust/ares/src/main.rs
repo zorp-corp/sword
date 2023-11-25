@@ -71,8 +71,6 @@ fn main() -> io::Result<()> {
     let cold = Cold::new(&mut stack);
     let warm = Warm::new();
     let hot = Hot::init(&mut stack);
-    let (cg_formula, cg_trap) =
-        ares::load::load_cg_trap(&mut stack).expect("Failed to load cg trap/formula");
     let mut context = Context {
         stack,
         newt,
@@ -84,9 +82,6 @@ fn main() -> io::Result<()> {
         trace_info: None,
         line: None,
     };
-    let line =
-        interpret(&mut context, cg_trap, cg_formula).expect("Failed to produce codegen core");
-    context.line = Some(line);
     let result =
         interpret(&mut context, input_cell.head(), input_cell.tail()).expect("nock failed");
     if let Ok(atom) = result.as_atom() {
