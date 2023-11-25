@@ -1,7 +1,9 @@
-# Contributing to New Mars
+# Contributing to Ares
+
+Below are guidelines for contributions to Ares. For information on building and hacking on ares, see [DEVELOPERS.md](DEVELOPERS.md).
 
 ## Style
-Hoon should generally follow the kernel style.
+Hoon should generally follow the [Hoon Style Guide](https://docs.urbit.org/language/hoon/guides/style).
 
 Rust code must pass `cargo fmt --check`.
 
@@ -18,4 +20,5 @@ Examples:
 
 ## PR reviews
 Don't merge without them, don't forget to do them for others.
+
 
