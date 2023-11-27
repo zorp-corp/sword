@@ -29,10 +29,12 @@
               "rustfmt"
               "rust-src"
             ])
+            pkgs.autoconf-archive
             pkgs.cargo-watch
             pkgs.iconv
-            pkgs.urcrypt
             pkgs.llvmPackages.clang
+            pkgs.pkg-config
+            pkgs.urcrypt
           ] ++
             (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin") pkgs.gdb); # nixpkgs won't build gdb for darwin
         };
