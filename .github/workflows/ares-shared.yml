@@ -26,34 +26,6 @@ jobs:
         run: |
           nix develop --command bash -c "cargo fmt --check"
 
-      # Install third-party dependencies
-      #
-      - name: Install dependencies
-        run: |
-          # install apt packages
-          sudo apt-get install -y \
-            autoconf-archive      \
-            libcrypto++-dev       \
-            openssl               \
-            cmake                 \
-            libsecp256k1-dev &&
-
-          # install libaes_siv
-          git clone https://github.com/dfoxfranke/libaes_siv.git &&
-          cd libaes_siv &&
-          cmake . &&
-          make &&
-          sudo make install
-
-          # install urcrypt
-          cd .. &&
-          git clone https://github.com/urbit/urcrypt.git &&
-          cd urcrypt &&
-          ./autogen.sh &&
-          ./configure --enable-shared &&
-          make &&
-          sudo make install
-
       # See clippy linter docs: https://github.com/rust-lang/rust-clippy
       #
       # First linter is set to fail for all warnings, then ignored warnings are
