@@ -1,3 +1,4 @@
+!.
 |%
 ::  emits a trap that will produce the Ares codegen core.
 ::
@@ -40,7 +41,7 @@
 ++  mist
   |=  [bon=path txt=@]
   ^-  hoon
-  =+  vas=vast
+  =+  vas=(vang & bon)
   ~|  bon
   %+  scan  (trip txt)
   %-  full

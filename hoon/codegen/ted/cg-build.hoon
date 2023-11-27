@@ -1,5 +1,6 @@
 /-  spider
 /+  make, strand, strandio
+!.
 =,  strand=strand:spider
 ^-  thread:spider
 |=  arg=vase
