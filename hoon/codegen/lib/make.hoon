@@ -4,10 +4,10 @@
 ::  This trap can be built and included in Ares, where it will be run if
 ::  an Ares instance does not have an existing codegen core
 ++  make-codegen-core
-  |=  [sys=path cg=path]
+  |=  cg=path
   ^-  [%cg * (trap vase)]
   =|  sub=(trap vase)
-  =.  sub  (build-sys sys sub %hoon)
+  =.  sub  (build-lib cg sub %hoon)
   ::  this should follow the order of the ford runes in the files
   =.  sub  (build-sur cg sub %sock)
   =.  sub  (build-lib cg sub %soak)
@@ -34,11 +34,6 @@
     %+  mist  /sur/[nam]/hoon
     .^(@t cx+(welp cg /sur/[nam]/hoon))
   (swat sub hun)
-::  build a sys file
-++  build-sys
-  |=  [sys=path sub=(trap vase) nam=term]  ^-  (trap vase)
-  ~>  %slog.[0 leaf+"make: building /sys/{(trip nam)}"]
-  (swat sub (rain /sys/[nam]/hoon .^(@t cx+(welp sys /[nam]/hoon))))
 ::  +mist: +rain but skipping past ford runes
 ::
 ::  copied from urbit lib/pill.hoon as it's not exported from there
