@@ -27,7 +27,6 @@
             pkgs.autoconf-archive
             pkgs.cargo-watch
             pkgs.iconv
-            pkgs.openssl
             pkgs.pkg-config
             pkgs.urcrypt
             pkgs.llvmPackages.clang
