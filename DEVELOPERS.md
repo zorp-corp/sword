@@ -12,6 +12,8 @@ in `rust/` or any subdirectory, and you will be dropped into a BASH shell with t
 
 ## Rust
 
+### Build
+
 To build Ares, start a nix development shell as above. Within the shell, in the `rust/ares` directory, you can run:
 
 ```bash
@@ -21,6 +23,30 @@ cargo build
 to build the Ares executable. This will place the built executable at `target/debug/ares` under the `rust/ares` directory.
 
 Ares is made to run as an urbit "serf", meaning it is intended to be invoked by a "king" which sends it commands and performs side-effects specified by its output. We use the vere king. Special instructions for building the vere king to invoke Ares are forthcoming.
+
+### Test
+
+The command to run the Ares suite of unit tests is:
+
+```bash
+cargo test --verbose -- --test-threads=1
+```
+
+The tests must be run with `-- --test-threads=1` because Rust does not have any way to specify test setup / teardown functions, nor does it have any way to
+specify ordered test dependencies. Therefore, the only way to ensure that tests that share resources don't clobber each other **and** that tests setup / teardown in the right order is to force all unit tests to be single-threaded.
+
+### Style
+
+Ares uses the default Rust formatting and style. The CI jobs are configured to reject any code which produces linter or style warnings. Therefore, as a final step before uploading code changes to GitHub, it's recommended to run the following commands:
+
+```bash
+cargo fmt
+cargo clippy --all-targets --no-deps -- -D warnings -A clippy::missing_safety_doc
+```
+
+This will auto-format your code and check for linter warnings.
+
+### Watch
 
 To watch rust and check for errors, run
 
