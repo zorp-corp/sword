@@ -64,6 +64,7 @@ impl Context {
             scry_stack: D(0),
             trace_info,
             line: None,
+            peek: None,
         };
 
         Context {

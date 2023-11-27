@@ -1,6 +1,7 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
+use crate::codegen::Pile;
 use crate::hamt::Hamt;
 use crate::jets::cold;
 use crate::jets::cold::Cold;
@@ -266,7 +267,8 @@ pub struct Context {
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
-    pub line: Option<Noun>, // codegen core
+    pub line: Option<Noun>,               // codegen core
+    pub peek: Option<(Noun, Hamt<Pile>)>, // product of +peek in line core
 }
 
 #[derive(Clone, Copy, Debug)]
