@@ -656,6 +656,21 @@ impl NockStack {
         self.pc = false;
     }
 
+    /** Run a closure inside a frame, popping regardless of the value returned by the closure.
+     * This is useful for writing fallible computations with the `?` operator.
+     *
+     * Note that results allocated on the stack *must* be `preserve()`d by the closure.
+     */
+    pub unsafe fn with_frame<F, O>(&mut self, num_locals: usize, f: F) -> O
+    where
+        F: FnOnce() -> O,
+    {
+        self.frame_push(num_locals);
+        let ret = f();
+        self.frame_pop();
+        ret
+    }
+
     /** Lightweight stack.
      * The lightweight stack is a stack data structure present in each stack
      * frame, often used for noun traversal. During normal operation (self.pc
