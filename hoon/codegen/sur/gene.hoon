@@ -43,7 +43,7 @@
 +$  next  $>(%next goal)
 ::
 ::    destination
-::  
+::
 ::  codegen destination
 ::
 ::  %pick: result will be used as a loobean for Nock 6
@@ -73,6 +73,7 @@
 ::  %imm - write immediate n to d
 ::  %mov - copy s to d
 ::  %phi - select source based on last %hip, copy to d
+::  %inc - increment s and write to d?
 ::  %con - cons h and t into d
 ::  %cop - poison s if s is an atom
 ::  %lop - poison s if s is not a loobean
@@ -202,10 +203,10 @@
 ::  will: code table for arm                 axis 62
 ::  sans: next SSA register                  axis 63
 +$  pile
-  $:  long=bile  
-      want=need  
-      wish=bile  
-      sire=@uvre 
+  $:  long=bile
+      want=need
+      wish=bile
+      sire=@uvre
       will=(map bile blob)
       sans=@uvre
   ==
