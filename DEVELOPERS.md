@@ -22,7 +22,40 @@ cargo build
 
 to build the Ares executable. This will place the built executable at `target/debug/ares` under the `rust/ares` directory.
 
-Ares is made to run as an urbit "serf", meaning it is intended to be invoked by a "king" which sends it commands and performs side-effects specified by its output. We use the vere king. Special instructions for building the vere king to invoke Ares are forthcoming.
+### Run
+
+Ares is made to run as an urbit "serf", meaning it is intended to be invoked by a "king" which sends it commands and performs side-effects specified by its output. We use the Vere king.
+
+To run the Vere king with Ares as serf, it's necessary to modify the Vere king to launch Ares instead of its own serf. This is done by modifying the executable of the serf protocol in the `u3_lord_init` function in `lord.c` of the Vere source:
+
+```C
+// arg_c[0] = god_u->bin_c;
+arg_c[0] = "/path/to/ares/repo/rust/ares/target/debug/ares";
+```
+
+Then, it is necessary to follow the [Vere build instrcutions](https://github.com/urbit/vere/blob/develop/INSTALL.md). Afterwards, it's possible to launch Vere with Ares as the serf using the usual commands:
+
+```bash
+bazel-bin/pkg/vere/urbit -F zod
+```
+
+#### Pills
+
+Ares development and testing, unlike regular development and ship operation, currently requires careful control over what pill is used to launch a ship. Currently, there are several pills available in `resources/pills/`:
+* baby.pill: an extremely minimal Arvo-shaped core and Hoon standard library (`~wicdev-wisryt` [streamed a
+video of its development](https://youtu.be/fOVhCx1a-9A))
+* toddler.pill: a slightly more complex Arvo and Hoon than `baby`, which runs slow recursive operations for testing jets
+* azimuth.pill: a pill that processes an Azimuth snapshot
+* full.pill: the complete Urbit `v2.11` pill
+* slim.pill: a slimmed down version of the Urbit `v2.11` pill that has had every desk and agent not necessary for booting to dojo removed
+
+More information on the pills used by Ares can be found [here](https://github.com/urbit/ares/blob/status/docs/pills.md).
+
+To launch a ship with a local pill (instead of downloading the default pill from urbit.org), the `-B` option is used:
+
+```bash
+bazel-bin/pkg/vere/urbit -F zod -B /path/to/ares/repo/resources/pills/baby.pill
+```
 
 ### Test
 
