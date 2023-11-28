@@ -1390,8 +1390,10 @@ mod hint {
             }
             tas!(b"hela") => {
                 //  XX: This only prints the trace down to the bottom of THIS
-                //      interpret call. We'll need to recursively work down
-                //      frames to get the stack trace all the way to the root.
+                //      interpret call, making this neither a %nara nor a %hela
+                //      hint, as Vere understands them. We'll need to
+                //      recursively work down frames to get the stack trace all
+                //      the way to the root.
                 let mean = unsafe { *(context.stack.local_noun_pointer(0)) };
                 let tone = Cell::new(&mut context.stack, D(2), mean);
 
@@ -1401,6 +1403,9 @@ mod hint {
                         let newt = &mut context.newt;
 
                         if unsafe { !toon.head().raw_equals(D(2)) } {
+                            // +mook will only ever return a $toon with non-%2 head if that's what it was given as
+                            // input. Since we control the input for this call exactly, there must exist a programming
+                            // error in Ares if this occurs.
                             panic!("serf: %hela: mook returned invalid tone");
                         }
 
@@ -1422,9 +1427,9 @@ mod hint {
                         }
                     }
                     Err(_) => {
-                        let stack = &mut context.stack;
-                        let tape = tape(stack, "serf: %hela: mook error");
-                        slog_leaf(stack, &mut context.newt, tape);
+                        // +mook should only ever bail if the input is not [%2 (list)]. Since we control the input
+                        // for this call exactly, there must exist a programming error in Ares if this occurs.
+                        panic!("serf: unrecoverable stack trace error");
                     }
                 }
             }
