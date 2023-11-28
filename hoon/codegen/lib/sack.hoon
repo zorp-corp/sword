@@ -1,4 +1,3 @@
-~%  %sack.1  +15  ~
 ::    finished code table
 ::
 ::  entries describe input and output knowledge
@@ -14,6 +13,40 @@
 ::
 ::    core reference
 ++  thus  .
+::
+::  trace a label, building up a set of labels it depends on
+++  keep
+  |=  [live=(set [sock *]) seed=[sock *]]
+  =/  work=(list [=sock f=*])  ~[seed]
+  =|  krow=(list [=sock f=*])
+  |-  ^-  _live
+  ?~  work
+    ?~  krow  live
+    $(work (flop krow), krow ~)
+  ?:  (~(has in live) i.work)  $(work t.work)
+  =/  hose  (~(get ja moan) f.i.work)
+  |-  ^-  _live
+  ?~  hose  ~|  %keep-wiff  !!
+  ?.  (~(huge so soot.i.hose) sock.i.work)  $(hose t.hose)
+  =/  next  ~(val by ices.norm.i.hose)
+  ^$(live (~(put in live) i.work), krow (weld next krow), work t.work)
+::
+::  drop labels not in the given live set
+::
+::  To build the live set, repeatedly invoke +keep, threading through
+::  the live set, and passing labels which will still be needed. This
+::  will ensure that transitive dependencies remain in +moan.
+++  drop
+  |=  live=(set [sock *])
+  =|  noam=(jar * hone)
+  =/  moal=(list [* (list hone)])  ~(tap by moan)
+  |-  ^-  _thus
+  ?~  moal  thus(moan noam)
+  |-  ^-  _thus
+  ?~  +.i.moal  ^$(moal t.moal)
+  =/  bell  [soot.i.+.i.moal -.i.moal]
+  ?.  (~(has in live) bell)  $(+.i.moal t.+.i.moal)
+  $(+.i.moal t.+.i.moal, noam (~(add ja noam) -.i.moal i.+.i.moal))
 ::
 ::    outer work loop
 ::

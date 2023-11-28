@@ -1,4 +1,3 @@
-~%  %gene.1  +3  ~
 |%
 ::
 ::    hot state
@@ -13,12 +12,11 @@
 ::
 ::   pokes
 ::
-::  the codegen core can be updated either by asking it to analyze new
-::  code or by updating the jet hot state
-+$  gist
-  $%  [%comp slow=path s=* f=*]
-      [%heat =heat]
-  ==
+::  the codegen core can be updated by asking it to analyze new code
++$  gist  [%comp slow=path s=* f=*]
+  
+::  slow hint tree
++$  shed  $~  [~ ~]  [root=(unit bell) kids=(map @tas shed)]
 ::
 ::    external label
 ::

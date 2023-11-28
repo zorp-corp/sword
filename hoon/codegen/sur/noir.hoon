@@ -1,4 +1,3 @@
-~%  %noir.1  +3  ~
 |%
 ::    in-progress call table entry
 ::

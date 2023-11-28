@@ -2,16 +2,56 @@
 =*  moan  moan.sack
 =*  cole  cole.sack
 =|  =hill
-=|  hots=(map [path @] [j=@jet =need])
+=|  rots=shed
 =>
-~%  %line.1  +15  ~
 |%
+::
+::   lifecycle management
+::
+::  update the slow set (rots)
+++  drub
+  |=  [slow=path =bell]
+  =|  zip=(list [=shed key=@tas])
+  =/  roof  rots
+  =.  slow  (flop slow)
+  ::  find and construct new entry
+  |-  ^-  _rots
+  ?^  slow
+    =/  woof  (~(gut by kids.roof) i.slow *shed)
+    $(slow t.slow, zip [[roof i.slow] zip], roof woof)
+  =.  roof  [`bell ~]
+  |-  ^-  _rots
+  ?^  zip
+    =.  roof  [root.shed.i.zip (~(put by kids.shed.i.zip) key.i.zip roof)]
+    $(zip t.zip)
+  roof
+::    sack-level GC
+::
+::  mark every label in rots, and their transitive callees, then sweep
+++  burn
+  =|  live=(set bell)
+  =/  hell=(list shed)  ~[rots]
+  =|  nell=(list shed)
+  |-  ^-  _sack
+  ?~  hell
+    ?~  nell  (drop:sack live)
+    $(hell (flop nell), nell ~)
+  ?~  root.i.hell
+    $(hell t.hell, nell (weld ~(val by kids.i.hell) nell))
+  $(live (keep:sack live u.root.i.hell), hell t.hell, nell (weld ~(val by kids.i.hell) nell))
+::    line-level GC
+::
+::  check for labels in hill no longer in moan, and delete them
+++  wipe
+  =/  deal  ~(tap in dead)
+  |-  ^-  _hill
+  ?~  deal  hill
+  $(hill (~(del by hill) i.deal), deal t.deal)
 ::   work
 ::
 ::  new: set of bells in moan, not in hill (require codegen)
 ::  old: set of bells in hill, not in moan (should be dropped from hill)
 ++  peck
-  ^-  [new=(set bell) old=(set bell)]
   =|  miel=(list bell)
   =/  foam  ~(tap by moan)
   |-  ^-  [new=(set bell) old=(set bell)]
@@ -22,6 +62,16 @@
   =/  jell  ~(key by hill)
   =/  mell  (~(gas in *(set bell)) miel)
   [(~(dif in mell) jell) (~(dif in jell) mell)] :: want mif-in
+::
+::  new bells
+++  noob
+  ^-  (set bell)
+  new:peck
+::
+::  bells to drop
+++  dead
+  ^-  (set bell)
+  old:peck
 ::   
 ::   look up analysis
 ::
@@ -41,7 +91,7 @@
 ::  calls) first
 ++  work
   ^-  (list bell)
-  =+  peck
+  =/  new  noob
   =/  wurk  ~(tap in new)
   =|  nose=(set bell)
   =|  kids=(jug bell bell)
@@ -1111,7 +1161,6 @@
   hill
 --
 ::    codegen interface
-~%  %runt.1  +3  ~
 |%
 ::  
 ::    core reference
@@ -1127,33 +1176,37 @@
   ^-  (unit [=bell hall=_hill])
   =/  moat  (~(get ja moan) f)
   |-
-  ?^  moat
-    ?:  (~(huge so:sack soot.i.moat) [& s])
-      ?:  (~(has by hill) [soot.i.moat f])
-        `[[soot.i.moat f] hill]
-      ~
+  ?~  moat  ~
+  ?.  (~(huge so:sack soot.i.moat) [& s])
     $(moat t.moat)
-  ~
+  ?.  (~(has by hill) [soot.i.moat f])
+    ~
+  `[[soot.i.moat f] hill]
 ::
 ::    core state interface
 ::  [%comp ...]: generate code for given subject/formula pair
-::  [%heat ...]: update hot state
 ++  poke
   |=  =gist
-  ^-  _this
-  ?-  -.gist
-      %heat
-    =/  nots  (~(gas by *(map [path @] [jet=@jet =need])) (turn heat.gist |=([p=path a=@ j=@jet =need] [[p a] j need])))
-    ?:  =(hots nots)  this
-    =.  hill  ~
-    =.  hots  nots
-    =.  hill  mill
-    this
-      %comp
-    =.  sack  (rout:sack [& s.gist] f.gist)
-    =.  hill  mill
-    this
-  ==
+  ^-  [new=(set bell) old=(set bell) =_this]
+  ::  %comp is the only case
+  ::  analyze
+  =.  sack  (rout:sack [& s.gist] f.gist)
+  ::  save old codegen table keys
+  =/  hole  ~(key by hill)
+  ::  codegen
+  =.  hill  mill
+  ::  get entry label for new codegen
+  =/  bell  
+    =/  peep  (peek [s f]:gist)
+    ?>  ?=(^ peep)
+    bell.u.peep
+  ::  update slow table and drop old bells from moan
+  =.  rots  (drub slow.gist bell)
+  =.  sack  burn
+  ::  drop old bells from hill
+  =.  hill  wipe
+  =/  heck  ~(key by hill) 
+  [(~(dif by heck) hole) (~(dif by hole) heck) this]
 ::
 ::   run nock
 ::
@@ -1162,12 +1215,11 @@
 ::  entry point for Ares codegen
 ++  wink
   =*  thus  .
-  ~/  %wink
-  |=  [p=$-(^ (unit (unit))) s=* f=*]
+  |=  [h=heat j=(map @ $-(* (unit))) p=$-(^ (unit (unit))) s=* f=*]
   =*  wink  .
   ^-  [tone _this]
   =/  hull  (peek s f)
-  =?  thus  ?=(~ hull)  (poke %comp ~ s f)
+  =?  thus  ?=(~ hull)  this:(poke %comp ~ s f)
   =?  hull  ?=(~ hull)  (peek s f)
   ?>  ?=(^ hull)
   =/  bell  bell.u.hull
@@ -1338,7 +1390,7 @@
       =/  s  (r u.x)
       =/  f  (r f.x)
       =/  hull  (peek s f)
-      =?  thus  ?=(~ hull)  (poke %comp ~ s f)
+      =?  thus  ?=(~ hull)  this:(poke %comp ~ s f)
       =?  hull  ?=(~ hull)  (peek s f)
       ?>  ?=(^ hull)
       =.  hill  hall.u.hull
@@ -1377,7 +1429,7 @@
       =/  s  (r u.x)
       =/  f  (r f.x)
       =/  hull  (peek s f)
-      =?  thus  ?=(~ hull)  (poke %comp ~ s f)
+      =?  thus  ?=(~ hull)  this:(poke %comp ~ s f)
       =?  hull  ?=(~ hull)  (peek s f)
       ?>  ?=(^ hull)
       =.  hill  hall.u.hull
