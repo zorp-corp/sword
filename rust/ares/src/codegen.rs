@@ -1,10 +1,12 @@
 use std::ptr::copy_nonoverlapping;
 
+use ares_macros::tas;
+
 use crate::hamt::Hamt;
 use crate::interpreter::{Context, Error};
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
-use crate::noun::{Noun, D};
+use crate::noun::{Noun, D, T};
 use std::result::Result;
 
 #[derive(Copy, Clone)]
@@ -74,7 +76,6 @@ pub fn cg_interpret(
         context.peek = Some(util::part_peek(&mut context.stack, pek)?);
     }
 
-    // loop: pull the hill, pull the pile, pull the blob with a body=(list pole) and a bend=site
     let mut bell = context.peek.unwrap().0;
     let mut hill = context.peek.unwrap().1;
     let mut pile = unsafe {
@@ -83,14 +84,74 @@ pub fn cg_interpret(
             .ok_or(Error::Deterministic(D(0)))?
             .0)
     };
-    // first call is always indirect
-    let mut blob = pile.will.lookup(&mut context.stack, &mut pile.wish);
-    // load subject into register given by pile.sire
-    // keep looking at body until it's empty, then look at site
+
+    // entry logic
+    context.stack.frame_push(pile.sans); // eventually + mean stack + slow stack
+    let frame_ptr = context.stack.get_frame_pointer();
+    // when i do a return (%don), dispatch on whether the frame_ptr is the same
+    set_register(&mut context.stack, pile.sire, subject);
+    let blob = pile.will.lookup(&mut context.stack, &mut pile.wish).ok_or(Error::Deterministic(D(0)))?; // XX what do on error?
+    let mut body = slot(blob, 2)?; // (list pole) XX cleanup stack
+    let mut bend = slot(blob, 3)?; // site        XX cleanup stack
+
+    loop {
+        if !unsafe { body.raw_equals(D(0)) } {
+            let pole = slot(body, 2)?;
+            body = slot(body, 3)?;
+            match slot(pole, 2)?.as_direct()?.data() {
+                tas!(b"imm") => {
+                    let local = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let value = slot(pole, 6)?;
+                    set_register(&mut context.stack, local, value);
+                },
+                tas!(b"mov") => {
+                    let src = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let dst = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let value = get_register(&mut context.stack, src);
+                    set_register(&mut context.stack, dst, value);
+                },
+                tas!(b"inc") => {},
+                tas!(b"con") => {
+                    let h = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let t = slot(pole, 14)?.as_direct()?.data() as usize;
+                    let d = slot(pole, 15)?.as_direct()?.data() as usize;
+                    let h_value = get_register(&mut context.stack, h);
+                    let t_value = get_register(&mut context.stack, t);
+                    let value = T(&mut context.stack, &[h_value, t_value]);
+                    set_register(&mut context.stack, d, value);
+                },
+                tas!(b"cop") => {},
+                tas!(b"lop") => {},
+                tas!(b"coc") => {},
+                tas!(b"slg") => {
+                    let s = slot(pole, 3)?.as_direct()?.data() as usize;
+                    let clue = get_register(&mut context.stack, s);
+                    if let Ok(slog_cell) = clue.as_cell() {
+                        if let Ok(pri_direct) = slog_cell.head().as_direct() {
+                            let tank = slog_cell.tail();
+                            context.newt.slog(&mut context.stack, pri_direct.data(), tank);
+                        };
+                    };
+                },
+                _ => {
+                    panic!("invalid codegen instruction")
+                }
+            }
+        }
+    }
     // when i hit %hop, load a new body from the will hamt to get a new blob which is
     // then split into [body bend], then keep going around the loop
     // only indirect calls are %lnk and %lnt
-    Ok(D(0))
+}
+
+fn set_register(stack: &mut NockStack, local: usize, value: Noun) {
+    unsafe {
+        *(stack.local_noun_pointer(local)) = value;
+    }
+}
+
+fn get_register(stack: &mut NockStack, local: usize) -> Noun {
+    unsafe { *(stack.local_noun_pointer(local)) }
 }
 
 pub mod util {

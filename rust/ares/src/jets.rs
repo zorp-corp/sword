@@ -305,6 +305,7 @@ pub mod util {
                 scry_stack: D(0),
                 trace_info: None,
                 line: None,
+                peek: None,
             }
         }
 
