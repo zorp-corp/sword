@@ -661,7 +661,7 @@ impl private::RawSlots for Cell {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         let mut noun: Noun = self.as_noun();
         // Panic because all of the logic to guard against this is in Noun::RawSlots, Noun::Slots
-        let mut cursor = axis.last_one().expect("raw_slow somehow by-passed 0 check");
+        let mut cursor = axis.last_one().expect("raw_slot somehow by-passed 0 check");
 
         while cursor != 0 {
             cursor -= 1;
@@ -1261,7 +1261,10 @@ pub trait Slots: private::RawSlots {
      * Retrieve component Noun at axis given as Atom, or fail with descriptive error
      */
     fn slot_atom(&self, atom: Atom) -> Result<Noun> {
-        self.raw_slot(atom.as_bitslice())
+        match atom.as_either() {
+            Left(direct) => self.slot(direct.data()),
+            Right(indirect) => self.raw_slot(indirect.as_bitslice()),
+        }
     }
 }
 
