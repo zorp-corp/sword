@@ -5,6 +5,6 @@
 |=  [[now=@da eny=@uvJ bec=beak] *]
 :-  %jam
 =/  cg=path
-  /(scot %p p.bec)/q.bec/(scot %da now)
+  /(scot %p p.bec)/[q.bec]/(scot %da now)
 ~&  "cg desk path: {<cg>}"
 (make-codegen-core:make cg)
