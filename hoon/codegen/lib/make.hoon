@@ -41,7 +41,7 @@
 ++  mist
   |=  [bon=path txt=@]
   ^-  hoon
-  =+  vas=(vang & bon)
+  =+  vas=(vang [& |] bon)
   ~|  bon
   %+  scan  (trip txt)
   %-  full
