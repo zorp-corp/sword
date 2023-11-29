@@ -233,6 +233,7 @@ static_assert(BT_DAT_MAXBYTES % sizeof(BT_dat) == 0);
 #define BLK_BASE_LEN7 (BLK_BASE_LEN6 * 4)
 typedef struct BT_meta BT_meta;
 struct BT_meta {
+#define BT_NUMROOTS 32
   uint32_t  magic;
   uint32_t  version;
   pgno_t    last_pg;            /* last page used in file */
@@ -252,13 +253,9 @@ struct BT_meta {
   uint8_t  flags;
   uint8_t  _pad1;
   pgno_t   root;
-  /* ;;: confirm: shouldn't the checksum actually follow the roots array? */
+  /* 64bit alignment manually checked - 72 bytes total above */
+  uint64_t roots[BT_NUMROOTS];  /* for usage by ares */
   uint32_t chk;                 /* checksum */
-  /* 64bit alignment manually checked */
-  uint64_t roots[];             /* for usage by ares */
-
-  /* ;;: TODO: ensure the crc_32 checksum cannot be zero */
-
 } __packed;
 static_assert(sizeof(BT_meta) <= BT_DAT_MAXBYTES);
 
