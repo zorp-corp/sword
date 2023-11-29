@@ -1,14 +1,16 @@
-use std::ptr::copy_nonoverlapping;
-
 use ares_macros::tas;
 use either::Either::{Left, Right};
+use std::ptr::copy_nonoverlapping;
+use std::result::Result;
 
 use crate::hamt::Hamt;
 use crate::interpreter::{Context, Error};
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, T};
-use std::result::Result;
+
+static MEAN_SZ: usize = 1;
+static SLOW_SZ: usize = 1;
 
 #[derive(Copy, Clone)]
 pub struct PileMem {
@@ -85,11 +87,13 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
             .0)
     };
 
-    // entry logic
-    context.stack.frame_push(pile.sans); // eventually + mean stack + slow stack
-    let frame_ptr = context.stack.get_frame_pointer(); // XX name "start_frame"?
-                                                       // XX when returning via a %don, dispatch on whether current_frame = frame_ptr
-    set_register(&mut context.stack, pile.sire, subject);
+    let pois_sz = (pile.sans / 64) + 1; // # of 64-bit words needed for poison bitmap
+    context
+        .stack
+        .frame_push(MEAN_SZ + SLOW_SZ + pois_sz + pile.sans);
+    // XX when returning via a %don, dispatch on whether current_frame = frame_ptr
+    let _frame_ptr = context.stack.get_frame_pointer(); // XX name "start_frame"?
+    set_register(&mut context.stack, pois_sz, pile.sire, subject);
     let mut blob = pile
         .will
         .lookup(&mut context.stack, &mut pile.wish)
@@ -105,23 +109,23 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"imm") => {
                     let local = slot(pole, 7)?.as_direct()?.data() as usize;
                     let value = slot(pole, 6)?;
-                    set_register(&mut context.stack, local, value);
+                    set_register(&mut context.stack, pois_sz, local, value);
                 }
                 tas!(b"mov") => {
                     let src = slot(pole, 6)?.as_direct()?.data() as usize;
                     let dst = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let value = get_register(&mut context.stack, src);
-                    set_register(&mut context.stack, dst, value);
+                    let value = get_register(&mut context.stack, pois_sz, src);
+                    set_register(&mut context.stack, pois_sz, dst, value);
                 }
                 tas!(b"inc") => {}
                 tas!(b"con") => {
                     let h = slot(pole, 6)?.as_direct()?.data() as usize;
                     let t = slot(pole, 14)?.as_direct()?.data() as usize;
                     let d = slot(pole, 15)?.as_direct()?.data() as usize;
-                    let h_value = get_register(&mut context.stack, h);
-                    let t_value = get_register(&mut context.stack, t);
+                    let h_value = get_register(&mut context.stack, pois_sz, h);
+                    let t_value = get_register(&mut context.stack, pois_sz, t);
                     let value = T(&mut context.stack, &[h_value, t_value]);
-                    set_register(&mut context.stack, d, value);
+                    set_register(&mut context.stack, pois_sz, d, value);
                 }
                 tas!(b"cop") => {}
                 tas!(b"lop") => {}
@@ -129,52 +133,52 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"hed") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = get_register(&mut context.stack, s);
+                    let s_value = get_register(&mut context.stack, pois_sz, s);
                     match s_value.as_either_atom_cell() {
                         Left(atom) => {
-                            // XX poison s
+                            set_poison(&mut context.stack, s);
                         }
                         Right(cell) => {
-                            set_register(&mut context.stack, d, cell.head());
+                            set_register(&mut context.stack, pois_sz, d, cell.head());
                         }
                     };
                 }
                 tas!(b"tal") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = get_register(&mut context.stack, s);
+                    let s_value = get_register(&mut context.stack, pois_sz, s);
                     match s_value.as_either_atom_cell() {
-                        Left(atom) => {
-                            // XX poison s
+                        Left(_atom) => {
+                            set_poison(&mut context.stack, s);
                         }
                         Right(cell) => {
-                            set_register(&mut context.stack, d, cell.tail());
+                            set_register(&mut context.stack, pois_sz, d, cell.tail());
                         }
                     };
                 }
                 tas!(b"hci") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = get_register(&mut context.stack, s);
+                    let s_value = get_register(&mut context.stack, pois_sz, s);
                     match s_value.as_either_atom_cell() {
-                        Left(atom) => {
+                        Left(_atom) => {
                             // XX crash
                         }
                         Right(cell) => {
-                            set_register(&mut context.stack, d, cell.head());
+                            set_register(&mut context.stack, pois_sz, d, cell.head());
                         }
                     };
                 }
                 tas!(b"tci") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = get_register(&mut context.stack, s);
+                    let s_value = get_register(&mut context.stack, pois_sz, s);
                     match s_value.as_either_atom_cell() {
-                        Left(atom) => {
+                        Left(_atom) => {
                             // XX crash
                         }
                         Right(cell) => {
-                            set_register(&mut context.stack, d, cell.tail());
+                            set_register(&mut context.stack, pois_sz, d, cell.tail());
                         }
                     };
                 }
@@ -186,12 +190,12 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"hit") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
-                    let s_value = get_register(&mut context.stack, s);
+                    let _s_value = get_register(&mut context.stack, pois_sz, s);
                     // XX increment a profiling hit counter labeled with the noun in s
                 }
                 tas!(b"slg") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
-                    let clue = get_register(&mut context.stack, s);
+                    let clue = get_register(&mut context.stack, pois_sz, s);
                     if let Ok(slog_cell) = clue.as_cell() {
                         if let Ok(pri_direct) = slog_cell.head().as_direct() {
                             let tank = slog_cell.tail();
@@ -203,11 +207,11 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"mew") => {
                     let k = slot(pole, 6)?.as_direct()?.data() as usize;
-                    let u = slot(pole, 14)?.as_direct()?.data() as usize;
-                    let f = slot(pole, 30)?.as_direct()?.data() as usize;
-                    let r = slot(pole, 31)?.as_direct()?.data() as usize;
-                    let k_value = get_register(&mut context.stack, k);
-                    // XX
+                    let _u = slot(pole, 14)?.as_direct()?.data() as usize;
+                    let _f = slot(pole, 30)?.as_direct()?.data() as usize;
+                    let _r = slot(pole, 31)?.as_direct()?.data() as usize;
+                    let _k_value = get_register(&mut context.stack, pois_sz, k);
+                    // XX write r to the memo cache at the triple [k u f]
                 }
                 tas!(b"tim") => {
                     // XX push a timer onto the stack and start it
@@ -221,21 +225,26 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"pol") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    // XX poison d if s is poisoned
+                    if get_poison(&mut context.stack, s) {
+                        set_poison(&mut context.stack, d);
+                    }
                 }
                 tas!(b"poi") => {
                     let d = slot(pole, 3)?.as_direct()?.data() as usize;
-                    // XX poison d
+                    set_poison(&mut context.stack, d);
                 }
                 tas!(b"ipb") => {
-                    let s = slot(pole, 3)?.as_cell()?;
-                    let poison = false;
-                    let i = s.head();
+                    let mut s = slot(pole, 3)?;
                     loop {
-                        if poison || unsafe { i.raw_equals(D(0)) } {
-                            // XX crash
+                        if unsafe { s.raw_equals(D(0)) } {
+                            break;
+                        } else {
+                            let i = s.as_cell()?.head().as_direct()?.data() as usize;
+                            if get_poison(&mut context.stack, i) {
+                                // XX crash
+                            }
+                            s = s.as_cell()?.tail();
                         }
-                        // XX check if i is poisoned and set poison to true if so
                     }
                 }
                 _ => {
@@ -246,7 +255,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
             match slot(bend, 2)?.as_direct()?.data() {
                 tas!(b"clq") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                    let s_value = get_register(&mut context.stack, s);
+                    let s_value = get_register(&mut context.stack, pois_sz, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
                             let mut o = slot(bend, 15)?;
@@ -273,8 +282,8 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"eqq") => {
                     let l = slot(bend, 6)?.as_direct()?.data() as usize;
                     let r = slot(bend, 14)?.as_direct()?.data() as usize;
-                    let l_value = get_register(&mut context.stack, l);
-                    let r_value = get_register(&mut context.stack, r);
+                    let l_value = get_register(&mut context.stack, pois_sz, l);
+                    let r_value = get_register(&mut context.stack, pois_sz, r);
                     if unsafe { l_value.raw_equals(r_value) } {
                         let mut z = slot(bend, 30)?;
                         blob = pile
@@ -297,7 +306,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"brn") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                    let s_value = get_register(&mut context.stack, s);
+                    let s_value = get_register(&mut context.stack, pois_sz, s);
                     if unsafe { s_value.raw_equals(D(0)) } {
                         let mut z = slot(bend, 14)?;
                         blob = pile
@@ -341,14 +350,32 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
     // only indirect calls are %lnk and %lnt
 }
 
-fn set_register(stack: &mut NockStack, local: usize, value: Noun) {
+fn set_register(stack: &mut NockStack, poison_size: usize, local: usize, value: Noun) {
     unsafe {
-        *(stack.local_noun_pointer(local)) = value;
+        *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + poison_size + local)) = value;
     }
 }
 
-fn get_register(stack: &mut NockStack, local: usize) -> Noun {
-    unsafe { *(stack.local_noun_pointer(local)) }
+fn get_register(stack: &mut NockStack, poison_size: usize, local: usize) -> Noun {
+    unsafe { *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + poison_size + local)) }
+}
+
+fn set_poison(stack: &mut NockStack, local: usize) {
+    unsafe {
+        let index = local / 64;
+        let offset = local % 64;
+        let mut _bitmap = *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + index) as *mut u64);
+        _bitmap |= 1 << offset;
+    }
+}
+
+fn get_poison(stack: &mut NockStack, local: usize) -> bool {
+    unsafe {
+        let index = local / 64;
+        let offset = local % 64;
+        let bitmap = *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + index) as *mut u64);
+        bitmap & (1 << offset) != 0
+    }
 }
 
 pub mod util {
