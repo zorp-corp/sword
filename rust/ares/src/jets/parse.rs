@@ -291,7 +291,7 @@ pub fn jet_last(context: &mut Context, subject: Noun) -> Result {
 pub fn jet_mask(context: &mut Context, subject: Noun) -> Result {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
-    let bud = &mut slot(van, 6)?;
+    let mut bud = slot(van, 6)?;
 
     let p_tub = tub.as_cell()?.head();
     let q_tub = tub.as_cell()?.tail();
@@ -305,7 +305,7 @@ pub fn jet_mask(context: &mut Context, subject: Noun) -> Result {
             if unsafe { bud.as_cell()?.head().raw_equals(iq_tub) } {
                 return util::next(context, tub);
             }
-            let bud = &mut bud.as_cell()?.tail();
+            bud = bud.as_cell()?.tail();
         }
         return util::fail(context, tub);
     }
