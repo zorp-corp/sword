@@ -81,6 +81,7 @@ fn main() -> io::Result<()> {
         scry_stack: D(0),
         trace_info: None,
         line: None,
+        peek: None,
     };
     let result =
         interpret(&mut context, input_cell.head(), input_cell.tail()).expect("nock failed");

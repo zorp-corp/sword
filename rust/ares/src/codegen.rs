@@ -1,6 +1,7 @@
 use std::ptr::copy_nonoverlapping;
 
 use ares_macros::tas;
+use either::Either::{Left, Right};
 
 use crate::hamt::Hamt;
 use crate::interpreter::{Context, Error};
@@ -24,10 +25,11 @@ pub struct Pile(*const PileMem);
 impl Preserve for Pile {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if stack.is_in_frame(self.0) {
-            (*(self.0)).long.preserve(stack);
-            (*(self.0)).want.preserve(stack);
-            (*(self.0)).wish.preserve(stack);
-            (*(self.0)).will.preserve(stack);
+            let mut pile_mem = *(self.0);
+            pile_mem.long.preserve(stack);
+            pile_mem.want.preserve(stack);
+            pile_mem.wish.preserve(stack);
+            pile_mem.will.preserve(stack);
             let dest_mem: *mut PileMem = stack.struct_alloc_in_previous_frame(1);
             copy_nonoverlapping(self.0, dest_mem, 1);
         }
@@ -59,17 +61,15 @@ impl Pile {
     }
 }
 
-pub fn cg_interpret(
-    context: &mut Context,
-    mut subject: Noun,
-    formula: Noun,
-) -> Result<Noun, Error> {
+pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
     // +peek returns (unit [=bell hall=_hill])
     // TODO: turn this into a helper to get or generate the codegen
     let mut line = context.line.ok_or(Error::Deterministic(D(0)))?;
     let pek = util::peek(context, subject, formula)?;
     if unsafe { pek.raw_equals(D(0)) } {
-        line = util::poke(context, util::comp(context, subject, formula)).expect("poke failed");
+        let comp = util::comp(context, subject, formula);
+        line = util::poke(context, comp).expect("poke failed");
+        context.line = Some(line);
         let good_peek = util::peek(context, subject, formula)?;
         context.peek = Some(util::part_peek(&mut context.stack, good_peek)?);
     } else {
@@ -77,7 +77,7 @@ pub fn cg_interpret(
     }
 
     let mut bell = context.peek.unwrap().0;
-    let mut hill = context.peek.unwrap().1;
+    let hill = context.peek.unwrap().1;
     let mut pile = unsafe {
         *(hill
             .lookup(&mut context.stack, &mut bell)
@@ -87,10 +87,13 @@ pub fn cg_interpret(
 
     // entry logic
     context.stack.frame_push(pile.sans); // eventually + mean stack + slow stack
-    let frame_ptr = context.stack.get_frame_pointer();
-    // when i do a return (%don), dispatch on whether the frame_ptr is the same
+    let frame_ptr = context.stack.get_frame_pointer(); // XX name "start_frame"?
+                                                       // XX when returning via a %don, dispatch on whether current_frame = frame_ptr
     set_register(&mut context.stack, pile.sire, subject);
-    let blob = pile.will.lookup(&mut context.stack, &mut pile.wish).ok_or(Error::Deterministic(D(0)))?; // XX what do on error?
+    let mut blob = pile
+        .will
+        .lookup(&mut context.stack, &mut pile.wish)
+        .ok_or(Error::Deterministic(D(0)))?; //   XX what do on error?
     let mut body = slot(blob, 2)?; // (list pole) XX cleanup stack
     let mut bend = slot(blob, 3)?; // site        XX cleanup stack
 
@@ -103,14 +106,14 @@ pub fn cg_interpret(
                     let local = slot(pole, 7)?.as_direct()?.data() as usize;
                     let value = slot(pole, 6)?;
                     set_register(&mut context.stack, local, value);
-                },
+                }
                 tas!(b"mov") => {
                     let src = slot(pole, 6)?.as_direct()?.data() as usize;
                     let dst = slot(pole, 7)?.as_direct()?.data() as usize;
                     let value = get_register(&mut context.stack, src);
                     set_register(&mut context.stack, dst, value);
-                },
-                tas!(b"inc") => {},
+                }
+                tas!(b"inc") => {}
                 tas!(b"con") => {
                     let h = slot(pole, 6)?.as_direct()?.data() as usize;
                     let t = slot(pole, 14)?.as_direct()?.data() as usize;
@@ -119,10 +122,10 @@ pub fn cg_interpret(
                     let t_value = get_register(&mut context.stack, t);
                     let value = T(&mut context.stack, &[h_value, t_value]);
                     set_register(&mut context.stack, d, value);
-                },
-                tas!(b"cop") => {},
-                tas!(b"lop") => {},
-                tas!(b"coc") => {},
+                }
+                tas!(b"cop") => {}
+                tas!(b"lop") => {}
+                tas!(b"coc") => {}
                 tas!(b"hed") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
@@ -130,12 +133,12 @@ pub fn cg_interpret(
                     match s_value.as_either_atom_cell() {
                         Left(atom) => {
                             // XX poison s
-                        },
+                        }
                         Right(cell) => {
                             set_register(&mut context.stack, d, cell.head());
                         }
                     };
-                },
+                }
                 tas!(b"tal") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
@@ -143,12 +146,12 @@ pub fn cg_interpret(
                     match s_value.as_either_atom_cell() {
                         Left(atom) => {
                             // XX poison s
-                        },
+                        }
                         Right(cell) => {
                             set_register(&mut context.stack, d, cell.tail());
                         }
                     };
-                },
+                }
                 tas!(b"hci") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
@@ -156,12 +159,12 @@ pub fn cg_interpret(
                     match s_value.as_either_atom_cell() {
                         Left(atom) => {
                             // XX crash
-                        },
+                        }
                         Right(cell) => {
                             set_register(&mut context.stack, d, cell.head());
                         }
                     };
-                },
+                }
                 tas!(b"tci") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
@@ -169,33 +172,35 @@ pub fn cg_interpret(
                     match s_value.as_either_atom_cell() {
                         Left(atom) => {
                             // XX crash
-                        },
+                        }
                         Right(cell) => {
                             set_register(&mut context.stack, d, cell.tail());
                         }
                     };
-                },
+                }
                 tas!(b"men") => {
                     // XX push s onto the mean stack
-                },
+                }
                 tas!(b"man") => {
                     // XX pop the mean stack
-                },
+                }
                 tas!(b"hit") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
                     let s_value = get_register(&mut context.stack, s);
                     // XX increment a profiling hit counter labeled with the noun in s
-                },
+                }
                 tas!(b"slg") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
                     let clue = get_register(&mut context.stack, s);
                     if let Ok(slog_cell) = clue.as_cell() {
                         if let Ok(pri_direct) = slog_cell.head().as_direct() {
                             let tank = slog_cell.tail();
-                            context.newt.slog(&mut context.stack, pri_direct.data(), tank);
+                            context
+                                .newt
+                                .slog(&mut context.stack, pri_direct.data(), tank);
                         };
                     };
-                },
+                }
                 tas!(b"mew") => {
                     let k = slot(pole, 6)?.as_direct()?.data() as usize;
                     let u = slot(pole, 14)?.as_direct()?.data() as usize;
@@ -203,25 +208,25 @@ pub fn cg_interpret(
                     let r = slot(pole, 31)?.as_direct()?.data() as usize;
                     let k_value = get_register(&mut context.stack, k);
                     // XX
-                },
+                }
                 tas!(b"tim") => {
                     // XX push a timer onto the stack and start it
-                },
+                }
                 tas!(b"tom") => {
                     // XX pop a timer from the stack, stop it, and print elapsed
-                },
+                }
                 tas!(b"mem") => {
                     // XX print memory usage
-                },
+                }
                 tas!(b"pol") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
                     // XX poison d if s is poisoned
-                },
+                }
                 tas!(b"poi") => {
                     let d = slot(pole, 3)?.as_direct()?.data() as usize;
                     // XX poison d
-                },
+                }
                 tas!(b"ipb") => {
                     let s = slot(pole, 3)?.as_cell()?;
                     let poison = false;
@@ -237,75 +242,97 @@ pub fn cg_interpret(
                     panic!("invalid pole instruction")
                 }
             }
-        }
-        match slot(bend, 2)?.as_direct().data() {
-            tas!(b"clq") => {
-                let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                let s_value = get_register(&mut context.stack, s);
-                match s_value.as_either_atom_cell() {
-                    Left(atom) => {
-                        let o = slot(bend, 15)?;
-                        blob = pile.will.lookup(&mut context.stack, &mut o).ok_or(Error::Deterministic(D(0)))?;
+        } else {
+            match slot(bend, 2)?.as_direct()?.data() {
+                tas!(b"clq") => {
+                    let s = slot(bend, 6)?.as_direct()?.data() as usize;
+                    let s_value = get_register(&mut context.stack, s);
+                    match s_value.as_either_atom_cell() {
+                        Left(_atom) => {
+                            let mut o = slot(bend, 15)?;
+                            blob = pile
+                                .will
+                                .lookup(&mut context.stack, &mut o)
+                                .ok_or(Error::Deterministic(D(0)))?;
+                            body = slot(blob, 2)?;
+                            bend = slot(blob, 3)?;
+                            continue;
+                        }
+                        Right(_cell) => {
+                            let mut z = slot(bend, 14)?;
+                            blob = pile
+                                .will
+                                .lookup(&mut context.stack, &mut z)
+                                .ok_or(Error::Deterministic(D(0)))?;
+                            body = slot(blob, 2)?;
+                            bend = slot(blob, 3)?;
+                            continue;
+                        }
+                    };
+                }
+                tas!(b"eqq") => {
+                    let l = slot(bend, 6)?.as_direct()?.data() as usize;
+                    let r = slot(bend, 14)?.as_direct()?.data() as usize;
+                    let l_value = get_register(&mut context.stack, l);
+                    let r_value = get_register(&mut context.stack, r);
+                    if unsafe { l_value.raw_equals(r_value) } {
+                        let mut z = slot(bend, 30)?;
+                        blob = pile
+                            .will
+                            .lookup(&mut context.stack, &mut z)
+                            .ok_or(Error::Deterministic(D(0)))?;
                         body = slot(blob, 2)?;
                         bend = slot(blob, 3)?;
                         continue;
-                    },
-                    Right(cell) => {
-                        let z = slot(bend, 14)?;
-                        blob = pile.will.lookup(&mut context.stack, &mut z).ok_or(Error::Deterministic(D(0)))?;
+                    } else {
+                        let mut o = slot(bend, 31)?;
+                        blob = pile
+                            .will
+                            .lookup(&mut context.stack, &mut o)
+                            .ok_or(Error::Deterministic(D(0)))?;
                         body = slot(blob, 2)?;
                         bend = slot(blob, 3)?;
                         continue;
                     }
-                };
-            },
-            tas!(b"eqq") => {
-                let l = slot(bend, 6)?.as_direct()?.data() as usize;
-                let r = slot(bend, 14)?.as_direct()?.data() as usize;
-                let l_value = get_register(&mut context.stack, l);
-                let r_value = get_register(&mut context.stack, r);
-                if unsafe { l_value.raw_equals(r_value) } {
-                    let z = slot(bend, 30)?;
-                    blob = pile.will.lookup(&mut context.stack, &mut z).ok_or(Error::Deterministic(D(0)))?;
-                    body = slot(blob, 2)?;
-                    bend = slot(blob, 3)?;
-                    continue;
-                } else {
-                    let o = slot(bend, 31)?;
-                    blob = pile.will.lookup(&mut context.stack, &mut o).ok_or(Error::Deterministic(D(0)))?;
+                }
+                tas!(b"brn") => {
+                    let s = slot(bend, 6)?.as_direct()?.data() as usize;
+                    let s_value = get_register(&mut context.stack, s);
+                    if unsafe { s_value.raw_equals(D(0)) } {
+                        let mut z = slot(bend, 14)?;
+                        blob = pile
+                            .will
+                            .lookup(&mut context.stack, &mut z)
+                            .ok_or(Error::Deterministic(D(0)))?;
+                        body = slot(blob, 2)?;
+                        bend = slot(blob, 3)?;
+                        continue;
+                    } else if unsafe { s_value.raw_equals(D(1)) } {
+                        let mut o = slot(bend, 15)?;
+                        blob = pile
+                            .will
+                            .lookup(&mut context.stack, &mut o)
+                            .ok_or(Error::Deterministic(D(0)))?;
+                        body = slot(blob, 2)?;
+                        bend = slot(blob, 3)?;
+                        continue;
+                    } else {
+                        // XX crash
+                    }
+                }
+                tas!(b"hop") => {
+                    let mut t = slot(bend, 3)?;
+                    blob = pile
+                        .will
+                        .lookup(&mut context.stack, &mut t)
+                        .ok_or(Error::Deterministic(D(0)))?;
                     body = slot(blob, 2)?;
                     bend = slot(blob, 3)?;
                     continue;
                 }
-            },
-            tas!(b"brn") => {
-                let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                let s_value = get_register(&mut context.stack, s);
-                if unsafe { s_value.raw_equals(D(0)) } {
-                    let z = slot(bend, 14)?;
-                    blob = pile.will.lookup(&mut context.stack, &mut z).ok_or(Error::Deterministic(D(0)))?;
-                    body = slot(blob, 2)?;
-                    bend = slot(blob, 3)?;
-                    continue;
-                } else if unsafe { s_value.raw_equals(D(1)) } {
-                    let o = slot(bend, 15)?;
-                    blob = pile.will.lookup(&mut context.stack, &mut o).ok_or(Error::Deterministic(D(0)))?;
-                    body = slot(blob, 2)?;
-                    bend = slot(blob, 3)?;
-                    continue;
-                } else {
-                    // XX crash
+                _ => {
+                    panic!("invalid bend instruction");
                 }
-            },
-            tas!(b"hop") => {
-                let t = slot(bend, 3)?;
-                blob = pile.will.lookup(&mut context.stack, &mut t).ok_or(Error::Deterministic(D(0)))?;
-                body = slot(blob, 2)?;
-                bend = slot(blob, 3)?;
-                continue;
-            },
-            _ => {
-                panic!("invalid bend instruction");
             }
         }
     }
@@ -339,7 +366,7 @@ pub mod util {
 
     pub type NounResult = Result<Noun, Error>;
 
-    pub fn peek(context: &mut Context, mut subject: Noun, formula: Noun) -> NounResult {
+    pub fn peek(context: &mut Context, subject: Noun, formula: Noun) -> NounResult {
         // +peek slot in line core is 4
         let line = context.line.ok_or(Error::Deterministic(D(0)))?;
         let pek = kick(context, line, D(4))?;
