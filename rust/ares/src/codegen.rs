@@ -278,6 +278,25 @@ pub fn cg_interpret(
                     continue;
                 }
             },
+            tas!(b"brn") => {
+                let s = slot(bend, 6)?.as_direct()?.data() as usize;
+                let s_value = get_register(&mut context.stack, s);
+                if unsafe { s_value.raw_equals(D(0)) } {
+                    let z = slot(bend, 14)?;
+                    blob = pile.will.lookup(&mut context.stack, &mut z).ok_or(Error::Deterministic(D(0)))?;
+                    body = slot(blob, 2)?;
+                    bend = slot(blob, 3)?;
+                    continue;
+                } else if unsafe { s_value.raw_equals(D(1)) } {
+                    let o = slot(bend, 15)?;
+                    blob = pile.will.lookup(&mut context.stack, &mut o).ok_or(Error::Deterministic(D(0)))?;
+                    body = slot(blob, 2)?;
+                    bend = slot(blob, 3)?;
+                    continue;
+                } else {
+                    // XX crash
+                }
+            },
             tas!(b"hop") => {
                 let t = slot(bend, 3)?;
                 blob = pile.will.lookup(&mut context.stack, &mut t).ok_or(Error::Deterministic(D(0)))?;

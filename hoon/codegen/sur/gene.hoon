@@ -14,7 +14,7 @@
 ::
 ::  the codegen core can be updated by asking it to analyze new code
 +$  gist  [%comp slow=path s=* f=*]
-  
+
 ::  slow hint tree
 +$  shed  $~  [~ ~]  [root=(unit bell) kids=(map @tas shed)]
 ::
@@ -153,7 +153,7 @@
 ::  cases:
 ::  %clq - if s is a cell goto z else goto o
 ::  %eqq - if l and r equal goto z else goto o
-::  %brn - if s is 0 goto z, if one goto o, else crash
+::  %brn - if s is 0 goto z, if 1 goto o, else crash
 ::  %hop - unconditionally go to t
 ::  %hip - set comefrom label to c and goto t
 ::  %lnk - evaluate f against u and put the result in d, then goto t
