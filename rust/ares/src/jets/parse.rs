@@ -10,6 +10,44 @@ use crate::noun::{Noun, D, T};
 
 crate::gdb!();
 
+pub fn jet_comp(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let vex = slot(sam, 2)?;
+    let sab = slot(sam, 3)?;
+    let van = slot(subject, 7)?;
+    let raq = slot(van, 6)?;
+
+    let p_vex = vex.as_cell()?.head();
+    let q_vex = vex.as_cell()?.tail();
+
+    if !q_vex.is_cell() {
+        return Ok(vex);
+    } else {
+        let uq_vex = q_vex.as_cell()?.tail();
+        let puq_vex = uq_vex.as_cell()?.head();
+        let quq_vex = uq_vex.as_cell()?.tail();
+
+        let yit = slam(context, sab, quq_vex)?;
+
+        let p_yit = yit.as_cell()?.head();
+        let q_yit = yit.as_cell()?.tail();
+
+        let yur = util::last(context, p_vex, p_yit)?;
+
+        if !q_yit.is_cell() {
+            Ok(T(&mut context.stack, &[yur, q_vex]))
+        } else {
+            let uq_yit = q_yit.as_cell()?.tail();
+            let puq_yit = uq_yit.as_cell()?.head();
+            let quq_yit = uq_yit.as_cell()?.tail();
+
+            let arg = T(&mut context.stack, &[puq_vex, puq_yit]);
+            let puq_arg = slam(context, raq, puq_yit)?;
+            Ok(T(&mut context.stack, &[yur, D(0x0), puq_arg, quq_yit]))
+        }
+    }
+}    
+
 pub fn jet_pose(context: &mut Context, subject: Noun) -> Result {
     let vex = slot(subject, 12)?;
     let sab = slot(subject, 13)?;
