@@ -1,84 +1,64 @@
 extern crate bindgen;
 
 use std::env;
+use std::fs::create_dir_all;
 use std::path::PathBuf;
 
 use bindgen::CargoCallbacks;
 
 fn main() {
+    let profile = env::var("PROFILE").unwrap();
+    let opt_level = match profile.as_ref() {
+        "debug" => 0,
+        "release" => 3,
+        _ => panic!("Unknown profile: {}", profile),
+    };
+
     // This is the directory where the `c` library is located.
     let libdir_path = PathBuf::from("c-src")
         // Canonicalize the path as `rustc-link-search` requires an absolute
         // path.
         .canonicalize()
         .expect("cannot canonicalize path");
+    let libdir_path_str = libdir_path.to_str().expect("Path is not a valid string");
 
     // This is the path to the `c` headers file.
     let headers_path = libdir_path.join("wrapper.h");
     let headers_path_str = headers_path.to_str().expect("Path is not a valid string");
 
-    // This is the path to the intermediate object file for our library.
-    let btree_obj_path = libdir_path.join("btree.o");
-    let checksum_obj_path = libdir_path.join("lib").join("checksum.o");
-    // This is the path to the static library file.
-    let lib_path = libdir_path.join("btree.a");
+    println!("cargo:rerun-if-changed={}", libdir_path_str);
 
-    // Tell cargo to look for shared libraries in the specified directory
-    println!("cargo:rustc-link-search={}", libdir_path.to_str().unwrap());
+    let res = cc::Build::new()
+        .file(
+            libdir_path
+                .join("btree.c")
+                .to_str()
+                .expect("Path is not a valid string"),
+        )
+        .file(
+            libdir_path
+                .join("lib")
+                .join("checksum.c")
+                .to_str()
+                .expect("Path is not a valid string"),
+        )
+        .flag("-g3")
+        .flag("-Wall")
+        .flag("-Wextra")
+        .flag("-Wpedantic")
+        .flag("-Wformat=2")
+        .flag("-Wno-unused-parameter")
+        .flag("-Wshadow")
+        .flag("-Wwrite-strings")
+        .flag("-Wstrict-prototypes")
+        .flag("-Wold-style-definition")
+        .flag("-Wredundant-decls")
+        .flag("-Wnested-externs")
+        .flag("-Wmissing-include-dirs")
+        .try_compile("btree");
 
-    // Tell cargo to tell rustc to link our `btree` library. Cargo will
-    // automatically know it must look for a `libbtree.a` file.
-    println!("cargo:rustc-link-lib=btree");
-
-    // Tell cargo to invalidate the built crate whenever the header changes.
-    println!("cargo:rerun-if-changed={}", headers_path_str);
-
-    // Run `clang` to compile the `btree.c` file into a `btree.o` object file.
-    // Unwrap if it is not possible to spawn the process.
-    if !std::process::Command::new("clang")
-        .arg("-c")
-        .arg("-o")
-        .arg(&btree_obj_path)
-        .arg(libdir_path.join("btree.c"))
-        .output()
-        .expect("could not spawn `clang`")
-        .status
-        .success()
-    {
-        // Panic if the command was not successful.
-        panic!("could not compile object file");
-    }
-
-    // Run `clang` to compile the `btree.c` file into a `btree.o` object file.
-    // Unwrap if it is not possible to spawn the process.
-    if !std::process::Command::new("clang")
-        .arg("-c")
-        .arg("-o")
-        .arg(&checksum_obj_path)
-        .arg(libdir_path.join("lib").join("checksum.c"))
-        .output()
-        .expect("could not spawn `clang`")
-        .status
-        .success()
-    {
-        // Panic if the command was not successful.
-        panic!("could not compile object file");
-    }
-
-    // Run `ar` to generate the `libbtree.a` file from the `btree.o` file.
-    // Unwrap if it is not possible to spawn the process.
-    if !std::process::Command::new("ar")
-        .arg("rcs")
-        .arg(lib_path)
-        .arg(btree_obj_path)
-        .arg(checksum_obj_path)
-        .output()
-        .expect("could not spawn `ar`")
-        .status
-        .success()
-    {
-        // Panic if the command was not successful.
-        panic!("could not emit library file");
+    if let Err(err) = res {
+        panic!("{}", err);
     }
 
     // The bindgen::Builder is the main entry point
