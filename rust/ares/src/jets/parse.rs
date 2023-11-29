@@ -1,9 +1,10 @@
 use either::Either::{Left, Right};
+use libc::QIF_USAGE;
 
 /** Parsing jets
  */
-use crate::interpreter::{Context, Error};
-use crate::jets::util::{kick, slot};
+use crate::interpreter::{interpret, Context, Error};
+use crate::jets::util::{kick, slam, slot};
 use crate::jets::{Result, JetErr};
 use crate::noun::{Noun, D, T};
 
@@ -59,6 +60,117 @@ pub fn jet_just(context: &mut Context, subject: Noun) -> Result {
         util::next(context, tub)
     } else {
         util::fail(context, tub)
+    }
+}
+
+pub fn jet_easy(context: &mut Context, subject: Noun) -> Result {
+    let tub = slot(subject, 6)?;
+    let van = slot(subject, 7)?;
+    let huf = slot(van, 6)?;
+
+    let p_tub = tub.as_cell()?.head();
+    let q_tub = tub.as_cell()?.tail();
+
+    Ok(T(&mut context.stack, &[p_tub, D(0x0), huf, tub],))
+}
+
+/*
+/* bend
+*/
+  static u3_noun
+  _cqe_bend_fun(u3_noun raq,
+                u3_noun vex,
+                u3_noun sab)
+  {
+    u3_noun p_vex, q_vex;
+
+    u3x_cell(vex, &p_vex, &q_vex);
+    if ( c3n == u3du(q_vex) ) {
+      return u3k(vex);
+    } else {
+      u3_noun uq_vex = u3t(q_vex);
+      u3_noun puq_vex, quq_vex;
+      u3_noun yit, yur;
+      u3_noun p_yit, q_yit;
+      u3_noun ret;
+
+      u3x_cell(uq_vex, &puq_vex, &quq_vex);
+      yit = u3x_good(u3n_slam_on(u3k(sab), u3k(quq_vex)));
+
+      u3x_cell(yit, &p_yit, &q_yit);
+      yur = _last(p_vex, p_yit);
+
+      if ( c3n == u3du(q_yit) ) {
+        ret = u3nc(yur, u3k(q_vex));
+      }
+      else {
+        u3_noun uq_yit = u3t(q_yit);
+        u3_noun puq_yit, quq_yit;
+        u3_noun vux;
+
+        u3x_cell(uq_yit, &puq_yit, &quq_yit);
+
+        vux = u3x_good(u3n_slam_on(u3k(raq),
+                                   u3nc(u3k(puq_vex),
+                                   u3k(puq_yit))));
+        if ( u3_nul == vux ) {
+          ret = u3nc(yur, u3k(q_vex));
+        }
+        else {
+          ret = u3nq(yur,
+                     u3_nul,
+                     u3k(u3t(vux)),
+                     u3k(quq_yit));
+          u3z(vux);
+        }
+      }
+      u3z(yit);
+      return ret;
+    }
+  }
+ */
+
+pub fn jet_bend_fun(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let vex = slot(sam, 2)?;
+    let sab = slot(sam, 3)?;
+    let van = slot(subject, 7)?;
+    let raq = slot(van, 6)?;
+    
+    let p_vex = vex.as_cell()?.head();
+    let q_vex = vex.as_cell()?.tail();
+
+    if !q_vex.is_cell() {
+        return Ok(vex);
+    }
+
+    let uq_vex = q_vex.as_cell()?.tail();
+    let puq_vex = uq_vex.as_cell()?.head();
+    let quq_vex = uq_vex.as_cell()?.tail();
+
+    let yit = slam(context, sab, quq_vex)?;
+
+    let p_yit = yit.as_cell()?.head();
+    let q_yit = yit.as_cell()?.tail();
+
+    let yur = util::last(context, p_vex, p_yit)?;
+
+    if !q_yit.is_cell() {
+        Ok(T(&mut context.stack, &[yur, vex]))
+    } else {
+        let uq_yit = q_yit.as_cell()?.tail();
+        let puq_yit = uq_yit.as_cell()?.head();
+        let quq_yit = uq_yit.as_cell()?.tail();
+
+        let arg = T(&mut context.stack, &[puq_vex, puq_yit]);
+        let vux = slam(context, raq, arg)?;
+
+        if unsafe { vux.raw_equals(D(0x0)) } {
+            Ok(T(&mut context.stack, &[yur, q_vex]))
+        } else {
+            let q_vux = vux.as_cell()?.tail();
+            Ok(T(&mut context.stack, &[yur, D(0x0), q_vux, quq_yit]))
+        }
     }
 }
 

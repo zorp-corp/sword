@@ -254,6 +254,11 @@ pub mod util {
         interpret(context, core, formula).map_err(|err| JetErr::Fail(err))
     }
 
+    pub fn slam(context: &mut Context, gate: Noun, sample: Noun) -> result::Result<Noun, JetErr> {
+        let core: Noun = T(&mut context.stack, &[gate.as_cell()?.head(), sample, gate.as_cell()?.tail().as_cell()?.tail()]);
+        kick(context, core, D(2))
+    }
+
     pub mod test {
         use super::*;
         use crate::hamt::Hamt;
