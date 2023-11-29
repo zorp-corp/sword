@@ -234,8 +234,59 @@ pub fn cg_interpret(
                     }
                 }
                 _ => {
-                    panic!("invalid codegen instruction")
+                    panic!("invalid pole instruction")
                 }
+            }
+        }
+        match slot(bend, 2)?.as_direct().data() {
+            tas!(b"clq") => {
+                let s = slot(bend, 6)?.as_direct()?.data() as usize;
+                let s_value = get_register(&mut context.stack, s);
+                match s_value.as_either_atom_cell() {
+                    Left(atom) => {
+                        let o = slot(bend, 15)?;
+                        blob = pile.will.lookup(&mut context.stack, &mut o).ok_or(Error::Deterministic(D(0)))?;
+                        body = slot(blob, 2)?;
+                        bend = slot(blob, 3)?;
+                        continue;
+                    },
+                    Right(cell) => {
+                        let z = slot(bend, 14)?;
+                        blob = pile.will.lookup(&mut context.stack, &mut z).ok_or(Error::Deterministic(D(0)))?;
+                        body = slot(blob, 2)?;
+                        bend = slot(blob, 3)?;
+                        continue;
+                    }
+                };
+            },
+            tas!(b"eqq") => {
+                let l = slot(bend, 6)?.as_direct()?.data() as usize;
+                let r = slot(bend, 14)?.as_direct()?.data() as usize;
+                let l_value = get_register(&mut context.stack, l);
+                let r_value = get_register(&mut context.stack, r);
+                if unsafe { l_value.raw_equals(r_value) } {
+                    let z = slot(bend, 30)?;
+                    blob = pile.will.lookup(&mut context.stack, &mut z).ok_or(Error::Deterministic(D(0)))?;
+                    body = slot(blob, 2)?;
+                    bend = slot(blob, 3)?;
+                    continue;
+                } else {
+                    let o = slot(bend, 31)?;
+                    blob = pile.will.lookup(&mut context.stack, &mut o).ok_or(Error::Deterministic(D(0)))?;
+                    body = slot(blob, 2)?;
+                    bend = slot(blob, 3)?;
+                    continue;
+                }
+            },
+            tas!(b"hop") => {
+                let t = slot(bend, 3)?;
+                blob = pile.will.lookup(&mut context.stack, &mut t).ok_or(Error::Deterministic(D(0)))?;
+                body = slot(blob, 2)?;
+                bend = slot(blob, 3)?;
+                continue;
+            },
+            _ => {
+                panic!("invalid bend instruction");
             }
         }
     }
