@@ -200,6 +200,29 @@ pub fn jet_sfix(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+pub fn jet_stag(context: &mut Context, subject: Noun) -> Result {
+    let tub = slot(subject, 6)?;
+    let van = slot(subject, 7)?;
+    let gob = slot(van, 14)?;
+    let sef = slot(van, 15)?;
+
+    let vex = slam(context, sef, tub)?;
+    let p_vex = vex.as_cell()?.head();
+    let q_vex = vex.as_cell()?.tail();
+
+    if !q_vex.is_cell() {
+        Ok(vex)
+    } else {
+
+        let uq_vex = q_vex.as_cell()?.tail();
+        let puq_vex = uq_vex.as_cell()?.head();
+        let quq_vex = uq_vex.as_cell()?.tail();
+
+        let wag = T(&mut context.stack, &[gob, puq_vex]);
+        Ok(T(&mut context.stack, &[p_vex, D(0x0), wag, quq_vex]))
+    }    
+}
+
 pub mod util {
     use crate::interpreter::{Context, Error};
     use crate::jets::Result;
