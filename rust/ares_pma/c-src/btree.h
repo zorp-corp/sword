@@ -2,6 +2,11 @@
 #define __BTREE_H__
 #include <sys/stat.h>
 #include <stdint.h>
+#include <stdlib.h>
+
+struct BT_state;
+typedef struct BT_state BT_state;
+
 typedef unsigned long ULONG;
 
 //// ===========================================================================
