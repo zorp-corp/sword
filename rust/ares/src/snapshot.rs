@@ -1,13 +1,37 @@
-use crate::mem::NockStack;
+use ares_pma::*;
 use crate::noun::Noun;
-
-pub mod double_jam;
-pub mod pma;
+use crate::jets::cold::ColdState;
 
 crate::gdb!();
 
-pub trait Snapshot {
-    fn load(&mut self, stack: &mut NockStack) -> std::io::Result<(u64, u64, Noun)>;
-    fn save(&mut self, stack: &mut NockStack, noun: &mut Noun);
-    fn sync(&mut self, stack: &mut NockStack, epoch: u64, event: u64);
+struct PMA(*mut BT_state);
+
+impl PMA {
+    pub fn open(path: std::path::Path) -> Result<PMA, Error> {
+        todo!()
+    }
+
+    pub fn close(self) -> Result<(), Error> {
+        todo!()
+    }
+
+    /** Sync returns no result because failure will intentionally abort the entire process */
+    pub fn sync(self) {
+        if unsafe { bt_sync(self.0) } != 0 {
+            panic!("PMA sync failed.");
+        }
+    }
+
+
+    pub fn save_noun(self, Noun) -> Result<(), Error> {
+        todo!()
+    }
+
+    pub fn save_arvo(self, Noun) -> Result<(), Error> {
+        todo!()
+    }
+
+    pub fn save_cold_state(self, Noun) -> Result<(), Error> {
+        todo!()
+    }
 }
