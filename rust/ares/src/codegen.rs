@@ -123,6 +123,69 @@ pub fn cg_interpret(
                 tas!(b"cop") => {},
                 tas!(b"lop") => {},
                 tas!(b"coc") => {},
+                tas!(b"hed") => {
+                    let s = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let d = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let s_value = get_register(&mut context.stack, s);
+                    match s_value.as_either_atom_cell() {
+                        Left(atom) => {
+                            // XX poison s
+                        },
+                        Right(cell) => {
+                            set_register(&mut context.stack, d, cell.head());
+                        }
+                    };
+                },
+                tas!(b"tal") => {
+                    let s = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let d = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let s_value = get_register(&mut context.stack, s);
+                    match s_value.as_either_atom_cell() {
+                        Left(atom) => {
+                            // XX poison s
+                        },
+                        Right(cell) => {
+                            set_register(&mut context.stack, d, cell.tail());
+                        }
+                    };
+                },
+                tas!(b"hci") => {
+                    let s = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let d = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let s_value = get_register(&mut context.stack, s);
+                    match s_value.as_either_atom_cell() {
+                        Left(atom) => {
+                            // XX crash
+                        },
+                        Right(cell) => {
+                            set_register(&mut context.stack, d, cell.head());
+                        }
+                    };
+                },
+                tas!(b"tci") => {
+                    let s = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let d = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let s_value = get_register(&mut context.stack, s);
+                    match s_value.as_either_atom_cell() {
+                        Left(atom) => {
+                            // XX crash
+                        },
+                        Right(cell) => {
+                            set_register(&mut context.stack, d, cell.tail());
+                        }
+                    };
+                },
+                tas!(b"men") => {
+                    // XX push s onto the mean stack
+                },
+                tas!(b"man") => {
+                    // XX pop the mean stack
+                },
+                tas!(b"hit") => {
+                    let s = slot(pole, 3)?.as_direct()?.data() as usize;
+                    let s_value = get_register(&mut context.stack, s);
+                    // XX increment a profiling hit counter labeled with the noun in s
+                },
                 tas!(b"slg") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
                     let clue = get_register(&mut context.stack, s);
@@ -133,6 +196,43 @@ pub fn cg_interpret(
                         };
                     };
                 },
+                tas!(b"mew") => {
+                    let k = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let u = slot(pole, 14)?.as_direct()?.data() as usize;
+                    let f = slot(pole, 30)?.as_direct()?.data() as usize;
+                    let r = slot(pole, 31)?.as_direct()?.data() as usize;
+                    let k_value = get_register(&mut context.stack, k);
+                    // XX
+                },
+                tas!(b"tim") => {
+                    // XX push a timer onto the stack and start it
+                },
+                tas!(b"tom") => {
+                    // XX pop a timer from the stack, stop it, and print elapsed
+                },
+                tas!(b"mem") => {
+                    // XX print memory usage
+                },
+                tas!(b"pol") => {
+                    let s = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let d = slot(pole, 7)?.as_direct()?.data() as usize;
+                    // XX poison d if s is poisoned
+                },
+                tas!(b"poi") => {
+                    let d = slot(pole, 3)?.as_direct()?.data() as usize;
+                    // XX poison d
+                },
+                tas!(b"ipb") => {
+                    let s = slot(pole, 3)?.as_cell()?;
+                    let poison = false;
+                    let i = s.head();
+                    loop {
+                        if poison || unsafe { i.raw_equals(D(0)) } {
+                            // XX crash
+                        }
+                        // XX check if i is poisoned and set poison to true if so
+                    }
+                }
                 _ => {
                     panic!("invalid codegen instruction")
                 }
