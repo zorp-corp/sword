@@ -309,12 +309,14 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
     // Setup stack for Nock computation
     unsafe {
-        context.stack.frame_push(2);
+        context.stack.frame_push(3);
 
         // Bottom of mean stack
         *(context.stack.local_noun_pointer(0)) = D(0);
         // Bottom of trace stack
         *(context.stack.local_noun_pointer(1) as *mut *const TraceStack) = std::ptr::null();
+        // Bottom of slow stack
+        *(context.stack.local_noun_pointer(2)) = D(0);
 
         *(context.stack.push()) = NockWork::Done;
     };
@@ -1106,14 +1108,15 @@ fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error
     }
 }
 
-/** Push frame onto NockStack while preserving the mean stack.
+/** Push frame onto NockStack while preserving the mean and slow stacks.
  */
 fn mean_frame_push(stack: &mut NockStack, slots: usize) {
     unsafe {
         let trace = *(stack.local_noun_pointer(0));
-        stack.frame_push(slots + 2);
+        stack.frame_push(slots + 3);
         *(stack.local_noun_pointer(0)) = trace;
         *(stack.local_noun_pointer(1) as *mut *const TraceStack) = std::ptr::null();
+        // *(stack.local_noun_pointer(2) as *mut *const SlowStack) = std::ptr::null();
     }
 }
 
@@ -1134,6 +1137,28 @@ fn mean_pop(stack: &mut NockStack) {
         *(stack.local_noun_pointer(0)) = (*(stack.local_noun_pointer(0)))
             .as_cell()
             .expect("serf: unexpected end of mean stack\r")
+            .tail();
+    }
+}
+
+/** Push onto the slow stack.
+ */
+fn slow_push(stack: &mut NockStack, noun: Noun) {
+    unsafe {
+        let cur_slow = *(stack.local_noun_pointer(2));
+        let new_slow = T(stack, &[noun, cur_slow]);
+        *(stack.local_noun_pointer(2)) = new_slow;
+    }
+
+}
+
+/** Pop off of the slow stack.
+ */
+fn slow_pop(stack: &mut NockStack) {
+    unsafe {
+        *(stack.local_noun_pointer(2)) = (*(stack.local_noun_pointer(2)))
+            .as_cell()
+            .expect("serf: unexpected end of slow stack\r")
             .tail();
     }
 }

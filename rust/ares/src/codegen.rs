@@ -10,6 +10,7 @@ use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, T};
 
 static MEAN_SZ: usize = 1;
+static TRAZ_SZ: usize = 1;
 static SLOW_SZ: usize = 1;
 
 #[derive(Copy, Clone)]
@@ -90,7 +91,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
     let pois_sz = (pile.sans / 64) + if (pile.sans % 64) == 0 { 0 } else { 1 };
     context
         .stack
-        .frame_push(MEAN_SZ + SLOW_SZ + pois_sz + pile.sans);
+        .frame_push(MEAN_SZ + TRAZ_SZ + SLOW_SZ + pois_sz + pile.sans);
     // XX when returning via a %don, dispatch on whether current_frame = frame_ptr
     let _frame_ptr = context.stack.get_frame_pointer(); // XX name "start_frame"?
     register_set(&mut context.stack, pois_sz, pile.sire, subject);
@@ -354,25 +355,25 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
 
 fn register_set(stack: &mut NockStack, poison_size: usize, local: usize, value: Noun) {
     unsafe {
-        *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + poison_size + local)) = value;
+        *(stack.local_noun_pointer(MEAN_SZ + TRAZ_SZ + SLOW_SZ + poison_size + local)) = value;
     }
 }
 
 fn register_get(stack: &mut NockStack, poison_size: usize, local: usize) -> Noun {
-    unsafe { *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + poison_size + local)) }
+    unsafe { *(stack.local_noun_pointer(MEAN_SZ + TRAZ_SZ + SLOW_SZ + poison_size + local)) }
 }
 
 fn poison_set(stack: &mut NockStack, local: usize) {
     let index = local / 64;
     let offset = local % 64;
-    let mut _bitmap = unsafe { *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + index) as *mut u64) };
+    let mut _bitmap = unsafe { *(stack.local_noun_pointer(MEAN_SZ + TRAZ_SZ + SLOW_SZ + index) as *mut u64) };
     _bitmap |= 1 << offset;
 }
 
 fn poison_get(stack: &mut NockStack, local: usize) -> bool {
     let index = local / 64;
     let offset = local % 64;
-    let bitmap = unsafe { *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + index) as *mut u64) };
+    let bitmap = unsafe { *(stack.local_noun_pointer(MEAN_SZ + TRAZ_SZ + SLOW_SZ + index) as *mut u64) };
     bitmap & (1 << offset) != 0
 }
 
