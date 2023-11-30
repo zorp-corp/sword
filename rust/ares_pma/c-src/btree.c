@@ -12,13 +12,13 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include "btree.h"
 #include "lib/checksum.h"
 
 typedef uint32_t pgno_t;        /* a page number */
 typedef uint32_t vaof_t;        /* a virtual address offset */
 typedef uint32_t flag_t;
 typedef unsigned char BYTE;
-typedef unsigned long ULONG;
 
 //// ===========================================================================
 ////                              tmp tmp tmp tmp tmp
@@ -2415,7 +2415,7 @@ bt_meta_set(BT_state *state, size_t idx, uint64_t val)
 }
 
 int
-bt_range_of(void *p, void **lo, void **hi)
+bt_range_of(BT_state *state, void *p, void **lo, void **hi)
 {
   /* traverse tree looking for lo <= p and hi > p. return that range as a pair
      of pointers NOT as two vaof_t
@@ -2426,37 +2426,29 @@ bt_range_of(void *p, void **lo, void **hi)
 }
 
 int
-bt_dirty(void *lo, void *hi)
+bt_dirty(BT_state *state, void *lo, void *hi)
 {
   /* takes a range and ensures that entire range is CoWed */
   /* if part of the range is free then return 1 */
 }
 
 int
-bt_next_alloc(void *p, void **lo, void **hi)
+bt_next_alloc(BT_state *state, void *p, void **lo, void **hi)
 {
   /* if p is in the mlist, return the next hole in the mlist */
 
   /* if p is allocated, then return the hole that it is contained in */
 }
 
-/* also: accessors for the virtual memory of the pma low and high */
-
-/* #define BT_MAPADDR  ((void *) S(0x1000,0000,0000)) */
-/* #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD) */
-
-/* i.e. MAP_ADDDR - MAP_ADDR + ADDRSIZE */
-
-/* and a function that given a pointer tests if in range */
-
 void
-bt_bounds(void **lo, void **hi)
+bt_bounds(BT_state *state, void **lo, void **hi)
 {
-
+  *lo = BT_MAPADDR;
+  *hi = (void *)((uintptr_t)BT_MAPADDR + BT_ADDRSIZE);
 }
 
 int
-bt_inbounds(void *p)
+bt_inbounds(BT_state *state, void *p)
 {
   /* 1: if in bounds of PMA (those returned by bt_bounds) */
 }
