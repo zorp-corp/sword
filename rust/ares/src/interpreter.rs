@@ -1110,7 +1110,7 @@ fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error
 
 /** Push frame onto NockStack while preserving the mean and slow stacks.
  */
-fn mean_frame_push(stack: &mut NockStack, slots: usize) {
+pub fn mean_frame_push(stack: &mut NockStack, slots: usize) {
     unsafe {
         let trace = *(stack.local_noun_pointer(0));
         stack.frame_push(slots + 3);
@@ -1122,7 +1122,7 @@ fn mean_frame_push(stack: &mut NockStack, slots: usize) {
 
 /** Push onto the mean stack.
  */
-fn mean_push(stack: &mut NockStack, noun: Noun) {
+pub fn mean_push(stack: &mut NockStack, noun: Noun) {
     unsafe {
         let cur_trace = *(stack.local_noun_pointer(0));
         let new_trace = T(stack, &[noun, cur_trace]);
@@ -1132,7 +1132,7 @@ fn mean_push(stack: &mut NockStack, noun: Noun) {
 
 /** Pop off of the mean stack.
  */
-fn mean_pop(stack: &mut NockStack) {
+pub fn mean_pop(stack: &mut NockStack) {
     unsafe {
         *(stack.local_noun_pointer(0)) = (*(stack.local_noun_pointer(0)))
             .as_cell()

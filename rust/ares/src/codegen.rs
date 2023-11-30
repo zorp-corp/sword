@@ -4,7 +4,7 @@ use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 
 use crate::hamt::Hamt;
-use crate::interpreter::{Context, Error};
+use crate::interpreter::{Context, Error, mean_push, mean_pop};
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, T};
@@ -184,10 +184,12 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     };
                 }
                 tas!(b"men") => {
-                    // XX push s onto the mean stack
+                    let s = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    mean_push(&mut context.stack, s_value);
                 }
                 tas!(b"man") => {
-                    // XX pop the mean stack
+                    mean_pop(&mut context.stack);
                 }
                 tas!(b"hit") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
@@ -208,11 +210,17 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"mew") => {
                     let k = slot(pole, 6)?.as_direct()?.data() as usize;
-                    let _u = slot(pole, 14)?.as_direct()?.data() as usize;
-                    let _f = slot(pole, 30)?.as_direct()?.data() as usize;
-                    let _r = slot(pole, 31)?.as_direct()?.data() as usize;
-                    let _k_value = register_get(&mut context.stack, pois_sz, k);
-                    // XX write r to the memo cache at the triple [k u f]
+                    let u = slot(pole, 14)?.as_direct()?.data() as usize;
+                    let f = slot(pole, 30)?.as_direct()?.data() as usize;
+                    let r = slot(pole, 31)?.as_direct()?.data() as usize;
+
+                    let k_value = register_get(&mut context.stack, pois_sz, k);
+                    let u_value = register_get(&mut context.stack, pois_sz, u);
+                    let f_value = register_get(&mut context.stack, pois_sz, f);
+                    let r_value = register_get(&mut context.stack, pois_sz, r);
+                    let mut key = T(&mut context.stack, &[k_value, u_value, f_value]);
+
+                    context.cache = context.cache.insert(&mut context.stack, &mut key, r_value);
                 }
                 tas!(b"tim") => {
                     // XX push a timer onto the stack and start it
@@ -242,7 +250,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         } else {
                             let i = s.as_cell()?.head().as_direct()?.data() as usize;
                             if poison_get(&mut context.stack, i) {
-                                panic!("ibp");
+                                // XX crash
                             }
                             else {
                                 s = s.as_cell()?.tail();
