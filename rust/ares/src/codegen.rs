@@ -64,14 +64,18 @@ impl Pile {
     }
 }
 
-pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
-    // +peek returns (unit [=bell hall=_hill])
-    // TODO: turn this into a helper to get or generate the codegen
-    let mut line = context.line.ok_or(Error::Deterministic(D(0)))?;
+/**
+ * First peeks or pokes the codegen core (line) to get codegen for the
+ * subject and formula, then parses the successful results into a
+ * (bell, hill) tuple.
+ */
+fn cg_pull_peek(context: &mut Context, subject: Noun, formula: Noun) -> Result<(Noun, Hamt<Pile>), Error> {
+    // +peek or +poke dance
+    context.line.ok_or(Error::Deterministic(D(0)))?;
     let pek = util::peek(context, subject, formula)?;
     if unsafe { pek.raw_equals(D(0)) } {
         let comp = util::comp(context, subject, formula);
-        line = util::poke(context, comp).expect("poke failed");
+        let line = util::poke(context, comp).expect("poke failed");
         context.line = Some(line);
         let good_peek = util::peek(context, subject, formula)?;
         context.peek = Some(util::part_peek(&mut context.stack, good_peek)?);
@@ -79,28 +83,55 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
         context.peek = Some(util::part_peek(&mut context.stack, pek)?);
     }
 
-    let mut bell = context.peek.unwrap().0;
+    // parse the peek's non-empty results and return them
+    if context.peek.is_none() {
+        return Err(Error::Deterministic(D(0)));
+    }
+    let bell = context.peek.unwrap().0;
     let hill = context.peek.unwrap().1;
-    let mut pile = unsafe {
+    Ok((bell, hill))
+}
+
+/**
+ * First peeks or pokes the codegen core (line) to get codegen for the
+ * subject and formula, then parses the successful results into a
+ * (bell, hill) tuple and uses the bell from that to get the first
+ * pile in the hill map.
+ */
+fn cg_pull_pile(context: &mut Context, subject: Noun, formula: Noun) -> Result<PileMem, Error> {
+    let (mut bell, hill) = cg_pull_peek(context, subject, formula).unwrap();
+    let pile = unsafe {
         *(hill
             .lookup(&mut context.stack, &mut bell)
             .ok_or(Error::Deterministic(D(0)))?
             .0)
     };
+    Ok(pile)
+}
 
+pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
+    // Prepare codegen for walking execution.
+    let mut pile = cg_pull_pile(context, subject, formula)?;
+
+    // Push a frame, complete with room for the poison bitmap.
     let pois_sz = (pile.sans / 64) + if (pile.sans % 64) == 0 { 0 } else { 1 };
     context
         .stack
         .frame_push(MEAN_SZ + TRAZ_SZ + SLOW_SZ + pois_sz + pile.sans);
-    // XX when returning via a %don, dispatch on whether current_frame = frame_ptr
-    let _frame_ptr = context.stack.get_frame_pointer(); // XX name "start_frame"?
+
+    // Load the initial subject to the sire register.
     register_set(&mut context.stack, pois_sz, pile.sire, subject);
-    let mut blob = pile
+
+    // Save the frame pointer for checking again when hitting a %don instruction.
+    let virtual_frame = context.stack.get_frame_pointer();
+
+    // Get the blob, body, and bend nouns from our pile.
+    let mut blob = pile            // [body=(list pole) bend=site]
         .will
         .lookup(&mut context.stack, &mut pile.wish)
-        .ok_or(Error::Deterministic(D(0)))?; //   XX what do on error?
-    let mut body = slot(blob, 2)?; // (list pole) XX cleanup stack
-    let mut bend = slot(blob, 3)?; // site        XX cleanup stack
+        .ok_or(Error::Deterministic(D(0)))?;
+    let mut body = slot(blob, 2)?; // XX cleanup stack
+    let mut bend = slot(blob, 3)?; // XX cleanup stack
 
     loop {
         if !unsafe { body.raw_equals(D(0)) } {
@@ -314,7 +345,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         bend = slot(blob, 3)?;
                         continue;
                     }
-                }
+                },
                 tas!(b"brn") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
                     let s_value = register_get(&mut context.stack, pois_sz, s);
@@ -339,7 +370,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     } else {
                         // XX crash
                     }
-                }
+                },
                 tas!(b"hop") => {
                     let mut t = slot(bend, 3)?;
                     blob = pile
@@ -349,7 +380,23 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     body = slot(blob, 2)?;
                     bend = slot(blob, 3)?;
                     continue;
-                }
+                },
+                tas!(b"hip") => {
+                    // XX set comefrom label to c and goto t
+                },
+                tas!(b"lnk") => {
+                    // XX evaluate f against u and put the result in d, then goto t
+                    let u = slot(bend, 6)?.as_direct()?.data() as usize;
+                    let f = slot(bend, 14)?.as_direct()?.data() as usize;
+                    let d = slot(bend, 30)?.as_direct()?.data() as usize;
+                    let mut t = slot(bend, 31)?.as_direct()?.data() as usize;
+
+                    let u_value = register_get(&mut context.stack, pois_sz, u);
+                    let f_value = register_get(&mut context.stack, pois_sz, f);
+                    let res = cg_interpret(context, u_value, f_value)?;
+                    register_set(&mut context.stack, pois_sz, d, res);
+                    continue;
+                },
                 _ => {
                     panic!("invalid bend instruction");
                 }
