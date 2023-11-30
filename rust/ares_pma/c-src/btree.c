@@ -2415,6 +2415,38 @@ bt_meta_set(BT_state *state, size_t idx, uint64_t val)
 }
 
 int
+_bt_range_of(BT_state *state, vaof_t p, vaof_t **lo, vaof_t **hi,
+             pgno_t nodepg, uint8_t depth, uint8_t maxdepth)
+{
+  BT_page *node = _node_get(state, nodepg);
+  size_t N = _bt_numkeys(node);
+
+  vaof_t llo = 0;
+  vaof_t hhi = 0;
+  pgno_t pg = 0;
+  size_t i;
+  for (i = 0; i < N-1; i++) {
+    llo = node->datk[i].va;
+    hhi = node->datk[i+1].va;
+    pg = node->datk[i].fo;
+    if (llo <= p && hhi > p) {
+      break;
+    }
+  }
+  /* not found */
+  if (i == N-1)
+    return 1;
+
+  if (depth == maxdepth) {
+    **lo = llo;
+    **hi = hhi;
+    return BT_SUCC;
+  }
+
+  return _bt_range_of(state, p, lo, hi, pg, depth+1, maxdepth);
+}
+
+int
 bt_range_of(BT_state *state, void *p, void **lo, void **hi)
 {
   /* traverse tree looking for lo <= p and hi > p. return that range as a pair
@@ -2423,6 +2455,19 @@ bt_range_of(BT_state *state, void *p, void **lo, void **hi)
     0: succ (found)
     1: otherwise
   */
+
+  BT_meta *meta = state->meta_pages[state->which];
+  pgno_t root = meta->root;
+  vaof_t *loret = 0;
+  vaof_t *hiret = 0;
+  vaof_t poff = ADDR2OFF(p);
+  int rc = 0;
+  if (!SUCC(rc = _bt_range_of(state, poff, &loret, &hiret, root, 1, meta->depth))) {
+    return rc;
+  }
+  *lo = OFF2ADDR(*loret);
+  *hi = OFF2ADDR(*hiret);
+  return BT_SUCC;
 }
 
 int
