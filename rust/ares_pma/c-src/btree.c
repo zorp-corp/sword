@@ -102,9 +102,7 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 /* convert raw memory address to offset */
 #define ADDR2OFF(a) ((vaof_t)((uintptr_t)(a) - (uintptr_t)BT_MAPADDR))
 
-#define BT_PAGEBITS 14ULL
 #define BT_PAGEWORD 32ULL
-#define BT_PAGESIZE (1ULL << BT_PAGEBITS) /* 16K */
 #define BT_NUMMETAS 2                     /* 2 metapages */
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
 #define PMA_GROW_SIZE (BT_PAGESIZE * 1024)

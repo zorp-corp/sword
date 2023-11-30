@@ -3,6 +3,12 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+/** How many bits are required to internally address a byte in a page */
+#define BT_PAGEBITS 14ULL
+
+/** How big is a page in bytes? */
+#define BT_PAGESIZE (1ULL << BT_PAGEBITS) /* 16K */
+
 struct BT_state;
 typedef struct BT_state BT_state;
 
@@ -12,12 +18,17 @@ typedef unsigned long ULONG;
 //                            btree external routines
 
 /**
- * New persistent-memory B-tree
+ * New state for a persistent memory B-tree
  */
 int bt_state_new(BT_state **state);
 
 /**
- * Open an existing persistent-memory B-tree
+ * Open a persistent-memory B-tree from disk, setting up state
+ *
+ * state - the state handle (allocated with bt_state_new)
+ * path - path to the directory where the PMA lives or should live
+ * flags - unused for now, set to 0
+ * mode_t - file mode if we make a new file (should usually be 0600)
  */
 int bt_state_open(BT_state *state, const char *path, ULONG flags, mode_t mode);
 
