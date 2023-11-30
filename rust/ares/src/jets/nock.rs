@@ -194,13 +194,7 @@ pub mod util {
         let tag = tone.head().as_direct()?;
         let original_list = tone.tail();
 
-        match tag.data() {
-            x if x < 2 => return Ok(tone),
-            x if x > 2 => return Err(JetErr::Fail(Error::Deterministic(D(0)))),
-            _ => {}
-        }
-
-        if unsafe { original_list.raw_equals(D(0)) } {
+        if (tag.data() != 2) | unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
         } else if original_list.atom().is_some() {
             return Err(JetErr::Fail(Error::Deterministic(D(0))));
@@ -210,23 +204,10 @@ pub mod util {
 
         unsafe {
             let mut res = D(0);
+            let mut dest = &mut res as *mut Noun;
+
             let mut list = original_list;
-            // Unused if flopping
-            let (mut new_cell, mut new_memory) = Cell::new_raw_mut(&mut context.stack);
-            let mut memory = new_memory;
-
-            // loop guaranteed to run at least once
-            loop {
-                if list.raw_equals(D(0)) {
-                    break;
-                } else if !flop && res.raw_equals(D(0)) {
-                    res = new_cell.as_noun();
-                } else if !flop {
-                    (new_cell, new_memory) = Cell::new_raw_mut(&mut context.stack);
-                    (*memory).tail = new_cell.as_noun();
-                    memory = new_memory
-                }
-
+            while !list.raw_equals(D(0)) {
                 let cell = list.as_cell()?;
                 let trace = cell.head().as_cell()?;
                 let tag = trace.head().as_direct()?;
@@ -366,15 +347,16 @@ pub mod util {
                 if flop {
                     res = T(&mut context.stack, &[tank, res]);
                 } else {
-                    (*memory).head = tank;
+                    let (new_cell, new_memory) = Cell::new_raw_mut(&mut context.stack);
+                    (*new_memory).head = tank;
+                    *dest = new_cell.as_noun();
+                    dest = &mut (*new_memory).tail;
                 }
+
                 list = cell.tail();
             }
 
-            if !flop {
-                (*memory).tail = D(0);
-            }
-
+            *dest = D(0);
             let toon = Cell::new(&mut context.stack, D(2), res);
             Ok(toon)
         }

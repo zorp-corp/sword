@@ -39,19 +39,19 @@ lensapp 'hood' "+hood/rm /=$DESK=/sys/vane/khan/hoon"
 
 lensapp 'hood' "+hood/mount %$DESK"
 
-cp -rfL ./hoon/scaffolding/azimuth-pill.hoon  $DESK_DIR
-cp -rfL ./hoon/scaffolding/baby.hoon          $DESK_DIR
+cp -rfL ./resources/pills/src/baby/baby.hoon                    $DESK_DIR
+cp -rfL ./resources/pills/src/azimuth/azimuth-pill.hoon         $DESK_DIR
 
-cp -rfL ./hoon/scaffolding/cradle.hoon              $DESK_LIB_DIR
-cp -rfL ./hoon/scaffolding/naive-cradle.hoon        $DESK_LIB_DIR
-cp -rfL ./hoon/scaffolding/logs.jam                 $DESK_LIB_DIR
-cp -rfL ./hoon/scaffolding/mainnet.azimuth-snapshot $DESK_LIB_DIR
+cp -rfL ./resources/pills/src/baby/cradle.hoon                  $DESK_LIB_DIR
+cp -rfL ./resources/pills/src/azimuth/naive-cradle.hoon         $DESK_LIB_DIR
+cp -rfL ./resources/pills/src/azimuth/logs.jam                  $DESK_LIB_DIR
+cp -rfL ./resources/pills/src/azimuth/mainnet.azimuth-snapshot  $DESK_LIB_DIR
 
 lensapp 'hood' "+hood/commit %$DESK"
 
 #  XX: No tests yet
 #mkdir $DESK_TST_DIR
-# cp -rfL ./hoon/scaffolding/tests/* $DESK_TST_DIR
+# cp -rfL ./resources/pills/src/azimuth/tests/* $DESK_TST_DIR
 
 #  XX: redo when conn.c cli available
 check() {

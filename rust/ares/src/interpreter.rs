@@ -587,7 +587,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         Todo9::ComputeResult => {
                             if let Ok(mut formula) = res.slot_atom(kale.axis) {
                                 if !cfg!(feature = "sham_hints") {
-                                    if let Some(jet) = context.warm.find_jet(
+                                    if let Some((jet, _path)) = context.warm.find_jet(
                                         &mut context.stack,
                                         &mut res,
                                         &mut formula,
@@ -1390,8 +1390,10 @@ mod hint {
             }
             tas!(b"hela") => {
                 //  XX: This only prints the trace down to the bottom of THIS
-                //      interpret call. We'll need to recursively work down
-                //      frames to get the stack trace all the way to the root.
+                //      interpret call, making this neither a %nara nor a %hela
+                //      hint, as Vere understands them. We'll need to
+                //      recursively work down frames to get the stack trace all
+                //      the way to the root.
                 let mean = unsafe { *(context.stack.local_noun_pointer(0)) };
                 let tone = Cell::new(&mut context.stack, D(2), mean);
 
@@ -1401,6 +1403,9 @@ mod hint {
                         let newt = &mut context.newt;
 
                         if unsafe { !toon.head().raw_equals(D(2)) } {
+                            // +mook will only ever return a $toon with non-%2 head if that's what it was given as
+                            // input. Since we control the input for this call exactly, there must exist a programming
+                            // error in Ares if this occurs.
                             panic!("serf: %hela: mook returned invalid tone");
                         }
 
@@ -1422,9 +1427,9 @@ mod hint {
                         }
                     }
                     Err(_) => {
-                        let stack = &mut context.stack;
-                        let tape = tape(stack, "serf: %hela: mook error");
-                        slog_leaf(stack, &mut context.newt, tape);
+                        // +mook should only ever bail if the input is not [%2 (list)]. Since we control the input
+                        // for this call exactly, there must exist a programming error in Ares if this occurs.
+                        panic!("serf: unrecoverable stack trace error");
                     }
                 }
             }
@@ -1538,5 +1543,48 @@ mod hint {
     fn slog_leaf(stack: &mut NockStack, newt: &mut Newt, tape: Noun) {
         let tank = T(stack, &[LEAF, tape]);
         newt.slog(stack, 0u64, tank);
+    }
+}
+
+mod debug {
+    use crate::noun::Noun;
+    use either::Either::*;
+
+    #[allow(dead_code)]
+    pub fn assert_normalized(noun: Noun, path: Noun) {
+        assert_normalized_helper(noun, path, None);
+    }
+
+    #[allow(dead_code)]
+    pub fn assert_normalized_depth(noun: Noun, path: Noun, depth: usize) {
+        assert_normalized_helper(noun, path, Some(depth));
+    }
+
+    #[allow(dead_code)]
+    fn assert_normalized_helper(noun: Noun, path: Noun, depth: Option<usize>) {
+        match noun.as_either_atom_cell() {
+            Left(atom) => {
+                if !atom.is_normalized() {
+                    if atom.size() == 1 {
+                        panic!(
+                            "Un-normalized indirect_atom (should be direct) returned from jet for {:?}",
+                            path
+                        );
+                    } else {
+                        panic!(
+                            "Un-normalized indirect_atom (last word 0) returned from jet for {:?}",
+                            path
+                        );
+                    }
+                }
+            }
+            Right(cell) => {
+                if !depth.is_some_and(|d| d == 0) {
+                    let new_depth = depth.map(|x| x - 1);
+                    assert_normalized_helper(cell.head(), path, new_depth);
+                    assert_normalized_helper(cell.tail(), path, new_depth);
+                }
+            }
+        }
     }
 }

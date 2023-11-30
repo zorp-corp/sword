@@ -6,6 +6,7 @@ pub mod bits;
 pub mod form;
 pub mod hash;
 pub mod list;
+pub mod lock;
 pub mod lute;
 pub mod math;
 pub mod nock;
@@ -21,6 +22,9 @@ use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::hot::Hot;
 use crate::jets::list::*;
+use crate::jets::lock::aes::*;
+use crate::jets::lock::ed::*;
+use crate::jets::lock::sha::*;
 use crate::jets::lute::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
@@ -123,12 +127,31 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"cue") => Some(jet_cue),
         tas!(b"jam") => Some(jet_jam),
         //
+        tas!(b"shas") => Some(jet_shas),
+        tas!(b"shax") => Some(jet_shax),
+        tas!(b"shay") => Some(jet_shay),
+        tas!(b"shal") => Some(jet_shal),
+        tas!(b"sha1") => Some(jet_sha1),
+        //
+        tas!(b"pose") => Some(jet_pose),
+        tas!(b"last") => Some(jet_last),
+        //
         tas!(b"scow") => Some(jet_scow),
         //
         tas!(b"mink") => Some(jet_mink),
         //
-        tas!(b"pose") => Some(jet_pose),
-        tas!(b"last") => Some(jet_last),
+        tas!(b"puck") => Some(jet_puck),
+        tas!(b"shar") => Some(jet_shar),
+        tas!(b"sign") => Some(jet_sign),
+        tas!(b"veri") => Some(jet_veri),
+        //
+        tas!(b"siva_en") => Some(jet_siva_en),
+        tas!(b"siva_de") => Some(jet_siva_de),
+        tas!(b"sivb_en") => Some(jet_sivb_en),
+        tas!(b"sivb_de") => Some(jet_sivb_de),
+        tas!(b"sivc_en") => Some(jet_sivc_en),
+        tas!(b"sivc_de") => Some(jet_sivc_de),
+        //
         _ => {
             // eprintln!("Unknown jet: {:?}", jet_name);
             None

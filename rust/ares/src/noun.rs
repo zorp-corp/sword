@@ -661,7 +661,7 @@ impl private::RawSlots for Cell {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         let mut noun: Noun = self.as_noun();
         // Panic because all of the logic to guard against this is in Noun::RawSlots, Noun::Slots
-        let mut cursor = axis.last_one().expect("raw_slow somehow by-passed 0 check");
+        let mut cursor = axis.last_one().expect("raw_slot somehow by-passed 0 check");
 
         while cursor != 0 {
             cursor -= 1;
@@ -733,6 +733,20 @@ impl Atom {
         unsafe { is_indirect_atom(self.raw) }
     }
 
+    pub fn is_normalized(&self) -> bool {
+        unsafe {
+            if let Some(indirect) = self.indirect() {
+                if (indirect.size() == 1 && *indirect.data_pointer() <= DIRECT_MAX)
+                    || *indirect.data_pointer().add(indirect.size() - 1) == 0
+                {
+                    return false;
+                }
+            } // nothing to do for direct atom
+        };
+
+        true
+    }
+
     pub fn as_direct(&self) -> Result<DirectAtom> {
         if self.is_direct() {
             unsafe { Ok(self.direct) }
@@ -754,6 +768,18 @@ impl Atom {
             unsafe { Right(self.indirect) }
         } else {
             unsafe { Left(self.direct) }
+        }
+    }
+
+    pub fn as_noun(self) -> Noun {
+        Noun { atom: self }
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        if self.is_direct() {
+            unsafe { self.direct.as_bytes() }
+        } else {
+            unsafe { self.indirect.as_bytes() }
         }
     }
 
@@ -843,18 +869,6 @@ impl Atom {
             self.indirect.normalize_as_atom()
         } else {
             *self
-        }
-    }
-
-    pub fn as_noun(self) -> Noun {
-        Noun { atom: self }
-    }
-
-    pub fn as_bytes(&self) -> &[u8] {
-        if self.is_direct() {
-            unsafe { self.direct.as_bytes() }
-        } else {
-            unsafe { self.indirect.as_bytes() }
         }
     }
 }
@@ -1247,7 +1261,10 @@ pub trait Slots: private::RawSlots {
      * Retrieve component Noun at axis given as Atom, or fail with descriptive error
      */
     fn slot_atom(&self, atom: Atom) -> Result<Noun> {
-        self.raw_slot(atom.as_bitslice())
+        match atom.as_either() {
+            Left(direct) => self.slot(direct.data()),
+            Right(indirect) => self.raw_slot(indirect.as_bitslice()),
+        }
     }
 }
 
