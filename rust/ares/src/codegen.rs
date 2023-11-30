@@ -87,7 +87,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
             .0)
     };
 
-    let pois_sz = (pile.sans / 64) + 1; // # of 64-bit words needed for poison bitmap
+    let pois_sz = (pile.sans / 64) + if (pile.sans % 64) == 0 { 0 } else { 1 };
     context
         .stack
         .frame_push(MEAN_SZ + SLOW_SZ + pois_sz + pile.sans);
@@ -135,7 +135,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
                     let s_value = register_get(&mut context.stack, pois_sz, s);
                     match s_value.as_either_atom_cell() {
-                        Left(atom) => {
+                        Left(_atom) => {
                             poison_set(&mut context.stack, s);
                         }
                         Right(cell) => {
@@ -241,9 +241,11 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         } else {
                             let i = s.as_cell()?.head().as_direct()?.data() as usize;
                             if poison_get(&mut context.stack, i) {
-                                // XX crash
+                                panic!("ibp");
                             }
-                            s = s.as_cell()?.tail();
+                            else {
+                                s = s.as_cell()?.tail();
+                            }
                         }
                     }
                 }
@@ -361,21 +363,17 @@ fn register_get(stack: &mut NockStack, poison_size: usize, local: usize) -> Noun
 }
 
 fn poison_set(stack: &mut NockStack, local: usize) {
-    unsafe {
-        let index = local / 64;
-        let offset = local % 64;
-        let mut _bitmap = *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + index) as *mut u64);
-        _bitmap |= 1 << offset;
-    }
+    let index = local / 64;
+    let offset = local % 64;
+    let mut _bitmap = unsafe { *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + index) as *mut u64) };
+    _bitmap |= 1 << offset;
 }
 
 fn poison_get(stack: &mut NockStack, local: usize) -> bool {
-    unsafe {
-        let index = local / 64;
-        let offset = local % 64;
-        let bitmap = *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + index) as *mut u64);
-        bitmap & (1 << offset) != 0
-    }
+    let index = local / 64;
+    let offset = local % 64;
+    let bitmap = unsafe { *(stack.local_noun_pointer(MEAN_SZ + SLOW_SZ + index) as *mut u64) };
+    bitmap & (1 << offset) != 0
 }
 
 pub mod util {
