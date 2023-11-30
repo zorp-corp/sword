@@ -109,21 +109,23 @@ fn cg_pull_pile(context: &mut Context, subject: Noun, formula: Noun) -> Result<P
     Ok(pile)
 }
 
+/**
+ * Fetches or creates codegen code for the subject and formula, then
+ * naively interprets it.
+ */
 pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
-    // Prepare codegen for walking execution.
+    // Prepare codegen core for walking execution.
     let mut pile = cg_pull_pile(context, subject, formula)?;
 
-    // Push a frame, complete with room for the poison bitmap.
+    // Push a frame, complete with room for the poison bitmap, and save its pointer.
     let pois_sz = (pile.sans / 64) + if (pile.sans % 64) == 0 { 0 } else { 1 };
     context
         .stack
         .frame_push(MEAN_SZ + TRAZ_SZ + SLOW_SZ + pois_sz + pile.sans);
+    let virtual_frame = context.stack.get_frame_pointer();
 
     // Load the initial subject to the sire register.
     register_set(&mut context.stack, pois_sz, pile.sire, subject);
-
-    // Save the frame pointer for checking again when hitting a %don instruction.
-    let virtual_frame = context.stack.get_frame_pointer();
 
     // Get the blob, body, and bend nouns from our pile.
     let mut blob = pile            // [body=(list pole) bend=site]
