@@ -4,7 +4,7 @@ use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 
 use crate::hamt::Hamt;
-use crate::interpreter::{Context, Error, mean_push, mean_pop};
+use crate::interpreter::{Context, Error, mean_push, mean_pop, slow_push, slow_pop};
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, T};
@@ -202,7 +202,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                             register_set(&mut context.stack, pois_sz, d, cell.head());
                         }
                     };
-                }
+                },
                 tas!(b"tci") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
@@ -215,15 +215,23 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                             register_set(&mut context.stack, pois_sz, d, cell.tail());
                         }
                     };
-                }
+                },
                 tas!(b"men") => {
                     let s = slot(pole, 7)?.as_direct()?.data() as usize;
                     let s_value = register_get(&mut context.stack, pois_sz, s);
                     mean_push(&mut context.stack, s_value);
-                }
+                },
                 tas!(b"man") => {
                     mean_pop(&mut context.stack);
-                }
+                },
+                tas!(b"slo") => {
+                    let s = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    slow_push(&mut context.stack, s_value);
+                },
+                tas!(b"sld") => {
+                    slow_pop(&mut context.stack);
+                },
                 tas!(b"hit") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
                     let _s_value = register_get(&mut context.stack, pois_sz, s);
