@@ -208,7 +208,7 @@ pub fn serf() -> io::Result<()> {
         None
     };
     if let Some(ref mut info) = trace_info.as_mut() {
-        if let Err(e) = write_metadata(info) {
+        if let Err(_e) = write_metadata(info) {
             //  XX: need NockStack allocated string interpolation
             // eprintln!("\rError initializing trace file: {:?}", e);
             trace_info = None;

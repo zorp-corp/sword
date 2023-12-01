@@ -1225,7 +1225,7 @@ unsafe fn write_trace(context: &mut Context) {
         let trace_stack = *(context.stack.local_noun_pointer(1) as *mut *const TraceStack);
         // Abort writing to trace file if we encountered an error. This should
         // result in a well-formed partial trace file.
-        if let Err(e) = write_nock_trace(&mut context.stack, info, trace_stack) {
+        if let Err(_e) = write_nock_trace(&mut context.stack, info, trace_stack) {
             //  XX: need NockStack allocated string interpolation
             // eprintln!("\rserf: error writing nock trace to file: {:?}", e);
             context.trace_info = None;
@@ -1302,8 +1302,8 @@ mod hint {
                                             }
                                         }
                                         Err(error) => {
-                                            let stack = &mut context.stack;
                                             //  XX: need NockStack allocated string interpolation
+                                            // let stack = &mut context.stack;
                                             // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, err, jet_res);
                                             // let mean = T(stack, &[D(tas!(b"mean")), tape]);
                                             // mean_push(stack, mean);
@@ -1322,8 +1322,8 @@ mod hint {
                             }
                             Err(JetErr::Punt) => None,
                             Err(err) => {
-                                let stack = &mut context.stack;
                                 //  XX: need NockStack allocated string interpolation
+                                // let stack = &mut context.stack;
                                 // let tape = tape(stack, "{} jet error in {}", err, jet_name);
                                 // let mean = T(stack, &[D(tas!(b"mean")), tape]);
                                 // mean_push(stack, mean);
