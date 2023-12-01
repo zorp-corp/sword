@@ -1125,6 +1125,32 @@
       $(tack [[+.n.i.tack rite.need.i.tack] [-.n.i.tack left.need.i.tack] t.tack])
     ==
   --
+::
+::    lists of registers from a need
+::  
+::  the first list (bait) is the poison registers in NLR order
+::  the second list (walt) is the input registers in left-to-right order
+++  sill
+  |=  want=need
+  =|  bart=(list @uvre)
+  =|  wart=(list @uvre)
+  =/  tack=(list need)  ~[need]
+  |-  ^-  [bait=(list @uvre) walt=(list @uvre)]
+  ?~  tack  [(flop bart) (flop wart)]
+  ?-  -.i.tack
+      %none  $(tack t.tack)
+      %both
+    %=  $
+      bart  [sass.i.tack bart]
+      tack  [left.i.tack rite.i.tack t.tack]
+    ==
+  ::
+      %this
+    %=  $
+      wart  [sass.i.tack wart]
+      tack  t.tack
+    ==
+  ==
 ::    
 ::    loop over redos
 ::
@@ -1153,8 +1179,9 @@
     =^  [wish=bile sire=@uvre]  gen.i.todo  (~(kerf jean bell.i.todo gen.i.todo like) %indy dire.i.todo)
     %=  ^$
         hill
+      =+  (sill what.dire.i.todo)
       %+  ~(put by hill)  bell.i.todo
-      [then.dire.i.todo what.dire.i.todo wish sire [will sans]:gen.i.todo]
+      [then.dire.i.todo what.dire.i.todo bait walt wish sire [will sans]:gen.i.todo]
     ::
         todo  t.todo
     ==
@@ -1496,7 +1523,7 @@
     ?-  -.i.tack
         %both
       ?>  ?=(^ call-sick)
-      =.  sick  (~(put in sick) sass.i.tack)
+      =?  sick  i.call-sick  (~(put in sick) sass.i.tack)
       $(tack [left.i.tack rite.i.tack t.tack], call-sick t.call-sick)
     ::
         %this

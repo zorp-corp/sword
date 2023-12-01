@@ -210,13 +210,17 @@
 ::
 ::  long: starting label for direct calls    axis 2
 ::  want: input registers for direct calls   axis 6
-::  wish: starting label for indirect calls  axis 14
-::  sire: input register for indirect calls  axis 30
-::  will: code table for arm                 axis 62
-::  sans: next SSA register                  axis 63
+::  bait: input poison registers             axis 14
+::  walt: input starting registers           axis 30
+::  wish: starting label for indirect calls  axis 62
+::  sire: input register for indirect calls  axis 126
+::  will: code table for arm                 axis 254
+::  sans: next SSA register                  axis 255
 +$  pile
   $:  long=bile
       want=need
+      bait=(list @uvre)
+      walt=(list @uvre)
       wish=bile
       sire=@uvre
       will=(map bile blob)
