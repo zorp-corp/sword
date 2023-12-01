@@ -2479,10 +2479,36 @@ bt_dirty(BT_state *state, void *lo, void *hi)
 
 int
 bt_next_alloc(BT_state *state, void *p, void **lo, void **hi)
+/* if p is free, sets lo and hi to the bounds of the next adjacent allocated
+   space. If p is allocated, sets lo and hi to the bounds of the allocated space
+   it falls in. */
 {
-  /* if p is in the mlist, return the next hole in the mlist */
+  BT_mlistnode *head = state->mlist;
+  while (head) {
+    /* p is in a free range, return the allocated hole after it */
+    if (head->va <= p
+        && head->va + head->sz > p) {
+      goto found;
+    }
 
-  /* if p is allocated, then return the hole that it is contained in */
+    /* p is alloced, return this hole */
+    if (head->next->va > p
+        && head->va + head->sz <= p) {
+      goto found;
+    }
+
+    head = head->next;
+  }
+
+  /* not found */
+  return 1;
+
+ found:
+  /* the alloced space begins at the end of the free block */
+  *lo = head->va + head->sz;
+  /* ... and ends at the start of the next free block */
+  *hi = head->next->va;
+  return BT_SUCC;
 }
 
 void
