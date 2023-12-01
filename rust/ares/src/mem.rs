@@ -106,6 +106,14 @@ impl NockStack {
         self.frame_pointer
     }
 
+    pub unsafe fn get_frame_lowest(&self) -> *mut u64 {
+        if self.is_west() {
+            *(self.slot_pointer_west(ALLOC)) as *mut u64
+        } else {
+            self.stack_pointer
+        }
+    }
+
     /** Checks if the current stack frame has West polarity */
     #[inline]
     pub fn is_west(&self) -> bool {
@@ -660,12 +668,14 @@ impl NockStack {
      *
      * # Safety
      *
-     * This will preserve as many of the old locals as will fit in the resized frame.
-     * Local pointers into the frame will be invalidated.
-     * The function will panic if called with a non-empty lightweight stack, or if called while
-     * preserving objects out of a frame.
+     * This will clobber locals. Allocate for anything that needs to be preserved across the frame
+     * replacement.
+     *
+     * This will panic if you have called [preserve] and not yet [frame_pop].
+     *
+     * This will panic if the lightweight stack is not empty.
      */
-    pub unsafe fn frame_resize(&mut self, num_locals: usize) {
+    pub unsafe fn frame_replace(&mut self, num_locals: usize) {
         assert!(!self.pc); // Don't resize a frame when in the middle of preserving
         assert!(self.stack_is_empty()); // Don't resize a frame if there is an active lightweight stack
         
@@ -683,33 +693,16 @@ impl NockStack {
         };
 
         if self.is_west() {
-            let current_frame_size = self.frame_pointer.offset_from(prev_alloc_pointer);
-            assert!(current_frame_size > 0);
-            let new_frame_size = new_frame_pointer.offset_from(prev_alloc_pointer);
-            assert!(new_frame_size > 0);
-            if new_frame_size > current_frame_size {
-                let distance = (new_frame_size - current_frame_size) as usize;
-                std::ptr::copy(prev_alloc_pointer, prev_alloc_pointer.add(distance), current_frame_size as usize);
-            } else if new_frame_size < current_frame_size {
-                let distance = (current_frame_size - new_frame_size) as usize;
-                std::ptr::copy(prev_alloc_pointer.add(distance), prev_alloc_pointer, current_frame_size as usize);
-            }
+            let current_backref_base = self.frame_pointer.sub(RESERVED);
+            let new_backref_base = new_frame_pointer.sub(RESERVED);
+            std::ptr::copy(current_backref_base, new_backref_base, RESERVED);
         } else {
-            let current_frame_size = prev_alloc_pointer.offset_from(self.frame_pointer);
-            assert!(current_frame_size > 0);
-            let new_frame_size = prev_alloc_pointer.offset_from(new_frame_pointer);
-            assert!(new_frame_size > 0);
-            if new_frame_size > current_frame_size {
-                std::ptr::copy(self.frame_pointer, new_frame_pointer, current_frame_size as usize);
-            } else if new_frame_size < current_frame_size {
-                std::ptr::copy(self.frame_pointer, new_frame_pointer, new_frame_size as usize);
-            }
-        };
-
+            std::ptr::copy(self.frame_pointer, new_frame_pointer, RESERVED);
+        }
         self.frame_pointer = new_frame_pointer;
         self.stack_pointer = self.frame_pointer;
     }
-
+    
     /** Run a closure inside a frame, popping regardless of the value returned by the closure.
      * This is useful for writing fallible computations with the `?` operator.
      *
