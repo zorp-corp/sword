@@ -15,7 +15,7 @@ pub mod serial;
 pub mod sort;
 pub mod tree;
 
-use crate::interpreter::{interpret, Context, Error};
+use crate::interpreter::{Context, Error};
 use crate::jets::bits::*;
 use crate::jets::cold::Cold;
 use crate::jets::form::*;
@@ -133,9 +133,6 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"shal") => Some(jet_shal),
         tas!(b"sha1") => Some(jet_sha1),
         //
-        tas!(b"pose") => Some(jet_pose),
-        tas!(b"last") => Some(jet_last),
-        //
         tas!(b"scow") => Some(jet_scow),
         //
         tas!(b"mink") => Some(jet_mink),
@@ -171,6 +168,7 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
+    use crate::interpreter::interpret;
     use crate::noun::{Noun, D, T};
     use bitvec::prelude::{BitSlice, Lsb0};
     use std::result;
@@ -274,11 +272,18 @@ pub mod util {
 
     pub fn kick(context: &mut Context, core: Noun, axis: Noun) -> result::Result<Noun, JetErr> {
         let formula: Noun = T(&mut context.stack, &[D(9), axis, D(0), D(1)]);
-        interpret(context, core, formula).map_err(|err| JetErr::Fail(err))
+        interpret(context, core, formula).map_err(JetErr::Fail)
     }
 
     pub fn slam(context: &mut Context, gate: Noun, sample: Noun) -> result::Result<Noun, JetErr> {
-        let core: Noun = T(&mut context.stack, &[gate.as_cell()?.head(), sample, gate.as_cell()?.tail().as_cell()?.tail()]);
+        let core: Noun = T(
+            &mut context.stack,
+            &[
+                gate.as_cell()?.head(),
+                sample,
+                gate.as_cell()?.tail().as_cell()?.tail(),
+            ],
+        );
         kick(context, core, D(2))
     }
 
