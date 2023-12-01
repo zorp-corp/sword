@@ -678,7 +678,7 @@ impl NockStack {
     pub unsafe fn frame_replace(&mut self, num_locals: usize) {
         assert!(!self.pc); // Don't resize a frame when in the middle of preserving
         assert!(self.stack_is_empty()); // Don't resize a frame if there is an active lightweight stack
-        
+
         // When a frame is pushed, we offset the frame pointer from the previous allocation
         // pointer. So here we duplicate that logic, but with the east/west conditional inverted
         // because we are not switching sides.
@@ -702,7 +702,7 @@ impl NockStack {
         self.frame_pointer = new_frame_pointer;
         self.stack_pointer = self.frame_pointer;
     }
-    
+
     /** Run a closure inside a frame, popping regardless of the value returned by the closure.
      * This is useful for writing fallible computations with the `?` operator.
      *
