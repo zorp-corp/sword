@@ -1,4 +1,4 @@
-{ stdenv, fetchFromGitHub, autoreconfHook, pkg-config, openssl, cryptopp, secp256k1, libaes_siv }:
+{ stdenv, lib, fetchFromGitHub, autoreconfHook, pkg-config, openssl, cryptopp, secp256k1, libaes_siv, static ? stdenv.hostPlatform.isStatic }:
 let rev = "375fa7e6a730d8aa517ca981b2b7b505bf4e1103";
 in stdenv.mkDerivation {
   pname = "urcrypt";
@@ -13,6 +13,10 @@ in stdenv.mkDerivation {
   preConfigure = ''
     ./autogen.sh
     '';
+
+  dontDisableStatic = static;
+
+  configureFlags = lib.optional static "--disable-shared";
 
   nativeBuildInputs = [autoreconfHook pkg-config];
 

@@ -1,4 +1,4 @@
-{stdenv, fetchFromGitHub, cmake, asciidoc, openssl, libxml2, libxslt, docbook_xml_dtd_45, docbook_xsl}:
+{stdenv, fetchFromGitHub, cmake, asciidoc, openssl, libxml2, libxslt, docbook_xml_dtd_45, docbook_xsl, static ? stdenv.hostPlatform.isStatic}:
 stdenv.mkDerivation {
     pname = "libaes_siv";
     version = "1.latest";
@@ -14,4 +14,5 @@ stdenv.mkDerivation {
 
     cmakeFlags = [ "DDISABLE_DOCS" ];
 
+    dontDisableStatic = static;
 }
