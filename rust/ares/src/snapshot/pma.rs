@@ -112,10 +112,12 @@ impl Snapshot for Pma {
     fn load(&mut self, _stack: &mut NockStack) -> std::io::Result<(u64, u64, Noun)> {
         let path = self.path.join(".bin/page.bin");
         if path.is_file() {
-            eprintln!("\rload: found snapshot at {:?}", path);
+            //  XX: need NockStack allocated string interpolation
+            // eprintln!("\rload: found snapshot at {:?}", path);
             unsafe { Ok(pma_load(&self.path)) }
         } else {
-            eprintln!("\rload: creating snapshot at {:?}", path);
+            //  XX: need NockStack allocated string interpolation
+            // eprintln!("\rload: creating snapshot at {:?}", path);
             unsafe { pma_init(&self.path) };
             Ok((0, 0, D(0)))
         }
