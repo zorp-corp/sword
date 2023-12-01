@@ -2485,6 +2485,10 @@ bt_next_alloc(BT_state *state, void *p, void **lo, void **hi)
 {
   BT_mlistnode *head = state->mlist;
   while (head) {
+    /* at last free block, different logic applies */
+    if (head->next == 0)
+      goto end;
+
     /* p is in a free range, return the allocated hole after it */
     if (head->va <= p
         && head->va + head->sz > p) {
@@ -2508,6 +2512,19 @@ bt_next_alloc(BT_state *state, void *p, void **lo, void **hi)
   *lo = head->va + head->sz;
   /* ... and ends at the start of the next free block */
   *hi = head->next->va;
+  return BT_SUCC;
+
+ end:
+  void *pma_end = (void *)((uintptr_t)BT_MAPADDR + BT_ADDRSIZE);
+  assert(head->va + head->sz <= pma_end);
+  /* no alloced region between tail of freelist and end of pma memory space */
+  if (head->va + head->sz == pma_end)
+    return 1;
+
+  /* otherwise, return the alloced region between the tail of the freelist and
+     the end of the memory arena */
+  *lo = head->va + head->sz;
+  *hi = pma_end;
   return BT_SUCC;
 }
 
