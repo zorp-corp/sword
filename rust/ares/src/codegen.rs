@@ -116,34 +116,57 @@ struct Frame {
                     // registers: Vec<Noun>, // variable size
 }
 
+const FRAME_WORD_SIZE: usize = (size_of::<Frame>() + 7) >> 3; // Round to u64 words
+
+unsafe fn new_frame(context: &mut Context, frame_ref: &mut *mut Frame, pile: Pile, tail: bool) {
+    let sans = unsafe { (*(pile.0)).sans };
+    let poison_size = (sans + 63) >> 6;
+    if tail {
+        unsafe {
+            context
+                .stack
+                .frame_replace(FRAME_WORD_SIZE + poison_size + sans);
+        }
+    } else {
+        context
+            .stack
+            .frame_push(FRAME_WORD_SIZE + poison_size + sans);
+    };
+    unsafe {
+        *frame_ref = context.stack.get_frame_lowest() as *mut Frame;
+    }
+
+    unsafe {
+        **frame_ref = Frame {
+            mean: D(0),
+            traz: std::ptr::null::<TraceStack>() as *mut *const TraceStack,
+            slow: D(0),
+
+            pile: pile,
+
+            dest: 0,
+            cont: D(0),
+            pois_sz: poison_size,
+        }
+    }
+}
+
+unsafe fn pop_frame(context: &mut Context, frame_ref: &mut *mut Frame) {
+    context.stack.frame_pop();
+    *frame_ref = context.stack.get_frame_lowest() as *mut Frame;
+}
+
 /// Fetches or creates codegen code for the subject and formula, then
 /// naively interprets it.
 pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
-    let mut virtual_frame: *mut Frame = std::ptr::null::<Frame>() as *mut Frame;
     let base_frame = context.stack.get_frame_pointer();
-
     // Setup stack for codegen interpretation.
     // Stack frame layout: [mean trace slow pile dest cont poison registers]
     // XX update local_noun_pointer() calls with correct constants
+    let mut virtual_frame: *mut Frame = std::ptr::null_mut();
     {
         let pile = cg_pull_pile(context, subject, formula)?;
-        let sans = unsafe { (*(pile.0)).sans };
-        let pois_sz = (sans / 64) + if (sans % 64) == 0 { 0 } else { 1 };
-        context
-            .stack
-            .frame_push(size_of::<Frame>() + pois_sz + sans);
-        virtual_frame = context.stack.get_frame_pointer() as *mut Frame;
-        unsafe {
-            (*(virtual_frame)).mean = D(0);
-            (*(virtual_frame)).traz = std::ptr::null::<TraceStack>() as *mut *const TraceStack;
-            (*(virtual_frame)).slow = D(0);
-
-            (*(virtual_frame)).pile = pile;
-
-            (*(virtual_frame)).dest = 0;
-            (*(virtual_frame)).cont = D(0);
-            (*(virtual_frame)).pois_sz = pois_sz;
-        }
+        unsafe { new_frame(context, &mut virtual_frame, pile, false) };
     }
 
     // Load the initial subject to the sire register.
@@ -441,23 +464,8 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
 
                     {
                         let pile = cg_pull_pile(context, subject, formula)?;
-                        let sans = unsafe { (*(pile.0)).sans };
-                        let pois_sz = (sans / 64) + if (sans % 64) == 0 { 0 } else { 1 };
-                        context
-                            .stack
-                            .frame_push(size_of::<Frame>() + pois_sz + sans);
-                        virtual_frame = context.stack.get_frame_pointer() as *mut Frame;
                         unsafe {
-                            (*(virtual_frame)).mean = D(0);
-                            (*(virtual_frame)).traz =
-                                std::ptr::null::<TraceStack>() as *mut *const TraceStack;
-                            (*(virtual_frame)).slow = D(0);
-
-                            (*(virtual_frame)).pile = pile;
-
-                            (*(virtual_frame)).dest = 0;
-                            (*(virtual_frame)).cont = D(0);
-                            (*(virtual_frame)).pois_sz = pois_sz;
+                            new_frame(context, &mut virtual_frame, pile, false);
                         }
                     }
 
@@ -479,6 +487,8 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"caf") => {
                     // like call but with fast label
+                    //
+                    // XX we need to build a warm state that is just a HAMT-map of the hot state
                 }
                 tas!(b"lnt") => {
                     // evaluate f against u in tail position
@@ -489,6 +499,8 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"jmf") => {
                     // like jmp but with fast label
+                    //
+                    // XX see remark on caf
                 }
                 tas!(b"spy") => {
                     // scry with ref in e and path in p, put result in d, goto t
@@ -502,20 +514,17 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let mut s_value = register_get(virtual_frame, s);
 
                     unsafe {
-                        let stack = &mut context.stack;
                         // XX debug assertions
 
-                        stack.preserve(&mut context.cache);
-                        stack.preserve(&mut context.cold);
-                        stack.preserve(&mut context.warm);
-                        stack.preserve(&mut s_value);
-                        stack.frame_pop();
+                        context.stack.preserve(&mut context.cache);
+                        context.stack.preserve(&mut context.cold);
+                        context.stack.preserve(&mut context.warm);
+                        context.stack.preserve(&mut s_value);
+                        pop_frame(context, &mut virtual_frame);
 
-                        let fp = context.stack.get_frame_pointer();
-                        if fp == base_frame {
+                        if context.stack.get_frame_pointer() == base_frame {
                             break Ok(s_value);
                         }
-                        virtual_frame = fp as *mut Frame;
 
                         register_set(virtual_frame, (*virtual_frame).dest, s_value);
 
