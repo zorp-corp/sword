@@ -57,6 +57,14 @@
 ::
 ::    instructions in a block
 ::
+::  note: the slow and mean stack instructions assume that non-tail
+::  calls ($site cases %lnk %cal %caf) save the current state of the
+::  mean stack, and %don restores it. This allows us to omit %man and
+::  %sld popping instructions after the body of the relevant hints in
+::  tail position, maintaining TCO in the presence of stack traces and
+::  analysis boundary (%slow) hints. An implementation of this VM *must*
+::  conform to this behavior.
+::
 ::  faces:
 ::  n - noun
 ::  d - destination
@@ -82,8 +90,10 @@
 ::  %tal - write tail of s to d. Poison s if s is an atom
 ::  %hci - write head of s to d. Crash if s is an atom
 ::  %tci - write tail of s to d. Crash if s is an atom.
-::  %men - Push s onto the mean stack
+::  %men - Push s onto the mean stack.
 ::  %man - Pop the mean stack
+::  %slo - Push s onto the slow stack.
+::  %sld - Pop from the slow stack
 ::  %hit - Increment a profiling hit counter labeled with the noun in s
 ::  %slg - Print out s for debugging
 ::  %mew - Write r to the memo cache at the triple [k u f]
@@ -108,6 +118,8 @@
       [%tci s=@uvre d=@uvre]
       [%men l=@ta s=@uvre]
       [%man ~]
+      [%slo s=@uvre]
+      [%sld ~]
       [%hit s=@uvre]
       [%slg s=@uvre]
       [%mew k=@uvre u=@uvre f=@uvre r=@uvre]
