@@ -19,6 +19,7 @@ use std::ptr::copy_nonoverlapping;
 use std::ptr::write_bytes;
 
 fn main() -> io::Result<()> {
+    //  debug
     // eprintln!("serf: pid {}", std::process::id());
     // if unsafe { libc::kill(std::process::id() as i32, libc::SIGSTOP) } != 0 {
     //     panic!("Could not stop ourselves.");

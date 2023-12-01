@@ -148,6 +148,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"sivc_de") => Some(jet_sivc_de),
         //
         _ => {
+            //  XX: need NockStack allocated string interpolation
             // eprintln!("Unknown jet: {:?}", jet_name);
             None
         }

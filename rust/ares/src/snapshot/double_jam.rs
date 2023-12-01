@@ -64,7 +64,8 @@ impl DoubleJam {
     fn load_snapshot(&self, stack: &mut NockStack, number: u8) -> io::Result<(u64, IndirectAtom)> {
         let path = self.path.join(format!("snapshot-{}.jam", number));
 
-        eprintln!("\rload: snapshot at {:?}", path);
+        //  XX: need NockStack allocated string interpolation
+        // eprintln!("\rload: snapshot at {:?}", path);
 
         let f = File::open(path)?;
 
