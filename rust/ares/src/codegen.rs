@@ -1,18 +1,17 @@
 use ares_macros::tas;
 use either::Either::{Left, Right};
+use std::mem::size_of;
 use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 
 use crate::hamt::Hamt;
-use crate::interpreter::{Context, Error, mean_push, mean_pop, slow_push, slow_pop};
+use crate::interpreter::{mean_pop, mean_push, slow_pop, slow_push, Context, Error};
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, T};
+use crate::trace::TraceStack;
 
-static MEAN_SZ: usize = 1;
-static TRAZ_SZ: usize = 1;
-static SLOW_SZ: usize = 1;
-
+// XX typedef for register
 #[derive(Copy, Clone)]
 pub struct PileMem {
     long: Noun,
@@ -64,12 +63,14 @@ impl Pile {
     }
 }
 
-/**
- * First peeks or pokes the codegen core (line) to get codegen for the
- * subject and formula, then parses the successful results into a
- * (bell, hill) tuple.
- */
-fn cg_pull_peek(context: &mut Context, subject: Noun, formula: Noun) -> Result<(Noun, Hamt<Pile>), Error> {
+/// First peeks or pokes the codegen core (line) to get codegen for the
+/// subject and formula, then parses the successful results into a
+/// (bell, hill) tuple.
+fn cg_pull_peek(
+    context: &mut Context,
+    subject: Noun,
+    formula: Noun,
+) -> Result<(Noun, Hamt<Pile>), Error> {
     // +peek or +poke dance
     context.line.ok_or(Error::Deterministic(D(0)))?;
     let pek = util::peek(context, subject, formula)?;
@@ -92,48 +93,78 @@ fn cg_pull_peek(context: &mut Context, subject: Noun, formula: Noun) -> Result<(
     Ok((bell, hill))
 }
 
-/**
- * First peeks or pokes the codegen core (line) to get codegen for the
- * subject and formula, then parses the successful results into a
- * (bell, hill) tuple and uses the bell from that to get the first
- * pile in the hill map.
- */
-fn cg_pull_pile(context: &mut Context, subject: Noun, formula: Noun) -> Result<PileMem, Error> {
+/// Uses the `(bell, hill)` tuple returned from `cg_pull_peek()` to lookup the first
+/// `pile` in the `hill` map.
+/// XX percolate the changes to this through the code
+fn cg_pull_pile(context: &mut Context, subject: Noun, formula: Noun) -> Result<Pile, Error> {
     let (mut bell, hill) = cg_pull_peek(context, subject, formula).unwrap();
-    let pile = unsafe {
-        *(hill
-            .lookup(&mut context.stack, &mut bell)
-            .ok_or(Error::Deterministic(D(0)))?
-            .0)
-    };
+    let pile = hill
+        .lookup(&mut context.stack, &mut bell)
+        .ok_or(Error::Deterministic(D(0)))?;
     Ok(pile)
 }
 
-/**
- * Fetches or creates codegen code for the subject and formula, then
- * naively interprets it.
- */
-pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
-    // Prepare codegen core for walking execution.
-    let mut pile = cg_pull_pile(context, subject, formula)?;
+struct Frame {
+    mean: Noun,
+    traz: *mut *const TraceStack,
+    slow: Noun,
+    pile: Pile,
+    dest: usize,
+    cont: Noun,
+    pois_sz: usize, // length of poison vector
+                    // poison: Vec<u64>,     // variable size
+                    // registers: Vec<Noun>, // variable size
+}
 
-    // Push a frame, complete with room for the poison bitmap, and save its pointer.
-    let pois_sz = (pile.sans / 64) + if (pile.sans % 64) == 0 { 0 } else { 1 };
-    context
-        .stack
-        .frame_push(MEAN_SZ + TRAZ_SZ + SLOW_SZ + pois_sz + pile.sans);
-    let virtual_frame = context.stack.get_frame_pointer();
+/// Fetches or creates codegen code for the subject and formula, then
+/// naively interprets it.
+pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
+    let mut virtual_frame: *mut Frame = std::ptr::null::<Frame>() as *mut Frame;
+    let base_frame = context.stack.get_frame_pointer();
+
+    // Setup stack for codegen interpretation.
+    // Stack frame layout: [mean trace slow pile dest cont poison registers]
+    // XX update local_noun_pointer() calls with correct constants
+    {
+        let pile = cg_pull_pile(context, subject, formula)?;
+        let sans = unsafe { (*(pile.0)).sans };
+        let pois_sz = (sans / 64) + if (sans % 64) == 0 { 0 } else { 1 };
+        context
+            .stack
+            .frame_push(size_of::<Frame>() + pois_sz + sans);
+        virtual_frame = context.stack.get_frame_pointer() as *mut Frame;
+        unsafe {
+            (*(virtual_frame)).mean = D(0);
+            (*(virtual_frame)).traz = std::ptr::null::<TraceStack>() as *mut *const TraceStack;
+            (*(virtual_frame)).slow = D(0);
+
+            (*(virtual_frame)).pile = pile;
+
+            (*(virtual_frame)).dest = 0;
+            (*(virtual_frame)).cont = D(0);
+            (*(virtual_frame)).pois_sz = pois_sz;
+        }
+    }
 
     // Load the initial subject to the sire register.
-    register_set(&mut context.stack, pois_sz, pile.sire, subject);
+    {
+        let sire = unsafe { (*(*virtual_frame).pile.0).sire };
+        register_set(virtual_frame, sire, subject);
+    }
 
     // Get the blob, body, and bend nouns from our pile.
-    let mut blob = pile            // [body=(list pole) bend=site]
-        .will
-        .lookup(&mut context.stack, &mut pile.wish)
-        .ok_or(Error::Deterministic(D(0)))?;
-    let mut body = slot(blob, 2)?; // XX cleanup stack
-    let mut bend = slot(blob, 3)?; // XX cleanup stack
+    let mut body: Noun;
+    let mut bend: Noun;
+    {
+        let will = unsafe { (*(*virtual_frame).pile.0).will };
+        let blob = will
+            .lookup(&mut context.stack, &mut unsafe {
+                (*(*virtual_frame).pile.0).wish
+            })
+            .ok_or(Error::Deterministic(D(0)))?;
+        body = slot(blob, 2)?;
+        bend = slot(blob, 3)?;
+    }
 
     loop {
         if !unsafe { body.raw_equals(D(0)) } {
@@ -143,23 +174,23 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"imm") => {
                     let local = slot(pole, 7)?.as_direct()?.data() as usize;
                     let value = slot(pole, 6)?;
-                    register_set(&mut context.stack, pois_sz, local, value);
+                    register_set(virtual_frame, local, value);
                 }
                 tas!(b"mov") => {
                     let src = slot(pole, 6)?.as_direct()?.data() as usize;
                     let dst = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let value = register_get(&mut context.stack, pois_sz, src);
-                    register_set(&mut context.stack, pois_sz, dst, value);
+                    let value = register_get(virtual_frame, src);
+                    register_set(virtual_frame, dst, value);
                 }
                 tas!(b"inc") => {}
                 tas!(b"con") => {
                     let h = slot(pole, 6)?.as_direct()?.data() as usize;
                     let t = slot(pole, 14)?.as_direct()?.data() as usize;
                     let d = slot(pole, 15)?.as_direct()?.data() as usize;
-                    let h_value = register_get(&mut context.stack, pois_sz, h);
-                    let t_value = register_get(&mut context.stack, pois_sz, t);
+                    let h_value = register_get(virtual_frame, h);
+                    let t_value = register_get(virtual_frame, t);
                     let value = T(&mut context.stack, &[h_value, t_value]);
-                    register_set(&mut context.stack, pois_sz, d, value);
+                    register_set(virtual_frame, d, value);
                 }
                 tas!(b"cop") => {}
                 tas!(b"lop") => {}
@@ -167,79 +198,79 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"hed") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    let s_value = register_get(virtual_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
-                            poison_set(&mut context.stack, s);
+                            poison_set(virtual_frame, s);
                         }
                         Right(cell) => {
-                            register_set(&mut context.stack, pois_sz, d, cell.head());
+                            register_set(virtual_frame, d, cell.head());
                         }
                     };
                 }
                 tas!(b"tal") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    let s_value = register_get(virtual_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
-                            poison_set(&mut context.stack, s);
+                            poison_set(virtual_frame, s);
                         }
                         Right(cell) => {
-                            register_set(&mut context.stack, pois_sz, d, cell.tail());
+                            register_set(virtual_frame, d, cell.tail());
                         }
                     };
                 }
                 tas!(b"hci") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    let s_value = register_get(virtual_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
                             // XX crash
                         }
                         Right(cell) => {
-                            register_set(&mut context.stack, pois_sz, d, cell.head());
+                            register_set(virtual_frame, d, cell.head());
                         }
                     };
-                },
+                }
                 tas!(b"tci") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    let s_value = register_get(virtual_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
                             // XX crash
                         }
                         Right(cell) => {
-                            register_set(&mut context.stack, pois_sz, d, cell.tail());
+                            register_set(virtual_frame, d, cell.tail());
                         }
                     };
-                },
+                }
                 tas!(b"men") => {
                     let s = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    let s_value = register_get(virtual_frame, s);
                     mean_push(&mut context.stack, s_value);
-                },
+                }
                 tas!(b"man") => {
                     mean_pop(&mut context.stack);
-                },
+                }
                 tas!(b"slo") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
-                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    let s_value = register_get(virtual_frame, s);
                     slow_push(&mut context.stack, s_value);
-                },
+                }
                 tas!(b"sld") => {
                     slow_pop(&mut context.stack);
-                },
+                }
                 tas!(b"hit") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
-                    let _s_value = register_get(&mut context.stack, pois_sz, s);
+                    let _s_value = register_get(virtual_frame, s);
                     // XX increment a profiling hit counter labeled with the noun in s
                 }
                 tas!(b"slg") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
-                    let clue = register_get(&mut context.stack, pois_sz, s);
+                    let clue = register_get(virtual_frame, s);
                     if let Ok(slog_cell) = clue.as_cell() {
                         if let Ok(pri_direct) = slog_cell.head().as_direct() {
                             let tank = slog_cell.tail();
@@ -255,10 +286,10 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let f = slot(pole, 30)?.as_direct()?.data() as usize;
                     let r = slot(pole, 31)?.as_direct()?.data() as usize;
 
-                    let k_value = register_get(&mut context.stack, pois_sz, k);
-                    let u_value = register_get(&mut context.stack, pois_sz, u);
-                    let f_value = register_get(&mut context.stack, pois_sz, f);
-                    let r_value = register_get(&mut context.stack, pois_sz, r);
+                    let k_value = register_get(virtual_frame, k);
+                    let u_value = register_get(virtual_frame, u);
+                    let f_value = register_get(virtual_frame, f);
+                    let r_value = register_get(virtual_frame, r);
                     let mut key = T(&mut context.stack, &[k_value, u_value, f_value]);
 
                     context.cache = context.cache.insert(&mut context.stack, &mut key, r_value);
@@ -275,13 +306,13 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"pol") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    if poison_get(&mut context.stack, s) {
-                        poison_set(&mut context.stack, d);
+                    if poison_get(virtual_frame, s) {
+                        poison_set(virtual_frame, d);
                     }
                 }
                 tas!(b"poi") => {
                     let d = slot(pole, 3)?.as_direct()?.data() as usize;
-                    poison_set(&mut context.stack, d);
+                    poison_set(virtual_frame, d);
                 }
                 tas!(b"ipb") => {
                     let mut s = slot(pole, 3)?;
@@ -290,10 +321,9 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                             break;
                         } else {
                             let i = s.as_cell()?.head().as_direct()?.data() as usize;
-                            if poison_get(&mut context.stack, i) {
+                            if poison_get(virtual_frame, i) {
                                 // XX crash
-                            }
-                            else {
+                            } else {
                                 s = s.as_cell()?.tail();
                             }
                         }
@@ -307,12 +337,12 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
             match slot(bend, 2)?.as_direct()?.data() {
                 tas!(b"clq") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    let s_value = register_get(virtual_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
                             let mut o = slot(bend, 15)?;
-                            blob = pile
-                                .will
+                            let will = unsafe { (*(*virtual_frame).pile.0).will };
+                            let blob = will
                                 .lookup(&mut context.stack, &mut o)
                                 .ok_or(Error::Deterministic(D(0)))?;
                             body = slot(blob, 2)?;
@@ -321,8 +351,8 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         }
                         Right(_cell) => {
                             let mut z = slot(bend, 14)?;
-                            blob = pile
-                                .will
+                            let will = unsafe { (*(*virtual_frame).pile.0).will };
+                            let blob = will
                                 .lookup(&mut context.stack, &mut z)
                                 .ok_or(Error::Deterministic(D(0)))?;
                             body = slot(blob, 2)?;
@@ -334,12 +364,12 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"eqq") => {
                     let l = slot(bend, 6)?.as_direct()?.data() as usize;
                     let r = slot(bend, 14)?.as_direct()?.data() as usize;
-                    let l_value = register_get(&mut context.stack, pois_sz, l);
-                    let r_value = register_get(&mut context.stack, pois_sz, r);
+                    let l_value = register_get(virtual_frame, l);
+                    let r_value = register_get(virtual_frame, r);
                     if unsafe { l_value.raw_equals(r_value) } {
                         let mut z = slot(bend, 30)?;
-                        blob = pile
-                            .will
+                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let blob = will
                             .lookup(&mut context.stack, &mut z)
                             .ok_or(Error::Deterministic(D(0)))?;
                         body = slot(blob, 2)?;
@@ -347,22 +377,22 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         continue;
                     } else {
                         let mut o = slot(bend, 31)?;
-                        blob = pile
-                            .will
+                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let blob = will
                             .lookup(&mut context.stack, &mut o)
                             .ok_or(Error::Deterministic(D(0)))?;
                         body = slot(blob, 2)?;
                         bend = slot(blob, 3)?;
                         continue;
                     }
-                },
+                }
                 tas!(b"brn") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                    let s_value = register_get(&mut context.stack, pois_sz, s);
+                    let s_value = register_get(virtual_frame, s);
                     if unsafe { s_value.raw_equals(D(0)) } {
                         let mut z = slot(bend, 14)?;
-                        blob = pile
-                            .will
+                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let blob = will
                             .lookup(&mut context.stack, &mut z)
                             .ok_or(Error::Deterministic(D(0)))?;
                         body = slot(blob, 2)?;
@@ -370,8 +400,8 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         continue;
                     } else if unsafe { s_value.raw_equals(D(1)) } {
                         let mut o = slot(bend, 15)?;
-                        blob = pile
-                            .will
+                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let blob = will
                             .lookup(&mut context.stack, &mut o)
                             .ok_or(Error::Deterministic(D(0)))?;
                         body = slot(blob, 2)?;
@@ -380,65 +410,164 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     } else {
                         // XX crash
                     }
-                },
+                }
                 tas!(b"hop") => {
                     let mut t = slot(bend, 3)?;
-                    blob = pile
-                        .will
+                    let will = unsafe { (*(*virtual_frame).pile.0).will };
+                    let blob = will
                         .lookup(&mut context.stack, &mut t)
                         .ok_or(Error::Deterministic(D(0)))?;
                     body = slot(blob, 2)?;
                     bend = slot(blob, 3)?;
                     continue;
-                },
-                tas!(b"hip") => {
-                    // XX set comefrom label to c and goto t
-                },
+                }
+                // tas!(b"hip") => {
+                //     // XX set comefrom label to c and goto t
+                // },
                 tas!(b"lnk") => {
-                    // XX evaluate f against u and put the result in d, then goto t
+                    // evaluate f against u and put the result in d, then goto t
                     let u = slot(bend, 6)?.as_direct()?.data() as usize;
                     let f = slot(bend, 14)?.as_direct()?.data() as usize;
                     let d = slot(bend, 30)?.as_direct()?.data() as usize;
-                    let mut t = slot(bend, 31)?.as_direct()?.data() as usize;
+                    let t = slot(bend, 31)?;
 
-                    let u_value = register_get(&mut context.stack, pois_sz, u);
-                    let f_value = register_get(&mut context.stack, pois_sz, f);
-                    let res = cg_interpret(context, u_value, f_value)?;
-                    register_set(&mut context.stack, pois_sz, d, res);
+                    let subject = register_get(virtual_frame, u);
+                    let formula = register_get(virtual_frame, f);
+
+                    unsafe {
+                        (*virtual_frame).dest = d;
+                        (*virtual_frame).cont = t;
+                    }
+
+                    {
+                        let pile = cg_pull_pile(context, subject, formula)?;
+                        let sans = unsafe { (*(pile.0)).sans };
+                        let pois_sz = (sans / 64) + if (sans % 64) == 0 { 0 } else { 1 };
+                        context
+                            .stack
+                            .frame_push(size_of::<Frame>() + pois_sz + sans);
+                        virtual_frame = context.stack.get_frame_pointer() as *mut Frame;
+                        unsafe {
+                            (*(virtual_frame)).mean = D(0);
+                            (*(virtual_frame)).traz =
+                                std::ptr::null::<TraceStack>() as *mut *const TraceStack;
+                            (*(virtual_frame)).slow = D(0);
+
+                            (*(virtual_frame)).pile = pile;
+
+                            (*(virtual_frame)).dest = 0;
+                            (*(virtual_frame)).cont = D(0);
+                            (*(virtual_frame)).pois_sz = pois_sz;
+                        }
+                    }
+
+                    {
+                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let blob = will
+                            .lookup(&mut context.stack, &mut unsafe {
+                                (*(*virtual_frame).pile.0).wish
+                            })
+                            .ok_or(Error::Deterministic(D(0)))?;
+                        body = slot(blob, 2)?;
+                        bend = slot(blob, 3)?;
+                    }
                     continue;
-                },
+                }
+                tas!(b"cal") => {
+                    // call the arm a with subject in registers u, poisons in b,
+                    // result in d, and then goto t
+                }
+                tas!(b"caf") => {
+                    // like call but with fast label
+                }
+                tas!(b"lnt") => {
+                    // evaluate f against u in tail position
+                }
+                tas!(b"jmp") => {
+                    // call the arm a with subject in registers u, poisons in b, in
+                    // tail position
+                }
+                tas!(b"jmf") => {
+                    // like jmp but with fast label
+                }
+                tas!(b"spy") => {
+                    // scry with ref in e and path in p, put result in d, goto t
+                }
+                tas!(b"mer") => {
+                    // check if triple [k u f] is in cache, put result in d if so
+                    // and goto i, else goto m
+                }
+                tas!(b"don") => {
+                    let s = slot(bend, 6)?.as_direct()?.data() as usize;
+                    let mut s_value = register_get(virtual_frame, s);
+
+                    unsafe {
+                        let stack = &mut context.stack;
+                        // XX debug assertions
+
+                        stack.preserve(&mut context.cache);
+                        stack.preserve(&mut context.cold);
+                        stack.preserve(&mut context.warm);
+                        stack.preserve(&mut s_value);
+                        stack.frame_pop();
+
+                        let fp = context.stack.get_frame_pointer();
+                        if fp == base_frame {
+                            break Ok(s_value);
+                        }
+                        virtual_frame = fp as *mut Frame;
+
+                        register_set(virtual_frame, (*virtual_frame).dest, s_value);
+
+                        let will = (*(*virtual_frame).pile.0).will;
+                        let blob = will
+                            .lookup(&mut context.stack, &mut (*virtual_frame).cont)
+                            .ok_or(Error::Deterministic(D(0)))?;
+                        body = slot(blob, 2)?;
+                        bend = slot(blob, 3)?;
+                    }
+                    continue;
+                }
+                tas!(b"bom") => {
+                    // crash
+                }
                 _ => {
                     panic!("invalid bend instruction");
                 }
             }
         }
     }
-    // when i hit %hop, load a new body from the will hamt to get a new blob which is
-    // then split into [body bend], then keep going around the loop
-    // only indirect calls are %lnk and %lnt
 }
 
-fn register_set(stack: &mut NockStack, poison_size: usize, local: usize, value: Noun) {
+// XX implement a generic local_set that all the more specific
+// getters and setters call
+fn register_set(frame: *mut Frame, local: usize, value: Noun) {
     unsafe {
-        *(stack.local_noun_pointer(MEAN_SZ + TRAZ_SZ + SLOW_SZ + poison_size + local)) = value;
+        let pois_sz = (*(frame)).pois_sz;
+        let reg_ptr = (frame as *mut Noun).add(size_of::<Frame>() + pois_sz + local);
+        *reg_ptr = value;
     }
 }
 
-fn register_get(stack: &mut NockStack, poison_size: usize, local: usize) -> Noun {
-    unsafe { *(stack.local_noun_pointer(MEAN_SZ + TRAZ_SZ + SLOW_SZ + poison_size + local)) }
+fn register_get(frame: *const Frame, local: usize) -> Noun {
+    unsafe {
+        let pois_sz = (*(frame)).pois_sz;
+        let reg_ptr = (frame as *mut Noun).add(size_of::<Frame>() + pois_sz + local);
+        *reg_ptr
+    }
 }
 
-fn poison_set(stack: &mut NockStack, local: usize) {
+fn poison_set(frame: *mut Frame, local: usize) {
     let index = local / 64;
     let offset = local % 64;
-    let mut _bitmap = unsafe { *(stack.local_noun_pointer(MEAN_SZ + TRAZ_SZ + SLOW_SZ + index) as *mut u64) };
-    _bitmap |= 1 << offset;
+    let bitmap = unsafe { (frame as *mut u64).add(size_of::<Frame>() + index) };
+    unsafe { *bitmap |= 1 << offset };
 }
 
-fn poison_get(stack: &mut NockStack, local: usize) -> bool {
+fn poison_get(frame: *const Frame, local: usize) -> bool {
     let index = local / 64;
     let offset = local % 64;
-    let bitmap = unsafe { *(stack.local_noun_pointer(MEAN_SZ + TRAZ_SZ + SLOW_SZ + index) as *mut u64) };
+    let bitmap = unsafe { *(frame as *const u64).add(size_of::<Frame>() + index) };
     bitmap & (1 << offset) != 0
 }
 

@@ -300,7 +300,7 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
     assert_no_junior_pointers!(stack, noun);
 }
 
-/** Interpret nock */
+/// Interpret nock.
 pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Result {
     let terminator = Arc::clone(&TERMINATOR);
     let orig_subject = subject; // for debugging
@@ -1080,7 +1080,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> result::Res
     Ok(())
 }
 
-fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error {
+pub fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error {
     unsafe {
         let stack = &mut context.stack;
 
@@ -1108,8 +1108,7 @@ fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error
     }
 }
 
-/** Push frame onto NockStack while preserving the mean and slow stacks.
- */
+/// Push frame onto NockStack while preserving the mean and slow stacks.
 pub fn mean_frame_push(stack: &mut NockStack, slots: usize) {
     unsafe {
         let trace = *(stack.local_noun_pointer(0));
@@ -1120,8 +1119,7 @@ pub fn mean_frame_push(stack: &mut NockStack, slots: usize) {
     }
 }
 
-/** Push onto the mean stack.
- */
+/// Push onto the mean stack.
 pub fn mean_push(stack: &mut NockStack, noun: Noun) {
     unsafe {
         let cur_trace = *(stack.local_noun_pointer(0));
@@ -1130,8 +1128,7 @@ pub fn mean_push(stack: &mut NockStack, noun: Noun) {
     }
 }
 
-/** Pop off of the mean stack.
- */
+/// Pop off of the mean stack.
 pub fn mean_pop(stack: &mut NockStack) {
     unsafe {
         *(stack.local_noun_pointer(0)) = (*(stack.local_noun_pointer(0)))
@@ -1141,19 +1138,16 @@ pub fn mean_pop(stack: &mut NockStack) {
     }
 }
 
-/** Push onto the slow stack.
- */
+/// Push onto the slow stack.
 pub fn slow_push(stack: &mut NockStack, noun: Noun) {
     unsafe {
         let cur_slow = *(stack.local_noun_pointer(2));
         let new_slow = T(stack, &[noun, cur_slow]);
         *(stack.local_noun_pointer(2)) = new_slow;
     }
-
 }
 
-/** Pop off of the slow stack.
- */
+/// Pop off of the slow stack.
 pub fn slow_pop(stack: &mut NockStack) {
     unsafe {
         *(stack.local_noun_pointer(2)) = (*(stack.local_noun_pointer(2)))
@@ -1285,7 +1279,7 @@ mod hint {
         }
     }
 
-    /** Match dynamic hints before the hint formula is evaluated */
+    /// Match dynamic hints before the hint formula is evaluated.
     pub fn match_pre_hint(
         context: &mut Context,
         subject: Noun,
@@ -1384,7 +1378,7 @@ mod hint {
         }
     }
 
-    /** Match static and dynamic hints before the nock formula is evaluated */
+    /// Match static and dynamic hints before the nock formula is evaluated
     pub fn match_pre_nock(
         context: &mut Context,
         _subject: Noun,
@@ -1462,7 +1456,7 @@ mod hint {
         None
     }
 
-    /** Match static and dynamic hints after the nock formula is evaluated */
+    /// Match static and dynamic hints after the nock formula is evaluated.
     pub fn match_post_nock(
         context: &mut Context,
         subject: Noun,
