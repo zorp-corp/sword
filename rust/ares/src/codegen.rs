@@ -225,7 +225,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     mean_pop(&mut context.stack);
                 },
                 tas!(b"slo") => {
-                    let s = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let s = slot(pole, 3)?.as_direct()?.data() as usize;
                     let s_value = register_get(&mut context.stack, pois_sz, s);
                     slow_push(&mut context.stack, s_value);
                 },
