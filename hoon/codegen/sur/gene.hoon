@@ -169,7 +169,7 @@
 ::  %hop - unconditionally go to t
 ::  %hip - set comefrom label to c and goto t
 ::  %lnk - evaluate f against u and put the result in d, then goto t
-::  %cal - call the arm a with subject in registers u, poisons in b,
+::  %cal - call the arm a with subject in registers v, poisons in b,
 ::         result in d, and then goto t
 ::  %caf - like call but with fast label
 ::  %lnt - evaluate f against u in tail position

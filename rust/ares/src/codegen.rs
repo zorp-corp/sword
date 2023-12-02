@@ -1,6 +1,6 @@
-// XX THE PILE TYPE HAS CHANGED
-//
-// XX codegen errors are nondeterministic
+// XX codegen errors are nondeterministic: we probably need a version of slot that throws a
+// non-deterministic error, any other error caused by codegen being wrong should also be
+// nondeterministic, or just a panic.
 use ares_macros::tas;
 use either::Either::{Left, Right};
 use std::mem::size_of;
@@ -8,6 +8,8 @@ use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 
 use crate::hamt::Hamt;
+// XX no, we have a completely different stack layout from the tree-walking interpreter. We can't
+// borrow helper functions from it
 use crate::interpreter::{mean_pop, mean_push, slow_pop, slow_push, Context, Error};
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
@@ -299,6 +301,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     };
                 }
                 tas!(b"men") => {
+                    // XX surely we need the static part as well
                     let s = slot(pole, 7)?.as_direct()?.data() as usize;
                     let s_value = register_get(virtual_frame, s);
                     mean_push(&mut context.stack, s_value);
@@ -498,6 +501,11 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     }
 
                     {
+                        let sire = unsafe { (*(*virtual_frame).pile.0).sire };
+                        register_set(virtual_frame, sire, subject);
+                    }
+
+                    {
                         let will = unsafe { (*(*virtual_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut unsafe {
@@ -510,8 +518,80 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     continue;
                 }
                 tas!(b"cal") => {
-                    // call the arm a with subject in registers u, poisons in b,
+                    // call the arm a with subject in registers v, poisons in b,
                     // result in d, and then goto t
+                    let mut a = slot(bend, 6)?;
+                    let mut b = slot(bend, 14)?;
+                    let mut v = slot(bend, 30)?;
+                    let d = slot(bend, 62)?.as_direct()?.data() as usize;
+                    let t = slot(bend, 63)?;
+
+                    unsafe {
+                        (*virtual_frame).dest = d;
+                        (*virtual_frame).cont = t;
+                    }
+
+                    let parent_frame = virtual_frame;
+
+                    let pile = context.hill
+                            .lookup(&mut context.stack, &mut a)
+                            .ok_or(Error::NonDeterministic(D(0)))?;
+
+                    unsafe {
+                        new_frame(context, &mut virtual_frame, pile, false);
+                    }
+
+                    let mut bait = unsafe { (*(pile.0)).bait };
+                    let mut walt = unsafe { (*(pile.0)).walt };
+
+                    loop {
+                        unsafe {
+                            if b.raw_equals(D(0)) {
+                                if !bait.raw_equals(D(0)) {
+                                    Err(Error::NonDeterministic(D(0)))?;
+                                }
+                                break;
+                            }
+
+                            let b_i = slot(b, 2)?.as_direct()?.data() as usize;
+                            b = slot(b, 3)?;
+                            let bait_i = slot(bait, 2)?.as_direct()?.data() as usize;
+                            bait = slot(bait, 3)?;
+
+                            if poison_get(parent_frame, b_i) {
+                                poison_set(virtual_frame, bait_i);
+                            }
+                        }
+                    }
+
+                    loop {
+                        unsafe {
+                            if v.raw_equals(D(0)) {
+                                if !walt.raw_equals(D(0)) {
+                                    Err(Error::NonDeterministic(D(0)))?;
+                                }
+                                break;
+                            }
+
+                            let v_i = slot(v, 2)?.as_direct()?.data() as usize;
+                            v = slot(v, 3)?;
+                            let walt_i = slot(walt, 2)?.as_direct()?.data() as usize;
+                            walt = slot(walt, 3)?;
+
+                            register_set(virtual_frame, walt_i, register_get(parent_frame, v_i));
+                        }
+                    }
+
+                    {
+                        let will = unsafe { (*(pile.0)).will };
+                        let blob = will
+                            .lookup(&mut context.stack, &mut unsafe {
+                                (*(pile.0)).long
+                            })
+                            .ok_or(Error::NonDeterministic(D(0)))?;
+                        body = slot(blob, 2)?;
+                        bend = slot(blob, 3)?;
+                    }
                 }
                 tas!(b"caf") => {
                     // like call but with fast label
@@ -520,6 +600,34 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"lnt") => {
                     // evaluate f against u in tail position
+                    let u = slot(bend, 6)?.as_direct()?.data() as usize;
+                    let f = slot(bend, 7)?.as_direct()?.data() as usize;
+
+                    let subject = register_get(virtual_frame, u);
+                    let formula = register_get(virtual_frame, f);
+
+                    {
+                        let pile = cg_pull_pile(context, subject, formula)?;
+                        unsafe {
+                            new_frame(context, &mut virtual_frame, pile, true);
+                        }
+                    }
+
+                    {
+                        let sire = unsafe { (*(*virtual_frame).pile.0).sire };
+                        register_set(virtual_frame, sire, subject);
+                    }
+
+                    {
+                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let blob = will
+                            .lookup(&mut context.stack, &mut unsafe {
+                                (*(*virtual_frame).pile.0).wish
+                            })
+                            .ok_or(Error::Deterministic(D(0)))?;
+                        body = slot(blob, 2)?;
+                        bend = slot(blob, 3)?;
+                    }
                 }
                 tas!(b"jmp") => {
                     let mut a = slot(bend, 6)?;
