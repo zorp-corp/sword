@@ -77,35 +77,35 @@ fn cg_pull_peek(
     context: &mut Context,
     subject: Noun,
     formula: Noun,
-) -> Result<(Noun, Hamt<Pile>), Error> {
+) -> Result<Noun, Error> {
     // +peek or +poke dance
     context.line.ok_or(Error::Deterministic(D(0)))?;
     let pek = util::peek(context, subject, formula)?;
-    if unsafe { pek.raw_equals(D(0)) } {
-        let comp = util::comp(context, subject, formula);
-        let line = util::poke(context, comp).expect("poke failed");
-        context.line = Some(line);
-        let good_peek = util::peek(context, subject, formula)?;
-        context.peek = Some(util::part_peek(&mut context.stack, good_peek)?);
-    } else {
-        context.peek = Some(util::part_peek(&mut context.stack, pek)?);
-    }
+    let bell = 
+        if unsafe { pek.raw_equals(D(0)) } {
+            let comp = util::comp(context, subject, formula);
+            let line = util::poke(context, comp).expect("poke failed");
+            context.line = Some(line);
+            let good_peek = util::peek(context, subject, formula)?;
+            let (bell, hill) = util::part_peek(&mut context.stack, good_peek)?;
+            context.hill = hill;
+            bell
+        } else {
+            let (bell, hill) = util::part_peek(&mut context.stack, pek)?;
+            context.hill = hill;
+            bell
+        };
 
-    // parse the peek's non-empty results and return them
-    if context.peek.is_none() {
-        return Err(Error::Deterministic(D(0)));
-    }
-    let bell = context.peek.unwrap().0;
-    let hill = context.peek.unwrap().1;
-    Ok((bell, hill))
+    Ok(bell)
 }
 
 /// Uses the `(bell, hill)` tuple returned from `cg_pull_peek()` to lookup the first
 /// `pile` in the `hill` map.
 /// XX percolate the changes to this through the code
 fn cg_pull_pile(context: &mut Context, subject: Noun, formula: Noun) -> Result<Pile, Error> {
-    let (mut bell, hill) = cg_pull_peek(context, subject, formula).unwrap();
-    let pile = hill
+    let mut bell = cg_pull_peek(context, subject, formula).unwrap();
+    let pile = context
+        .hill
         .lookup(&mut context.stack, &mut bell)
         .ok_or(Error::Deterministic(D(0)))?;
     Ok(pile)
@@ -526,8 +526,8 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let mut b = slot(bend, 14)?;
                     let mut v = slot(bend, 15)?;
                     unsafe {
-                        let hill = context.peek.unwrap().1;
-                        let pile = hill
+                        let pile = context
+                            .hill
                             .lookup(&mut context.stack, &mut a)
                             .ok_or(Error::NonDeterministic(D(0)))?;
                         new_frame(context, &mut virtual_frame, pile, true); // set up tail call frame
@@ -576,7 +576,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                             };
 
                             let v_i = slot(v, 2)?.as_direct()?.data();
-                            v = slot(a, 3)?;
+                            v = slot(v, 3)?;
                             let walt_i = slot(v, 2)?.as_direct()?.data();
                             walt = slot(walt, 3)?;
                             // XX we should also store the old reg size and assert this doesn't read
@@ -618,9 +618,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     unsafe {
                         // XX debug assertions
 
-                        context.stack.preserve(&mut context.cache);
-                        context.stack.preserve(&mut context.cold);
-                        context.stack.preserve(&mut context.warm);
+                        context.preserve();
                         context.stack.preserve(&mut s_value);
                         pop_frame(context, &mut virtual_frame);
 

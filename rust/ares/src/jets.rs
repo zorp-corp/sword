@@ -286,6 +286,7 @@ pub mod util {
         use crate::noun::{Atom, Noun, D, T};
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
+        use crate::codegen::Pile;
 
         pub fn init_context() -> Context {
             let mut stack = NockStack::new(8 << 10 << 10, 0);
@@ -294,6 +295,7 @@ pub mod util {
             let warm = Warm::new();
             let hot = Hot::init(&mut stack);
             let cache = Hamt::<Noun>::new();
+            let hill = Hamt::<Pile>::new();
 
             Context {
                 stack,
@@ -305,7 +307,7 @@ pub mod util {
                 scry_stack: D(0),
                 trace_info: None,
                 line: None,
-                peek: None,
+                hill,
             }
         }
 

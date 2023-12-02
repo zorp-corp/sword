@@ -71,6 +71,7 @@ fn main() -> io::Result<()> {
     let cold = Cold::new(&mut stack);
     let warm = Warm::new();
     let hot = Hot::init(&mut stack);
+    let hill = Hamt::new();
     let mut context = Context {
         stack,
         newt,
@@ -81,7 +82,7 @@ fn main() -> io::Result<()> {
         scry_stack: D(0),
         trace_info: None,
         line: None,
-        peek: None,
+        hill,
     };
     let result =
         interpret(&mut context, input_cell.head(), input_cell.tail()).expect("nock failed");
