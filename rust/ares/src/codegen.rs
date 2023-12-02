@@ -75,28 +75,23 @@ impl Pile {
 /// First peeks or pokes the codegen core (line) to get codegen for the
 /// subject and formula, then parses the successful results into a
 /// (bell, hill) tuple.
-fn cg_pull_peek(
-    context: &mut Context,
-    subject: Noun,
-    formula: Noun,
-) -> Result<Noun, Error> {
+fn cg_pull_peek(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
     // +peek or +poke dance
     context.line.ok_or(Error::Deterministic(D(0)))?;
     let pek = util::peek(context, subject, formula)?;
-    let bell = 
-        if unsafe { pek.raw_equals(D(0)) } {
-            let comp = util::comp(context, subject, formula);
-            let line = util::poke(context, comp).expect("poke failed");
-            context.line = Some(line);
-            let good_peek = util::peek(context, subject, formula)?;
-            let (bell, hill) = util::part_peek(&mut context.stack, good_peek)?;
-            context.hill = hill;
-            bell
-        } else {
-            let (bell, hill) = util::part_peek(&mut context.stack, pek)?;
-            context.hill = hill;
-            bell
-        };
+    let bell = if unsafe { pek.raw_equals(D(0)) } {
+        let comp = util::comp(context, subject, formula);
+        let line = util::poke(context, comp).expect("poke failed");
+        context.line = Some(line);
+        let good_peek = util::peek(context, subject, formula)?;
+        let (bell, hill) = util::part_peek(&mut context.stack, good_peek)?;
+        context.hill = hill;
+        bell
+    } else {
+        let (bell, hill) = util::part_peek(&mut context.stack, pek)?;
+        context.hill = hill;
+        bell
+    };
 
     Ok(bell)
 }
@@ -533,9 +528,10 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
 
                     let parent_frame = virtual_frame;
 
-                    let pile = context.hill
-                            .lookup(&mut context.stack, &mut a)
-                            .ok_or(Error::NonDeterministic(D(0)))?;
+                    let pile = context
+                        .hill
+                        .lookup(&mut context.stack, &mut a)
+                        .ok_or(Error::NonDeterministic(D(0)))?;
 
                     unsafe {
                         new_frame(context, &mut virtual_frame, pile, false);
@@ -585,9 +581,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     {
                         let will = unsafe { (*(pile.0)).will };
                         let blob = will
-                            .lookup(&mut context.stack, &mut unsafe {
-                                (*(pile.0)).long
-                            })
+                            .lookup(&mut context.stack, &mut unsafe { (*(pile.0)).long })
                             .ok_or(Error::NonDeterministic(D(0)))?;
                         body = slot(blob, 2)?;
                         bend = slot(blob, 3)?;

@@ -281,12 +281,12 @@ pub mod util {
 
     pub mod test {
         use super::*;
+        use crate::codegen::Pile;
         use crate::hamt::Hamt;
         use crate::mem::{unifying_equality, NockStack};
         use crate::noun::{Atom, Noun, D, T};
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
-        use crate::codegen::Pile;
 
         pub fn init_context() -> Context {
             let mut stack = NockStack::new(8 << 10 << 10, 0);

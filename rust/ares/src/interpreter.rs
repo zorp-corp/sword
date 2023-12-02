@@ -267,8 +267,8 @@ pub struct Context {
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
-    pub line: Option<Noun>,               // codegen core
-    pub hill: Hamt<Pile>, // product of +peek in line core
+    pub line: Option<Noun>, // codegen core
+    pub hill: Hamt<Pile>,   // product of +peek in line core
 }
 
 impl Context {
@@ -279,7 +279,7 @@ impl Context {
         self.stack.preserve(&mut self.scry_stack);
         match self.line.as_mut() {
             None => {}
-            Some(lr) => { self.stack.preserve(lr) }
+            Some(lr) => self.stack.preserve(lr),
         }
         self.stack.preserve(&mut self.hill);
     }
