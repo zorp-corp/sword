@@ -698,9 +698,13 @@ impl NockStack {
         } else {
             let old_frame_size = prev_alloc_pointer.offset_from(self.frame_pointer);
             let new_frame_size = prev_alloc_pointer.offset_from(new_frame_pointer);
-            assert!( old_frame_size > 0);
-            assert!( new_frame_size > 0);
-            std::ptr::copy(self.frame_pointer, new_frame_pointer, std::cmp::min(old_frame_size, new_frame_size) as usize);
+            assert!(old_frame_size > 0);
+            assert!(new_frame_size > 0);
+            std::ptr::copy(
+                self.frame_pointer,
+                new_frame_pointer,
+                std::cmp::min(old_frame_size, new_frame_size) as usize,
+            );
         }
         self.frame_pointer = new_frame_pointer;
         self.stack_pointer = self.frame_pointer;

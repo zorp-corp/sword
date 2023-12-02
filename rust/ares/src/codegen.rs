@@ -143,13 +143,17 @@ unsafe fn new_frame(context: &mut Context, frame_ref: &mut *mut Frame, pile: Pil
             let old_frame_ptr = context.stack.get_frame_lowest() as *mut Frame;
             let old_sans = (*((*old_frame_ptr).pile.0)).sans;
             let old_poison_size = (*old_frame_ptr).pois_sz;
-            context
-                .stack
-                .frame_replace(FRAME_WORD_SIZE + poison_size + sans + old_poison_size + old_sans + 1);
+            context.stack.frame_replace(
+                FRAME_WORD_SIZE + poison_size + sans + old_poison_size + old_sans + 1,
+            );
             let frame_ptr = context.stack.get_frame_lowest();
             // save old poison size and old poison and registers for new call setup
             *(frame_ptr.add(FRAME_WORD_SIZE + poison_size + sans) as *mut usize) = old_poison_size;
-            std::ptr::copy(frame_ptr.add(FRAME_WORD_SIZE), frame_ptr.add(FRAME_WORD_SIZE + poison_size + sans + 1), old_poison_size + old_sans); 
+            std::ptr::copy(
+                frame_ptr.add(FRAME_WORD_SIZE),
+                frame_ptr.add(FRAME_WORD_SIZE + poison_size + sans + 1),
+                old_poison_size + old_sans,
+            );
         }
     } else {
         context
@@ -523,7 +527,9 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let mut v = slot(bend, 15)?;
                     unsafe {
                         let hill = context.peek.unwrap().1;
-                        let pile = hill.lookup(&mut context.stack, &mut a).ok_or(Error::NonDeterministic(D(0)))?;
+                        let pile = hill
+                            .lookup(&mut context.stack, &mut a)
+                            .ok_or(Error::NonDeterministic(D(0)))?;
                         new_frame(context, &mut virtual_frame, pile, true); // set up tail call frame
 
                         let sans = (*(pile.0)).sans;
@@ -532,8 +538,10 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         let mut bait = (*(pile.0)).bait;
                         let mut walt = (*(pile.0)).walt;
 
-                        let old_poison_sz = *(virtual_frame as *const usize).add(sans + poison_size);
-                        let old_poison_ptr = (virtual_frame as *const u64).add(sans + poison_size + 1);
+                        let old_poison_sz =
+                            *(virtual_frame as *const usize).add(sans + poison_size);
+                        let old_poison_ptr =
+                            (virtual_frame as *const u64).add(sans + poison_size + 1);
 
                         loop {
                             if b.raw_equals(D(0)) {
@@ -555,7 +563,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                             if *(old_poison_ptr.add(b_i_offset as usize)) & (1 << b_i_bit) != 0 {
                                 poison_set(virtual_frame, bait_i as usize);
                             }
-                        };
+                        }
 
                         let old_reg_ptr = old_poison_ptr.add(old_poison_sz) as *const Noun;
 
@@ -573,15 +581,20 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                             walt = slot(walt, 3)?;
                             // XX we should also store the old reg size and assert this doesn't read
                             // past it
-                            register_set(virtual_frame, walt_i as usize, *(old_reg_ptr.add(v_i as usize)));
-                        };
+                            register_set(
+                                virtual_frame,
+                                walt_i as usize,
+                                *(old_reg_ptr.add(v_i as usize)),
+                            );
+                        }
 
                         let will = (*(pile.0)).will;
-                        let blob = will.lookup(&mut context.stack, &mut (*(pile.0)).long).ok_or(Error::Deterministic(D(0)))?;
+                        let blob = will
+                            .lookup(&mut context.stack, &mut (*(pile.0)).long)
+                            .ok_or(Error::Deterministic(D(0)))?;
                         body = slot(blob, 2)?;
                         bend = slot(blob, 3)?;
                     }
-                        
 
                     // call the arm a with subject in registers u, poisons in b, in
                     // tail position
