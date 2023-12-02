@@ -1,3 +1,6 @@
+// XX THE PILE TYPE HAS CHANGED
+//
+// XX codegen errors are nondeterministic
 use ares_macros::tas;
 use either::Either::{Left, Right};
 use std::mem::size_of;
@@ -15,7 +18,8 @@ use crate::trace::TraceStack;
 #[derive(Copy, Clone)]
 pub struct PileMem {
     long: Noun,
-    want: Noun,
+    bait: Noun,
+    walt: Noun,
     wish: Noun,
     sire: usize,
     will: Hamt<Noun>,
@@ -23,13 +27,14 @@ pub struct PileMem {
 }
 
 #[derive(Copy, Clone)]
-pub struct Pile(*const PileMem);
+pub struct Pile(*mut PileMem);
 impl Preserve for Pile {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if stack.is_in_frame(self.0) {
             let mut pile_mem = *(self.0);
             pile_mem.long.preserve(stack);
-            pile_mem.want.preserve(stack);
+            pile_mem.bait.preserve(stack);
+            pile_mem.walt.preserve(stack);
             pile_mem.wish.preserve(stack);
             pile_mem.will.preserve(stack);
             let dest_mem: *mut PileMem = stack.struct_alloc_in_previous_frame(1);
@@ -40,7 +45,8 @@ impl Preserve for Pile {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         stack.assert_struct_is_in(self.0, 1);
         (*(self.0)).long.assert_in_stack(stack);
-        (*(self.0)).want.assert_in_stack(stack);
+        (*(self.0)).bait.assert_in_stack(stack);
+        (*(self.0)).walt.assert_in_stack(stack);
         (*(self.0)).wish.assert_in_stack(stack);
         (*(self.0)).will.assert_in_stack(stack);
     }
@@ -52,11 +58,12 @@ impl Pile {
             let mem: *mut PileMem = stack.struct_alloc(1);
             *mem = PileMem {
                 long: slot(p, 2)?,
-                want: slot(p, 6)?,
-                wish: slot(p, 14)?,
-                sire: slot(p, 30)?.as_direct()?.data() as usize,
+                bait: slot(p, 14)?,
+                walt: slot(p, 30)?,
+                wish: slot(p, 62)?,
+                sire: slot(p, 126)?.as_direct()?.data() as usize,
                 will: util::part_will(stack, slot(p, 62)?)?,
-                sans: slot(p, 63)?.as_direct()?.data() as usize,
+                sans: slot(p, 254)?.as_direct()?.data() as usize,
             };
             Ok(Pile(mem))
         }
@@ -118,14 +125,31 @@ struct Frame {
 
 const FRAME_WORD_SIZE: usize = (size_of::<Frame>() + 7) >> 3; // Round to u64 words
 
+/**
+ * Push a new interpreter frame and return the associated virtual frame
+ *
+ * If tail is false, this will simply set up a new frame.
+ *
+ * If tail is true, this will set up a new frame in the current stack position, but in addition
+ * - resize the frame to hold the old poisons, the old registers, the new poisons, and the new
+ *   registers
+ * - move the old poisons and registers over
+ */
 unsafe fn new_frame(context: &mut Context, frame_ref: &mut *mut Frame, pile: Pile, tail: bool) {
     let sans = unsafe { (*(pile.0)).sans };
     let poison_size = (sans + 63) >> 6;
     if tail {
         unsafe {
+            let old_frame_ptr = context.stack.get_frame_lowest() as *mut Frame;
+            let old_sans = (*((*old_frame_ptr).pile.0)).sans;
+            let old_poison_size = (*old_frame_ptr).pois_sz;
             context
                 .stack
-                .frame_replace(FRAME_WORD_SIZE + poison_size + sans);
+                .frame_replace(FRAME_WORD_SIZE + poison_size + sans + old_poison_size + old_sans + 1);
+            let frame_ptr = context.stack.get_frame_lowest();
+            // save old poison size and old poison and registers for new call setup
+            *(frame_ptr.add(FRAME_WORD_SIZE + poison_size + sans) as *mut usize) = old_poison_size;
+            std::ptr::copy(frame_ptr.add(FRAME_WORD_SIZE), frame_ptr.add(FRAME_WORD_SIZE + poison_size + sans + 1), old_poison_size + old_sans); 
         }
     } else {
         context
@@ -494,6 +518,71 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     // evaluate f against u in tail position
                 }
                 tas!(b"jmp") => {
+                    let mut a = slot(bend, 6)?;
+                    let mut b = slot(bend, 14)?;
+                    let mut v = slot(bend, 15)?;
+                    unsafe {
+                        let hill = context.peek.unwrap().1;
+                        let pile = hill.lookup(&mut context.stack, &mut a).ok_or(Error::NonDeterministic(D(0)))?;
+                        new_frame(context, &mut virtual_frame, pile, true); // set up tail call frame
+
+                        let sans = (*(pile.0)).sans;
+                        let poison_size = (*virtual_frame).pois_sz;
+
+                        let mut bait = (*(pile.0)).bait;
+                        let mut walt = (*(pile.0)).walt;
+
+                        let old_poison_sz = *(virtual_frame as *const usize).add(sans + poison_size);
+                        let old_poison_ptr = (virtual_frame as *const u64).add(sans + poison_size + 1);
+
+                        loop {
+                            if b.raw_equals(D(0)) {
+                                if !bait.raw_equals(D(0)) {
+                                    Err(Error::NonDeterministic(D(0)))?;
+                                };
+                                break;
+                            }
+
+                            let b_i = slot(b, 2)?.as_direct()?.data();
+                            b = slot(b, 3)?;
+                            let bait_i = slot(bait, 2)?.as_direct()?.data();
+                            bait = slot(bait, 3)?;
+
+                            let b_i_offset = b_i / 64;
+                            let b_i_bit = b_i % 64;
+                            assert!((b_i_offset as usize) < old_poison_sz);
+
+                            if *(old_poison_ptr.add(b_i_offset as usize)) & (1 << b_i_bit) != 0 {
+                                poison_set(virtual_frame, bait_i as usize);
+                            }
+                        };
+
+                        let old_reg_ptr = old_poison_ptr.add(old_poison_sz) as *const Noun;
+
+                        loop {
+                            if v.raw_equals(D(0)) {
+                                if !walt.raw_equals(D(0)) {
+                                    Err(Error::NonDeterministic(D(0)))?;
+                                };
+                                break;
+                            };
+
+                            let v_i = slot(v, 2)?.as_direct()?.data();
+                            v = slot(a, 3)?;
+                            let walt_i = slot(v, 2)?.as_direct()?.data();
+                            walt = slot(walt, 3)?;
+                            // XX we should also store the old reg size and assert this doesn't read
+                            // past it
+                            register_set(virtual_frame, walt_i as usize, *(old_reg_ptr.add(v_i as usize)));
+                        };
+
+                        let will = (*(pile.0)).will;
+                        let blob = will.lookup(&mut context.stack, &mut (*(pile.0)).long).ok_or(Error::Deterministic(D(0)))?;
+                        body = slot(blob, 2)?;
+                        bend = slot(blob, 3)?;
+                    }
+                        
+
                     // call the arm a with subject in registers u, poisons in b, in
                     // tail position
                 }

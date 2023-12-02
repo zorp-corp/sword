@@ -668,8 +668,7 @@ impl NockStack {
      *
      * # Safety
      *
-     * This will clobber locals. Allocate for anything that needs to be preserved across the frame
-     * replacement.
+     * This will clobber locals. Instead of using locals, reference off of [get_frame_lowest].
      *
      * This will panic if you have called [preserve] and not yet [frame_pop].
      *
@@ -697,7 +696,11 @@ impl NockStack {
             let new_backref_base = new_frame_pointer.sub(RESERVED);
             std::ptr::copy(current_backref_base, new_backref_base, RESERVED);
         } else {
-            std::ptr::copy(self.frame_pointer, new_frame_pointer, RESERVED);
+            let old_frame_size = prev_alloc_pointer.offset_from(self.frame_pointer);
+            let new_frame_size = prev_alloc_pointer.offset_from(new_frame_pointer);
+            assert!( old_frame_size > 0);
+            assert!( new_frame_size > 0);
+            std::ptr::copy(self.frame_pointer, new_frame_pointer, std::cmp::min(old_frame_size, new_frame_size) as usize);
         }
         self.frame_pointer = new_frame_pointer;
         self.stack_pointer = self.frame_pointer;

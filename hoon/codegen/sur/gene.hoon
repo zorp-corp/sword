@@ -210,8 +210,8 @@
 ::
 ::  long: starting label for direct calls    axis 2
 ::  want: input registers for direct calls   axis 6
-::  bait: input poison registers             axis 14
-::  walt: input starting registers           axis 30
+::  bait: input poison registers NLR         axis 14
+::  walt: input starting registers LR        axis 30
 ::  wish: starting label for indirect calls  axis 62
 ::  sire: input register for indirect calls  axis 126
 ::  will: code table for arm                 axis 254
