@@ -1,6 +1,11 @@
 // XX codegen errors are nondeterministic: we probably need a version of slot that throws a
 // non-deterministic error, any other error caused by codegen being wrong should also be
 // nondeterministic, or just a panic.
+//
+// XX ECA TODO: figure out a robust way to make codegen errors nondeterministic
+// XX ECA TODO: turn hot state directly into a HAMT so we can grab jets from it easily in %jmf
+// XX ECA TODO: preprocess blobs in part_will, rewrite cal to caf and jet to jmf if no jets and
+// tracing is off
 use ares_macros::tas;
 use either::Either::{Left, Right};
 use std::mem::size_of;
