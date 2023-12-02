@@ -2506,30 +2506,45 @@ data_cow(btree, lo, hi):
 
 **/
 
-/* pgno_t */
-/* _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi) */
-/* { */
-
-/* } */
-
 static pgno_t
-_bt_data_cow(BT_state *state, BT_page *leaf, size_t i)
-/* cow the data referenced by ith leaf entry. remap the new data to the same
-   offset. insert the old data into the pending data freelist. finally, return
-   the pgno of the new data */
+_bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
 {
-  vaof_t lo = leaf->datk[i].va;
-  vaof_t hi = leaf->datk[i+1].va;
-  size_t len = B2PAGES(hi - lo);
-  pgno_t newpg = _bt_falloc(state, len);
-  /* ;;: todo: perform write call without having to map memory */
+  size_t byte_len = hi - lo;
+  pgno_t newpg = _bt_falloc(state, B2PAGES(byte_len));
+  BYTE *loaddr = OFF2ADDR(lo);
 
-  /* ;;: todo: and now the mmap call */
+  vaof_t arena_start = ADDR2OFF(BT_MAPADDR);
+  off_t offset = lo - arena_start;
 
-  /* insert into pending data freelist the old file chunk */
+  /* write call puts data in the unified buffer cache without having to map
+     virtual memory */
+  if (pwrite(state->data_fd, loaddr, byte_len, offset) != byte_len)
+    abort();
+
+  /* BYTE *arena_start = BT_MAPADDR; */
+  /* BYTE *map_loc = arena_start + lo; */
+
+  /* maps new file offset with same data back into memory */
+  mmap(BT_MAPADDR,
+       byte_len,
+       PROT_READ | PROT_WRITE,
+       MAP_FIXED | MAP_SHARED,
+       state->data_fd,
+       offset);                 /* ;;: using an offset here rather than
+                                     supplying the address directly. correct??
+                                     check. */
+
+  /* ;;: ps. noticed a duplicate _bt_insert call in the bt_dirty and data_cow
+       psuedocode. Does the order matter? Should it happen in data_cow or
+       bt_dirty? afaict, we might as well do it here and let _bt_data_cow
+       return void. No opinion really */
+
+  /* ;;: todo: insert into freelist */
 
   return newpg;
 }
+
+#define MIN(x, y) ((x) > (y) ? (y) : (x))
 
 static int
 _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
@@ -2569,8 +2584,11 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
   for (size_t i = loidx; i < hiidx; i++) {
     /* leaf: base case. cow the data */
     if (depth == maxdepth) {
-      pgno_t newpg = _bt_data_cow(state, node, i);
-      _bt_insert(state, node->datk[i].va, node->datk[i+1].va, newpg);
+      vaof_t llo = node->datk[i].va;
+      vaof_t hhi = MIN(node->datk[i+1].va, hi);
+      pgno_t pg = node->datk[i].fo;
+      pgno_t newpg = _bt_data_cow(state, llo, hhi, pg);
+      _bt_insert(state, llo, hhi, newpg);
     }
 
     /* branch: recursive case */
