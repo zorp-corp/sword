@@ -1024,6 +1024,9 @@ _bt_delco(BT_state *state, vaof_t lo, vaof_t hi,
   pgno_t rsubtree = 0;
 
   /* find low idx of range */
+
+  /* ;;: !!! fixme this is not incorrect. find first hi greater than lo. the lo
+       of that entry is the loidx */
   for (size_t i = 0; i < BT_DAT_MAXKEYS-1; i++) {
     vaof_t llo = node->datk[i].va;
     if (llo <= lo) {
@@ -2470,11 +2473,123 @@ bt_range_of(BT_state *state, void *p, void **lo, void **hi)
   return BT_SUCC;
 }
 
+/**
+
+pseudocode from ed:
+
+bt_dirty(btree, lo, hi):
+ loop:
+    (range_lo, range_hi) = find_range_for_pointer(btree, lo);
+    dirty_hi = min(hi, range_hi);
+    new_start_fo = data_cow(btree, lo, dirty_hi);
+    bt_insert(btree, lo, dirty_hi, new_start_fo);
+    lo := range_hi;
+    if dirty_hi == hi then break;
+
+// precondition: given range does not cross a tree boundary
+data_cow(btree, lo, hi):
+  (range_lo, range_hi, fo) = bt_find(btree, lo, hi);
+  size = lo - hi;
+  new_fo = data_alloc(btree.data_free, size);
+
+  // puts data in the unified buffer cache without having to map virtual memory
+  write(fd, new_fo, size * BT_PAGESIZE, to_ptr(lo));
+
+  // maps new file offset with same data back into same memory
+  mmap(fd, new_fo, size, to_ptr(lo));
+
+  bt_insert(btree, lo, hi, new_fo);
+
+  offset = lo - range_lo;
+  freelist_insert(btree.pending_data_flist, fo + offset, fo + offset + size);
+  return new_fo
+
+**/
+
+/* pgno_t */
+/* _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi) */
+/* { */
+
+/* } */
+
+static pgno_t
+_bt_data_cow(BT_state *state, BT_page *leaf, size_t i)
+/* cow the data referenced by ith leaf entry. remap the new data to the same
+   offset. insert the old data into the pending data freelist. finally, return
+   the pgno of the new data */
+{
+  vaof_t lo = leaf->datk[i].va;
+  vaof_t hi = leaf->datk[i+1].va;
+  size_t len = B2PAGES(hi - lo);
+  pgno_t newpg = _bt_falloc(state, len);
+  /* ;;: todo: perform write call without having to map memory */
+
+  /* ;;: todo: and now the mmap call */
+
+  /* insert into pending data freelist the old file chunk */
+
+  return newpg;
+}
+
+static int
+_bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
+          uint8_t depth, uint8_t maxdepth)
+{
+  BT_page *node = _node_get(state, nodepg);
+  size_t N = _bt_numkeys(node);
+  size_t loidx = 0;
+  size_t hiidx = 0;
+
+  /* find loidx of range */
+  for (size_t i = 0; i < N-1; i++) {
+    vaof_t hhi = node->datk[i+1].va;
+    if (hhi > lo) {
+      loidx = i;
+      break;
+    }
+  }
+  assert(loidx != 0);
+
+  /* find hiidx of range */
+  for (size_t i = loidx; i < N-1; i++) {
+    vaof_t hhi = node->datk[i+1].va;
+    if (hhi >= hi) {
+      hiidx = i;
+      break;
+    }
+  }
+  assert(hiidx != 0);
+
+  /* leaf: base case */
+  if (depth == maxdepth) {
+
+  }
+
+  /* found a range in node that contains (lo-hi). May span multiple entries */
+  for (size_t i = loidx; i < hiidx; i++) {
+    /* leaf: base case. cow the data */
+    if (depth == maxdepth) {
+      pgno_t newpg = _bt_data_cow(state, node, i);
+      _bt_insert(state, node->datk[i].va, node->datk[i+1].va, newpg);
+    }
+
+    /* branch: recursive case */
+    pgno_t childpg = node->datk[i].fo;
+    /* iteratively recurse on all entries */
+    _bt_dirty(state, lo, hi, childpg, depth+1, maxdepth);
+  }
+}
+
 int
 bt_dirty(BT_state *state, void *lo, void *hi)
 {
   /* takes a range and ensures that entire range is CoWed */
   /* if part of the range is free then return 1 */
+  BT_meta *meta = state->meta_pages[state->which];
+  vaof_t looff = ADDR2OFF(lo);
+  vaof_t hioff = ADDR2OFF(hi);
+
+  return _bt_dirty(state, looff, hioff, meta->root, 1, meta->depth);
 }
 
 int
