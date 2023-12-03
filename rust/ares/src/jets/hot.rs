@@ -2,7 +2,11 @@ use crate::jets::*;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, T};
 use ares_macros::tas;
 use either::Either::{self, Left, Right};
+use crate::hamt::Hamt;
 use std::ptr::null_mut;
+use crate::hamt::HamtIterator;
+use crate::mem::Preserve;
+use crate::mem::unifying_equality;
 
 // const A_50: Either<u64, (u64, u64)> = Right((b"a", 50));
 const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
@@ -591,13 +595,24 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
     ),
 ];
 
-#[derive(Copy, Clone)]
-pub struct Hot(*mut HotMem);
+#[derive(Copy,Clone)]
+pub struct Hot(Hamt<HotEntry>);
+
+impl IntoIterator for Hot {
+    type Item = (Noun, HotEntry);
+    type IntoIter = HamtIterator<HotEntry>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 impl Hot {
     pub fn init(stack: &mut NockStack) -> Self {
+        stack.frame_push(0); // we can preserve the hamt when we're done thus cleaning intermediate
+                             // allocations
+        let mut hamt = Hamt::new();
         unsafe {
-            let mut next = Hot(null_mut());
             for (htap, axe, jet) in TRUE_HOT_STATE {
                 let mut a_path = D(0);
                 for i in *htap {
@@ -621,37 +636,82 @@ impl Hot {
                     };
                 }
                 let axis = DirectAtom::new_panic(*axe).as_atom();
+                let current_hot_entry = hamt.lookup(stack, &mut a_path).unwrap_or(HotEntry(null_mut()));
                 let hot_mem_ptr: *mut HotMem = stack.struct_alloc(1);
                 *hot_mem_ptr = HotMem {
-                    a_path,
                     axis,
                     jet: *jet,
-                    next,
+                    next: current_hot_entry,
                 };
-                next = Hot(hot_mem_ptr);
+                hamt = hamt.insert(stack, &mut a_path, HotEntry(hot_mem_ptr));
             }
-            next
+            Hot(hamt)
         }
+    }
+
+    pub fn lookup(&mut self, stack: &mut NockStack, path: &mut Noun, axis: Atom) -> Option<Jet> {
+        let he = self.0.lookup(stack, path)?;
+        for (hot_axis, jet) in he {
+            if unsafe { unifying_equality(
+                stack,
+                &mut hot_axis.as_noun(),
+                &mut axis.as_noun()) } {
+                return Some(jet);
+            }
+        }
+        None
     }
 }
 
-impl Iterator for Hot {
-    type Item = (Noun, Atom, Jet); // path,axis,jet
+impl Iterator for HotEntry {
+    type Item = (Atom, Jet); // path,axis,jet
     fn next(&mut self) -> Option<Self::Item> {
         if self.0.is_null() {
             return None;
         }
         unsafe {
-            let res = ((*(self.0)).a_path, (*(self.0)).axis, (*(self.0)).jet);
+            let res = ((*(self.0)).axis, (*(self.0)).jet);
             *self = (*(self.0)).next;
             Some(res)
         }
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct HotEntry(*mut HotMem);
+
+#[derive(Copy, Clone)]
 struct HotMem {
-    a_path: Noun,
     axis: Atom, // Axis of jetted formula in *battery*;
     jet: Jet,
-    next: Hot,
+    next: HotEntry,
+}
+
+impl Preserve for HotEntry {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        let mut dest = self as *mut Self;
+
+        loop {
+            stack.preserve(&mut (*((*dest).0)).axis);
+            let ptr = stack.struct_alloc_in_previous_frame::<HotMem>(1);
+            *ptr = *((*dest).0);
+            
+            if (*ptr).next.0.is_null() {
+                break;
+            }
+            *dest = HotEntry(ptr);
+            dest = &mut ((*ptr).next)
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        let mut i = self;
+
+        loop {
+            if i.0.is_null() { break; }
+            stack.assert_struct_is_in(i.0, 1);
+            (*i.0).axis.as_noun().assert_in_stack(stack);
+            i = &(*i.0).next;
+        }
+    }
 }

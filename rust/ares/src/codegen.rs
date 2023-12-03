@@ -13,6 +13,7 @@ use std::ptr::copy_nonoverlapping;
 use std::result::Result;
 
 use crate::hamt::Hamt;
+use crate::jets::JetErr;
 // XX no, we have a completely different stack layout from the tree-walking interpreter. We can't
 // borrow helper functions from it
 use crate::interpreter::{mean_pop, mean_push, slow_pop, slow_push, Context, Error};
@@ -593,6 +594,35 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     }
                 }
                 tas!(b"caf") => {
+                    let mut a = slot(bend, 6)?;
+                    let mut b = slot(bend, 14)?;
+                    let mut v = slot(bend, 30)?;
+                    let d = slot(bend, 62)?.as_direct()?.data() as usize;
+                    let mut t = slot(bend, 126)?;
+                    let u = slot(bend, 254)?.as_direct()?.data() as usize;
+                    let n = slot(bend, 255)?;
+                    let mut path = slot(n, 2)?;
+                    let mut axis = slot(n, 3)?.as_atom()?;
+
+                    if let Some(jet) = context.hot.lookup(&mut context.stack, &mut path, axis) {
+                        let subject = register_get(virtual_frame, u);
+                        let jet_result = jet(context, subject);
+                        match jet_result {
+                            Ok(result) => {
+                                register_set(virtual_frame, d, result);
+                                let blob = unsafe { (*(*virtual_frame).pile.0).will.lookup(&mut context.stack, &mut t).ok_or(Error::NonDeterministic(D(0)))?};
+                                body = slot(blob, 2)?;
+                                bend = slot(blob, 3)?;
+                            },
+                            Err(JetErr::Fail(err)) => {
+                                Err(err)?;
+                            },
+                            Err(JetErr::Punt) => {
+                                // XX run as a normal %cal here
+                                todo!()
+                            }
+                        }
+                    }
                     // like call but with fast label
                     //
                     // XX we need to build a warm state that is just a HAMT-map of the hot state
