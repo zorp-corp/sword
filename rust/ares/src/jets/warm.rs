@@ -112,8 +112,10 @@ impl Warm {
 
     pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> Self {
         let mut warm = Self::new();
-        for (mut path, axis, jet) in hot.into_iter().
-              flat_map(|(n, he)| { he.map(move |(a, j)| { (n, a, j) }) }) { 
+        for (mut path, axis, jet) in hot
+            .into_iter()
+            .flat_map(|(n, he)| he.map(move |(a, j)| (n, a, j)))
+        {
             let batteries_list = cold.find(stack, &mut path);
             for batteries in batteries_list {
                 let mut batteries_tmp = batteries;

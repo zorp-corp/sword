@@ -610,13 +610,18 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         match jet_result {
                             Ok(result) => {
                                 register_set(virtual_frame, d, result);
-                                let blob = unsafe { (*(*virtual_frame).pile.0).will.lookup(&mut context.stack, &mut t).ok_or(Error::NonDeterministic(D(0)))?};
+                                let blob = unsafe {
+                                    (*(*virtual_frame).pile.0)
+                                        .will
+                                        .lookup(&mut context.stack, &mut t)
+                                        .ok_or(Error::NonDeterministic(D(0)))?
+                                };
                                 body = slot(blob, 2)?;
                                 bend = slot(blob, 3)?;
-                            },
+                            }
                             Err(JetErr::Fail(err)) => {
                                 Err(err)?;
-                            },
+                            }
                             Err(JetErr::Punt) => {
                                 // XX run as a normal %cal here
                                 todo!()

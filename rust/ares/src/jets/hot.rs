@@ -1,12 +1,12 @@
+use crate::hamt::Hamt;
+use crate::hamt::HamtIterator;
 use crate::jets::*;
+use crate::mem::unifying_equality;
+use crate::mem::Preserve;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, T};
 use ares_macros::tas;
 use either::Either::{self, Left, Right};
-use crate::hamt::Hamt;
 use std::ptr::null_mut;
-use crate::hamt::HamtIterator;
-use crate::mem::Preserve;
-use crate::mem::unifying_equality;
 
 // const A_50: Either<u64, (u64, u64)> = Right((b"a", 50));
 const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
@@ -595,7 +595,7 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
     ),
 ];
 
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 pub struct Hot(Hamt<HotEntry>);
 
 impl IntoIterator for Hot {
@@ -636,7 +636,9 @@ impl Hot {
                     };
                 }
                 let axis = DirectAtom::new_panic(*axe).as_atom();
-                let current_hot_entry = hamt.lookup(stack, &mut a_path).unwrap_or(HotEntry(null_mut()));
+                let current_hot_entry = hamt
+                    .lookup(stack, &mut a_path)
+                    .unwrap_or(HotEntry(null_mut()));
                 let hot_mem_ptr: *mut HotMem = stack.struct_alloc(1);
                 *hot_mem_ptr = HotMem {
                     axis,
@@ -652,10 +654,7 @@ impl Hot {
     pub fn lookup(&mut self, stack: &mut NockStack, path: &mut Noun, axis: Atom) -> Option<Jet> {
         let he = self.0.lookup(stack, path)?;
         for (hot_axis, jet) in he {
-            if unsafe { unifying_equality(
-                stack,
-                &mut hot_axis.as_noun(),
-                &mut axis.as_noun()) } {
+            if unsafe { unifying_equality(stack, &mut hot_axis.as_noun(), &mut axis.as_noun()) } {
                 return Some(jet);
             }
         }
@@ -695,7 +694,7 @@ impl Preserve for HotEntry {
             stack.preserve(&mut (*((*dest).0)).axis);
             let ptr = stack.struct_alloc_in_previous_frame::<HotMem>(1);
             *ptr = *((*dest).0);
-            
+
             if (*ptr).next.0.is_null() {
                 break;
             }
@@ -708,7 +707,9 @@ impl Preserve for HotEntry {
         let mut i = self;
 
         loop {
-            if i.0.is_null() { break; }
+            if i.0.is_null() {
+                break;
+            }
             stack.assert_struct_is_in(i.0, 1);
             (*i.0).axis.as_noun().assert_in_stack(stack);
             i = &(*i.0).next;

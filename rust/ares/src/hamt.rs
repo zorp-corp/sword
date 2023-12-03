@@ -581,7 +581,7 @@ impl<T: Copy> Iterator for HamtIterator<T> {
                 self.leaf_len -= 1;
                 self.leaf_buffer = unsafe { self.leaf_buffer.add(1) };
                 return Some(res);
-            } 
+            }
 
             // if not, seek up to find stem that isn't empty
             loop {
