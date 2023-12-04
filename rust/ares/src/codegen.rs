@@ -527,8 +527,17 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let d = slot(bend, 62)?.as_direct()?.data() as usize;
                     let t = slot(bend, 63)?;
 
-                    util::do_call(context, &mut virtual_frame, &mut body, &mut bend, a, b, v, d, t)?;
-
+                    util::do_call(
+                        context,
+                        &mut virtual_frame,
+                        &mut body,
+                        &mut bend,
+                        a,
+                        b,
+                        v,
+                        d,
+                        t,
+                    )?;
                 }
                 tas!(b"caf") => {
                     let a = slot(bend, 6)?;
@@ -561,11 +570,31 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                             }
                             Err(JetErr::Punt) => {
                                 // XX run as a normal %cal here
-                                util::do_call(context, &mut virtual_frame, &mut body, &mut bend, a, b, v, d, t)?;
+                                util::do_call(
+                                    context,
+                                    &mut virtual_frame,
+                                    &mut body,
+                                    &mut bend,
+                                    a,
+                                    b,
+                                    v,
+                                    d,
+                                    t,
+                                )?;
                             }
                         }
                     } else {
-                        util::do_call(context, &mut virtual_frame, &mut body, &mut bend, a, b, v, d, t)?;
+                        util::do_call(
+                            context,
+                            &mut virtual_frame,
+                            &mut body,
+                            &mut bend,
+                            a,
+                            b,
+                            v,
+                            d,
+                            t,
+                        )?;
                     }
                     // like call but with fast label
                     //
@@ -602,6 +631,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         bend = slot(blob, 3)?;
                     }
                 }
+                // XX tail call needs to be factored into a helper/utility function
                 tas!(b"jmp") => {
                     let mut a = slot(bend, 6)?;
                     let mut b = slot(bend, 14)?;
@@ -680,6 +710,12 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     // call the arm a with subject in registers u, poisons in b, in
                     // tail position
                 }
+                // XX follow same pattern as caf except when a jet completes
+                // successfully, you need to run the jet and then, with the
+                // returned noun from the jet, then call do_return with that
+                // noun if it succeeded; otherwise, if there isn't a jet or
+                // it punts, call the tail call helper and do the same thing
+                // that jmp would've done
                 tas!(b"jmf") => {
                     // like jmp but with fast label
                     //
@@ -695,7 +731,14 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"don") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
                     let s_value = register_get(virtual_frame, s);
-                    if let Some(ret_value) = util::do_return(context, &mut virtual_frame, base_frame, &mut body, &mut bend, s_value)? {
+                    if let Some(ret_value) = util::do_return(
+                        context,
+                        &mut virtual_frame,
+                        base_frame,
+                        &mut body,
+                        &mut bend,
+                        s_value,
+                    )? {
                         break Ok(ret_value);
                     }
                 }
@@ -753,14 +796,14 @@ pub mod util {
         noun::{Noun, D, T},
     };
 
-    use super::Pile;
-    use super::Frame;
-    use super::register_set;
+    use super::new_frame;
+    use super::poison_get;
+    use super::poison_set;
     use super::pop_frame;
     use super::register_get;
-    use super::poison_set;
-    use super::poison_get;
-    use super::new_frame;
+    use super::register_set;
+    use super::Frame;
+    use super::Pile;
 
     pub type NounResult = Result<Noun, Error>;
 
@@ -850,7 +893,17 @@ pub mod util {
         T(&mut context.stack, &[D(tas!(b"comp")), D(0), s, f])
     }
 
-    pub fn do_call(context: &mut Context, virtual_frame: &mut *mut Frame, body: &mut Noun, bend: &mut Noun, mut a: Noun, mut b: Noun, mut v: Noun, d: usize, t: Noun) -> Result<(), Error> {
+    pub fn do_call(
+        context: &mut Context,
+        virtual_frame: &mut *mut Frame,
+        body: &mut Noun,
+        bend: &mut Noun,
+        mut a: Noun,
+        mut b: Noun,
+        mut v: Noun,
+        d: usize,
+        t: Noun,
+    ) -> Result<(), Error> {
         unsafe {
             (**virtual_frame).dest = d;
             (**virtual_frame).cont = t;
@@ -919,7 +972,14 @@ pub mod util {
         Ok(())
     }
 
-    pub fn do_return(context: &mut Context, virtual_frame: &mut *mut Frame, base_frame: *const u64, body: &mut Noun, bend: &mut Noun, mut ret_value: Noun) -> Result<Option<Noun>, Error> {
+    pub fn do_return(
+        context: &mut Context,
+        virtual_frame: &mut *mut Frame,
+        base_frame: *const u64,
+        body: &mut Noun,
+        bend: &mut Noun,
+        mut ret_value: Noun,
+    ) -> Result<Option<Noun>, Error> {
         unsafe {
             // XX debug assertions
 
