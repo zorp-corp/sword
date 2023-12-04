@@ -970,10 +970,10 @@ _pending_flist_merge(BT_state *state)
       src_head = &(*src_head)->next;
       free(prev);
     }
-    /* source node's termination immediately precedes next dst node */
-    else if (dst_next_pg == src_pg + src_sz) {
-      (*dst_head)->next->pg = src_pg;  /* pull page back */
-      (*dst_head)->next->sz += src_sz; /* widen node */
+    /* source node's termination immediately precedes dst node */
+    else if (src_pg + src_sz == dst_pg) {
+      (*dst_head)->pg = src_pg;  /* pull page back */
+      (*dst_head)->sz += src_sz; /* widen node */
       /* advance src node and free previous */
       BT_flistnode *prev = *src_head;
       src_head = &(*src_head)->next;
