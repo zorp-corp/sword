@@ -96,10 +96,24 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 
 #define BT_MAPADDR  ((void *) S(0x1000,0000,0000))
 
-/* convert addr offset to raw address */
-#define OFF2ADDR(x) ((void *)((uintptr_t)(BT_MAPADDR) + (x)))
-/* convert raw memory address to offset */
-#define ADDR2OFF(a) ((vaof_t)((uintptr_t)(a) - (uintptr_t)BT_MAPADDR))
+static inline vaof_t
+addr2off(void *p)
+/* convert a pointer into a 32-bit page offset */
+{
+  uintptr_t pu = (uintptr_t)p;
+  assert((pu & ((1 << 14) - 1)) == 0); /* p must be page-aligned */
+  uintptr_t off = pu - (uintptr_t)BT_MAPADDR;
+  return (vaof_t)(pu >> 14);
+}
+
+static inline void *
+off2addr(vaof_t off)
+/* convert a 32-bit page offset into a pointer */
+{
+  uintptr_t pu = (uintptr_t)off << 14;
+  pu += (uintptr_t)BT_MAPADDR;
+  return (void *)pu;
+}
 
 #define BT_PAGEBITS 14ULL
 #define BT_PAGEWORD 32ULL
@@ -1293,13 +1307,13 @@ _mlist_new(BT_state *state)
 
   vaof_t lo = root->datk[0].va;
   vaof_t hi = root->datk[1].va;
-  size_t len = B2PAGES(hi - lo);
+  size_t len = hi - lo;
 
   BT_mlistnode *head = calloc(1, sizeof *head);
 
   head->next = 0;
   head->sz = len;
-  head->va = OFF2ADDR(lo);
+  head->va = off2addr(lo);
 
   state->mlist = head;
 
@@ -1370,7 +1384,7 @@ _flist_new(BT_state *state)
 
   vaof_t lo = root->datk[0].va;
   vaof_t hi = root->datk[1].va;
-  size_t len = B2PAGES(hi - lo);
+  size_t len = hi - lo;
 
   BT_flistnode *head = calloc(1, sizeof *head);
 
@@ -1554,10 +1568,10 @@ _mlist_read2(BT_state *state, BT_page *node, uint8_t maxdepth, uint8_t depth)
 #if CAN_COALESCE
       /* free and contiguous with previous mlist node: merge */
       if (kv->fo == 0
-          && ADDR2OFF(prev->va) + P2BYTES(prev->sz) == kv->va) {
+          && addr2off(prev->va) + prev->sz == kv->va) {
         vaof_t hi = node->datk[i+1].va;
         vaof_t lo = kv->va;
-        size_t len = B2PAGES(hi - lo);
+        size_t len = hi - lo;
         prev->sz += len;
       }
       /* free but not contiguous with previous mlist node: append new node */
@@ -1566,9 +1580,9 @@ _mlist_read2(BT_state *state, BT_page *node, uint8_t maxdepth, uint8_t depth)
         BT_mlistnode *new = calloc(1, sizeof *new);
         vaof_t hi = node->datk[i+1].va;
         vaof_t lo = kv->va;
-        size_t len = B2PAGES(hi - lo);
+        size_t len = hi - lo;
         new->sz = len;
-        new->va = OFF2ADDR(lo);
+        new->va = off2addr(lo);
         prev->next = new;
         prev = new;
 #if CAN_COALESCE
@@ -1757,7 +1771,7 @@ _flist_read2(BT_state *state, BT_page *node, uint8_t maxdepth, uint8_t depth)
       BT_flistnode *new = calloc(1, sizeof *new);
       vaof_t hi = node->datk[i+1].va;
       vaof_t lo = kv->va;
-      size_t len = B2PAGES(hi - lo);
+      size_t len = hi - lo;
       pgno_t fo = kv->fo;
       new->sz = len;
       new->pg = fo;
@@ -2156,8 +2170,8 @@ _bt_sync_leaf(BT_state *state, BT_page *node)
     /* pgno_t pg = node->datk[i].fo; */
     vaof_t lo = node->datk[i].va;
     vaof_t hi = node->datk[i+1].va;
-    size_t bytelen = hi - lo;
-    void *addr = OFF2ADDR(lo);
+    size_t bytelen = P2BYTES(hi - lo);
+    void *addr = off2addr(lo);
 
     /* sync the page */
     if (msync(addr, bytelen, MS_SYNC))
@@ -2361,8 +2375,8 @@ bt_malloc(BT_state *state, size_t pages)
   pgno_t pgno = _bt_falloc(state, pages);
   bp(pgno != 0);
   _bt_insert(state,
-             ADDR2OFF(ret),
-             ADDR2OFF(ret) + P2BYTES(pages),
+             addr2off(ret),
+             addr2off(ret) + pages,
              pgno);
 
   bp(ret != 0);
@@ -2372,8 +2386,8 @@ bt_malloc(BT_state *state, size_t pages)
 void
 bt_free(BT_state *state, void *lo, void *hi)
 {
-  vaof_t looff = ADDR2OFF(lo);
-  vaof_t hioff = ADDR2OFF(hi);
+  vaof_t looff = addr2off(lo);
+  vaof_t hioff = addr2off(hi);
   _bt_insert(state, looff, hioff, 0);
   /* ;;: and now add freespace to state->flist. coalescing when you do so */
 }
@@ -2463,13 +2477,13 @@ bt_range_of(BT_state *state, void *p, void **lo, void **hi)
   pgno_t root = meta->root;
   vaof_t *loret = 0;
   vaof_t *hiret = 0;
-  vaof_t poff = ADDR2OFF(p);
+  vaof_t poff = addr2off(p);
   int rc = 0;
   if (!SUCC(rc = _bt_range_of(state, poff, &loret, &hiret, root, 1, meta->depth))) {
     return rc;
   }
-  *lo = OFF2ADDR(*loret);
-  *hi = OFF2ADDR(*hiret);
+  *lo = off2addr(*loret);
+  *hi = off2addr(*hiret);
   return BT_SUCC;
 }
 
@@ -2507,18 +2521,19 @@ data_cow(btree, lo, hi):
 **/
 
 static pgno_t
-_bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
+_bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi)
 {
-  size_t byte_len = hi - lo;
-  pgno_t newpg = _bt_falloc(state, B2PAGES(byte_len));
-  BYTE *loaddr = OFF2ADDR(lo);
+  size_t len = hi - lo;
+  size_t bytelen = P2BYTES(len);
+  pgno_t newpg = _bt_falloc(state, len);
+  BYTE *loaddr = off2addr(lo);
 
-  vaof_t arena_start = ADDR2OFF(BT_MAPADDR);
+  vaof_t arena_start = addr2off(BT_MAPADDR);
   off_t offset = lo - arena_start;
 
   /* write call puts data in the unified buffer cache without having to map
      virtual memory */
-  if (pwrite(state->data_fd, loaddr, byte_len, offset) != byte_len)
+  if (pwrite(state->data_fd, loaddr, bytelen, offset) != bytelen)
     abort();
 
   /* BYTE *arena_start = BT_MAPADDR; */
@@ -2526,7 +2541,7 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
 
   /* maps new file offset with same data back into memory */
   mmap(BT_MAPADDR,
-       byte_len,
+       bytelen,
        PROT_READ | PROT_WRITE,
        MAP_FIXED | MAP_SHARED,
        state->data_fd,
@@ -2575,19 +2590,13 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
   }
   assert(hiidx != 0);
 
-  /* leaf: base case */
-  if (depth == maxdepth) {
-
-  }
-
   /* found a range in node that contains (lo-hi). May span multiple entries */
   for (size_t i = loidx; i < hiidx; i++) {
     /* leaf: base case. cow the data */
     if (depth == maxdepth) {
       vaof_t llo = node->datk[i].va;
       vaof_t hhi = MIN(node->datk[i+1].va, hi);
-      pgno_t pg = node->datk[i].fo;
-      pgno_t newpg = _bt_data_cow(state, llo, hhi, pg);
+      pgno_t newpg = _bt_data_cow(state, llo, hhi);
       _bt_insert(state, llo, hhi, newpg);
     }
 
@@ -2604,8 +2613,8 @@ bt_dirty(BT_state *state, void *lo, void *hi)
   /* takes a range and ensures that entire range is CoWed */
   /* if part of the range is free then return 1 */
   BT_meta *meta = state->meta_pages[state->which];
-  vaof_t looff = ADDR2OFF(lo);
-  vaof_t hioff = ADDR2OFF(hi);
+  vaof_t looff = addr2off(lo);
+  vaof_t hioff = addr2off(hi);
 
   return _bt_dirty(state, looff, hioff, meta->root, 1, meta->depth);
 }
