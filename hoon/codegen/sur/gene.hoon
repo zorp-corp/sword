@@ -153,6 +153,7 @@
 ::  k - key
 ::  l - left source
 ::  m - cache miss
+::  n - fast label and axis into battery
 ::  o - "one" / false case
 ::  p - scry path
 ::  r - right source

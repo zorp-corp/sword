@@ -633,93 +633,62 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 // XX tail call needs to be factored into a helper/utility function
                 tas!(b"jmp") => {
-                    let mut a = slot(bend, 6)?;
-                    let mut b = slot(bend, 14)?;
-                    let mut v = slot(bend, 15)?;
-                    unsafe {
-                        let pile = context
-                            .hill
-                            .lookup(&mut context.stack, &mut a)
-                            .ok_or(Error::NonDeterministic(D(0)))?;
-                        new_frame(context, &mut virtual_frame, pile, true); // set up tail call frame
+                    let a = slot(bend, 6)?;
+                    let b = slot(bend, 14)?;
+                    let v = slot(bend, 15)?;
 
-                        let sans = (*(pile.0)).sans;
-                        let poison_size = (*virtual_frame).pois_sz;
-
-                        let mut bait = (*(pile.0)).bait;
-                        let mut walt = (*(pile.0)).walt;
-
-                        let old_poison_sz =
-                            *(virtual_frame as *const usize).add(sans + poison_size);
-                        let old_poison_ptr =
-                            (virtual_frame as *const u64).add(sans + poison_size + 1);
-
-                        loop {
-                            if b.raw_equals(D(0)) {
-                                if !bait.raw_equals(D(0)) {
-                                    Err(Error::NonDeterministic(D(0)))?;
-                                };
-                                break;
-                            }
-
-                            let b_i = slot(b, 2)?.as_direct()?.data();
-                            b = slot(b, 3)?;
-                            let bait_i = slot(bait, 2)?.as_direct()?.data();
-                            bait = slot(bait, 3)?;
-
-                            let b_i_offset = b_i / 64;
-                            let b_i_bit = b_i % 64;
-                            assert!((b_i_offset as usize) < old_poison_sz);
-
-                            if *(old_poison_ptr.add(b_i_offset as usize)) & (1 << b_i_bit) != 0 {
-                                poison_set(virtual_frame, bait_i as usize);
-                            }
-                        }
-
-                        let old_reg_ptr = old_poison_ptr.add(old_poison_sz) as *const Noun;
-
-                        loop {
-                            if v.raw_equals(D(0)) {
-                                if !walt.raw_equals(D(0)) {
-                                    Err(Error::NonDeterministic(D(0)))?;
-                                };
-                                break;
-                            };
-
-                            let v_i = slot(v, 2)?.as_direct()?.data();
-                            v = slot(v, 3)?;
-                            let walt_i = slot(v, 2)?.as_direct()?.data();
-                            walt = slot(walt, 3)?;
-                            // XX we should also store the old reg size and assert this doesn't read
-                            // past it
-                            register_set(
-                                virtual_frame,
-                                walt_i as usize,
-                                *(old_reg_ptr.add(v_i as usize)),
-                            );
-                        }
-
-                        let will = (*(pile.0)).will;
-                        let blob = will
-                            .lookup(&mut context.stack, &mut (*(pile.0)).long)
-                            .ok_or(Error::Deterministic(D(0)))?;
-                        body = slot(blob, 2)?;
-                        bend = slot(blob, 3)?;
-                    }
-
-                    // call the arm a with subject in registers u, poisons in b, in
-                    // tail position
+                    util::do_tail_call(context, &mut virtual_frame, &mut body, &mut bend, a, b, v)?;
                 }
-                // XX follow same pattern as caf except when a jet completes
-                // successfully, you need to run the jet and then, with the
-                // returned noun from the jet, then call do_return with that
-                // noun if it succeeded; otherwise, if there isn't a jet or
-                // it punts, call the tail call helper and do the same thing
-                // that jmp would've done
                 tas!(b"jmf") => {
-                    // like jmp but with fast label
-                    //
-                    // XX see remark on caf
+                    let a = slot(bend, 6)?;
+                    let b = slot(bend, 14)?;
+                    let v = slot(bend, 30)?;
+                    let u = slot(bend, 62)?.as_direct()?.data() as usize;
+                    let n = slot(bend, 63)?;
+                    let mut path = slot(n, 2)?;
+                    let axis = slot(n, 3)?.as_atom()?;
+
+                    if let Some(jet) = context.hot.lookup(&mut context.stack, &mut path, axis) {
+                        let subject = register_get(virtual_frame, u);
+                        let jet_result = jet(context, subject);
+                        match jet_result {
+                            Ok(result) => {
+                                util::do_return(
+                                    context,
+                                    &mut virtual_frame,
+                                    base_frame,
+                                    &mut body,
+                                    &mut bend,
+                                    result,
+                                )?;
+                            }
+                            Err(JetErr::Fail(err)) => {
+                                Err(err)?;
+                            }
+                            Err(JetErr::Punt) => {
+                                // XX run as a normal %cal here
+                                util::do_tail_call(
+                                    context,
+                                    &mut virtual_frame,
+                                    &mut body,
+                                    &mut bend,
+                                    a,
+                                    b,
+                                    v,
+                                )?;
+                            }
+                        }
+                    } else {
+                        util::do_tail_call(
+                            context,
+                            &mut virtual_frame,
+                            &mut body,
+                            &mut bend,
+                            a,
+                            b,
+                            v,
+                        )?;
+                    }
                 }
                 tas!(b"spy") => {
                     // scry with ref in e and path in p, put result in d, goto t
@@ -966,6 +935,86 @@ pub mod util {
             let blob = will
                 .lookup(&mut context.stack, &mut unsafe { (*(pile.0)).long })
                 .ok_or(Error::NonDeterministic(D(0)))?;
+            *body = slot(blob, 2)?;
+            *bend = slot(blob, 3)?;
+        }
+        Ok(())
+    }
+
+    pub fn do_tail_call(
+        context: &mut Context,
+        virtual_frame: &mut *mut Frame,
+        body: &mut Noun,
+        bend: &mut Noun,
+        mut a: Noun,
+        mut b: Noun,
+        mut v: Noun,
+    ) -> Result<(), Error> {
+        unsafe {
+            let pile = context
+                .hill
+                .lookup(&mut context.stack, &mut a)
+                .ok_or(Error::NonDeterministic(D(0)))?;
+            new_frame(context, virtual_frame, pile, true); // set up tail call frame
+
+            let sans = (*(pile.0)).sans;
+            let poison_size = (**virtual_frame).pois_sz;
+
+            let mut bait = (*(pile.0)).bait;
+            let mut walt = (*(pile.0)).walt;
+
+            let old_poison_sz = *(*virtual_frame as *const usize).add(sans + poison_size);
+            let old_poison_ptr = (*virtual_frame as *const u64).add(sans + poison_size + 1);
+
+            loop {
+                if b.raw_equals(D(0)) {
+                    if !bait.raw_equals(D(0)) {
+                        Err(Error::NonDeterministic(D(0)))?;
+                    };
+                    break;
+                }
+
+                let b_i = slot(b, 2)?.as_direct()?.data();
+                b = slot(b, 3)?;
+                let bait_i = slot(bait, 2)?.as_direct()?.data();
+                bait = slot(bait, 3)?;
+
+                let b_i_offset = b_i / 64;
+                let b_i_bit = b_i % 64;
+                assert!((b_i_offset as usize) < old_poison_sz);
+
+                if *(old_poison_ptr.add(b_i_offset as usize)) & (1 << b_i_bit) != 0 {
+                    poison_set(*virtual_frame, bait_i as usize);
+                }
+            }
+
+            let old_reg_ptr = old_poison_ptr.add(old_poison_sz) as *const Noun;
+
+            loop {
+                if v.raw_equals(D(0)) {
+                    if !walt.raw_equals(D(0)) {
+                        Err(Error::NonDeterministic(D(0)))?;
+                    };
+                    break;
+                };
+
+                let v_i = slot(v, 2)?.as_direct()?.data();
+                v = slot(v, 3)?;
+                let walt_i = slot(v, 2)?.as_direct()?.data();
+                walt = slot(walt, 3)?;
+                // XX we should also store the old reg size and assert this doesn't read
+                // past it
+                register_set(
+                    *virtual_frame,
+                    walt_i as usize,
+                    *(old_reg_ptr.add(v_i as usize)),
+                );
+            }
+
+            let will = (*(pile.0)).will;
+            let blob = will
+                .lookup(&mut context.stack, &mut (*(pile.0)).long)
+                .ok_or(Error::Deterministic(D(0)))?;
             *body = slot(blob, 2)?;
             *bend = slot(blob, 3)?;
         }
