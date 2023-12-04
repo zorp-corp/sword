@@ -22,6 +22,13 @@ use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, NO, T, YES};
 use crate::trace::TraceStack;
 
+// Actual nock crashes in cg_interpret_inner must return this error,
+// to allow us to distinguish between those and errors running codegen nock.
+//
+// This newtype wrapper is stripped in cg_interpret, removing the possibility of confounding
+// the meta-levels
+struct ActualError(Error);
+
 // XX typedef for register
 #[derive(Copy, Clone)]
 pub struct PileMem {
@@ -187,9 +194,13 @@ unsafe fn pop_frame(context: &mut Context, frame_ref: &mut *mut Frame) {
     *frame_ref = context.stack.get_frame_lowest() as *mut Frame;
 }
 
+pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
+    cg_interpret_inner(context, subject, formula).or_else(|ae| { ae.0 })
+}
+
 /// Fetches or creates codegen code for the subject and formula, then
 /// naively interprets it.
-pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
+fn cg_interpret_inner(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, ActualError> {
     let virtual_frame = context.stack.get_frame_pointer();
     // Setup stack for codegen interpretation.
     // Stack frame layout: [mean trace slow pile dest cont poison registers]
@@ -216,8 +227,8 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 (*(*current_frame).pile.0).wish
             })
             .ok_or(Error::Deterministic(D(0)))?;
-        body = slot(blob, 2)?;
-        bend = slot(blob, 3)?;
+        body = slot(blob, 2).expect("codegen nock error");
+        bend = slot(blob, 3).expect("codegen nock error");
     }
 
     // XX replace all slot()?s with slot().expect("codegen error")
@@ -745,11 +756,36 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
             }
         }
-    }
+    };
 
     match nock {
         Ok(res) => Ok(res),
-        Err(err) => Err(exit(context, current_frame, err)),
+        Err(err) => Err(exit(context, virtual_frame, err)),
+    }
+}
+
+fn exit(context: &mut Context, virtual_frame: *const u64, error: ActualError) -> Error {
+    let current_frame = unsafe { context.stack.get_frame_lowest() as *const Frame };
+    let mut preserve = match error.0 {
+        Error::ScryBlocked(path) => path,
+        Error::Deterministic(t) | Error::NonDeterministic(t) | Error::ScryCrashed(t) => {
+            let h = unsafe { (*current_frame).mean };
+            T(&mut context.stack, &[h, t])
+        }
+    };
+
+    while context.stack.get_frame_pointer() != virtual_frame {
+        unsafe {
+            context.stack.preserve(&mut preserve);
+            context.stack.frame_pop();
+        }
+    }
+
+    match error.0 {
+        Error::Deterministic(_) => Error::Deterministic(preserve),
+        Error::NonDeterministic(_) => Error::NonDeterministic(preserve),
+        Error::ScryCrashed(_) => Error::ScryCrashed(preserve),
+        Error::ScryBlocked(_) => error.0,
     }
 }
 
