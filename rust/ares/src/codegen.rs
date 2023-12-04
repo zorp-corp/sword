@@ -19,7 +19,7 @@ use crate::jets::JetErr;
 use crate::interpreter::{mean_pop, mean_push, slow_pop, slow_push, Context, Error};
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
-use crate::noun::{Noun, D, T};
+use crate::noun::{Noun, D, T, YES, NO};
 use crate::trace::TraceStack;
 
 // XX typedef for register
@@ -246,8 +246,21 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let value = T(&mut context.stack, &[h_value, t_value]);
                     register_set(virtual_frame, d, value);
                 }
-                tas!(b"cop") => {}
-                tas!(b"lop") => {}
+                tas!(b"cop") => {
+                    let s = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let s_value = register_get(virtual_frame, s);
+                    if s_value.is_atom() {
+                        poison_set(virtual_frame, s);
+                    }
+                },
+                tas!(b"lop") => {
+                    // poison s if s is not a loobean
+                    let s = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let s_value = register_get(virtual_frame, s);
+                    if !unsafe { s_value.raw_equals(YES) || s_value.raw_equals(NO) } {
+                        poison_set(virtual_frame, s);
+                    }
+                },
                 tas!(b"coc") => {}
                 tas!(b"hed") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
@@ -631,7 +644,6 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         bend = slot(blob, 3)?;
                     }
                 }
-                // XX tail call needs to be factored into a helper/utility function
                 tas!(b"jmp") => {
                     let a = slot(bend, 6)?;
                     let b = slot(bend, 14)?;
