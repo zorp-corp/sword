@@ -994,7 +994,7 @@ _pending_flist_merge(BT_state *state)
     }
   }
   /* merge what remains of src if anything */
-  dst_head = src_head;
+  *dst_head = *src_head;
 }
 
 
