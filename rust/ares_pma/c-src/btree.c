@@ -875,8 +875,8 @@ _pending_nlist_merge(BT_state *state)
       }
       dst_head = dst_head->next;
     }
-    if (!dst_head) {
-      /* need to track prev */
+    if (src_head) {
+      /* need to track prev or use double indirection */
     }
 
 
@@ -928,25 +928,73 @@ _pending_flist_insert(BT_state *state, pgno_t pg, size_t sz)
   head->next = new;
 }
 
-static void
-_pending_flist_clear(BT_state *state)
-{
-  /* as with _pending_flist_clear. We only remove nodes from this list if it's
-     fully merged with state->flist */
-  BT_flistnode *prev = state->pending_flist;
-  BT_flistnode *next = prev->next;
-  while (prev) {
-    free(prev);
-    prev = next;
-    next = next->next;
-  }
-  state->pending_flist = 0;
-}
+/* static void */
+/* _pending_flist_clear(BT_state *state) */
+/* { */
+/*   /\* as with _pending_flist_clear. We only remove nodes from this list if it's */
+/*      fully merged with state->flist *\/ */
+/*   BT_flistnode *prev = state->pending_flist; */
+/*   BT_flistnode *next = prev->next; */
+/*   while (prev) { */
+/*     free(prev); */
+/*     prev = next; */
+/*     next = next->next; */
+/*   } */
+/*   state->pending_flist = 0; */
+/* } */
 
 static void
 _pending_flist_merge(BT_state *state)
 {
+  BT_flistnode **src_head = &state->pending_flist;
+  BT_flistnode **dst_head = &state->flist;
 
+  while (*dst_head) {
+    /* src cleared. done */
+    if (!*src_head) {
+      return;
+    }
+
+    /* check if src node should be merged with dst  **************************/
+    pgno_t dst_pg = (*dst_head)->pg;
+    size_t dst_sz = (*dst_head)->sz;
+    pgno_t src_pg = (*src_head)->pg;
+    size_t src_sz = (*src_head)->sz;
+    pgno_t dst_next_pg = *dst_head ? (*dst_head)->next->pg : 0;
+
+    /* source node immediately follows dst node's termination */
+    if (dst_pg + dst_sz == src_pg) {
+      (*dst_head)->sz += src_sz;     /* widen dst node */
+      /* advance src node and free previous */
+      BT_flistnode *prev = *src_head;
+      src_head = &(*src_head)->next;
+      free(prev);
+    }
+    /* source node's termination immediately precedes next dst node */
+    else if (dst_next_pg == src_pg + src_sz) {
+      (*dst_head)->next->pg = src_pg;  /* pull page back */
+      (*dst_head)->next->sz += src_sz; /* widen node */
+      /* advance src node and free previous */
+      BT_flistnode *prev = *src_head;
+      src_head = &(*src_head)->next;
+      free(prev);
+    }
+    /* src node lies between but isn't contiguous with dst */
+    else if (dst_next_pg > src_pg + src_sz
+             && dst_pg + dst_sz < src_pg) {
+      /* link src node in */
+      (*src_head)->next = (*dst_head)->next;
+      (*dst_head)->next = *src_head;
+      /* and advance src node */
+      src_head = &(*src_head)->next;
+    }
+    /* otherwise, advance dst node */
+    else {
+      dst_head = &(*dst_head)->next;
+    }
+  }
+  /* merge what remains of src if anything */
+  dst_head = src_head;
 }
 
 
