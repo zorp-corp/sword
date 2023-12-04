@@ -2670,8 +2670,10 @@ bt_bounds(BT_state *state, void **lo, void **hi)
 
 int
 bt_inbounds(BT_state *state, void *p)
+/* 1: if in the bounds of the PMA, 0 otherwise */
 {
-  /* 1: if in bounds of PMA (those returned by bt_bounds) */
+  return p >= BT_MAPADDR
+    && p < (void *)((uintptr_t)BT_MAPADDR + BT_ADDRSIZE);
 }
 
 
