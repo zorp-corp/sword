@@ -16,7 +16,7 @@ use crate::hamt::Hamt;
 use crate::jets::JetErr;
 // XX no, we have a completely different stack layout from the tree-walking interpreter. We can't
 // borrow helper functions from it
-use crate::interpreter::{mean_pop, mean_push, slow_pop, slow_push, Context, Error};
+use crate::interpreter::{inc, mean_pop, mean_push, slow_pop, slow_push, Context, Error};
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, T, YES, NO};
@@ -236,7 +236,17 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let value = register_get(virtual_frame, src);
                     register_set(virtual_frame, dst, value);
                 }
-                tas!(b"inc") => {}
+                tas!(b"inc") => {
+                    let s = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let d = slot(pole, 7)?.as_direct()?.data() as usize;
+                    let s_value = register_get(virtual_frame, s);
+                    if let Ok(atom) = s_value.as_atom() {
+                        let value = inc(&mut context.stack, atom);
+                        register_set(virtual_frame, d, value.as_noun());
+                    } else {
+                        // XX crash
+                    }
+                },
                 tas!(b"con") => {
                     let h = slot(pole, 6)?.as_direct()?.data() as usize;
                     let t = slot(pole, 14)?.as_direct()?.data() as usize;
@@ -254,7 +264,6 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     }
                 },
                 tas!(b"lop") => {
-                    // poison s if s is not a loobean
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let s_value = register_get(virtual_frame, s);
                     if !unsafe { s_value.raw_equals(YES) || s_value.raw_equals(NO) } {
