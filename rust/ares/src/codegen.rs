@@ -521,88 +521,25 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"cal") => {
                     // call the arm a with subject in registers v, poisons in b,
                     // result in d, and then goto t
-                    let mut a = slot(bend, 6)?;
-                    let mut b = slot(bend, 14)?;
-                    let mut v = slot(bend, 30)?;
+                    let a = slot(bend, 6)?;
+                    let b = slot(bend, 14)?;
+                    let v = slot(bend, 30)?;
                     let d = slot(bend, 62)?.as_direct()?.data() as usize;
                     let t = slot(bend, 63)?;
 
-                    unsafe {
-                        (*virtual_frame).dest = d;
-                        (*virtual_frame).cont = t;
-                    }
+                    util::do_call(context, &mut virtual_frame, &mut body, &mut bend, a, b, v, d, t)?;
 
-                    let parent_frame = virtual_frame;
-
-                    let pile = context
-                        .hill
-                        .lookup(&mut context.stack, &mut a)
-                        .ok_or(Error::NonDeterministic(D(0)))?;
-
-                    unsafe {
-                        new_frame(context, &mut virtual_frame, pile, false);
-                    }
-
-                    let mut bait = unsafe { (*(pile.0)).bait };
-                    let mut walt = unsafe { (*(pile.0)).walt };
-
-                    loop {
-                        unsafe {
-                            if b.raw_equals(D(0)) {
-                                if !bait.raw_equals(D(0)) {
-                                    Err(Error::NonDeterministic(D(0)))?;
-                                }
-                                break;
-                            }
-
-                            let b_i = slot(b, 2)?.as_direct()?.data() as usize;
-                            b = slot(b, 3)?;
-                            let bait_i = slot(bait, 2)?.as_direct()?.data() as usize;
-                            bait = slot(bait, 3)?;
-
-                            if poison_get(parent_frame, b_i) {
-                                poison_set(virtual_frame, bait_i);
-                            }
-                        }
-                    }
-
-                    loop {
-                        unsafe {
-                            if v.raw_equals(D(0)) {
-                                if !walt.raw_equals(D(0)) {
-                                    Err(Error::NonDeterministic(D(0)))?;
-                                }
-                                break;
-                            }
-
-                            let v_i = slot(v, 2)?.as_direct()?.data() as usize;
-                            v = slot(v, 3)?;
-                            let walt_i = slot(walt, 2)?.as_direct()?.data() as usize;
-                            walt = slot(walt, 3)?;
-
-                            register_set(virtual_frame, walt_i, register_get(parent_frame, v_i));
-                        }
-                    }
-
-                    {
-                        let will = unsafe { (*(pile.0)).will };
-                        let blob = will
-                            .lookup(&mut context.stack, &mut unsafe { (*(pile.0)).long })
-                            .ok_or(Error::NonDeterministic(D(0)))?;
-                        body = slot(blob, 2)?;
-                        bend = slot(blob, 3)?;
-                    }
                 }
                 tas!(b"caf") => {
-                    let mut a = slot(bend, 6)?;
-                    let mut b = slot(bend, 14)?;
-                    let mut v = slot(bend, 30)?;
+                    let a = slot(bend, 6)?;
+                    let b = slot(bend, 14)?;
+                    let v = slot(bend, 30)?;
                     let d = slot(bend, 62)?.as_direct()?.data() as usize;
                     let mut t = slot(bend, 126)?;
                     let u = slot(bend, 254)?.as_direct()?.data() as usize;
                     let n = slot(bend, 255)?;
                     let mut path = slot(n, 2)?;
-                    let mut axis = slot(n, 3)?.as_atom()?;
+                    let axis = slot(n, 3)?.as_atom()?;
 
                     if let Some(jet) = context.hot.lookup(&mut context.stack, &mut path, axis) {
                         let subject = register_get(virtual_frame, u);
@@ -624,9 +561,11 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                             }
                             Err(JetErr::Punt) => {
                                 // XX run as a normal %cal here
-                                todo!()
+                                util::do_call(context, &mut virtual_frame, &mut body, &mut bend, a, b, v, d, t)?;
                             }
                         }
+                    } else {
+                        util::do_call(context, &mut virtual_frame, &mut body, &mut bend, a, b, v, d, t)?;
                     }
                     // like call but with fast label
                     //
@@ -755,29 +694,10 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"don") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                    let mut s_value = register_get(virtual_frame, s);
-
-                    unsafe {
-                        // XX debug assertions
-
-                        context.preserve();
-                        context.stack.preserve(&mut s_value);
-                        pop_frame(context, &mut virtual_frame);
-
-                        if context.stack.get_frame_pointer() == base_frame {
-                            break Ok(s_value);
-                        }
-
-                        register_set(virtual_frame, (*virtual_frame).dest, s_value);
-
-                        let will = (*(*virtual_frame).pile.0).will;
-                        let blob = will
-                            .lookup(&mut context.stack, &mut (*virtual_frame).cont)
-                            .ok_or(Error::Deterministic(D(0)))?;
-                        body = slot(blob, 2)?;
-                        bend = slot(blob, 3)?;
+                    let s_value = register_get(virtual_frame, s);
+                    if let Some(ret_value) = util::do_return(context, &mut virtual_frame, base_frame, &mut body, &mut bend, s_value)? {
+                        break Ok(ret_value);
                     }
-                    continue;
                 }
                 tas!(b"bom") => {
                     // crash
@@ -834,6 +754,13 @@ pub mod util {
     };
 
     use super::Pile;
+    use super::Frame;
+    use super::register_set;
+    use super::pop_frame;
+    use super::register_get;
+    use super::poison_set;
+    use super::poison_get;
+    use super::new_frame;
 
     pub type NounResult = Result<Noun, Error>;
 
@@ -921,5 +848,98 @@ pub mod util {
 
     pub fn comp(context: &mut Context, s: Noun, f: Noun) -> Noun {
         T(&mut context.stack, &[D(tas!(b"comp")), D(0), s, f])
+    }
+
+    pub fn do_call(context: &mut Context, virtual_frame: &mut *mut Frame, body: &mut Noun, bend: &mut Noun, mut a: Noun, mut b: Noun, mut v: Noun, d: usize, t: Noun) -> Result<(), Error> {
+        unsafe {
+            (**virtual_frame).dest = d;
+            (**virtual_frame).cont = t;
+        }
+
+        let parent_frame = *virtual_frame;
+
+        let pile = context
+            .hill
+            .lookup(&mut context.stack, &mut a)
+            .ok_or(Error::NonDeterministic(D(0)))?;
+
+        unsafe {
+            new_frame(context, virtual_frame, pile, false);
+        }
+
+        let mut bait = unsafe { (*(pile.0)).bait };
+        let mut walt = unsafe { (*(pile.0)).walt };
+
+        loop {
+            unsafe {
+                if b.raw_equals(D(0)) {
+                    if !bait.raw_equals(D(0)) {
+                        Err(Error::NonDeterministic(D(0)))?;
+                    }
+                    break;
+                }
+
+                let b_i = slot(b, 2)?.as_direct()?.data() as usize;
+                b = slot(b, 3)?;
+                let bait_i = slot(bait, 2)?.as_direct()?.data() as usize;
+                bait = slot(bait, 3)?;
+
+                if poison_get(parent_frame, b_i) {
+                    poison_set(*virtual_frame, bait_i);
+                }
+            }
+        }
+
+        loop {
+            unsafe {
+                if v.raw_equals(D(0)) {
+                    if !walt.raw_equals(D(0)) {
+                        Err(Error::NonDeterministic(D(0)))?;
+                    }
+                    break;
+                }
+
+                let v_i = slot(v, 2)?.as_direct()?.data() as usize;
+                v = slot(v, 3)?;
+                let walt_i = slot(walt, 2)?.as_direct()?.data() as usize;
+                walt = slot(walt, 3)?;
+
+                register_set(*virtual_frame, walt_i, register_get(parent_frame, v_i));
+            }
+        }
+
+        {
+            let will = unsafe { (*(pile.0)).will };
+            let blob = will
+                .lookup(&mut context.stack, &mut unsafe { (*(pile.0)).long })
+                .ok_or(Error::NonDeterministic(D(0)))?;
+            *body = slot(blob, 2)?;
+            *bend = slot(blob, 3)?;
+        }
+        Ok(())
+    }
+
+    pub fn do_return(context: &mut Context, virtual_frame: &mut *mut Frame, base_frame: *const u64, body: &mut Noun, bend: &mut Noun, mut ret_value: Noun) -> Result<Option<Noun>, Error> {
+        unsafe {
+            // XX debug assertions
+
+            context.preserve();
+            context.stack.preserve(&mut ret_value);
+            pop_frame(context, virtual_frame);
+
+            if context.stack.get_frame_pointer() == base_frame {
+                return Ok(Some(ret_value));
+            }
+
+            register_set(*virtual_frame, (**virtual_frame).dest, ret_value);
+
+            let will = (*(**virtual_frame).pile.0).will;
+            let blob = will
+                .lookup(&mut context.stack, &mut (**virtual_frame).cont)
+                .ok_or(Error::Deterministic(D(0)))?;
+            *body = slot(blob, 2)?;
+            *bend = slot(blob, 3)?;
+        }
+        Ok(None)
     }
 }
