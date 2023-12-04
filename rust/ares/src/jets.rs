@@ -281,7 +281,7 @@ pub mod util {
 
     pub mod test {
         use super::*;
-        use crate::codegen::Pile;
+        use crate::codegen::types::Pile;
         use crate::hamt::Hamt;
         use crate::mem::{unifying_equality, NockStack};
         use crate::noun::{Atom, Noun, D, T};

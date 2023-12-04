@@ -9,82 +9,17 @@
 use ares_macros::tas;
 use either::Either::{Left, Right};
 use std::mem::size_of;
-use std::ptr::copy_nonoverlapping;
-use std::result::Result;
 
-use crate::hamt::Hamt;
 use crate::jets::JetErr;
 // XX no, we have a completely different stack layout from the tree-walking interpreter. We can't
 // borrow helper functions from it
 use crate::interpreter::{inc, mean_pop, mean_push, slow_pop, slow_push, Context, Error};
 use crate::jets::util::slot;
-use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, NO, T, YES};
 use crate::trace::TraceStack;
-
-// Actual nock crashes in cg_interpret_inner must return this error,
-// to allow us to distinguish between those and errors running codegen nock.
-//
-// This newtype wrapper is stripped in cg_interpret, removing the possibility of confounding
-// the meta-levels
-struct ActualError(Error);
+use types::{ActualError, Frame, Pile};
 
 // XX typedef for register
-#[derive(Copy, Clone)]
-pub struct PileMem {
-    long: Noun,
-    bait: Noun,
-    walt: Noun,
-    wish: Noun,
-    sire: usize,
-    will: Hamt<Noun>,
-    sans: usize,
-}
-
-#[derive(Copy, Clone)]
-pub struct Pile(*mut PileMem);
-impl Preserve for Pile {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        if stack.is_in_frame(self.0) {
-            let mut pile_mem = *(self.0);
-            pile_mem.long.preserve(stack);
-            pile_mem.bait.preserve(stack);
-            pile_mem.walt.preserve(stack);
-            pile_mem.wish.preserve(stack);
-            pile_mem.will.preserve(stack);
-            let dest_mem: *mut PileMem = stack.struct_alloc_in_previous_frame(1);
-            copy_nonoverlapping(self.0, dest_mem, 1);
-        }
-    }
-
-    unsafe fn assert_in_stack(&self, stack: &NockStack) {
-        stack.assert_struct_is_in(self.0, 1);
-        (*(self.0)).long.assert_in_stack(stack);
-        (*(self.0)).bait.assert_in_stack(stack);
-        (*(self.0)).walt.assert_in_stack(stack);
-        (*(self.0)).wish.assert_in_stack(stack);
-        (*(self.0)).will.assert_in_stack(stack);
-    }
-}
-
-impl Pile {
-    fn from_noun(stack: &mut NockStack, p: Noun) -> Result<Pile, Error> {
-        unsafe {
-            let mem: *mut PileMem = stack.struct_alloc(1);
-            *mem = PileMem {
-                long: slot(p, 2)?,
-                bait: slot(p, 14)?,
-                walt: slot(p, 30)?,
-                wish: slot(p, 62)?,
-                sire: slot(p, 126)?.as_direct()?.data() as usize,
-                will: util::part_will(stack, slot(p, 62).unwrap()),
-                sans: slot(p, 254)?.as_direct()?.data() as usize,
-            };
-            Ok(Pile(mem))
-        }
-    }
-}
-
 /// First peeks or pokes the codegen core (line) to get codegen for the
 /// subject and formula, then parses the successful results into a
 /// (bell, hill) tuple.
@@ -120,18 +55,6 @@ fn cg_pull_pile(context: &mut Context, subject: Noun, formula: Noun) -> Pile {
         .hill
         .lookup(&mut context.stack, &mut bell)
         .expect("pile not found")
-}
-
-struct Frame {
-    mean: Noun,
-    traz: *mut *const TraceStack,
-    slow: Noun,
-    pile: Pile,
-    dest: usize,
-    cont: Noun,
-    pois_sz: usize, // length of poison vector
-                    // poison: Vec<u64>,     // variable size
-                    // registers: Vec<Noun>, // variable size
 }
 
 const FRAME_WORD_SIZE: usize = (size_of::<Frame>() + 7) >> 3; // Round to u64 words
@@ -196,13 +119,11 @@ unsafe fn pop_frame(context: &mut Context, frame_ref: &mut *mut Frame) {
 }
 
 pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
-    let nock = cg_interpret_inner(context, subject, formula);
+    let virtual_frame = context.stack.get_frame_pointer();
+    let nock = cg_interpret_inner(context, virtual_frame, subject, formula);
     match nock {
         Ok(noun) => Ok(noun),
-        Err(ae) => {
-            let virtual_frame = context.stack.get_frame_pointer();
-            Err(exit(context, virtual_frame, ae))
-        }
+        Err(ae) => Err(exit(context, virtual_frame, ae)),
     }
 }
 
@@ -210,10 +131,10 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
 /// naively interprets it.
 fn cg_interpret_inner(
     context: &mut Context,
+    virtual_frame: *const u64,
     subject: Noun,
     formula: Noun,
 ) -> Result<Noun, ActualError> {
-    let virtual_frame = context.stack.get_frame_pointer();
     // Setup stack for codegen interpretation.
     // Stack frame layout: [mean trace slow pile dest cont poison registers]
     // XX update local_noun_pointer() calls with correct constants
@@ -238,7 +159,7 @@ fn cg_interpret_inner(
             .lookup(&mut context.stack, &mut unsafe {
                 (*(*current_frame).pile.0).wish
             })
-            .ok_or(ActualError(Error::Deterministic(D(0))))?;
+            .unwrap();
         body = slot(blob, 2).expect("codegen nock error");
         bend = slot(blob, 3).expect("codegen nock error");
     }
@@ -426,7 +347,8 @@ fn cg_interpret_inner(
                         if unsafe { s.raw_equals(D(0)) } {
                             break;
                         } else {
-                            let i = s.as_cell().unwrap().head().as_direct().unwrap().data() as usize;
+                            let i =
+                                s.as_cell().unwrap().head().as_direct().unwrap().data() as usize;
                             if poison_get(current_frame, i) {
                                 ActualError(Error::Deterministic(D(0)));
                             } else {
@@ -450,7 +372,8 @@ fn cg_interpret_inner(
                             let will = unsafe { (*(*current_frame).pile.0).will };
                             let blob = will
                                 .lookup(&mut context.stack, &mut o)
-                                .ok_or(Error::Deterministic(D(0))).unwrap();
+                                .ok_or(Error::Deterministic(D(0)))
+                                .unwrap();
                             body = slot(blob, 2).unwrap();
                             bend = slot(blob, 3).unwrap();
                             continue;
@@ -460,7 +383,8 @@ fn cg_interpret_inner(
                             let will = unsafe { (*(*current_frame).pile.0).will };
                             let blob = will
                                 .lookup(&mut context.stack, &mut z)
-                                .ok_or(Error::Deterministic(D(0))).unwrap();
+                                .ok_or(Error::Deterministic(D(0)))
+                                .unwrap();
                             body = slot(blob, 2).unwrap();
                             bend = slot(blob, 3).unwrap();
                             continue;
@@ -477,7 +401,8 @@ fn cg_interpret_inner(
                         let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut z)
-                            .ok_or(Error::Deterministic(D(0))).unwrap();
+                            .ok_or(Error::Deterministic(D(0)))
+                            .unwrap();
                         body = slot(blob, 2).unwrap();
                         bend = slot(blob, 3).unwrap();
                         continue;
@@ -486,7 +411,8 @@ fn cg_interpret_inner(
                         let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut o)
-                            .ok_or(Error::Deterministic(D(0))).unwrap();
+                            .ok_or(Error::Deterministic(D(0)))
+                            .unwrap();
                         body = slot(blob, 2).unwrap();
                         bend = slot(blob, 3).unwrap();
                         continue;
@@ -500,7 +426,8 @@ fn cg_interpret_inner(
                         let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut z)
-                            .ok_or(Error::Deterministic(D(0))).unwrap();
+                            .ok_or(Error::Deterministic(D(0)))
+                            .unwrap();
                         body = slot(blob, 2).unwrap();
                         bend = slot(blob, 3).unwrap();
                         continue;
@@ -509,7 +436,8 @@ fn cg_interpret_inner(
                         let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut o)
-                            .ok_or(Error::Deterministic(D(0))).unwrap();
+                            .ok_or(Error::Deterministic(D(0)))
+                            .unwrap();
                         body = slot(blob, 2).unwrap();
                         bend = slot(blob, 3).unwrap();
                         continue;
@@ -522,7 +450,8 @@ fn cg_interpret_inner(
                     let will = unsafe { (*(*current_frame).pile.0).will };
                     let blob = will
                         .lookup(&mut context.stack, &mut t)
-                        .ok_or(Error::Deterministic(D(0))).unwrap();
+                        .ok_or(Error::Deterministic(D(0)))
+                        .unwrap();
                     body = slot(blob, 2).unwrap();
                     bend = slot(blob, 3).unwrap();
                     continue;
@@ -560,7 +489,8 @@ fn cg_interpret_inner(
                             .lookup(&mut context.stack, &mut unsafe {
                                 (*(*current_frame).pile.0).wish
                             })
-                            .ok_or(Error::Deterministic(D(0))).unwrap();
+                            .ok_or(Error::Deterministic(D(0)))
+                            .unwrap();
                         body = slot(blob, 2).unwrap();
                         bend = slot(blob, 3).unwrap();
                     }
@@ -608,7 +538,8 @@ fn cg_interpret_inner(
                                     (*(*current_frame).pile.0)
                                         .will
                                         .lookup(&mut context.stack, &mut t)
-                                        .ok_or(Error::NonDeterministic(D(0))).unwrap()
+                                        .ok_or(Error::NonDeterministic(D(0)))
+                                        .unwrap()
                                 };
                                 body = slot(blob, 2).unwrap();
                                 bend = slot(blob, 3).unwrap();
@@ -674,7 +605,8 @@ fn cg_interpret_inner(
                             .lookup(&mut context.stack, &mut unsafe {
                                 (*(*current_frame).pile.0).wish
                             })
-                            .ok_or(Error::Deterministic(D(0))).unwrap();
+                            .ok_or(Error::Deterministic(D(0)))
+                            .unwrap();
                         body = slot(blob, 2).unwrap();
                         bend = slot(blob, 3).unwrap();
                     }
@@ -707,13 +639,13 @@ fn cg_interpret_inner(
                                     &mut body,
                                     &mut bend,
                                     result,
-                                ).unwrap();
+                                )
+                                .unwrap();
                             }
                             Err(JetErr::Fail(err)) => {
                                 ActualError(err);
                             }
                             Err(JetErr::Punt) => {
-                                // XX run as a normal %cal here
                                 util::do_tail_call(
                                     context,
                                     &mut current_frame,
@@ -826,7 +758,94 @@ fn poison_get(frame: *const Frame, local: usize) -> bool {
     bitmap & (1 << offset) != 0
 }
 
-pub mod util {
+pub mod types {
+    use std::ptr::copy_nonoverlapping;
+
+    use crate::{
+        hamt::Hamt,
+        interpreter::Error,
+        jets::util::slot,
+        mem::{NockStack, Preserve},
+        noun::Noun, trace::TraceStack,
+    };
+
+    use super::util;
+
+    pub struct Frame {
+        pub mean: Noun,
+        pub traz: *mut *const TraceStack,
+        pub slow: Noun,
+        pub pile: Pile,
+        pub dest: usize,
+        pub cont: Noun,
+        pub pois_sz: usize, // length of poison vector
+                        // poison: Vec<u64>,     // variable size
+                        // registers: Vec<Noun>, // variable size
+    }
+
+    #[derive(Copy, Clone)]
+    pub struct PileMem {
+        pub long: Noun,
+        pub bait: Noun,
+        pub walt: Noun,
+        pub wish: Noun,
+        pub sire: usize,
+        pub will: Hamt<Noun>,
+        pub sans: usize,
+    }
+
+    #[derive(Copy, Clone)]
+    pub struct Pile(pub *mut PileMem);
+    impl Preserve for Pile {
+        unsafe fn preserve(&mut self, stack: &mut NockStack) {
+            if stack.is_in_frame(self.0) {
+                let mut pile_mem = *(self.0);
+                pile_mem.long.preserve(stack);
+                pile_mem.bait.preserve(stack);
+                pile_mem.walt.preserve(stack);
+                pile_mem.wish.preserve(stack);
+                pile_mem.will.preserve(stack);
+                let dest_mem: *mut PileMem = stack.struct_alloc_in_previous_frame(1);
+                copy_nonoverlapping(self.0, dest_mem, 1);
+            }
+        }
+
+        unsafe fn assert_in_stack(&self, stack: &NockStack) {
+            stack.assert_struct_is_in(self.0, 1);
+            (*(self.0)).long.assert_in_stack(stack);
+            (*(self.0)).bait.assert_in_stack(stack);
+            (*(self.0)).walt.assert_in_stack(stack);
+            (*(self.0)).wish.assert_in_stack(stack);
+            (*(self.0)).will.assert_in_stack(stack);
+        }
+    }
+
+    impl Pile {
+        pub fn from_noun(stack: &mut NockStack, p: Noun) -> Pile {
+            unsafe {
+                let mem: *mut PileMem = stack.struct_alloc(1);
+                *mem = PileMem {
+                    long: slot(p, 2).unwrap(),
+                    bait: slot(p, 14).unwrap(),
+                    walt: slot(p, 30).unwrap(),
+                    wish: slot(p, 62).unwrap(),
+                    sire: slot(p, 126).unwrap().as_direct().unwrap().data() as usize,
+                    will: util::part_will(stack, slot(p, 62).unwrap()),
+                    sans: slot(p, 254).unwrap().as_direct().unwrap().data() as usize,
+                };
+                Pile(mem)
+            }
+        }
+    }
+
+    // Actual nock crashes in cg_interpret_inner must return this error,
+    // to allow us to distinguish between those and errors running codegen nock.
+    //
+    // This newtype wrapper is stripped in cg_interpret, removing the possibility of confounding
+    // the meta-levels
+    pub struct ActualError(pub Error);
+}
+mod util {
     use ares_macros::tas;
 
     use crate::{
@@ -903,7 +922,7 @@ pub mod util {
             let c = kvs.as_cell().unwrap();
             let kv = c.head();
             let mut bell = slot(kv, 2).unwrap();
-            let pile = Pile::from_noun(stack, slot(kv, 3).unwrap()).unwrap();
+            let pile = Pile::from_noun(stack, slot(kv, 3).unwrap());
             hamt = hamt.insert(stack, &mut bell, pile);
             kvs = c.tail();
         }
@@ -952,10 +971,7 @@ pub mod util {
 
         let parent_frame = *frame_ref;
 
-        let pile = context
-            .hill
-            .lookup(&mut context.stack, &mut a)
-            .unwrap();
+        let pile = context.hill.lookup(&mut context.stack, &mut a).unwrap();
 
         unsafe {
             new_frame(context, frame_ref, pile, false);
@@ -1022,10 +1038,7 @@ pub mod util {
         mut v: Noun,
     ) {
         unsafe {
-            let pile = context
-                .hill
-                .lookup(&mut context.stack, &mut a)
-                .unwrap();
+            let pile = context.hill.lookup(&mut context.stack, &mut a).unwrap();
             new_frame(context, frame_ref, pile, true); // set up tail call frame
 
             let sans = (*(pile.0)).sans;

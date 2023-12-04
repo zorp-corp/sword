@@ -1,7 +1,7 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
-use crate::codegen::Pile;
+use crate::codegen::types::Pile;
 use crate::hamt::Hamt;
 use crate::jets::cold;
 use crate::jets::cold::Cold;
