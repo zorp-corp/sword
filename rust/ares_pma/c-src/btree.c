@@ -2505,6 +2505,10 @@ bt_sync(BT_state *state)
   if (rc = _bt_sync(state, root, 1, meta->depth))
     return rc;
 
+  /* merge the pending freelists */
+  _pending_nlist_merge(state);
+  _pending_flist_merge(state);
+
   /* sync the root page */
   if (msync(root, sizeof(BT_page), MS_SYNC))
     return errno;
