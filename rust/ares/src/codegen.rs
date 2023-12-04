@@ -255,7 +255,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let t_value = register_get(virtual_frame, t);
                     let value = T(&mut context.stack, &[h_value, t_value]);
                     register_set(virtual_frame, d, value);
-                }
+                },
                 tas!(b"cop") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let s_value = register_get(virtual_frame, s);
@@ -270,7 +270,13 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         poison_set(virtual_frame, s);
                     }
                 },
-                tas!(b"coc") => {}
+                tas!(b"coc") => {
+                    let s = slot(pole, 6)?.as_direct()?.data() as usize;
+                    let s_value = register_get(virtual_frame, s);
+                    if s_value.is_atom() {
+                        // XX crash
+                    }
+                },
                 tas!(b"hed") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
