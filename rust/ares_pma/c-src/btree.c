@@ -115,9 +115,7 @@ off2addr(vaof_t off)
   return (void *)pu;
 }
 
-#define BT_PAGEBITS 14ULL
 #define BT_PAGEWORD 32ULL
-#define BT_PAGESIZE (1ULL << BT_PAGEBITS) /* 16K */
 #define BT_NUMMETAS 2                     /* 2 metapages */
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
 #define PMA_GROW_SIZE (BT_PAGESIZE * 1024)

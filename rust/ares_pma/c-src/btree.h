@@ -6,6 +6,9 @@
 struct BT_state;
 typedef struct BT_state BT_state;
 
+#define BT_PAGEBITS 14ULL
+#define BT_PAGESIZE (1ULL << BT_PAGEBITS) /* 16K */
+
 typedef unsigned long ULONG;
 
 //// ===========================================================================

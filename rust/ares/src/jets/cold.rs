@@ -4,6 +4,7 @@ use crate::noun;
 use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
+use crate::persist::{Persist, PMA};
 
 pub enum Error {
     NoParent,
@@ -267,6 +268,7 @@ impl Iterator for NounList {
     }
 }
 
+#[derive(Copy,Clone)]
 pub struct Cold(*mut ColdMem);
 
 struct ColdMem {
@@ -290,6 +292,17 @@ struct ColdMem {
     /// value: linked list of a sequence of nested batteries
     path_to_batteries: Hamt<BatteriesList>,
 }
+
+impl Persist for Cold {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+        todo!()
+    }
+    
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: *mut u8) -> u64 {
+        todo!()
+    }
+}
+
 
 impl Preserve for Cold {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {

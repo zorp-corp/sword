@@ -14,6 +14,7 @@ pub mod serf;
 //pub mod bytecode;
 pub mod serialization;
 pub mod trace;
+pub mod persist;
 
 /** Introduce useful functions for debugging
  *
