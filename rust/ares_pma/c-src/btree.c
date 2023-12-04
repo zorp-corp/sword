@@ -820,21 +820,6 @@ _pending_nlist_insert(BT_state *state, pgno_t nodepg)
   head->next = new;
 }
 
-static void
-_pending_nlist_clear(BT_state *state)
-{
-  /* there's no need for a pending freelist "pop" routine as we only clear nodes
-     from it after all have been merged with the real freelists */
-  BT_nlistnode *prev = state->pending_nlist;
-  BT_nlistnode *next = prev->next;
-  while (prev) {
-    free(prev);
-    prev = next;
-    next = next->next;
-  }
-  state->pending_nlist = 0;
-}
-
 static BT_nlistnode *
 _nlist_find(BT_nlistnode *head, BT_page *va)
 /* find a node  */
@@ -844,46 +829,59 @@ _nlist_find(BT_nlistnode *head, BT_page *va)
 
 static void
 _pending_nlist_merge(BT_state *state)
-/* merge state->pending_nlist with state->nlist. To be called when syncing */
 {
-  BT_nlistnode *src_head = state->pending_nlist;
-  BT_nlistnode *dst_head = state->nlist;
+  BT_nlistnode **src_head = &state->pending_nlist;
+  BT_nlistnode **dst_head = &state->nlist;
 
-  while (src_head) {
-    /* ;;: todo refactor */
-    while (dst_head) {
-      BT_page *dst_va = dst_head->va;
-      BT_page *src_va = src_head->va;
-      if (dst_head->va <= src_head->va
-          && dst_head->va + dst_head->sz >= src_head->va) {
-        /* found node in nlist that fits node in pending nlist */
-
-        dst_head->sz += 1;
-        break;
-      }
-      else if (dst_head->va + dst_head->sz < src_head->va
-               && dst_head->next->va > src_head->va) {
-        /* pending nlist node belongs between two nlist nodes */
-        BT_nlistnode *new = calloc(1, sizeof *new);
-        memcpy(new, src_head, sizeof *src_head);
-        new->sz = 1;
-        new->va = src_head->va;
-        /* insert */
-        new->next = dst_head->next;
-        dst_head->next = new;
-        break;
-      }
-      dst_head = dst_head->next;
-    }
-    if (src_head) {
-      /* need to track prev or use double indirection */
+  while (*dst_head) {
+    /* src cleared. done */
+    if (!*src_head) {
+      return;
     }
 
+    /* check if src node should be merged with dst  **************************/
+    BT_page *dst_va      = (*dst_head)->va;
+    size_t   dst_sz      = (*dst_head)->sz;
+    BT_page *src_va      = (*src_head)->va;
+    /* NB: while we don't currently coalesce the pending nlist, it's not that
+       hard to account for if we did, so might as well generalize the merge
+       algorithm */
+    size_t   src_sz      = (*src_head)->sz;
+    BT_page *dst_next_va = *dst_head ? (*dst_head)->next->va : 0;
 
-    src_head = src_head->next;
+    /* source node immediately follows dst node's termination */
+    if (dst_va + dst_sz == src_va) {
+      (*dst_head)->sz += src_sz; /* widen dst node */
+      /* advance src node and free previous */
+      BT_nlistnode *prev = *src_head;
+      src_head = &(*src_head)->next;
+      free(prev);
+    }
+    /* source node's termination immediately precedes dst node */
+    else if (dst_next_va == src_va + src_sz) {
+      (*dst_head)->va = src_va;  /* pull va back */
+      (*dst_head)->sz += src_sz; /* widen node */
+      /* advance src node and free previous */
+      BT_nlistnode *prev = *src_head;
+      src_head = &(*src_head)->next;
+      free(prev);
+    }
+    /* src node lies between but isn't contiguous with dst */
+    else if (src_va > dst_va + dst_sz
+             && src_va + src_sz < dst_next_va) {
+      /* link src node in */
+      (*src_head)->next = (*dst_head)->next;
+      (*dst_head)->next = *src_head;
+      /* and advance src node */
+      src_head = &(*src_head)->next;
+    }
+    /* otherwise, advance dst node */
+    else {
+      dst_head = &(*dst_head)->next;
+    }
   }
-
-  _pending_nlist_clear(state);
+  /* merge what remains of src if anything */
+  *dst_head = *src_head;
 }
 
 static void
@@ -927,21 +925,6 @@ _pending_flist_insert(BT_state *state, pgno_t pg, size_t sz)
   new->next = head->next;
   head->next = new;
 }
-
-/* static void */
-/* _pending_flist_clear(BT_state *state) */
-/* { */
-/*   /\* as with _pending_flist_clear. We only remove nodes from this list if it's */
-/*      fully merged with state->flist *\/ */
-/*   BT_flistnode *prev = state->pending_flist; */
-/*   BT_flistnode *next = prev->next; */
-/*   while (prev) { */
-/*     free(prev); */
-/*     prev = next; */
-/*     next = next->next; */
-/*   } */
-/*   state->pending_flist = 0; */
-/* } */
 
 static void
 _pending_flist_merge(BT_state *state)
