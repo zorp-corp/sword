@@ -2496,7 +2496,6 @@ bt_dirty(btree, lo, hi):
     (range_lo, range_hi) = find_range_for_pointer(btree, lo);
     dirty_hi = min(hi, range_hi);
     new_start_fo = data_cow(btree, lo, dirty_hi);
-    bt_insert(btree, lo, dirty_hi, new_start_fo);
     lo := range_hi;
     if dirty_hi == hi then break;
 
@@ -2549,12 +2548,9 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi)
                                      supplying the address directly. correct??
                                      check. */
 
-  /* ;;: ps. noticed a duplicate _bt_insert call in the bt_dirty and data_cow
-       psuedocode. Does the order matter? Should it happen in data_cow or
-       bt_dirty? afaict, we might as well do it here and let _bt_data_cow
-       return void. No opinion really */
+  _bt_insert(state, lo, hi, newpg);
 
-  /* ;;: todo: insert into freelist */
+  /* ;;: todo: insert into pending disk freelist state->pending_flist */
 
   return newpg;
 }
