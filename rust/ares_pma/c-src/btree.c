@@ -796,6 +796,14 @@ _pending_nlist_insert(BT_state *state, pgno_t nodepg)
   BT_nlistnode *head = state->pending_nlist;
   BT_page *va = _node_get(state, nodepg);
 
+  /* freelist may be empty. create head */
+  if (head == 0) {
+    state->pending_nlist = calloc(1, sizeof *state->pending_nlist);
+    state->pending_nlist->sz = 1;
+    state->pending_nlist->va = va;
+    return;
+  }
+
   /* we don't need to account for a freelist node's size because we aren't
      coalescing the pending freelists */
   while (head->next) {
@@ -805,11 +813,10 @@ _pending_nlist_insert(BT_state *state, pgno_t nodepg)
   }
 
   /* head->next is either null or has a higher address than va */
-  BT_nlistnode *new = calloc(1, sizeof new);
-  new->next = head->next;
+  BT_nlistnode *new = calloc(1, sizeof *new);
   new->sz = 1;
   new->va = va;
-
+  new->next = head->next;
   head->next = new;
 }
 
@@ -877,6 +884,69 @@ _pending_nlist_merge(BT_state *state)
   }
 
   _pending_nlist_clear(state);
+}
+
+static void
+_pending_flist_insert(BT_state *state, pgno_t pg, size_t sz)
+{
+  BT_flistnode *head = state->pending_flist;
+
+  /* freelist may be empty. create head */
+  if (head == 0) {
+    state->pending_flist = calloc(1, sizeof *state->pending_flist);
+    state->pending_flist->pg = pg;
+    state->pending_flist->sz = sz;
+    return;
+  }
+
+  while (head->next) {
+    /* next node starts at pg higher than this freechunk's termination */
+    if (head->next->pg >= pg + sz) {
+      break;
+    }
+    head = head->next;
+  }
+
+  /* if freed chunk follows head, expand head */
+  if (head->pg + head->sz == pg) {
+    head->sz += sz;
+    return;
+  }
+
+  /* if the freed chunk precedes next, expand next and pull pg back */
+  if (head->next->pg == pg + sz) {
+    head->next->pg = pg;
+    head->next->sz += sz;
+    return;
+  }
+
+  /* otherwise, insert a new node following head */
+  BT_flistnode *new = calloc(1, sizeof *new);
+  new->pg = pg;
+  new->sz = sz;
+  new->next = head->next;
+  head->next = new;
+}
+
+static void
+_pending_flist_clear(BT_state *state)
+{
+  /* as with _pending_flist_clear. We only remove nodes from this list if it's
+     fully merged with state->flist */
+  BT_flistnode *prev = state->pending_flist;
+  BT_flistnode *next = prev->next;
+  while (prev) {
+    free(prev);
+    prev = next;
+    next = next->next;
+  }
+  state->pending_flist = 0;
+}
+
+static void
+_pending_flist_merge(BT_state *state)
+{
+
 }
 
 
@@ -2520,7 +2590,7 @@ data_cow(btree, lo, hi):
 **/
 
 static pgno_t
-_bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi)
+_bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
 {
   size_t len = hi - lo;
   size_t bytelen = P2BYTES(len);
@@ -2550,7 +2620,7 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi)
 
   _bt_insert(state, lo, hi, newpg);
 
-  /* ;;: todo: insert into pending disk freelist state->pending_flist */
+  _pending_flist_insert(state, pg, len);
 
   return newpg;
 }
@@ -2592,7 +2662,8 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
     if (depth == maxdepth) {
       vaof_t llo = node->datk[i].va;
       vaof_t hhi = MIN(node->datk[i+1].va, hi);
-      pgno_t newpg = _bt_data_cow(state, llo, hhi);
+      pgno_t pg = node->datk[i].fo;
+      pgno_t newpg = _bt_data_cow(state, llo, hhi, pg);
       _bt_insert(state, llo, hhi, newpg);
     }
 
