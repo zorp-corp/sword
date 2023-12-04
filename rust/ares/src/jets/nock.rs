@@ -91,6 +91,8 @@ pub fn jet_mure(context: &mut Context, subject: Noun) -> Result {
     let scry = util::pass_thru_scry(&mut context.stack);
 
     context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
+
+    let saved = context.save();
     match interpret(context, tap, fol) {
         Ok(res) => {
             context.scry_stack = context.scry_stack.as_cell()?.tail();
@@ -100,7 +102,11 @@ pub fn jet_mure(context: &mut Context, subject: Noun) -> Result {
             // Since we are using the pass-through scry handler, we know for a fact that a scry
             // crash must have come from a senior virtualization context.
             Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(JetErr::Fail(error)),
-            Error::Deterministic(_) | Error::ScryBlocked(_) => Ok(D(0)),
+            Error::Deterministic(_) | Error::ScryBlocked(_) => {
+                context.restore(saved);
+                context.scry_stack = context.scry_stack.as_cell()?.tail();
+                Ok(D(0))
+            }
         },
     }
 }
@@ -111,6 +117,8 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
     let scry = util::pass_thru_scry(&mut context.stack);
 
     context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
+
+    let saved = context.save();
     match interpret(context, tap, fol) {
         Ok(res) => {
             context.scry_stack = context.scry_stack.as_cell()?.tail();
@@ -121,12 +129,16 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
             // crash must have come from a senior virtualization context.
             Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(JetErr::Fail(error)),
             Error::ScryBlocked(path) => {
+                context.scry_stack = context.scry_stack.as_cell()?.tail();
+                context.restore(saved);
                 //  XX: Need to check that result is actually of type path
                 //      return [[%leaf "mute.hunk"] ~] if not
                 let bon = util::smyt(&mut context.stack, path)?;
                 Ok(T(&mut context.stack, &[NO, bon, D(0)]))
             }
             Error::Deterministic(trace) => {
+                context.scry_stack = context.scry_stack.as_cell()?.tail();
+                context.restore(saved);
                 let ton = Cell::new(&mut context.stack, D(2), trace);
                 let tun = util::mook(context, ton, false)?;
                 Ok(T(&mut context.stack, &[NO, tun.tail()]))
@@ -177,11 +189,18 @@ pub mod util {
     }
 
     pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
+        let saved = context.save();
         match interpret(context, subject, formula) {
             Ok(res) => Ok(T(&mut context.stack, &[D(0), res])),
             Err(err) => match err {
-                Error::ScryBlocked(path) => Ok(T(&mut context.stack, &[D(1), path])),
-                Error::Deterministic(trace) => Ok(T(&mut context.stack, &[D(2), trace])),
+                Error::ScryBlocked(path) => {
+                    context.restore(saved);
+                    Ok(T(&mut context.stack, &[D(1), path]))
+                }
+                Error::Deterministic(trace) => {
+                    context.restore(saved);
+                    Ok(T(&mut context.stack, &[D(2), trace]))
+                }
                 Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(err),
             },
         }

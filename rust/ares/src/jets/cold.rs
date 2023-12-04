@@ -267,6 +267,7 @@ impl Iterator for NounList {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Cold(*mut ColdMem);
 
 struct ColdMem {
