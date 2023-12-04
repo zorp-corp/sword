@@ -19,7 +19,7 @@ use crate::jets::JetErr;
 use crate::interpreter::{inc, mean_pop, mean_push, slow_pop, slow_push, Context, Error};
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
-use crate::noun::{Noun, D, T, YES, NO};
+use crate::noun::{Noun, D, NO, T, YES};
 use crate::trace::TraceStack;
 
 // XX typedef for register
@@ -190,37 +190,39 @@ unsafe fn pop_frame(context: &mut Context, frame_ref: &mut *mut Frame) {
 /// Fetches or creates codegen code for the subject and formula, then
 /// naively interprets it.
 pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
-    let base_frame = context.stack.get_frame_pointer();
+    let virtual_frame = context.stack.get_frame_pointer();
     // Setup stack for codegen interpretation.
     // Stack frame layout: [mean trace slow pile dest cont poison registers]
     // XX update local_noun_pointer() calls with correct constants
-    let mut virtual_frame: *mut Frame = std::ptr::null_mut();
+    let mut current_frame: *mut Frame = std::ptr::null_mut();
     {
         let pile = cg_pull_pile(context, subject, formula)?;
-        unsafe { new_frame(context, &mut virtual_frame, pile, false) };
+        unsafe { new_frame(context, &mut current_frame, pile, false) };
     }
 
     // Load the initial subject to the sire register.
     {
-        let sire = unsafe { (*(*virtual_frame).pile.0).sire };
-        register_set(virtual_frame, sire, subject);
+        let sire = unsafe { (*(*current_frame).pile.0).sire };
+        register_set(current_frame, sire, subject);
     }
 
     // Get the blob, body, and bend nouns from our pile.
     let mut body: Noun;
     let mut bend: Noun;
     {
-        let will = unsafe { (*(*virtual_frame).pile.0).will };
+        let will = unsafe { (*(*current_frame).pile.0).will };
         let blob = will
             .lookup(&mut context.stack, &mut unsafe {
-                (*(*virtual_frame).pile.0).wish
+                (*(*current_frame).pile.0).wish
             })
             .ok_or(Error::Deterministic(D(0)))?;
         body = slot(blob, 2)?;
         bend = slot(blob, 3)?;
     }
 
-    loop {
+    // XX replace all slot()?s with slot().expect("codegen error")
+
+    let nock = loop {
         if !unsafe { body.raw_equals(D(0)) } {
             let pole = slot(body, 2)?;
             body = slot(body, 3)?;
@@ -228,111 +230,111 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"imm") => {
                     let local = slot(pole, 7)?.as_direct()?.data() as usize;
                     let value = slot(pole, 6)?;
-                    register_set(virtual_frame, local, value);
+                    register_set(current_frame, local, value);
                 }
                 tas!(b"mov") => {
                     let src = slot(pole, 6)?.as_direct()?.data() as usize;
                     let dst = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let value = register_get(virtual_frame, src);
-                    register_set(virtual_frame, dst, value);
+                    let value = register_get(current_frame, src);
+                    register_set(current_frame, dst, value);
                 }
                 tas!(b"inc") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     if let Ok(atom) = s_value.as_atom() {
                         let value = inc(&mut context.stack, atom);
-                        register_set(virtual_frame, d, value.as_noun());
+                        register_set(current_frame, d, value.as_noun());
                     } else {
                         // XX crash
                     }
-                },
+                }
                 tas!(b"con") => {
                     let h = slot(pole, 6)?.as_direct()?.data() as usize;
                     let t = slot(pole, 14)?.as_direct()?.data() as usize;
                     let d = slot(pole, 15)?.as_direct()?.data() as usize;
-                    let h_value = register_get(virtual_frame, h);
-                    let t_value = register_get(virtual_frame, t);
+                    let h_value = register_get(current_frame, h);
+                    let t_value = register_get(current_frame, t);
                     let value = T(&mut context.stack, &[h_value, t_value]);
-                    register_set(virtual_frame, d, value);
-                },
+                    register_set(current_frame, d, value);
+                }
                 tas!(b"cop") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     if s_value.is_atom() {
-                        poison_set(virtual_frame, s);
+                        poison_set(current_frame, s);
                     }
-                },
+                }
                 tas!(b"lop") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     if !unsafe { s_value.raw_equals(YES) || s_value.raw_equals(NO) } {
-                        poison_set(virtual_frame, s);
+                        poison_set(current_frame, s);
                     }
-                },
+                }
                 tas!(b"coc") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     if s_value.is_atom() {
                         // XX crash
                     }
-                },
+                }
                 tas!(b"hed") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
-                            poison_set(virtual_frame, s);
+                            poison_set(current_frame, s);
                         }
                         Right(cell) => {
-                            register_set(virtual_frame, d, cell.head());
+                            register_set(current_frame, d, cell.head());
                         }
                     };
                 }
                 tas!(b"tal") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
-                            poison_set(virtual_frame, s);
+                            poison_set(current_frame, s);
                         }
                         Right(cell) => {
-                            register_set(virtual_frame, d, cell.tail());
+                            register_set(current_frame, d, cell.tail());
                         }
                     };
                 }
                 tas!(b"hci") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
                             // XX crash
                         }
                         Right(cell) => {
-                            register_set(virtual_frame, d, cell.head());
+                            register_set(current_frame, d, cell.head());
                         }
                     };
                 }
                 tas!(b"tci") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
                             // XX crash
                         }
                         Right(cell) => {
-                            register_set(virtual_frame, d, cell.tail());
+                            register_set(current_frame, d, cell.tail());
                         }
                     };
                 }
                 tas!(b"men") => {
                     // XX surely we need the static part as well
                     let s = slot(pole, 7)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     mean_push(&mut context.stack, s_value);
                 }
                 tas!(b"man") => {
@@ -340,7 +342,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"slo") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     slow_push(&mut context.stack, s_value);
                 }
                 tas!(b"sld") => {
@@ -348,12 +350,12 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"hit") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
-                    let _s_value = register_get(virtual_frame, s);
+                    let _s_value = register_get(current_frame, s);
                     // XX increment a profiling hit counter labeled with the noun in s
                 }
                 tas!(b"slg") => {
                     let s = slot(pole, 3)?.as_direct()?.data() as usize;
-                    let clue = register_get(virtual_frame, s);
+                    let clue = register_get(current_frame, s);
                     if let Ok(slog_cell) = clue.as_cell() {
                         if let Ok(pri_direct) = slog_cell.head().as_direct() {
                             let tank = slog_cell.tail();
@@ -369,10 +371,10 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let f = slot(pole, 30)?.as_direct()?.data() as usize;
                     let r = slot(pole, 31)?.as_direct()?.data() as usize;
 
-                    let k_value = register_get(virtual_frame, k);
-                    let u_value = register_get(virtual_frame, u);
-                    let f_value = register_get(virtual_frame, f);
-                    let r_value = register_get(virtual_frame, r);
+                    let k_value = register_get(current_frame, k);
+                    let u_value = register_get(current_frame, u);
+                    let f_value = register_get(current_frame, f);
+                    let r_value = register_get(current_frame, r);
                     let mut key = T(&mut context.stack, &[k_value, u_value, f_value]);
 
                     context.cache = context.cache.insert(&mut context.stack, &mut key, r_value);
@@ -389,13 +391,13 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"pol") => {
                     let s = slot(pole, 6)?.as_direct()?.data() as usize;
                     let d = slot(pole, 7)?.as_direct()?.data() as usize;
-                    if poison_get(virtual_frame, s) {
-                        poison_set(virtual_frame, d);
+                    if poison_get(current_frame, s) {
+                        poison_set(current_frame, d);
                     }
                 }
                 tas!(b"poi") => {
                     let d = slot(pole, 3)?.as_direct()?.data() as usize;
-                    poison_set(virtual_frame, d);
+                    poison_set(current_frame, d);
                 }
                 tas!(b"ipb") => {
                     let mut s = slot(pole, 3)?;
@@ -404,7 +406,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                             break;
                         } else {
                             let i = s.as_cell()?.head().as_direct()?.data() as usize;
-                            if poison_get(virtual_frame, i) {
+                            if poison_get(current_frame, i) {
                                 // XX crash
                             } else {
                                 s = s.as_cell()?.tail();
@@ -420,11 +422,11 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
             match slot(bend, 2)?.as_direct()?.data() {
                 tas!(b"clq") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
                             let mut o = slot(bend, 15)?;
-                            let will = unsafe { (*(*virtual_frame).pile.0).will };
+                            let will = unsafe { (*(*current_frame).pile.0).will };
                             let blob = will
                                 .lookup(&mut context.stack, &mut o)
                                 .ok_or(Error::Deterministic(D(0)))?;
@@ -434,7 +436,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         }
                         Right(_cell) => {
                             let mut z = slot(bend, 14)?;
-                            let will = unsafe { (*(*virtual_frame).pile.0).will };
+                            let will = unsafe { (*(*current_frame).pile.0).will };
                             let blob = will
                                 .lookup(&mut context.stack, &mut z)
                                 .ok_or(Error::Deterministic(D(0)))?;
@@ -447,11 +449,11 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 tas!(b"eqq") => {
                     let l = slot(bend, 6)?.as_direct()?.data() as usize;
                     let r = slot(bend, 14)?.as_direct()?.data() as usize;
-                    let l_value = register_get(virtual_frame, l);
-                    let r_value = register_get(virtual_frame, r);
+                    let l_value = register_get(current_frame, l);
+                    let r_value = register_get(current_frame, r);
                     if unsafe { l_value.raw_equals(r_value) } {
                         let mut z = slot(bend, 30)?;
-                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut z)
                             .ok_or(Error::Deterministic(D(0)))?;
@@ -460,7 +462,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         continue;
                     } else {
                         let mut o = slot(bend, 31)?;
-                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut o)
                             .ok_or(Error::Deterministic(D(0)))?;
@@ -471,10 +473,10 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"brn") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     if unsafe { s_value.raw_equals(D(0)) } {
                         let mut z = slot(bend, 14)?;
-                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut z)
                             .ok_or(Error::Deterministic(D(0)))?;
@@ -483,7 +485,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                         continue;
                     } else if unsafe { s_value.raw_equals(D(1)) } {
                         let mut o = slot(bend, 15)?;
-                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut o)
                             .ok_or(Error::Deterministic(D(0)))?;
@@ -496,7 +498,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"hop") => {
                     let mut t = slot(bend, 3)?;
-                    let will = unsafe { (*(*virtual_frame).pile.0).will };
+                    let will = unsafe { (*(*current_frame).pile.0).will };
                     let blob = will
                         .lookup(&mut context.stack, &mut t)
                         .ok_or(Error::Deterministic(D(0)))?;
@@ -504,9 +506,6 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     bend = slot(blob, 3)?;
                     continue;
                 }
-                // tas!(b"hip") => {
-                //     // XX set comefrom label to c and goto t
-                // },
                 tas!(b"lnk") => {
                     // evaluate f against u and put the result in d, then goto t
                     let u = slot(bend, 6)?.as_direct()?.data() as usize;
@@ -514,31 +513,31 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let d = slot(bend, 30)?.as_direct()?.data() as usize;
                     let t = slot(bend, 31)?;
 
-                    let subject = register_get(virtual_frame, u);
-                    let formula = register_get(virtual_frame, f);
+                    let subject = register_get(current_frame, u);
+                    let formula = register_get(current_frame, f);
 
                     unsafe {
-                        (*virtual_frame).dest = d;
-                        (*virtual_frame).cont = t;
+                        (*current_frame).dest = d;
+                        (*current_frame).cont = t;
                     }
 
                     {
                         let pile = cg_pull_pile(context, subject, formula)?;
                         unsafe {
-                            new_frame(context, &mut virtual_frame, pile, false);
+                            new_frame(context, &mut current_frame, pile, false);
                         }
                     }
 
                     {
-                        let sire = unsafe { (*(*virtual_frame).pile.0).sire };
-                        register_set(virtual_frame, sire, subject);
+                        let sire = unsafe { (*(*current_frame).pile.0).sire };
+                        register_set(current_frame, sire, subject);
                     }
 
                     {
-                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut unsafe {
-                                (*(*virtual_frame).pile.0).wish
+                                (*(*current_frame).pile.0).wish
                             })
                             .ok_or(Error::Deterministic(D(0)))?;
                         body = slot(blob, 2)?;
@@ -557,7 +556,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
 
                     util::do_call(
                         context,
-                        &mut virtual_frame,
+                        &mut current_frame,
                         &mut body,
                         &mut bend,
                         a,
@@ -579,13 +578,13 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let axis = slot(n, 3)?.as_atom()?;
 
                     if let Some(jet) = context.hot.lookup(&mut context.stack, &mut path, axis) {
-                        let subject = register_get(virtual_frame, u);
+                        let subject = register_get(current_frame, u);
                         let jet_result = jet(context, subject);
                         match jet_result {
                             Ok(result) => {
-                                register_set(virtual_frame, d, result);
+                                register_set(current_frame, d, result);
                                 let blob = unsafe {
-                                    (*(*virtual_frame).pile.0)
+                                    (*(*current_frame).pile.0)
                                         .will
                                         .lookup(&mut context.stack, &mut t)
                                         .ok_or(Error::NonDeterministic(D(0)))?
@@ -600,7 +599,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                                 // XX run as a normal %cal here
                                 util::do_call(
                                     context,
-                                    &mut virtual_frame,
+                                    &mut current_frame,
                                     &mut body,
                                     &mut bend,
                                     a,
@@ -614,7 +613,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     } else {
                         util::do_call(
                             context,
-                            &mut virtual_frame,
+                            &mut current_frame,
                             &mut body,
                             &mut bend,
                             a,
@@ -633,26 +632,26 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let u = slot(bend, 6)?.as_direct()?.data() as usize;
                     let f = slot(bend, 7)?.as_direct()?.data() as usize;
 
-                    let subject = register_get(virtual_frame, u);
-                    let formula = register_get(virtual_frame, f);
+                    let subject = register_get(current_frame, u);
+                    let formula = register_get(current_frame, f);
 
                     {
                         let pile = cg_pull_pile(context, subject, formula)?;
                         unsafe {
-                            new_frame(context, &mut virtual_frame, pile, true);
+                            new_frame(context, &mut current_frame, pile, true);
                         }
                     }
 
                     {
-                        let sire = unsafe { (*(*virtual_frame).pile.0).sire };
-                        register_set(virtual_frame, sire, subject);
+                        let sire = unsafe { (*(*current_frame).pile.0).sire };
+                        register_set(current_frame, sire, subject);
                     }
 
                     {
-                        let will = unsafe { (*(*virtual_frame).pile.0).will };
+                        let will = unsafe { (*(*current_frame).pile.0).will };
                         let blob = will
                             .lookup(&mut context.stack, &mut unsafe {
-                                (*(*virtual_frame).pile.0).wish
+                                (*(*current_frame).pile.0).wish
                             })
                             .ok_or(Error::Deterministic(D(0)))?;
                         body = slot(blob, 2)?;
@@ -664,7 +663,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let b = slot(bend, 14)?;
                     let v = slot(bend, 15)?;
 
-                    util::do_tail_call(context, &mut virtual_frame, &mut body, &mut bend, a, b, v)?;
+                    util::do_tail_call(context, &mut current_frame, &mut body, &mut bend, a, b, v)?;
                 }
                 tas!(b"jmf") => {
                     let a = slot(bend, 6)?;
@@ -676,14 +675,14 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     let axis = slot(n, 3)?.as_atom()?;
 
                     if let Some(jet) = context.hot.lookup(&mut context.stack, &mut path, axis) {
-                        let subject = register_get(virtual_frame, u);
+                        let subject = register_get(current_frame, u);
                         let jet_result = jet(context, subject);
                         match jet_result {
                             Ok(result) => {
                                 util::do_return(
                                     context,
-                                    &mut virtual_frame,
-                                    base_frame,
+                                    &mut current_frame,
+                                    virtual_frame,
                                     &mut body,
                                     &mut bend,
                                     result,
@@ -696,7 +695,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                                 // XX run as a normal %cal here
                                 util::do_tail_call(
                                     context,
-                                    &mut virtual_frame,
+                                    &mut current_frame,
                                     &mut body,
                                     &mut bend,
                                     a,
@@ -708,7 +707,7 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     } else {
                         util::do_tail_call(
                             context,
-                            &mut virtual_frame,
+                            &mut current_frame,
                             &mut body,
                             &mut bend,
                             a,
@@ -726,11 +725,11 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                 }
                 tas!(b"don") => {
                     let s = slot(bend, 6)?.as_direct()?.data() as usize;
-                    let s_value = register_get(virtual_frame, s);
+                    let s_value = register_get(current_frame, s);
                     if let Some(ret_value) = util::do_return(
                         context,
-                        &mut virtual_frame,
-                        base_frame,
+                        &mut current_frame,
+                        virtual_frame,
                         &mut body,
                         &mut bend,
                         s_value,
@@ -739,13 +738,18 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
                     }
                 }
                 tas!(b"bom") => {
-                    // crash
+                    // XX crash
                 }
                 _ => {
                     panic!("invalid bend instruction");
                 }
             }
         }
+    }
+
+    match nock {
+        Ok(res) => Ok(res),
+        Err(err) => Err(exit(context, current_frame, err)),
     }
 }
 
