@@ -40,9 +40,6 @@ fn main() -> io::Result<()> {
         ares::noun::use_gdb();
         ares::serf::use_gdb();
         ares::serialization::use_gdb();
-        ares::snapshot::use_gdb();
-        ares::snapshot::double_jam::use_gdb();
-        ares::snapshot::pma::use_gdb();
     }
 
     if filename == "serf" {

@@ -10,8 +10,6 @@ use crate::mem::NockStack;
 use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
-use crate::snapshot::double_jam::DoubleJam;
-use crate::snapshot::Snapshot;
 use crate::trace::*;
 use ares_macros::tas;
 use signal_hook;
@@ -31,7 +29,7 @@ const FLAG_TRACE: u32 = 1 << 8;
 struct Context {
     epoch: u64,
     event_num: u64,
-    snapshot: DoubleJam,
+    snapshot: (),
     arvo: Noun,
     mug: u32,
     nock_context: interpreter::Context,
@@ -41,16 +39,18 @@ impl Context {
     pub fn new(snap_path: &PathBuf, trace_info: Option<TraceInfo>) -> Self {
         // TODO: switch to Pma when ready
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
-        let mut snapshot = DoubleJam::new(snap_path);
         let mut stack = NockStack::new(1024 << 10 << 10, 0);
+        let snapshot = (); // XX PMA
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new();
 
-        let cold = Cold::new(&mut stack);
-        let warm = Warm::new();
-        let hot = Hot::init(&mut stack);
 
-        let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
+        let (epoch, event_num, arvo, mut cold) = (0, 0, D(0), Cold::new(&mut stack)); // XX to load
+                                                                                  // from PMA;
+
+        let mut hot = Hot::init(&mut stack);
+        let warm = Warm::init(&mut stack, &mut cold, &mut hot);
+
         let mug = mug_u32(&mut stack, arvo);
 
         let nock_context = interpreter::Context {
@@ -82,8 +82,7 @@ impl Context {
         //  XX: assert event numbers are continuous
         self.arvo = new_arvo;
         self.event_num = new_event_num;
-        self.snapshot
-            .save(&mut self.nock_context.stack, &mut self.arvo);
+        // XX save to PMA
         self.mug = mug_u32(&mut self.nock_context.stack, self.arvo);
     }
 
@@ -92,8 +91,7 @@ impl Context {
     //
 
     pub fn sync(&mut self) {
-        self.snapshot
-            .sync(&mut self.nock_context.stack, self.epoch, self.event_num);
+        // XX save to PMA
     }
 
     //
