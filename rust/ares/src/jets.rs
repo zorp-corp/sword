@@ -281,7 +281,7 @@ pub mod util {
 
     pub mod test {
         use super::*;
-        use crate::codegen::types::Pile;
+        use crate::codegen::Hill;
         use crate::hamt::Hamt;
         use crate::mem::{unifying_equality, NockStack};
         use crate::noun::{Atom, Noun, D, T};
@@ -295,7 +295,7 @@ pub mod util {
             let warm = Warm::new();
             let hot = Hot::init(&mut stack);
             let cache = Hamt::<Noun>::new();
-            let hill = Hamt::<Pile>::new();
+            let hill = Hill::new();
 
             Context {
                 stack,

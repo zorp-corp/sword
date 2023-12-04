@@ -1,3 +1,4 @@
+use ares::codegen::Hill;
 use ares::hamt::Hamt;
 use ares::interpreter::{interpret, Context};
 use ares::jets::cold::Cold;
@@ -71,7 +72,7 @@ fn main() -> io::Result<()> {
     let cold = Cold::new(&mut stack);
     let warm = Warm::new();
     let hot = Hot::init(&mut stack);
-    let hill = Hamt::new();
+    let hill = Hill::new();
     let mut context = Context {
         stack,
         newt,

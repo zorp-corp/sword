@@ -15,9 +15,28 @@ use crate::jets::JetErr;
 // borrow helper functions from it
 use crate::interpreter::{inc, mean_pop, mean_push, slow_pop, slow_push, Context, Error};
 use crate::jets::util::slot;
+use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, NO, T, YES};
 use crate::trace::TraceStack;
 use types::{ActualError, Frame, Pile};
+
+pub struct Hill(crate::hamt::Hamt<Pile>);
+
+impl Hill {
+    pub fn new() -> Hill {
+        Hill(crate::hamt::Hamt::new())
+    }
+}
+
+impl Preserve for Hill {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        self.0.preserve(stack);
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        self.0.assert_in_stack(stack);
+    }
+}
 
 // XX typedef for register
 /// First peeks or pokes the codegen core (line) to get codegen for the
@@ -53,6 +72,7 @@ fn cg_pull_pile(context: &mut Context, subject: Noun, formula: Noun) -> Pile {
     let mut bell = cg_pull_peek(context, subject, formula);
     context
         .hill
+        .0
         .lookup(&mut context.stack, &mut bell)
         .expect("pile not found")
 }
@@ -766,7 +786,8 @@ pub mod types {
         interpreter::Error,
         jets::util::slot,
         mem::{NockStack, Preserve},
-        noun::Noun, trace::TraceStack,
+        noun::Noun,
+        trace::TraceStack,
     };
 
     use super::util;
@@ -779,8 +800,8 @@ pub mod types {
         pub dest: usize,
         pub cont: Noun,
         pub pois_sz: usize, // length of poison vector
-                        // poison: Vec<u64>,     // variable size
-                        // registers: Vec<Noun>, // variable size
+                            // poison: Vec<u64>,     // variable size
+                            // registers: Vec<Noun>, // variable size
     }
 
     #[derive(Copy, Clone)]
@@ -856,7 +877,6 @@ mod util {
         noun::{Noun, D, T},
     };
 
-    use super::new_frame;
     use super::poison_get;
     use super::poison_set;
     use super::pop_frame;
@@ -864,6 +884,7 @@ mod util {
     use super::register_set;
     use super::Frame;
     use super::Pile;
+    use super::{new_frame, Hill};
 
     pub type NounResult = Result<Noun, Error>;
 
@@ -915,18 +936,18 @@ mod util {
         }
     }
 
-    pub fn part_hill(stack: &mut NockStack, hill: Noun) -> Hamt<Pile> {
+    pub fn part_hill(stack: &mut NockStack, hill: Noun) -> Hill {
         let mut kvs = tap(stack, hill).unwrap();
-        let mut hamt = Hamt::new();
+        let mut hill = Hill::new();
         while !unsafe { kvs.raw_equals(D(0)) } {
             let c = kvs.as_cell().unwrap();
             let kv = c.head();
             let mut bell = slot(kv, 2).unwrap();
             let pile = Pile::from_noun(stack, slot(kv, 3).unwrap());
-            hamt = hamt.insert(stack, &mut bell, pile);
+            hill.0 = hill.0.insert(stack, &mut bell, pile);
             kvs = c.tail();
         }
-        hamt
+        hill
     }
 
     pub fn part_will(stack: &mut NockStack, will: Noun) -> Hamt<Noun> {
@@ -943,7 +964,7 @@ mod util {
         hamt
     }
 
-    pub fn part_peek(stack: &mut NockStack, peek: Noun) -> (Noun, Hamt<Pile>) {
+    pub fn part_peek(stack: &mut NockStack, peek: Noun) -> (Noun, Hill) {
         let bell = slot(peek, 6).unwrap();
         let hall = part_hill(stack, slot(peek, 7).unwrap());
         (bell, hall)
@@ -971,7 +992,7 @@ mod util {
 
         let parent_frame = *frame_ref;
 
-        let pile = context.hill.lookup(&mut context.stack, &mut a).unwrap();
+        let pile = context.hill.0.lookup(&mut context.stack, &mut a).unwrap();
 
         unsafe {
             new_frame(context, frame_ref, pile, false);
@@ -1038,7 +1059,7 @@ mod util {
         mut v: Noun,
     ) {
         unsafe {
-            let pile = context.hill.lookup(&mut context.stack, &mut a).unwrap();
+            let pile = context.hill.0.lookup(&mut context.stack, &mut a).unwrap();
             new_frame(context, frame_ref, pile, true); // set up tail call frame
 
             let sans = (*(pile.0)).sans;

@@ -1,3 +1,4 @@
+use crate::codegen::Hill;
 use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
@@ -50,7 +51,7 @@ impl Context {
         let cold = Cold::new(&mut stack);
         let warm = Warm::new();
         let hot = Hot::init(&mut stack);
-        let hill = Hamt::new();
+        let hill = Hill::new();
 
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
         let mug = mug_u32(&mut stack, arvo);
