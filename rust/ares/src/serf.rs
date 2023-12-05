@@ -1,4 +1,4 @@
-use crate::codegen::Hill;
+use crate::codegen::{cg_interpret, Hill};
 use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
@@ -304,7 +304,7 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let sam = T(stack, &[D(6), D(0), D(7)]);
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
-    interpret(&mut context.nock_context, sub, fol)
+    cg_interpret(&mut context.nock_context, sub, fol)
 }
 
 fn peek(context: &mut Context, ovo: Noun) -> Noun {
@@ -371,12 +371,12 @@ fn play_life(context: &mut Context, eve: Noun) {
     let res = if context.nock_context.trace_info.is_some() {
         let trace_name = "boot";
         let start = Instant::now();
-        let boot_res = interpret(&mut context.nock_context, eve, lyf);
+        let boot_res = cg_interpret(&mut context.nock_context, eve, lyf);
         write_serf_trace_safe(&mut context.nock_context.trace_info, trace_name, start);
 
         boot_res
     } else {
-        interpret(&mut context.nock_context, eve, lyf)
+        cg_interpret(&mut context.nock_context, eve, lyf)
     };
 
     match res {

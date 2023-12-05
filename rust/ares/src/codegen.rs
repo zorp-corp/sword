@@ -858,8 +858,6 @@ fn exit(context: &mut Context, context_snapshot: ContextSnapshot, error: ActualE
     }
 }
 
-// XX implement a generic local_set that all the more specific
-// getters and setters call
 fn register_set(frame: *mut Frame, local: usize, value: Noun) {
     unsafe {
         let pois_sz = (*(frame)).pois_sz;
