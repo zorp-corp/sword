@@ -318,10 +318,11 @@ fn cg_interpret_inner(
                     };
                 }
                 tas!(b"men") => {
-                    // XX surely we need the static part as well
+                    let l = slot(pole, 6).unwrap();
                     let s = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
                     let s_value = register_get(current_frame, s);
-                    mean_push(&mut context.stack, s_value);
+                    let mean = T(&mut context.stack, &[l, s_value]);
+                    mean_push(&mut context.stack, mean);
                 }
                 tas!(b"man") => {
                     mean_pop(&mut context.stack);
