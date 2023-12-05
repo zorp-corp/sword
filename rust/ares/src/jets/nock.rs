@@ -1,32 +1,12 @@
 /** Virtualization jets
  */
-use crate::interpreter::{interpret, Context, Error};
+use crate::interpreter::Context;
 use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
-use crate::noun::{Cell, Noun, D, NO, T, YES};
+use crate::noun::{Noun, D, NO, T};
 
 crate::gdb!();
 
-// Deterministic scry crashes should have the following behaviour:
-//
-//  root                <-- bail, %crud
-//      mink            <-- return Deterministic
-//  scry                <-- return ScryCrashed
-//
-//  root                <-- bail, %crud
-//      mink            <-- return Deterministic
-//          mink        <-- return ScryCrashed
-//      scry            <-- return ScryCrashed
-//  scry                <-- return ScryCrashed
-//
-//  root
-//      mink            <-- return Tone
-//          mink        <-- return Deterministic
-//              mink    <-- return ScryCrashed
-//          scry        <-- return ScryCrashed
-//      scry            <-- return ScryCrashed
-//  scry
-//
 pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     // mink sample = [nock scry_namespace]
@@ -35,41 +15,8 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     let v_formula = slot(arg, 5)?;
     let scry_handler = slot(arg, 3)?;
 
-    let snapshot = util::snapshot_and_virtualize(context, scry_handler);
-
-    match util::mink(context, v_subject, v_formula) {
-        Ok(noun) => {
-            context.cache = snapshot.cache;
-            context.scry_stack = snapshot.scry_stack;
-            Ok(noun)
-        }
-        Err(error) => match error {
-            Error::NonDeterministic(_) => Err(JetErr::Fail(error)),
-            Error::ScryCrashed(trace) => {
-                // When we enter a +mink call, we record the state of the scry handler stack at the
-                // time (i.e. the Noun representing (list scry)). Each scry will pop the head off of
-                // this scry handler stack and calls interpret(), using the rest of the scry handler
-                // stack in the event that it scries again recursively. When a scry succeeds, it
-                // replaces the scry handler that it used by pushing it back onto the top of the
-                // scry handler stack. However, it never does so when it fails. Therefore, we can
-                // tell which particular virtualization instance failed by comparing the scry
-                // handler stack at the time of failure (i.e. the scry handler stack in the context
-                // after a failed scry) with the scry handler stack at the time of the virtualization
-                // call. Thus, whenever a virtualized interpret() call fails with a
-                // Error::ScryCrashed, jet_mink() compares the two scry handler stack Nouns> If they
-                // are identical, jet_mink() bails with Error::Deterministic. Otherwise, it forwards
-                // the Error::ScryCrashed to the senior virtualization call.
-                if unsafe { context.scry_stack.raw_equals(snapshot.scry_stack) } {
-                    Err(JetErr::Fail(Error::Deterministic(trace)))
-                } else {
-                    Err(JetErr::Fail(error))
-                }
-            }
-            Error::Deterministic(_) | Error::ScryBlocked(_) => {
-                panic!("scry: mink: unhandled errors in helper")
-            }
-        },
-    }
+    // Implicit error conversion
+    Ok(util::mink(context, v_subject, v_formula, scry_handler)?)
 }
 
 pub fn jet_mole(context: &mut Context, subject: Noun) -> Result {
@@ -85,29 +32,15 @@ pub fn jet_mure(context: &mut Context, subject: Noun) -> Result {
     let fol = util::slam_gate_fol(&mut context.stack);
     let scry = util::pass_thru_scry(&mut context.stack);
 
-    let snapshot = util::snapshot_and_virtualize(context, scry);
-
-    match interpret(context, tap, fol) {
-        Ok(res) => {
-            context.cache = snapshot.cache;
-            context.scry_stack = snapshot.scry_stack;
-            Ok(T(&mut context.stack, &[D(0), res]))
+    match util::mink(context, tap, fol, scry) {
+        Ok(tone) => {
+            if unsafe { tone.as_cell()?.head().raw_equals(D(0)) } {
+                Ok(tone)
+            } else {
+                Ok(D(0))
+            }
         }
-        Err(error) => match error {
-            // Since we are using the pass-through scry handler, we know for a fact that a scry
-            // crash must have come from a senior virtualization context.
-            Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(JetErr::Fail(error)),
-            Error::ScryBlocked(_) => {
-                context.scry_stack = snapshot.scry_stack;
-                Ok(D(0))
-            }
-            Error::Deterministic(_) => {
-                context.cold = snapshot.cold;
-                context.warm = snapshot.warm;
-                context.scry_stack = snapshot.scry_stack;
-                Ok(D(0))
-            }
-        },
+        Err(err) => Err(JetErr::Fail(err)),
     }
 }
 
@@ -116,34 +49,23 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
     let fol = util::slam_gate_fol(&mut context.stack);
     let scry = util::pass_thru_scry(&mut context.stack);
 
-    let snapshot = util::snapshot_and_virtualize(context, scry);
+    let tone = util::mink(context, tap, fol, scry);
 
-    match interpret(context, tap, fol) {
-        Ok(res) => {
-            context.cache = snapshot.cache;
-            context.scry_stack = snapshot.scry_stack;
-            Ok(T(&mut context.stack, &[YES, res]))
+    match util::mook(context, tone?.as_cell()?, false) {
+        Ok(toon) => {
+            match toon.head() {
+                x if unsafe { x.raw_equals(D(0)) } => Ok(toon.as_noun()),
+                x if unsafe { x.raw_equals(D(1)) } => {
+                    //  XX: Need to check that result is actually of type path
+                    //      return [[%leaf "mute.hunk"] ~] if not
+                    let bon = util::smyt(&mut context.stack, toon.tail())?;
+                    Ok(T(&mut context.stack, &[NO, bon, D(0)]))
+                }
+                x if unsafe { x.raw_equals(D(2)) } => Ok(T(&mut context.stack, &[NO, toon.tail()])),
+                _ => panic!("serf: mook: invalid toon"),
+            }
         }
-        Err(error) => match error {
-            // Since we are using the pass-through scry handler, we know for a fact that a scry
-            // crash must have come from a senior virtualization context.
-            Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(JetErr::Fail(error)),
-            Error::ScryBlocked(path) => {
-                context.scry_stack = snapshot.scry_stack;
-                //  XX: Need to check that result is actually of type path
-                //      return [[%leaf "mute.hunk"] ~] if not
-                let bon = util::smyt(&mut context.stack, path)?;
-                Ok(T(&mut context.stack, &[NO, bon, D(0)]))
-            }
-            Error::Deterministic(trace) => {
-                context.cold = snapshot.cold;
-                context.warm = snapshot.warm;
-                context.scry_stack = snapshot.scry_stack;
-                let ton = Cell::new(&mut context.stack, D(2), trace);
-                let tun = util::mook(context, ton, false)?;
-                Ok(T(&mut context.stack, &[NO, tun.tail()]))
-            }
-        },
+        Err(err) => Err(JetErr::Fail(err)),
     }
 }
 
@@ -155,7 +77,6 @@ pub mod util {
     use crate::jets::cold::Cold;
     use crate::jets::form::util::scow;
     use crate::jets::warm::Warm;
-    use crate::jets::JetErr;
     use crate::mem::NockStack;
     use crate::noun::{tape, Cell, Noun, D, T};
     use ares_macros::tas;
@@ -193,7 +114,7 @@ pub mod util {
 
     /// The classic "pass-through" scry handler.
     pub fn pass_thru_scry(stack: &mut NockStack) -> Noun {
-        //  > .*  0  !=  =>  ~  |=(a=^ ``.*(a [%12 [%0 2] %0 3]))
+        // .*  0  !=  =>  ~  |=(a=^ ``.*(a [%12 [%0 2] %0 3]))
         // [[[1 0] [1 0] 2 [0 6] 1 12 [0 2] 0 3] [0 0] 0]
         let sig = T(stack, &[D(1), D(0)]);
         let sam = T(stack, &[D(0), D(6)]);
@@ -212,19 +133,94 @@ pub mod util {
         T(stack, &[dos, gat])
     }
 
-    pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
-        let cold_snapshot = context.cold;
-        let warm_snapshot = context.warm;
+    /// The "always-fail" scry
+    pub fn null_scry(stack: &mut NockStack) -> Noun {
+        // .*  0  !=  =>  ~  |=(^ ~)
+        // [[1 0] [0 0] 0]
+        let sig = T(stack, &[D(1), D(0)]);
+        let zap = T(stack, &[D(0), D(0)]);
+
+        T(stack, &[sig, zap, D(0)])
+    }
+
+    // Deterministic scry crashes should have the following behaviour:
+    //
+    //  root                <-- bail, %crud
+    //      mink            <-- return Deterministic
+    //  scry                <-- return ScryCrashed
+    //
+    //  root                <-- bail, %crud
+    //      mink            <-- return Deterministic
+    //          mink        <-- return ScryCrashed
+    //      scry            <-- return ScryCrashed
+    //  scry                <-- return ScryCrashed
+    //
+    //  root
+    //      mink            <-- return Tone
+    //          mink        <-- return Deterministic
+    //              mink    <-- return ScryCrashed
+    //          scry        <-- return ScryCrashed
+    //      scry            <-- return ScryCrashed
+    //  scry
+    //
+    pub fn mink(
+        context: &mut Context,
+        subject: Noun,
+        formula: Noun,
+        scry: Noun,
+    ) -> Result<Noun, Error> {
+        let cache_snapshot = context.cache;
+        let scry_snapshot = context.scry_stack;
+
+        context.cache = Hamt::<Noun>::new();
+        context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
+
         match interpret(context, subject, formula) {
-            Ok(res) => Ok(T(&mut context.stack, &[D(0), res])),
+            Ok(res) => {
+                context.cache = cache_snapshot;
+                context.scry_stack = scry_snapshot;
+                Ok(T(&mut context.stack, &[D(0), res]))
+            }
             Err(err) => match err {
-                Error::ScryBlocked(path) => Ok(T(&mut context.stack, &[D(1), path])),
+                Error::ScryBlocked(path) => {
+                    context.cache = cache_snapshot;
+                    context.scry_stack = scry_snapshot;
+                    Ok(T(&mut context.stack, &[D(1), path]))
+                }
                 Error::Deterministic(trace) => {
-                    context.cold = cold_snapshot;
-                    context.warm = warm_snapshot;
+                    context.cache = cache_snapshot;
+                    context.scry_stack = scry_snapshot;
                     Ok(T(&mut context.stack, &[D(2), trace]))
                 }
-                Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(err),
+                Error::ScryCrashed(trace) => {
+                    context.cache = cache_snapshot;
+                    // When we enter a +mink call, we record the state of the scry handler stack at the
+                    // time (i.e. the Noun representing (list scry)). Each scry will pop the head off of
+                    // this scry handler stack and calls interpret(), using the rest of the scry handler
+                    // stack in the event that it scries again recursively. When a scry succeeds, it
+                    // replaces the scry handler that it used by pushing it back onto the top of the
+                    // scry handler stack. However, it never does so when it fails. Therefore, we can
+                    // tell which particular virtualization instance failed by comparing the scry
+                    // handler stack at the time of failure (i.e. the scry handler stack in the context
+                    // after a failed scry) with the scry handler stack at the time of the virtualization
+                    // call. Thus, whenever a virtualized interpret() call fails with a
+                    // Error::ScryCrashed, jet_mink() compares the two scry handler stack Nouns> If they
+                    // are identical, jet_mink() bails with Error::Deterministic. Otherwise, it forwards
+                    // the Error::ScryCrashed to the senior virtualization call.
+                    if unsafe { context.scry_stack.raw_equals(scry_snapshot) } {
+                        Err(Error::Deterministic(trace))
+                    } else {
+                        Err(err)
+                    }
+                }
+                Error::NonDeterministic(_) => {
+                    // We choose to restore the cache and scry stack even on NonDeterministic errors
+                    // to keep the logic all in one place (as opposed to having the serf reset them
+                    // manually ONLY for NonDeterministic errors).
+                    context.cache = cache_snapshot;
+                    context.scry_stack = scry_snapshot;
+                    Err(err)
+                }
             },
         }
     }
@@ -232,14 +228,14 @@ pub mod util {
     /** Consume $tone, produce $toon
      */
     //  XX: should write a jet_mook wrapper for this function
-    pub fn mook(context: &mut Context, tone: Cell, flop: bool) -> result::Result<Cell, JetErr> {
+    pub fn mook(context: &mut Context, tone: Cell, flop: bool) -> result::Result<Cell, Error> {
         let tag = tone.head().as_direct()?;
         let original_list = tone.tail();
 
         if (tag.data() != 2) | unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
         } else if original_list.atom().is_some() {
-            return Err(JetErr::Fail(Error::Deterministic(D(0))));
+            return Err(Error::Deterministic(D(0)));
         }
 
         // XX: trim traces longer than 1024 frames
@@ -277,17 +273,17 @@ pub mod util {
                         }
                         Right(_cell) => {
                             // 'tank: {
-                            // if let Ok(tone) = mink(context, dat, cell.head()) {
-                            //     if let Some(cell) = tone.cell() {
-                            //         if cell.head().raw_equals(D(0)) {
-                            //             //  XX: need to check that this is
-                            //             //      actually a path;
-                            //             //      return leaf+"mook.mean" if not
-                            //             break 'tank cell.tail();
+                            //     let scry = null_scry(context);
+                            //     if let Ok(tone) = mink(context, dat, cell.head(), scry) {
+                            //         if let Some(cell) = tone.cell() {
+                            //             if cell.head().raw_equals(D(0)) {
+                            //                 //  XX: need to check that this is
+                            //                 //      actually a path;
+                            //                 //      return leaf+"mook.mean" if not
+                            //                 break 'tank cell.tail();
+                            //             }
                             //         }
                             //     }
-                            // }
-
                             {
                                 let stack = &mut context.stack;
                                 let tape = tape(stack, "####");

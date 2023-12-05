@@ -42,12 +42,9 @@ impl Context {
         // TODO: switch to Pma when ready
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
         let mut snapshot = DoubleJam::new(snap_path);
-        let mut stack = NockStack::new(1024 << 10 << 10, 0);
-        let newt = Newt::new();
-        let cache = Hamt::<Noun>::new();
+        let mut stack = NockStack::new(256 << 10 << 10, 0);
 
         let cold = Cold::new(&mut stack);
-        let warm = Warm::new();
         let hot = Hot::init(&mut stack);
 
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
@@ -55,11 +52,11 @@ impl Context {
 
         let nock_context = interpreter::Context {
             stack,
-            newt,
+            newt: Newt::new(),
             cold,
-            warm,
+            warm: Warm::new(),
             hot,
-            cache,
+            cache: Hamt::<Noun>::new(),
             scry_stack: D(0),
             trace_info,
         };
@@ -321,8 +318,6 @@ fn goof(context: &mut Context, traces: Noun) -> Noun {
  *  Generate tracing events, if JSON tracing enabled.
  */
 fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<Noun, Noun> {
-    let cold_snapshot = context.nock_context.cold;
-    let warm_snapshot = context.nock_context.warm;
     let slam_res = if context.nock_context.trace_info.is_some() {
         let start = Instant::now();
         let slam_res = slam(context, POKE_AXIS, ovo);
@@ -341,8 +336,6 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
         Ok(res) => Ok(res),
         Err(error) => match error {
             Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
-                context.nock_context.cold = cold_snapshot;
-                context.nock_context.warm = warm_snapshot;
                 Err(goof(context, trace))
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
