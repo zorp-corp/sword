@@ -2,9 +2,9 @@ use crate::hamt::Hamt;
 use crate::mem::{unifying_equality, NockStack, Preserve};
 use crate::noun;
 use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
+use crate::persist::{Persist, PMA};
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
-use crate::persist::{Persist, PMA};
 
 pub enum Error {
     NoParent,
@@ -268,7 +268,7 @@ impl Iterator for NounList {
     }
 }
 
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 pub struct Cold(*mut ColdMem);
 
 struct ColdMem {
@@ -297,12 +297,20 @@ impl Persist for Cold {
     unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
         todo!()
     }
-    
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: *mut u8) -> u64 {
+
+    unsafe fn copy_to_buffer(
+        &mut self,
+        stack: &mut NockStack,
+        pma: &PMA,
+        buffer: *mut u8,
+    ) -> (u64, *mut u8) {
         todo!()
     }
-}
 
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        Cold(meta_handle as *mut ColdMem)
+    }
+}
 
 impl Preserve for Cold {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {

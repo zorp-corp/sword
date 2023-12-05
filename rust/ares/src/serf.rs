@@ -10,6 +10,7 @@ use crate::mem::NockStack;
 use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
+use crate::persist::{Snapshot, SnapshotMem, PMA};
 use crate::trace::*;
 use ares_macros::tas;
 use signal_hook;
@@ -29,24 +30,30 @@ const FLAG_TRACE: u32 = 1 << 8;
 struct Context {
     epoch: u64,
     event_num: u64,
-    snapshot: (),
+    pma: PMA,
     arvo: Noun,
     mug: u32,
     nock_context: interpreter::Context,
 }
 
 impl Context {
-    pub fn new(snap_path: &PathBuf, trace_info: Option<TraceInfo>) -> Self {
+    pub fn new(snap_path: PathBuf, trace_info: Option<TraceInfo>) -> Self {
         // TODO: switch to Pma when ready
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
         let mut stack = NockStack::new(1024 << 10 << 10, 0);
-        let snapshot = (); // XX PMA
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new();
+        let pma = PMA::open(snap_path).unwrap();
 
-
-        let (epoch, event_num, arvo, mut cold) = (0, 0, D(0), Cold::new(&mut stack)); // XX to load
-                                                                                  // from PMA;
+        let (epoch, event_num, arvo, mut cold) = unsafe {
+            let snapshot = pma.load();
+            (
+                (*(snapshot.0)).epoch,
+                (*(snapshot.0)).event_num,
+                (*(snapshot.0)).arvo,
+                (*(snapshot.0)).cold,
+            )
+        };
 
         let mut hot = Hot::init(&mut stack);
         let warm = Warm::init(&mut stack, &mut cold, &mut hot);
@@ -67,7 +74,7 @@ impl Context {
         Context {
             epoch,
             event_num,
-            snapshot,
+            pma,
             arvo,
             mug,
             nock_context,
@@ -82,6 +89,37 @@ impl Context {
         //  XX: assert event numbers are continuous
         self.arvo = new_arvo;
         self.event_num = new_event_num;
+        let snapshot = unsafe {
+            let snapshot_mem_ptr: *mut SnapshotMem = self.nock_context.stack.struct_alloc(1);
+
+            // Save into PMA (does not sync)
+            (*snapshot_mem_ptr).epoch = self.epoch;
+            (*snapshot_mem_ptr).event_num = self.event_num;
+            (*snapshot_mem_ptr).arvo = self.arvo;
+            (*snapshot_mem_ptr).cold = self.nock_context.cold;
+            let mut snapshot = Snapshot(snapshot_mem_ptr);
+            self.pma.save(&mut self.nock_context.stack, &mut snapshot);
+            snapshot
+        };
+
+        // reset pointers in context to PMA
+        unsafe {
+            self.arvo = (*(snapshot.0)).arvo;
+            self.nock_context.cold = (*(snapshot.0)).cold;
+        }
+
+        // Reset the nock stack, freeing all memory used to compute the event
+        self.nock_context.stack.reset(0);
+
+        // XX some things were invalidated when we reset the stack
+        self.nock_context.warm = Warm::init(
+            &mut self.nock_context.stack,
+            &mut self.nock_context.cold,
+            &mut self.nock_context.hot,
+        );
+        self.nock_context.cache = Hamt::new();
+        self.nock_context.scry_stack = D(0);
+
         // XX save to PMA
         self.mug = mug_u32(&mut self.nock_context.stack, self.arvo);
     }
@@ -91,7 +129,7 @@ impl Context {
     //
 
     pub fn sync(&mut self) {
-        // XX save to PMA
+        self.pma.sync()
     }
 
     //
@@ -212,7 +250,7 @@ pub fn serf() -> io::Result<()> {
         }
     }
 
-    let mut context = Context::new(&snap_path, trace_info);
+    let mut context = Context::new(snap_path, trace_info);
     context.ripe();
 
     // Can't use for loop because it borrows newt

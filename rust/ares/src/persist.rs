@@ -1,20 +1,20 @@
-use ares_pma::*;
+use crate::jets::cold::Cold;
 use crate::mem::NockStack;
 use crate::noun::Noun;
-use crate::jets::cold::Cold;
-use std::path::PathBuf;
+use ares_pma::*;
 use std::ffi::CString;
 use std::mem::size_of;
+use std::path::PathBuf;
 
 const PMA_MODE: mode_t = 0o600; // RW for user only
 const PMA_FLAGS: ULONG = 0; // ignored for now
-                    
+
 const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
 
 /// Handle to a PMA
 pub struct PMA(*mut BT_state);
 
-pub struct Snapshot(*mut SnapshotMem);
+pub struct Snapshot(pub *mut SnapshotMem);
 
 #[repr(C)]
 #[repr(packed)]
@@ -23,7 +23,6 @@ pub struct SnapshotMem {
     pub event_num: u64,
     pub arvo: Noun,
     pub cold: Cold,
-    pub mug: u32,
 }
 
 #[repr(usize)]
@@ -70,10 +69,8 @@ impl PMA {
         let snapshot_version = self.meta_get(BTMetaField::SnapshotVersion);
 
         match snapshot_version {
-            1 => {
-                Snapshot(self.meta_get(BTMetaField::Snapshot) as *mut SnapshotMem)
-            }
-            _ => panic!("Unsupported snapshot version")
+            1 => Snapshot(self.meta_get(BTMetaField::Snapshot) as *mut SnapshotMem),
+            _ => panic!("Unsupported snapshot version"),
         }
     }
 
@@ -83,7 +80,7 @@ impl PMA {
     }
 
     pub fn sync(&self) {
-        unsafe { 
+        unsafe {
             if bt_sync(self.0) != 0 {
                 panic!("PMA sync failed but did not abort: this should never happen.");
             }
@@ -109,17 +106,25 @@ pub trait Persist {
     /// Copy into the provided buffer, which may be assumed to be at least as large as the size
     /// returned by [space_needed] on the same structure. Return a u64 handle that could be saved
     /// in metadata
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: *mut u8) -> u64;
+    unsafe fn copy_to_buffer(
+        &mut self,
+        stack: &mut NockStack,
+        pma: &PMA,
+        buffer: *mut u8,
+    ) -> (u64, *mut u8);
 
     /// Persist an object into the PMA using [space_needed] and [copy_to_buffer], returning
-    /// a [u64] (probably a pointer or tagged pointer) that can be saved into 
+    /// a [u64] (probably a pointer or tagged pointer) that can be saved into
     fn save_to_pma(&mut self, stack: &mut NockStack, pma: &PMA) -> u64 {
         unsafe {
-            let space_as_pages = self.space_needed(stack, pma) + (BT_PAGESIZE as usize - 1) >> BT_PAGEBITS;
+            let space_as_pages =
+                self.space_needed(stack, pma) + (BT_PAGESIZE as usize - 1) >> BT_PAGEBITS;
             let buffer = bt_malloc(pma.0, space_as_pages) as *mut u8;
-            self.copy_to_buffer(stack, pma, buffer)
+            self.copy_to_buffer(stack, pma, buffer).0
         }
     }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self;
 }
 
 impl Persist for Snapshot {
@@ -128,11 +133,33 @@ impl Persist for Snapshot {
         let mut cold = (*(self.0)).cold;
         let arvo_space_needed = arvo.space_needed(stack, pma);
         let cold_space_needed = cold.space_needed(stack, pma);
-        ((size_of::<SnapshotMem>() + 7 >> 3) << 3) + arvo_space_needed + cold_space_needed 
+        (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: *mut u8) -> u64 {
-        todo!()
+    unsafe fn copy_to_buffer(
+        &mut self,
+        stack: &mut NockStack,
+        pma: &PMA,
+        buffer: *mut u8,
+    ) -> (u64, *mut u8) {
+        let snapshot_buffer = buffer as *mut SnapshotMem;
+        let arvo_buffer = buffer.add(((size_of::<SnapshotMem>() + 7) >> 3) << 3);
+        std::ptr::copy_nonoverlapping(self.0, snapshot_buffer, 1);
+        *self = Snapshot(snapshot_buffer);
+
+        let mut arvo = (*snapshot_buffer).arvo;
+        let (_, cold_buffer) = arvo.copy_to_buffer(stack, pma, arvo_buffer);
+        (*snapshot_buffer).arvo = arvo;
+
+        let mut cold = (*snapshot_buffer).cold;
+        let (_, rest_buffer) = cold.copy_to_buffer(stack, pma, cold_buffer);
+        (*snapshot_buffer).cold = cold;
+
+        (snapshot_buffer as u64, rest_buffer)
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        Snapshot(meta_handle as *mut SnapshotMem)
     }
 }
 
@@ -141,7 +168,16 @@ impl Persist for Noun {
         todo!()
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: *mut u8) -> u64 {
+    unsafe fn copy_to_buffer(
+        &mut self,
+        stack: &mut NockStack,
+        pma: &PMA,
+        buffer: *mut u8,
+    ) -> (u64, *mut u8) {
         todo!()
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        Noun::from_raw(meta_handle)
     }
 }
