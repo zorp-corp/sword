@@ -10,16 +10,20 @@ use ares_macros::tas;
 use either::Either::{Left, Right};
 use std::mem::size_of;
 
+use crate::hamt::Hamt;
 use crate::jets::JetErr;
 // XX no, we have a completely different stack layout from the tree-walking interpreter. We can't
 // borrow helper functions from it
 use crate::interpreter::{inc, mean_pop, mean_push, slow_pop, slow_push, Context, Error};
+use crate::jets::cold::Cold;
+use crate::jets::warm::Warm;
 use crate::jets::util::slot;
 use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, NO, T, YES};
 use crate::trace::TraceStack;
 use types::{ActualError, Frame, Pile};
 
+#[derive(Copy, Clone)]
 pub struct Hill(crate::hamt::Hamt<Pile>);
 
 impl Hill {
@@ -138,12 +142,32 @@ unsafe fn pop_frame(context: &mut Context, frame_ref: &mut *mut Frame) {
     *frame_ref = context.stack.get_frame_lowest() as *mut Frame;
 }
 
+struct ContextSnapshot {
+    cold: Cold,
+    warm: Warm,
+    cache: Hamt<Noun>,
+    line: Option<Noun>,
+    hill: Hill,
+    virtual_frame: *const u64,
+}
+
 pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
-    let virtual_frame = context.stack.get_frame_pointer();
-    let nock = cg_interpret_inner(context, virtual_frame, subject, formula);
+    // XX save cold, warm, cache, line, hill and current_frame to restore in case of error ?
+    //    define a struct with these things, initialize it here
+    //    then restore it in the error handler
+    //    "context snapshot"
+    let context_snapshot = ContextSnapshot {
+        cold: context.cold,
+        warm: context.warm,
+        cache: context.cache,
+        line: context.line,
+        hill: context.hill,
+        virtual_frame: context.stack.get_frame_pointer(),
+    };
+    let nock = cg_interpret_inner(context, context_snapshot.virtual_frame, subject, formula);
     match nock {
         Ok(noun) => Ok(noun),
-        Err(ae) => Err(exit(context, virtual_frame, ae)),
+        Err(ae) => Err(exit(context, context_snapshot, ae)),
     }
 }
 
@@ -721,7 +745,13 @@ fn cg_interpret_inner(
     }
 }
 
-fn exit(context: &mut Context, virtual_frame: *const u64, error: ActualError) -> Error {
+fn exit(context: &mut Context, context_snapshot: ContextSnapshot, error: ActualError) -> Error {
+    context.cold = context_snapshot.cold;
+    context.warm = context_snapshot.warm;
+    context.cache = context_snapshot.cache;
+    context.line = context_snapshot.line;
+    context.hill = context_snapshot.hill;
+
     let current_frame = unsafe { context.stack.get_frame_lowest() as *const Frame };
     let mut preserve = match error.0 {
         Error::ScryBlocked(path) => path,
@@ -731,7 +761,7 @@ fn exit(context: &mut Context, virtual_frame: *const u64, error: ActualError) ->
         }
     };
 
-    while context.stack.get_frame_pointer() != virtual_frame {
+    while context.stack.get_frame_pointer() != context_snapshot.virtual_frame {
         unsafe {
             context.stack.preserve(&mut preserve);
             context.stack.frame_pop();

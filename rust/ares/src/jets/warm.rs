@@ -7,6 +7,7 @@ use crate::noun::{Noun, Slots};
 use std::ptr::{copy_nonoverlapping, null_mut};
 
 /// key = formula
+#[derive(Copy, Clone)]
 pub struct Warm(Hamt<WarmEntry>);
 
 impl Preserve for Warm {
