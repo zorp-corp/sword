@@ -16,8 +16,8 @@ use crate::jets::JetErr;
 // borrow helper functions from it
 use crate::interpreter::{inc, mean_pop, mean_push, slow_pop, slow_push, Context, Error};
 use crate::jets::cold::Cold;
-use crate::jets::warm::Warm;
 use crate::jets::util::slot;
+use crate::jets::warm::Warm;
 use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, NO, T, YES};
 use crate::trace::TraceStack;
@@ -357,11 +357,13 @@ fn cg_interpret_inner(
                     let f = slot(pole, 30).unwrap().as_direct().unwrap().data() as usize;
                     let r = slot(pole, 31).unwrap().as_direct().unwrap().data() as usize;
 
-                    let k_value = register_get(current_frame, k);
+                    let _k_value = register_get(current_frame, k);
                     let u_value = register_get(current_frame, u);
                     let f_value = register_get(current_frame, f);
                     let r_value = register_get(current_frame, r);
-                    let mut key = T(&mut context.stack, &[k_value, u_value, f_value]);
+                    // let mut key = T(&mut context.stack, &[k_value, u_value, f_value]);
+                    // XX use k (clue) later, with persistent caching implementation
+                    let mut key = T(&mut context.stack, &[u_value, f_value]);
 
                     context.cache = context.cache.insert(&mut context.stack, &mut key, r_value);
                 }
@@ -715,10 +717,49 @@ fn cg_interpret_inner(
                 }
                 tas!(b"spy") => {
                     // scry with ref in e and path in p, put result in d, goto t
+                    // XX indirect call the top of the scry stack (noun list of gates)
+                    // slam the gate with the ref/path from the registers
+                    // when done, put original scry stack back in context and
+                    // recurse on cg_interpret
                 }
                 tas!(b"mer") => {
-                    // check if triple [k u f] is in cache, put result in d if so
-                    // and goto i, else goto m
+                    let k = slot(bend, 6).unwrap().as_direct().unwrap().data() as usize;
+                    let u = slot(bend, 14).unwrap().as_direct().unwrap().data() as usize;
+                    let f = slot(bend, 30).unwrap().as_direct().unwrap().data() as usize;
+                    let d = slot(bend, 62).unwrap().as_direct().unwrap().data() as usize;
+                    let mut i = slot(bend, 126).unwrap();
+                    let mut m = slot(bend, 127).unwrap();
+
+                    // let mut key = T(&mut context.stack, &[k_value, u_value, f_value]);
+                    // XX use k (clue) later, with persistent caching implementation
+                    let _k_value = register_get(current_frame, k);
+                    let u_value = register_get(current_frame, u);
+                    let f_value = register_get(current_frame, f);
+                    let mut key = T(&mut context.stack, &[u_value, f_value]);
+
+                    if let Some(value) = context.cache.lookup(&mut context.stack, &mut key) {
+                        register_set(current_frame, d, value);
+                        let blob = unsafe {
+                            (*(*current_frame).pile.0)
+                                .will
+                                .lookup(&mut context.stack, &mut i)
+                                .ok_or(Error::NonDeterministic(D(0)))
+                                .unwrap()
+                        };
+                        body = slot(blob, 2).unwrap();
+                        bend = slot(blob, 3).unwrap();
+                    } else {
+                        // XX implement do_goto helper
+                        let blob = unsafe {
+                            (*(*current_frame).pile.0)
+                                .will
+                                .lookup(&mut context.stack, &mut m)
+                                .ok_or(Error::NonDeterministic(D(0)))
+                                .unwrap()
+                        };
+                        body = slot(blob, 2).unwrap();
+                        bend = slot(blob, 3).unwrap();
+                    }
                 }
                 tas!(b"don") => {
                     let s = slot(bend, 6).unwrap().as_direct().unwrap().data() as usize;
