@@ -716,11 +716,78 @@ fn cg_interpret_inner(
                     }
                 }
                 tas!(b"spy") => {
-                    // scry with ref in e and path in p, put result in d, goto t
-                    // XX indirect call the top of the scry stack (noun list of gates)
-                    // slam the gate with the ref/path from the registers
-                    // when done, put original scry stack back in context and
-                    // recurse on cg_interpret
+                    let e = slot(bend, 6).unwrap().as_direct().unwrap().data() as usize;
+                    let p = slot(bend, 14).unwrap().as_direct().unwrap().data() as usize;
+                    let d = slot(bend, 30).unwrap().as_direct().unwrap().data() as usize;
+                    let mut t = slot(bend, 31).unwrap();
+
+                    if let Some(cell) = context.scry_stack.cell() {
+                        let scry_ref = register_get(current_frame, e);
+                        let scry_path = register_get(current_frame, p);
+                        let scry_stack = context.scry_stack;
+                        let scry_handler = cell.head();
+                        let scry_gate = scry_handler.as_cell().unwrap();
+                        let payload = T(&mut context.stack, &[scry_ref, scry_path]);
+                        let slam = T(&mut context.stack, &[D(9), D(2), D(0), D(1)]);
+                        let scry_core = T(
+                            &mut context.stack,
+                            &[
+                                scry_gate.head(),
+                                payload,
+                                scry_gate.tail().as_cell().unwrap().tail(),
+                            ],
+                        );
+
+                        context.scry_stack = cell.tail();
+
+                        match cg_interpret(context, scry_core, slam) {
+                            Ok(noun) => match noun.as_either_atom_cell() {
+                                Left(atom) => {
+                                    if unsafe { atom.as_noun().raw_equals(D(0)) } {
+                                        ActualError(Error::ScryBlocked(scry_path));
+                                    } else {
+                                        ActualError(Error::ScryCrashed(D(0)));
+                                    }
+                                }
+                                Right(cell) => match cell.tail().as_either_atom_cell() {
+                                    Left(_) => {
+                                        let stack = &mut context.stack;
+                                        let hunk =
+                                            T(stack, &[D(tas!(b"hunk")), scry_ref, scry_path]);
+                                        mean_push(stack, hunk);
+                                        ActualError(Error::ScryCrashed(D(0)));
+                                    }
+                                    Right(cell) => {
+                                        register_set(current_frame, d, cell.tail());
+                                        context.scry_stack = scry_stack;
+                                        // goto t
+                                        let blob = unsafe {
+                                            (*(*current_frame).pile.0)
+                                                .will
+                                                .lookup(&mut context.stack, &mut t)
+                                                .ok_or(Error::NonDeterministic(D(0)))
+                                                .unwrap()
+                                        };
+                                        body = slot(blob, 2).unwrap();
+                                        bend = slot(blob, 3).unwrap();
+                                    }
+                                },
+                            },
+                            Err(error) => match error {
+                                Error::Deterministic(trace) | Error::ScryCrashed(trace) => {
+                                    ActualError(Error::ScryCrashed(trace));
+                                }
+                                Error::NonDeterministic(_) => {
+                                    ActualError(error);
+                                }
+                                Error::ScryBlocked(_) => {
+                                    ActualError(Error::NonDeterministic(D(0)));
+                                }
+                            },
+                        }
+                    } else {
+                        ActualError(Error::Deterministic(D(0)));
+                    }
                 }
                 tas!(b"mer") => {
                     let k = slot(bend, 6).unwrap().as_direct().unwrap().data() as usize;
