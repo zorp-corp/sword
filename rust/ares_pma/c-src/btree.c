@@ -219,8 +219,8 @@ static_assert(BT_DAT_MAXENTRIES % 2 == 0);
 */
 typedef struct BT_page BT_page;
 struct BT_page {
-  BT_pageheader head;           /* ;;: TODO remove header and store all header data in BT_meta */
-  union {                       /* data section */
+  BT_pageheader head;                    /* header */
+  union {                                /* data section */
     BT_dat      datd[BT_DAT_MAXENTRIES]; /* union view */
     BT_kv       datk[0];                 /* struct view */
     BYTE        datc[0];                 /* byte-level view */
@@ -260,7 +260,6 @@ struct BT_meta {
 
   uint8_t  blk_cnt;             /* currently highest valid block base */
   uint8_t  depth;               /* tree depth */
-/* #define BP_DIRTY ((uint8_t)0x01) /\* ;;: TODO remove dirty flag *\/ */
 #define BP_META  ((uint8_t)0x02)
   uint8_t  flags;
   uint8_t  _pad1;
@@ -302,12 +301,9 @@ struct BT_flistnode {
 
 typedef struct BT_state BT_state;
 struct BT_state {
-  uint16_t      flags;          /* ;;: rem */
   int           data_fd;
   int           meta_fd;        /* ;;: confident can be removed because we're not explicitly calling write() */
   char         *path;
-  ULONG         branch_page_cnt; /* ;;: rem */
-  ULONG         leaf_page_cnt;   /* ;;: rem */
   void         *fixaddr;
   BYTE         *map;
   BT_page      *node_freelist;
@@ -322,17 +318,6 @@ struct BT_state {
   BT_nlistnode *nlist;          /* node freelist */
   BT_mlistnode *mlist;          /* memory freelist */
   BT_flistnode *flist;          /* pma file freelist */
-  /* ;;: for deletion coalescing:
-
-     when freeing data, push onto the pending flist and mlist. When pushing onto
-     the mlist, you can preemptively coalesce. You don't need to coalesce at all
-     in the pending flist.
-
-     when inserting and coalescing, if you can free a node then push onto the
-     pending nlist
-
-  */
-
   BT_flistnode *pending_flist;
   BT_nlistnode *pending_nlist;
 };
@@ -402,10 +387,6 @@ _node_alloc(BT_state *state)
      the striped node partitions. Since this is unimplemented, just allocating
      space from first 2M */
 
-  /* ;;: when node freelist is implemented, will we need to return the file
-       offset of the node as well? This is important for splitting where we
-       allocate a new node and need to store its file offset in the parent's
-       data index */
   size_t width = (BYTE *)state->node_freelist - state->map;
   assert(width < MBYTES(2));
   /* ;;: todo confirm data sections are zeroed */
@@ -445,15 +426,12 @@ _bt_nalloc(BT_state *state)
   }
 }
 
-/* ;;: from our usage, _node_cow no longer needs to take indirect pointer to
-     newnode. We don't ever do anything with it */
 static int
-_node_cow(BT_state *state, BT_page *node, BT_page **newnode, pgno_t *pgno)
+_node_cow(BT_state *state, BT_page *node, pgno_t *pgno)
 {
   BT_page *ret = _node_alloc(state);
   memcpy(ret->datk, node->datk, sizeof node->datk[0] * BT_DAT_MAXENTRIES);
   *pgno = _fo_get(state, ret);
-  *newnode = ret;
   return BT_SUCC;
 }
 
@@ -627,7 +605,8 @@ static int
 _bt_split_child(BT_state *state, BT_page *parent, size_t i, pgno_t *newchild)
 {
   /* ;;: todo: better error handling */
-  /* ;;: todo: assert parent and left is dirty */
+  assert(_bt_ischilddirty(parent, i));
+
   int rc = BT_SUCC;
   size_t N;
   BT_page *left = _node_get(state, parent->datk[i].fo);
@@ -639,7 +618,6 @@ _bt_split_child(BT_state *state, BT_page *parent, size_t i, pgno_t *newchild)
 
   /* adjust high address of left node in parent */
   N = _bt_numkeys(left);
-  /* parent->datk[i+1].va = left->datk[N-1].va; /\* ;;: is this necessary? *\/ */
 
   /* insert reference to right child into parent node */
   N = _bt_numkeys(right);
@@ -658,8 +636,6 @@ _bt_split_child(BT_state *state, BT_page *parent, size_t i, pgno_t *newchild)
 
   return BT_SUCC;
 }
-
-/* ;;: since we won't be rebalancing on delete, but rather on insert, you should add rebalance logic to _bt_insert2 which checks the degree of a node and rebalances if less than minimum */
 
 static int
 _bt_rebalance(BT_state *state, BT_page *node)
@@ -727,22 +703,22 @@ _bt_delco_1pass_0(BT_state *state, vaof_t lo, vaof_t hi,
 {
   /* Perform a dfs search on all ranges that fall within lo and hi */
 
-  /* ;;: we can't use bt_childidx because the range of lo-hi may overlap ofc */
+  size_t N = _bt_numkeys(node);
   size_t loidx = 0;
   size_t hiidx = 0;
 
   /* first find the entry that matches lo */
   size_t i;
-  for (i = 0; i < BT_DAT_MAXKEYS-1; i++) {
-    vaof_t llo = node->datk[i].va;
-    if (llo <= lo) {
+  for (i = 0; i < N-1; i++) {
+    vaof_t hhi = node->datk[i+1].va;
+    if (hhi > lo) {
       loidx = i;
       break;
     }
   }
 
   /* and then the entry that matches hi */
-  for (; i < BT_DAT_MAXKEYS-1; i++) {
+  for (; i < N-1; i++) {
     vaof_t hhi = node->datk[i].va;
     if (hhi >= hi) {
       hiidx = hi;
@@ -1116,13 +1092,14 @@ _bt_delco_trim_lsubtree_rhs2(BT_state *state, vaof_t lo, vaof_t hi,
                             pgno_t nodepg, uint8_t depth, uint8_t maxdepth)
 {
   BT_page *node = _node_get(state, nodepg);
+  size_t N = _bt_numkeys(node);
   size_t loidx = 0;
 
   /* find low idx of range */
   size_t i;
-  for (i = 0; i < BT_DAT_MAXKEYS-1; i++) {
-    vaof_t llo = node->datk[i].va;
-    if (llo <= lo) {
+  for (i = 0; i < N-1; i++) {
+    vaof_t hhi = node->datk[i+1].va;
+    if (hhi > lo) {
       loidx = i;
       break;
     }
@@ -1182,12 +1159,9 @@ _bt_delco(BT_state *state, vaof_t lo, vaof_t hi,
   pgno_t rsubtree = 0;
 
   /* find low idx of range */
-
-  /* ;;: !!! fixme this is not incorrect. find first hi greater than lo. the lo
-       of that entry is the loidx */
-  for (size_t i = 0; i < BT_DAT_MAXKEYS-1; i++) {
-    vaof_t llo = node->datk[i].va;
-    if (llo <= lo) {
+  for (size_t i = 0; i < N-1; i++) {
+    vaof_t hhi = node->datk[i+1].va;
+    if (hhi > lo) {
       loidx = i;
       break;
     }
@@ -1218,18 +1192,16 @@ _bt_delco(BT_state *state, vaof_t lo, vaof_t hi,
     /* ;;: refactor? code duplication?? */
     if (!_bt_ischilddirty(node, loidx)) {
       BT_page *child = _node_get(state, lsubtree);
-      BT_page *new;
       pgno_t newpg;
-      _node_cow(state, child, &new, &newpg);
+      _node_cow(state, child, &newpg);
       lsubtree = node->datk[loidx].fo = newpg;
       _bt_dirtychild(node, loidx);
     }
 
     if (!_bt_ischilddirty(node, hiidx)) {
       BT_page *child = _node_get(state, rsubtree);
-      BT_page *new;
       pgno_t newpg;
-      _node_cow(state, child, &new, &newpg);
+      _node_cow(state, child, &newpg);
       rsubtree = node->datk[hiidx].fo = newpg;
       _bt_dirtychild(node, hiidx);
     }
@@ -1319,9 +1291,8 @@ _bt_insert2(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo,
 
   /* do we need to CoW the child node? */
   if (!_bt_ischilddirty(node, childidx)) {
-    BT_page *newchild;
     pgno_t pgno;
-    _node_cow(state, node, &newchild, &pgno);
+    _node_cow(state, node, &pgno);
     node->datk[childidx].fo = pgno;
     _bt_dirtychild(node, childidx);
   }
@@ -1373,9 +1344,8 @@ _bt_insert(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo)
   if (meta->depth > 1
       && !_bt_ischilddirty(root, childidx)) {
     BT_page *child = _node_get(state, root->datk[childidx].fo);
-    BT_page *newchild;
     pgno_t  newchildpg;
-    _node_cow(state, child, &newchild, &newchildpg);
+    _node_cow(state, child, &newchildpg);
     root->datk[childidx].fo = newchildpg;
     _bt_dirtychild(root, childidx);
   }
@@ -2368,10 +2338,10 @@ _bt_sync_meta(BT_state *state)
 
   /* CoW a new root since the root referred to by the metapage should always be
      dirty */
-  BT_page *root, *newroot;
+  BT_page *root;
   pgno_t newrootpg;
   root = _node_get(state, newmeta->root);
-  if (!SUCC(_node_cow(state, root, &newroot, &newrootpg)))
+  if (!SUCC(_node_cow(state, root, &newrootpg)))
     abort();
 
   newmeta->root = newrootpg;
