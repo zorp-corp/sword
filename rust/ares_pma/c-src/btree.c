@@ -788,6 +788,51 @@ _bt_delco_1pass(BT_state *state, vaof_t lo, vaof_t hi)
 }
 
 static void
+_mlist_insert(BT_state *state, void *lo, void *hi)
+{
+  BT_mlistnode *head = state->mlist;
+  BYTE *lob = lo;
+  BYTE *hib = hi;
+
+  assert(head);
+
+  while (head->next) {
+    BYTE   *vob = head->va;
+    size_t  siz = head->sz;
+    BYTE   *nob = head->next->va;
+
+    /* freed chunk immediately precedes head */
+    if (hi == vob) {
+      head->va = lo;
+      head->sz += (hib - lob);
+      return;
+    }
+    /* freed chunk immediately follows termination of head */
+    if (vob + siz == lo) {
+      head->sz += (hib - lob);
+      return;
+    }
+    /* freed chunk between head and next but not contiguous */
+    if (lob > vob + siz
+        && hib < nob) {
+      BT_mlistnode *new = calloc(1, sizeof *new);
+      new->sz = (hib - lob);
+      new->va = lob;
+      new->next = head->next;
+      head->next = new;
+      return;
+    }
+    head = head->next;
+  }
+  /* freelist completely searched. Chunk must be at tail and not contiguous */
+  BT_mlistnode *new = calloc(1, sizeof *new);
+  new->sz = (hib - lob);
+  new->va = lob;
+  new->next = head->next;
+  head->next = new;
+}
+
+static void
 _pending_nlist_insert(BT_state *state, pgno_t nodepg)
 {
   /* ;;: todo: need to account for a null head */
@@ -2488,7 +2533,7 @@ bt_free(BT_state *state, void *lo, void *hi)
   vaof_t looff = addr2off(lo);
   vaof_t hioff = addr2off(hi);
   _bt_insert(state, looff, hioff, 0);
-  /* ;;: and now add freespace to state->flist. coalescing when you do so */
+  _mlist_insert(state, lo, hi);
 }
 
 int
