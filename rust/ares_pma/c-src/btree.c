@@ -213,6 +213,8 @@ struct BT_kv {
 /* #define BT_DAT_MAXKEYS 10 */
 #define BT_DAT_MAXVALS BT_DAT_MAXKEYS
 static_assert(BT_DAT_MAXENTRIES % 2 == 0);
+/* we assume off_t is 64 bit */
+static_assert(sizeof(off_t) == sizeof(uint64_t));
 
 /*
    all pages in the memory arena consist of a header and data section
@@ -2644,27 +2646,20 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
   size_t bytelen = P2BYTES(len);
   pgno_t newpg = _bt_falloc(state, len);
   BYTE *loaddr = off2addr(lo);
-
-  vaof_t arena_start = addr2off(BT_MAPADDR);
-  off_t offset = lo - arena_start;
+  off_t offset = P2BYTES(newpg);
 
   /* write call puts data in the unified buffer cache without having to map
      virtual memory */
   if (pwrite(state->data_fd, loaddr, bytelen, offset) != bytelen)
     abort();
 
-  /* BYTE *arena_start = BT_MAPADDR; */
-  /* BYTE *map_loc = arena_start + lo; */
-
   /* maps new file offset with same data back into memory */
-  mmap(BT_MAPADDR,
+  mmap(loaddr,
        bytelen,
        PROT_READ | PROT_WRITE,
        MAP_FIXED | MAP_SHARED,
        state->data_fd,
-       offset);                 /* ;;: using an offset here rather than
-                                     supplying the address directly. correct??
-                                     check. */
+       offset);
 
   _bt_insert(state, lo, hi, newpg);
 
