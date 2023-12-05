@@ -74,9 +74,7 @@ pub mod util {
     use crate::interpreter::{interpret, Context, Error};
     use crate::jets;
     use crate::jets::bits::util::rip;
-    use crate::jets::cold::Cold;
     use crate::jets::form::util::scow;
-    use crate::jets::warm::Warm;
     use crate::mem::NockStack;
     use crate::noun::{tape, Cell, Noun, D, T};
     use ares_macros::tas;
@@ -85,27 +83,6 @@ pub mod util {
 
     pub const LEAF: Noun = D(tas!(b"leaf"));
     pub const ROSE: Noun = D(tas!(b"rose"));
-
-    pub struct ContextSnapshot {
-        pub cold: Cold,
-        pub warm: Warm,
-        pub cache: Hamt<Noun>,
-        pub scry_stack: Noun,
-    }
-
-    pub fn snapshot_and_virtualize(context: &mut Context, scry: Noun) -> ContextSnapshot {
-        let res = ContextSnapshot {
-            cold: context.cold,
-            warm: context.warm,
-            cache: context.cache,
-            scry_stack: context.scry_stack,
-        };
-
-        context.cache = Hamt::<Noun>::new();
-        context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
-
-        res
-    }
 
     /// The classic "slam gate" formula.
     pub fn slam_gate_fol(stack: &mut NockStack) -> Noun {
