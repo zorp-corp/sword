@@ -1,16 +1,19 @@
 use crate::jets::cold::Cold;
 use crate::mem::NockStack;
-use crate::noun::{Allocated, CellMemory, Noun};
+use crate::noun::{Allocated, Cell, CellMemory, IndirectAtom, Noun};
 use ares_pma::*;
 use either::Either::{Left, Right};
 use std::ffi::{c_void, CString};
 use std::mem::size_of;
 use std::path::PathBuf;
+use std::ptr::copy_nonoverlapping;
 
 const PMA_MODE: mode_t = 0o600; // RW for user only
 const PMA_FLAGS: ULONG = 0; // ignored for now
 
 const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
+
+const NOUN_MARKED: u64 = 1 << 63;
 
 /// Handle to a PMA
 pub struct PMA(*mut BT_state);
@@ -170,13 +173,16 @@ impl Persist for Snapshot {
 }
 
 /// Ensure an allocated noun is marked and return if it was already marked
-fn mark(a: Allocated) -> bool {
-    todo!()
+unsafe fn mark(a: Allocated) -> bool {
+    let metadata = a.get_metadata();
+    a.set_metadata(metadata | NOUN_MARKED);
+    metadata & NOUN_MARKED != 0
 }
 
 /// Unmark an allocated noun
-fn unmark_noun(a: Allocated) -> bool {
-    todo!()
+unsafe fn unmark(a: Allocated) {
+    let metadata = a.get_metadata();
+    a.set_metadata(metadata & !NOUN_MARKED);
 }
 
 impl Persist for Noun {
@@ -222,7 +228,68 @@ impl Persist for Noun {
         pma: &PMA,
         buffer: *mut u8,
     ) -> (u64, *mut u8) {
-        todo!()
+        let mut buffer_u64 = buffer as *mut u64;
+        stack.frame_push(0);
+        *(stack.push::<(Noun, *mut Noun)>()) = (*self, self as *mut Noun);
+
+        loop {
+            if stack.stack_is_empty() {
+                break;
+            }
+
+            let (noun, dest) = *(stack.top::<(Noun, *mut Noun)>());
+
+            match noun.as_either_direct_allocated() {
+                Left(direct) => {
+                    *dest = noun;
+                }
+                Right(allocated) => {
+                    if let Some(a) = allocated.forwarding_pointer() {
+                        *dest = a.as_noun();
+                        continue;
+                    }
+
+                    match allocated.as_either() {
+                        Left(mut indirect) => {
+                            let count = indirect.raw_size();
+                            if pma.contains(indirect.to_raw_pointer(), count) {
+                                *dest = noun;
+                                continue;
+                            }
+
+                            unmark(allocated);
+                            copy_nonoverlapping(indirect.to_raw_pointer(), buffer_u64, count);
+                            indirect.set_forwarding_pointer(buffer_u64);
+                            *dest = IndirectAtom::from_raw_pointer(buffer_u64).as_noun();
+                            buffer_u64 = buffer_u64.add(count);
+                        }
+                        Right(mut cell) => {
+                            if pma.contains(cell.to_raw_pointer(), 1) {
+                                *dest = noun;
+                                continue;
+                            }
+
+                            unmark(allocated);
+
+                            let new_cell_mem = buffer_u64 as *mut CellMemory;
+                            copy_nonoverlapping(cell.to_raw_pointer(), new_cell_mem, 1);
+                            cell.set_forwarding_pointer(new_cell_mem);
+
+                            *dest = Cell::from_raw_pointer(new_cell_mem).as_noun();
+
+                            *(stack.push::<(Noun, *mut Noun)>()) =
+                                (cell.tail(), &mut (*new_cell_mem).tail);
+                            *(stack.push::<(Noun, *mut Noun)>()) =
+                                (cell.head(), &mut (*new_cell_mem).head);
+
+                            buffer_u64 = new_cell_mem.add(1) as *mut u64;
+                        }
+                    }
+                }
+            }
+        }
+
+        (self.as_raw(), buffer_u64 as *mut u8)
     }
 
     unsafe fn handle_from_u64(meta_handle: u64) -> Self {
