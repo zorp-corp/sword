@@ -423,6 +423,11 @@ impl IndirectAtom {
         unsafe { *(self.to_raw_pointer().add(1)) as usize }
     }
 
+    /** Memory size of an indirect atom (including size + metadata fields) in 64-bit words */
+    pub fn raw_size(&self) -> usize {
+        self.size() + 2
+    }
+
     pub fn bit_size(&self) -> usize {
         unsafe {
             ((self.size() - 1) << 6) + 64
