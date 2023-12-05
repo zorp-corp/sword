@@ -23,6 +23,8 @@ use crate::noun::{Noun, D, NO, T, YES};
 use crate::trace::TraceStack;
 use types::{ActualError, Frame, Pile};
 
+use self::util::{comp, do_call, do_goto, do_return, do_tail_call, part_peek, peek, poke};
+
 #[derive(Copy, Clone)]
 pub struct Hill(crate::hamt::Hamt<Pile>);
 
@@ -51,17 +53,17 @@ fn cg_pull_peek(context: &mut Context, subject: Noun, formula: Noun) -> Noun {
     if context.line.is_none() {
         panic!("line not set");
     }
-    let pek = util::peek(context, subject, formula);
+    let pek = peek(context, subject, formula);
     let bell = if unsafe { pek.raw_equals(D(0)) } {
-        let comp = util::comp(context, subject, formula);
-        let line = util::poke(context, comp);
+        let comp = comp(context, subject, formula);
+        let line = poke(context, comp);
         context.line = Some(line);
-        let good_peek = util::peek(context, subject, formula);
-        let (bell, hill) = util::part_peek(&mut context.stack, good_peek);
+        let good_peek = peek(context, subject, formula);
+        let (bell, hill) = part_peek(&mut context.stack, good_peek);
         context.hill = hill;
         bell
     } else {
-        let (bell, hill) = util::part_peek(&mut context.stack, pek);
+        let (bell, hill) = part_peek(&mut context.stack, pek);
         context.hill = hill;
         bell
     };
@@ -339,6 +341,7 @@ fn cg_interpret_inner(
                     let s = slot(pole, 3).unwrap().as_direct().unwrap().data() as usize;
                     let _s_value = register_get(current_frame, s);
                     // XX increment a profiling hit counter labeled with the noun in s
+                    todo!("hit")
                 }
                 tas!(b"slg") => {
                     let s = slot(pole, 3).unwrap().as_direct().unwrap().data() as usize;
@@ -370,12 +373,15 @@ fn cg_interpret_inner(
                 }
                 tas!(b"tim") => {
                     // XX push a timer onto the stack and start it
+                    todo!("tim")
                 }
                 tas!(b"tom") => {
                     // XX pop a timer from the stack, stop it, and print elapsed
+                    todo!("tom")
                 }
                 tas!(b"mem") => {
                     // XX print memory usage
+                    todo!("mem")
                 }
                 tas!(b"pol") => {
                     let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
@@ -416,25 +422,23 @@ fn cg_interpret_inner(
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
                             let mut o = slot(bend, 15).unwrap();
-                            let will = unsafe { (*(*current_frame).pile.0).will };
-                            let blob = will
-                                .lookup(&mut context.stack, &mut o)
-                                .ok_or(Error::Deterministic(D(0)))
-                                .unwrap();
-                            body = slot(blob, 2).unwrap();
-                            bend = slot(blob, 3).unwrap();
-                            continue;
+                            do_goto(
+                                &mut context.stack,
+                                current_frame,
+                                &mut body,
+                                &mut bend,
+                                &mut o,
+                            );
                         }
                         Right(_cell) => {
                             let mut z = slot(bend, 14).unwrap();
-                            let will = unsafe { (*(*current_frame).pile.0).will };
-                            let blob = will
-                                .lookup(&mut context.stack, &mut z)
-                                .ok_or(Error::Deterministic(D(0)))
-                                .unwrap();
-                            body = slot(blob, 2).unwrap();
-                            bend = slot(blob, 3).unwrap();
-                            continue;
+                            do_goto(
+                                &mut context.stack,
+                                current_frame,
+                                &mut body,
+                                &mut bend,
+                                &mut z,
+                            );
                         }
                     };
                 }
@@ -445,24 +449,22 @@ fn cg_interpret_inner(
                     let r_value = register_get(current_frame, r);
                     if unsafe { l_value.raw_equals(r_value) } {
                         let mut z = slot(bend, 30).unwrap();
-                        let will = unsafe { (*(*current_frame).pile.0).will };
-                        let blob = will
-                            .lookup(&mut context.stack, &mut z)
-                            .ok_or(Error::Deterministic(D(0)))
-                            .unwrap();
-                        body = slot(blob, 2).unwrap();
-                        bend = slot(blob, 3).unwrap();
-                        continue;
+                        do_goto(
+                            &mut context.stack,
+                            current_frame,
+                            &mut body,
+                            &mut bend,
+                            &mut z,
+                        );
                     } else {
                         let mut o = slot(bend, 31).unwrap();
-                        let will = unsafe { (*(*current_frame).pile.0).will };
-                        let blob = will
-                            .lookup(&mut context.stack, &mut o)
-                            .ok_or(Error::Deterministic(D(0)))
-                            .unwrap();
-                        body = slot(blob, 2).unwrap();
-                        bend = slot(blob, 3).unwrap();
-                        continue;
+                        do_goto(
+                            &mut context.stack,
+                            current_frame,
+                            &mut body,
+                            &mut bend,
+                            &mut o,
+                        );
                     }
                 }
                 tas!(b"brn") => {
@@ -470,41 +472,37 @@ fn cg_interpret_inner(
                     let s_value = register_get(current_frame, s);
                     if unsafe { s_value.raw_equals(D(0)) } {
                         let mut z = slot(bend, 14).unwrap();
-                        let will = unsafe { (*(*current_frame).pile.0).will };
-                        let blob = will
-                            .lookup(&mut context.stack, &mut z)
-                            .ok_or(Error::Deterministic(D(0)))
-                            .unwrap();
-                        body = slot(blob, 2).unwrap();
-                        bend = slot(blob, 3).unwrap();
-                        continue;
+                        do_goto(
+                            &mut context.stack,
+                            current_frame,
+                            &mut body,
+                            &mut bend,
+                            &mut z,
+                        );
                     } else if unsafe { s_value.raw_equals(D(1)) } {
                         let mut o = slot(bend, 15).unwrap();
-                        let will = unsafe { (*(*current_frame).pile.0).will };
-                        let blob = will
-                            .lookup(&mut context.stack, &mut o)
-                            .ok_or(Error::Deterministic(D(0)))
-                            .unwrap();
-                        body = slot(blob, 2).unwrap();
-                        bend = slot(blob, 3).unwrap();
-                        continue;
+                        do_goto(
+                            &mut context.stack,
+                            current_frame,
+                            &mut body,
+                            &mut bend,
+                            &mut o,
+                        );
                     } else {
                         ActualError(Error::Deterministic(D(0)));
                     }
                 }
                 tas!(b"hop") => {
                     let mut t = slot(bend, 3).unwrap();
-                    let will = unsafe { (*(*current_frame).pile.0).will };
-                    let blob = will
-                        .lookup(&mut context.stack, &mut t)
-                        .ok_or(Error::Deterministic(D(0)))
-                        .unwrap();
-                    body = slot(blob, 2).unwrap();
-                    bend = slot(blob, 3).unwrap();
-                    continue;
+                    do_goto(
+                        &mut context.stack,
+                        current_frame,
+                        &mut body,
+                        &mut bend,
+                        &mut t,
+                    );
                 }
                 tas!(b"lnk") => {
-                    // evaluate f against u and put the result in d, then goto t
                     let u = slot(bend, 6).unwrap().as_direct().unwrap().data() as usize;
                     let f = slot(bend, 14).unwrap().as_direct().unwrap().data() as usize;
                     let d = slot(bend, 30).unwrap().as_direct().unwrap().data() as usize;
@@ -531,17 +529,14 @@ fn cg_interpret_inner(
                     }
 
                     {
-                        let will = unsafe { (*(*current_frame).pile.0).will };
-                        let blob = will
-                            .lookup(&mut context.stack, &mut unsafe {
-                                (*(*current_frame).pile.0).wish
-                            })
-                            .ok_or(Error::Deterministic(D(0)))
-                            .unwrap();
-                        body = slot(blob, 2).unwrap();
-                        bend = slot(blob, 3).unwrap();
+                        do_goto(
+                            &mut context.stack,
+                            current_frame,
+                            &mut body,
+                            &mut bend,
+                            &mut unsafe { (*(*current_frame).pile.0).wish },
+                        );
                     }
-                    continue;
                 }
                 tas!(b"cal") => {
                     // call the arm a with subject in registers v, poisons in b,
@@ -552,7 +547,7 @@ fn cg_interpret_inner(
                     let d = slot(bend, 62).unwrap().as_direct().unwrap().data() as usize;
                     let t = slot(bend, 63).unwrap();
 
-                    util::do_call(
+                    do_call(
                         context,
                         &mut current_frame,
                         &mut body,
@@ -581,22 +576,20 @@ fn cg_interpret_inner(
                         match jet_result {
                             Ok(result) => {
                                 register_set(current_frame, d, result);
-                                let blob = unsafe {
-                                    (*(*current_frame).pile.0)
-                                        .will
-                                        .lookup(&mut context.stack, &mut t)
-                                        .ok_or(Error::NonDeterministic(D(0)))
-                                        .unwrap()
-                                };
-                                body = slot(blob, 2).unwrap();
-                                bend = slot(blob, 3).unwrap();
+                                do_goto(
+                                    &mut context.stack,
+                                    current_frame,
+                                    &mut body,
+                                    &mut bend,
+                                    &mut t,
+                                );
                             }
                             Err(JetErr::Fail(err)) => {
                                 ActualError(err);
                             }
                             Err(JetErr::Punt) => {
                                 // XX run as a normal %cal here
-                                util::do_call(
+                                do_call(
                                     context,
                                     &mut current_frame,
                                     &mut body,
@@ -610,7 +603,7 @@ fn cg_interpret_inner(
                             }
                         }
                     } else {
-                        util::do_call(
+                        do_call(
                             context,
                             &mut current_frame,
                             &mut body,
@@ -622,8 +615,6 @@ fn cg_interpret_inner(
                             t,
                         );
                     }
-                    // like call but with fast label
-                    //
                     // XX we need to build a warm state that is just a HAMT-map of the hot state
                 }
                 tas!(b"lnt") => {
@@ -647,15 +638,13 @@ fn cg_interpret_inner(
                     }
 
                     {
-                        let will = unsafe { (*(*current_frame).pile.0).will };
-                        let blob = will
-                            .lookup(&mut context.stack, &mut unsafe {
-                                (*(*current_frame).pile.0).wish
-                            })
-                            .ok_or(Error::Deterministic(D(0)))
-                            .unwrap();
-                        body = slot(blob, 2).unwrap();
-                        bend = slot(blob, 3).unwrap();
+                        do_goto(
+                            &mut context.stack,
+                            current_frame,
+                            &mut body,
+                            &mut bend,
+                            &mut unsafe { (*(*current_frame).pile.0).wish },
+                        );
                     }
                 }
                 tas!(b"jmp") => {
@@ -663,7 +652,7 @@ fn cg_interpret_inner(
                     let b = slot(bend, 14).unwrap();
                     let v = slot(bend, 15).unwrap();
 
-                    util::do_tail_call(context, &mut current_frame, &mut body, &mut bend, a, b, v);
+                    do_tail_call(context, &mut current_frame, &mut body, &mut bend, a, b, v);
                 }
                 tas!(b"jmf") => {
                     let a = slot(bend, 6).unwrap();
@@ -679,7 +668,7 @@ fn cg_interpret_inner(
                         let jet_result = jet(context, subject);
                         match jet_result {
                             Ok(result) => {
-                                util::do_return(
+                                do_return(
                                     context,
                                     &mut current_frame,
                                     virtual_frame,
@@ -693,7 +682,7 @@ fn cg_interpret_inner(
                                 ActualError(err);
                             }
                             Err(JetErr::Punt) => {
-                                util::do_tail_call(
+                                do_tail_call(
                                     context,
                                     &mut current_frame,
                                     &mut body,
@@ -705,15 +694,7 @@ fn cg_interpret_inner(
                             }
                         }
                     } else {
-                        util::do_tail_call(
-                            context,
-                            &mut current_frame,
-                            &mut body,
-                            &mut bend,
-                            a,
-                            b,
-                            v,
-                        );
+                        do_tail_call(context, &mut current_frame, &mut body, &mut bend, a, b, v);
                     }
                 }
                 tas!(b"spy") => {
@@ -761,16 +742,13 @@ fn cg_interpret_inner(
                                     Right(cell) => {
                                         register_set(current_frame, d, cell.tail());
                                         context.scry_stack = scry_stack;
-                                        // goto t
-                                        let blob = unsafe {
-                                            (*(*current_frame).pile.0)
-                                                .will
-                                                .lookup(&mut context.stack, &mut t)
-                                                .ok_or(Error::NonDeterministic(D(0)))
-                                                .unwrap()
-                                        };
-                                        body = slot(blob, 2).unwrap();
-                                        bend = slot(blob, 3).unwrap();
+                                        do_goto(
+                                            &mut context.stack,
+                                            current_frame,
+                                            &mut body,
+                                            &mut bend,
+                                            &mut t,
+                                        );
                                     }
                                 },
                             },
@@ -807,32 +785,27 @@ fn cg_interpret_inner(
 
                     if let Some(value) = context.cache.lookup(&mut context.stack, &mut key) {
                         register_set(current_frame, d, value);
-                        let blob = unsafe {
-                            (*(*current_frame).pile.0)
-                                .will
-                                .lookup(&mut context.stack, &mut i)
-                                .ok_or(Error::NonDeterministic(D(0)))
-                                .unwrap()
-                        };
-                        body = slot(blob, 2).unwrap();
-                        bend = slot(blob, 3).unwrap();
+                        do_goto(
+                            &mut context.stack,
+                            current_frame,
+                            &mut body,
+                            &mut bend,
+                            &mut i,
+                        );
                     } else {
-                        // XX implement do_goto helper
-                        let blob = unsafe {
-                            (*(*current_frame).pile.0)
-                                .will
-                                .lookup(&mut context.stack, &mut m)
-                                .ok_or(Error::NonDeterministic(D(0)))
-                                .unwrap()
-                        };
-                        body = slot(blob, 2).unwrap();
-                        bend = slot(blob, 3).unwrap();
+                        do_goto(
+                            &mut context.stack,
+                            current_frame,
+                            &mut body,
+                            &mut bend,
+                            &mut m,
+                        );
                     }
                 }
                 tas!(b"don") => {
                     let s = slot(bend, 6).unwrap().as_direct().unwrap().data() as usize;
                     let s_value = register_get(current_frame, s);
-                    if let Some(ret_value) = util::do_return(
+                    if let Some(ret_value) = do_return(
                         context,
                         &mut current_frame,
                         virtual_frame,
@@ -929,7 +902,7 @@ pub mod types {
         trace::TraceStack,
     };
 
-    use super::util;
+    use super::util::part_will;
 
     pub struct Frame {
         pub mean: Noun,
@@ -990,7 +963,7 @@ pub mod types {
                     walt: slot(p, 30).unwrap(),
                     wish: slot(p, 62).unwrap(),
                     sire: slot(p, 126).unwrap().as_direct().unwrap().data() as usize,
-                    will: util::part_will(stack, slot(p, 62).unwrap()),
+                    will: part_will(stack, slot(p, 62).unwrap()),
                     sans: slot(p, 254).unwrap().as_direct().unwrap().data() as usize,
                 };
                 Pile(mem)
@@ -1262,6 +1235,24 @@ mod util {
             *body = slot(blob, 2).unwrap();
             *bend = slot(blob, 3).unwrap();
         }
+    }
+
+    pub fn do_goto(
+        stack: &mut NockStack,
+        current_frame: *mut Frame,
+        body: &mut Noun,
+        bend: &mut Noun,
+        bile: &mut Noun,
+    ) {
+        let blob = unsafe {
+            (*(*current_frame).pile.0)
+                .will
+                .lookup(stack, bile)
+                .ok_or(Error::NonDeterministic(D(0)))
+                .unwrap()
+        };
+        *body = slot(blob, 2).unwrap();
+        *bend = slot(blob, 3).unwrap();
     }
 
     pub fn do_return(
