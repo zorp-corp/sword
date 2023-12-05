@@ -708,7 +708,12 @@ fn cg_interpret_inner(
                         let scry_path = register_get(current_frame, p);
                         let scry_stack = context.scry_stack;
                         let scry_handler = cell.head();
-                        let scry_gate = scry_handler.as_cell().unwrap();
+                        let scry_gate;
+                        if let Ok(cell) = scry_handler.as_cell() {
+                            scry_gate = cell;
+                        } else {
+                            return Err(ActualError(Error::ScryCrashed(D(0))));
+                        }
                         let payload = T(&mut context.stack, &[scry_ref, scry_path]);
                         let slam = T(&mut context.stack, &[D(9), D(2), D(0), D(1)]);
                         let scry_core = T(
@@ -716,7 +721,10 @@ fn cg_interpret_inner(
                             &[
                                 scry_gate.head(),
                                 payload,
-                                scry_gate.tail().as_cell().unwrap().tail(),
+                                match scry_gate.tail().as_cell() {
+                                    Ok(cell) => cell.tail(),
+                                    Err(_) => return Err(ActualError(Error::ScryCrashed(D(0)))),
+                                },
                             ],
                         );
 
