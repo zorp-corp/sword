@@ -321,6 +321,8 @@ fn goof(context: &mut Context, traces: Noun) -> Noun {
  *  Generate tracing events, if JSON tracing enabled.
  */
 fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<Noun, Noun> {
+    let cold_snapshot = context.nock_context.cold;
+    let warm_snapshot = context.nock_context.warm;
     let slam_res = if context.nock_context.trace_info.is_some() {
         let start = Instant::now();
         let slam_res = slam(context, POKE_AXIS, ovo);
@@ -339,6 +341,8 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
         Ok(res) => Ok(res),
         Err(error) => match error {
             Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
+                context.nock_context.cold = cold_snapshot;
+                context.nock_context.warm = warm_snapshot;
                 Err(goof(context, trace))
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {

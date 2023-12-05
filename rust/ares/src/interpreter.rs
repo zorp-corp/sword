@@ -254,12 +254,6 @@ enum NockWork {
     Work12(Nock12),
 }
 
-pub struct SavedContext {
-    cold: Cold,
-    warm: Warm,
-    cache: Hamt<Noun>,
-}
-
 pub struct Context {
     pub stack: NockStack,
     // For printing slogs; if None, print to stdout; Option slated to be removed
@@ -272,22 +266,6 @@ pub struct Context {
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
-}
-
-impl Context {
-    pub fn save(&self) -> SavedContext {
-        SavedContext {
-            cold: self.cold,
-            warm: self.warm,
-            cache: self.cache,
-        }
-    }
-
-    pub fn restore(&mut self, saved: SavedContext) {
-        self.cold = saved.cold;
-        self.warm = saved.warm;
-        self.cache = saved.cache;
-    }
 }
 
 #[derive(Clone, Copy, Debug)]

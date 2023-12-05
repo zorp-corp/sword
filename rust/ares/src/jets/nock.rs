@@ -1,6 +1,5 @@
 /** Virtualization jets
  */
-use crate::hamt::Hamt;
 use crate::interpreter::{interpret, Context, Error};
 use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
@@ -36,16 +35,12 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     let v_formula = slot(arg, 5)?;
     let scry_handler = slot(arg, 3)?;
 
-    let old_cache = context.cache;
-    let old_scry_stack = context.scry_stack;
-
-    context.cache = Hamt::<Noun>::new();
-    context.scry_stack = T(&mut context.stack, &[scry_handler, old_scry_stack]);
+    let snapshot = util::snapshot_and_virtualize(context, scry_handler);
 
     match util::mink(context, v_subject, v_formula) {
         Ok(noun) => {
-            context.cache = old_cache;
-            context.scry_stack = old_scry_stack;
+            context.cache = snapshot.cache;
+            context.scry_stack = snapshot.scry_stack;
             Ok(noun)
         }
         Err(error) => match error {
@@ -64,7 +59,7 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
                 // Error::ScryCrashed, jet_mink() compares the two scry handler stack Nouns> If they
                 // are identical, jet_mink() bails with Error::Deterministic. Otherwise, it forwards
                 // the Error::ScryCrashed to the senior virtualization call.
-                if unsafe { context.scry_stack.raw_equals(old_scry_stack) } {
+                if unsafe { context.scry_stack.raw_equals(snapshot.scry_stack) } {
                     Err(JetErr::Fail(Error::Deterministic(trace)))
                 } else {
                     Err(JetErr::Fail(error))
@@ -90,21 +85,26 @@ pub fn jet_mure(context: &mut Context, subject: Noun) -> Result {
     let fol = util::slam_gate_fol(&mut context.stack);
     let scry = util::pass_thru_scry(&mut context.stack);
 
-    context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
+    let snapshot = util::snapshot_and_virtualize(context, scry);
 
-    let saved = context.save();
     match interpret(context, tap, fol) {
         Ok(res) => {
-            context.scry_stack = context.scry_stack.as_cell()?.tail();
+            context.cache = snapshot.cache;
+            context.scry_stack = snapshot.scry_stack;
             Ok(T(&mut context.stack, &[D(0), res]))
         }
         Err(error) => match error {
             // Since we are using the pass-through scry handler, we know for a fact that a scry
             // crash must have come from a senior virtualization context.
             Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(JetErr::Fail(error)),
-            Error::Deterministic(_) | Error::ScryBlocked(_) => {
-                context.restore(saved);
-                context.scry_stack = context.scry_stack.as_cell()?.tail();
+            Error::ScryBlocked(_) => {
+                context.scry_stack = snapshot.scry_stack;
+                Ok(D(0))
+            }
+            Error::Deterministic(_) => {
+                context.cold = snapshot.cold;
+                context.warm = snapshot.warm;
+                context.scry_stack = snapshot.scry_stack;
                 Ok(D(0))
             }
         },
@@ -116,12 +116,12 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
     let fol = util::slam_gate_fol(&mut context.stack);
     let scry = util::pass_thru_scry(&mut context.stack);
 
-    context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
+    let snapshot = util::snapshot_and_virtualize(context, scry);
 
-    let saved = context.save();
     match interpret(context, tap, fol) {
         Ok(res) => {
-            context.scry_stack = context.scry_stack.as_cell()?.tail();
+            context.cache = snapshot.cache;
+            context.scry_stack = snapshot.scry_stack;
             Ok(T(&mut context.stack, &[YES, res]))
         }
         Err(error) => match error {
@@ -129,16 +129,16 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
             // crash must have come from a senior virtualization context.
             Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(JetErr::Fail(error)),
             Error::ScryBlocked(path) => {
-                context.scry_stack = context.scry_stack.as_cell()?.tail();
-                context.restore(saved);
+                context.scry_stack = snapshot.scry_stack;
                 //  XX: Need to check that result is actually of type path
                 //      return [[%leaf "mute.hunk"] ~] if not
                 let bon = util::smyt(&mut context.stack, path)?;
                 Ok(T(&mut context.stack, &[NO, bon, D(0)]))
             }
             Error::Deterministic(trace) => {
-                context.scry_stack = context.scry_stack.as_cell()?.tail();
-                context.restore(saved);
+                context.cold = snapshot.cold;
+                context.warm = snapshot.warm;
+                context.scry_stack = snapshot.scry_stack;
                 let ton = Cell::new(&mut context.stack, D(2), trace);
                 let tun = util::mook(context, ton, false)?;
                 Ok(T(&mut context.stack, &[NO, tun.tail()]))
@@ -148,10 +148,13 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
+    use crate::hamt::Hamt;
     use crate::interpreter::{interpret, Context, Error};
     use crate::jets;
     use crate::jets::bits::util::rip;
+    use crate::jets::cold::Cold;
     use crate::jets::form::util::scow;
+    use crate::jets::warm::Warm;
     use crate::jets::JetErr;
     use crate::mem::NockStack;
     use crate::noun::{tape, Cell, Noun, D, T};
@@ -161,6 +164,27 @@ pub mod util {
 
     pub const LEAF: Noun = D(tas!(b"leaf"));
     pub const ROSE: Noun = D(tas!(b"rose"));
+
+    pub struct ContextSnapshot {
+        pub cold: Cold,
+        pub warm: Warm,
+        pub cache: Hamt<Noun>,
+        pub scry_stack: Noun,
+    }
+
+    pub fn snapshot_and_virtualize(context: &mut Context, scry: Noun) -> ContextSnapshot {
+        let res = ContextSnapshot {
+            cold: context.cold,
+            warm: context.warm,
+            cache: context.cache,
+            scry_stack: context.scry_stack,
+        };
+
+        context.cache = Hamt::<Noun>::new();
+        context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
+
+        res
+    }
 
     /// The classic "slam gate" formula.
     pub fn slam_gate_fol(stack: &mut NockStack) -> Noun {
@@ -189,16 +213,15 @@ pub mod util {
     }
 
     pub fn mink(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun, Error> {
-        let saved = context.save();
+        let cold_snapshot = context.cold;
+        let warm_snapshot = context.warm;
         match interpret(context, subject, formula) {
             Ok(res) => Ok(T(&mut context.stack, &[D(0), res])),
             Err(err) => match err {
-                Error::ScryBlocked(path) => {
-                    context.restore(saved);
-                    Ok(T(&mut context.stack, &[D(1), path]))
-                }
+                Error::ScryBlocked(path) => Ok(T(&mut context.stack, &[D(1), path])),
                 Error::Deterministic(trace) => {
-                    context.restore(saved);
+                    context.cold = cold_snapshot;
+                    context.warm = warm_snapshot;
                     Ok(T(&mut context.stack, &[D(2), trace]))
                 }
                 Error::NonDeterministic(_) | Error::ScryCrashed(_) => Err(err),
