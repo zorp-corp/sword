@@ -65,7 +65,7 @@ pub const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
 pub type HotEntry = (&'static [Either<&'static [u8], (u64, u64)>], u64, Jet);
 
 #[allow(clippy::complexity)]
-pub const URBIT_HOT_STATE: &'static [HotEntry] = &[
+pub const URBIT_HOT_STATE: &[HotEntry] = &[
     (&[K_139, Left(b"one"), Left(b"add")], 1, jet_add),
     (&[K_139, Left(b"one"), Left(b"dec")], 1, jet_dec),
     (&[K_139, Left(b"one"), Left(b"div")], 1, jet_div),
