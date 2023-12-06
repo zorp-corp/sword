@@ -1,3 +1,4 @@
+use ares::jets::hot::URBIT_HOT_STATE;
 use ares::serf::serf;
 use std::env;
 use std::io;
@@ -31,7 +32,7 @@ fn main() -> io::Result<()> {
     }
 
     if filename == "serf" {
-        return serf();
+        return serf(URBIT_HOT_STATE);
     }
 
     panic!("Ares can only run as a serf!");

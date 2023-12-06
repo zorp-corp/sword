@@ -19,7 +19,7 @@ use crate::jets::bits::*;
 use crate::jets::cold::Cold;
 use crate::jets::form::*;
 use crate::jets::hash::*;
-use crate::jets::hot::Hot;
+use crate::jets::hot::{Hot, URBIT_HOT_STATE};
 use crate::jets::list::*;
 use crate::jets::lute::*;
 use crate::jets::math::*;
@@ -281,7 +281,7 @@ pub mod util {
             let newt = Newt::new_mock();
             let cold = Cold::new(&mut stack);
             let warm = Warm::new();
-            let hot = Hot::init(&mut stack);
+            let hot = Hot::init(&mut stack, URBIT_HOT_STATE);
             let cache = Hamt::<Noun>::new();
 
             Context {

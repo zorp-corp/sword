@@ -4,8 +4,9 @@ use ares_macros::tas;
 use either::Either::{self, Left, Right};
 use std::ptr::null_mut;
 
-// const A_50: Either<u64, (u64, u64)> = Right((b"a", 50));
-const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
+/** Root for Hoon %k.139
+ */
+pub const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
 
 // // This is the const state all in one spot as literals
 // #[allow(clippy::complexity)]
@@ -57,8 +58,14 @@ const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
 //     (&[A_50, Left(b"mink")], 1, jet_mink),
 // ];
 
+/**
+ * (path, axis in battery, jet function pointer)
+ * see the [Jet] typedef in ares::jets for the proper prototype
+ */
+pub type HotEntry = (&'static [Either<&'static [u8], (u64, u64)>], u64, Jet);
+
 #[allow(clippy::complexity)]
-const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
+pub const URBIT_HOT_STATE: &[HotEntry] = &[
     (&[K_139, Left(b"one"), Left(b"add")], 1, jet_add),
     (&[K_139, Left(b"one"), Left(b"dec")], 1, jet_dec),
     (&[K_139, Left(b"one"), Left(b"div")], 1, jet_div),
@@ -595,10 +602,10 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
 pub struct Hot(*mut HotMem);
 
 impl Hot {
-    pub fn init(stack: &mut NockStack) -> Self {
+    pub fn init(stack: &mut NockStack, constant_hot_state: &[HotEntry]) -> Self {
         unsafe {
             let mut next = Hot(null_mut());
-            for (htap, axe, jet) in TRUE_HOT_STATE {
+            for (htap, axe, jet) in constant_hot_state {
                 let mut a_path = D(0);
                 for i in *htap {
                     match i {
