@@ -340,9 +340,9 @@ pub fn jet_stag(context: &mut Context, subject: Noun) -> Result {
 
 pub mod util {
     use crate::interpreter::{inc, Context};
-    use crate::jets::{Jet, Result};
-    use crate::noun::{Noun, D, T, Cell};
     use crate::jets::util::test::*;
+    use crate::jets::{Jet, Result};
+    use crate::noun::{Cell, Noun, D, T};
     use std::cmp::Ordering;
 
     pub fn last(zyc: Noun, naz: Noun) -> Result {
@@ -406,21 +406,12 @@ pub mod util {
         jet: Jet,
         sam: Noun, //&[fn(&mut Context) -> Noun],  // regular sample
         ctx: Noun, //&[fn(&mut Context) -> Noun],  // door sample as context
-        res: Noun) {
-        unsafe {
-            // let mut sam: Vec<Noun> = sam.iter().map(|f| f(&mut c.stack)).collect();
-            // let mut ctx: Vec<Noun> = ctx.iter().map(|f| f(&mut c.stack)).collect();
-            // let sam = if(sam.len() > 1) { T(&mut c.stack, &sam) } else { sam[0] };
-            eprintln!("sam: {:?}", sam);
-            // let ctx = if(ctx.len() > 1) { T(&mut c.stack, &ctx) } else { ctx[0] };
-            eprintln!("ctx: {:?}", ctx);
-            let pay = Cell::new(&mut context.stack, sam, ctx).as_noun();
-            eprintln!("pay: {:?}", pay);
-            let sbj = Cell::new(&mut context.stack, D(0), pay).as_noun();
-            eprintln!("sbj: {:?}", sbj);
-            let jet_res = jet(context, sbj).unwrap();
-            assert_noun_eq(&mut context.stack, jet_res, res);
-        }
+        res: Noun,
+    ) {
+        let pay = Cell::new(&mut context.stack, sam, ctx).as_noun();
+        let sbj = Cell::new(&mut context.stack, D(0), pay).as_noun();
+        let jet_res = jet(context, sbj).unwrap();
+        assert_noun_eq(&mut context.stack, jet_res, res);
     }
 }
 
@@ -428,9 +419,8 @@ pub mod util {
 mod tests {
     use super::*;
     use crate::jets::util::test::*;
-    use crate::mem::NockStack;
-    use crate::noun::{Noun, D, T};
-    use crate::serialization::{cue, jam};
+    use crate::noun::{D, T};
+    use crate::serialization::cue;
 
     use ibig::ubig;
 
@@ -439,29 +429,36 @@ mod tests {
         let c = &mut init_context();
 
         /*
-          'a' at +6 of easy
-          [[1 1] "abc"] at +6 of (easy 'a')
-         */
+         'a' at +6 of easy
+         [[1 1] "abc"] at +6 of (easy 'a')
+        */
 
         /// ((easy 'a') [[1 1] "abc"])
         //  [[1 1] "abc"]
-        let sam_jam = A(&mut c.stack, &ubig!(3205468216717221061)).as_atom().unwrap();
+        let sam_jam = A(&mut c.stack, &ubig!(3205468216717221061))
+            .as_atom()
+            .unwrap();
         let sam = cue(&mut c.stack, sam_jam);
         //  [p=[p=1 q=1] q=[~ [p='a' q=[p=[p=1 q=1] q="abc"]]]]
-        let ans_jam = A(&mut c.stack, &ubig!(1720922644868600060465749189)).as_atom().unwrap();
+        let ans_jam = A(&mut c.stack, &ubig!(1720922644868600060465749189))
+            .as_atom()
+            .unwrap();
         let ans = cue(&mut c.stack, ans_jam);
         let ctx = T(&mut c.stack, &[D(0), D(97), D(0)]);
         util::assert_jet_in_door(c, jet_easy, sam, ctx, ans);
 
         /// ((easy %foo) [[1 1] "abc"])
         //  [[1 1] "abc"]
-        let sam_jam = A(&mut c.stack, &ubig!(3205468216717221061)).as_atom().unwrap();
+        let sam_jam = A(&mut c.stack, &ubig!(3205468216717221061))
+            .as_atom()
+            .unwrap();
         let sam = cue(&mut c.stack, sam_jam);
         //  [p=[p=1 q=1] q=[~ [p=%foo q=[p=[p=1 q=1] q="abc"]]]]
-        let ans_jam = A(&mut c.stack, &ubig!(3609036366588910247778413036281029)).as_atom().unwrap();
+        let ans_jam = A(&mut c.stack, &ubig!(3609036366588910247778413036281029))
+            .as_atom()
+            .unwrap();
         let ans = cue(&mut c.stack, ans_jam);
         let ctx = T(&mut c.stack, &[D(0), D(0x6f6f66), D(0)]);
         util::assert_jet_in_door(c, jet_easy, sam, ctx, ans);
     }
 }
-
