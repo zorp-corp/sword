@@ -388,7 +388,7 @@ _bt_nalloc(BT_state *state)
          implemented. Rather than assert, conditionally check if we're at the
          end of the current stripe. If so, allocate a new region and append that
          to the freelist. */
-    size_t width = (BYTE *)state->nlist - state->map;
+    size_t width = (BYTE *)state->nlist->va - state->map;
     /* ;;: asserting 2M for now since partition striping is unimplemented */
     assert(width < MBYTES(2));
     /* perfect fit */
@@ -2216,13 +2216,14 @@ _bt_state_load(BT_state *state)
     state->file_size = PMA_GROW_SIZE;
 
     assert(SUCC(_nlist_new(state)));
-    assert(SUCC(_mlist_new(state)));
-    assert(SUCC(_flist_new(state)));
 
     if (!SUCC(rc = _bt_state_meta_new(state))) {
       munmap(state->map, BT_ADDRSIZE);
       return rc;
     }
+
+    assert(SUCC(_mlist_new(state)));
+    assert(SUCC(_flist_new(state)));
   }
   else {
     /* restore ephemeral freelists */
