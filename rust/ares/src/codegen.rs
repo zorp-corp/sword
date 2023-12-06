@@ -234,7 +234,7 @@ fn cg_interpret_inner(
                         let value = inc(&mut context.stack, atom);
                         register_set(current_frame, d, value.as_noun());
                     } else {
-                        ActualError(Error::Deterministic(D(0)));
+                        break Err(ActualError(Error::Deterministic(D(0))));
                     }
                 }
                 tas!(b"con") => {
@@ -264,7 +264,7 @@ fn cg_interpret_inner(
                     let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
                     let s_value = register_get(current_frame, s);
                     if s_value.is_atom() {
-                        ActualError(Error::Deterministic(D(0)));
+                        break Err(ActualError(Error::Deterministic(D(0))));
                     }
                 }
                 tas!(b"hed") => {
@@ -299,7 +299,7 @@ fn cg_interpret_inner(
                     let s_value = register_get(current_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
-                            ActualError(Error::Deterministic(D(0)));
+                            break Err(ActualError(Error::Deterministic(D(0))));
                         }
                         Right(cell) => {
                             register_set(current_frame, d, cell.head());
@@ -312,7 +312,7 @@ fn cg_interpret_inner(
                     let s_value = register_get(current_frame, s);
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
-                            ActualError(Error::Deterministic(D(0)));
+                            break Err(ActualError(Error::Deterministic(D(0))));
                         }
                         Right(cell) => {
                             register_set(current_frame, d, cell.tail());
@@ -396,18 +396,20 @@ fn cg_interpret_inner(
                 }
                 tas!(b"ipb") => {
                     let mut s = slot(pole, 3).unwrap();
-                    loop {
+                    if let true = loop {
                         if unsafe { s.raw_equals(D(0)) } {
-                            break;
+                            break false;
                         } else {
                             let i =
                                 s.as_cell().unwrap().head().as_direct().unwrap().data() as usize;
                             if poison_get(current_frame, i) {
-                                ActualError(Error::Deterministic(D(0)));
+                                break true;
                             } else {
                                 s = s.as_cell().unwrap().tail();
                             }
                         }
+                    } {
+                        break Err(ActualError(Error::Deterministic(D(0))));
                     }
                 }
                 _ => {
@@ -489,7 +491,7 @@ fn cg_interpret_inner(
                             &mut o,
                         );
                     } else {
-                        ActualError(Error::Deterministic(D(0)));
+                        break Err(ActualError(Error::Deterministic(D(0))));
                     }
                 }
                 tas!(b"hop") => {
@@ -585,7 +587,7 @@ fn cg_interpret_inner(
                                 );
                             }
                             Err(JetErr::Fail(err)) => {
-                                ActualError(err);
+                                break Err(ActualError(err));
                             }
                             Err(JetErr::Punt) => {
                                 // XX run as a normal %cal here
@@ -679,7 +681,7 @@ fn cg_interpret_inner(
                                 .unwrap();
                             }
                             Err(JetErr::Fail(err)) => {
-                                ActualError(err);
+                                break Err(ActualError(err));
                             }
                             Err(JetErr::Punt) => {
                                 do_tail_call(
@@ -712,7 +714,7 @@ fn cg_interpret_inner(
                         if let Ok(cell) = scry_handler.as_cell() {
                             scry_gate = cell;
                         } else {
-                            return Err(ActualError(Error::ScryCrashed(D(0))));
+                            break Err(ActualError(Error::ScryCrashed(D(0))));
                         }
                         let payload = T(&mut context.stack, &[scry_ref, scry_path]);
                         let slam = T(&mut context.stack, &[D(9), D(2), D(0), D(1)]);
@@ -723,7 +725,7 @@ fn cg_interpret_inner(
                                 payload,
                                 match scry_gate.tail().as_cell() {
                                     Ok(cell) => cell.tail(),
-                                    Err(_) => return Err(ActualError(Error::ScryCrashed(D(0)))),
+                                    Err(_) => break Err(ActualError(Error::ScryCrashed(D(0)))),
                                 },
                             ],
                         );
@@ -734,9 +736,9 @@ fn cg_interpret_inner(
                             Ok(noun) => match noun.as_either_atom_cell() {
                                 Left(atom) => {
                                     if unsafe { atom.as_noun().raw_equals(D(0)) } {
-                                        ActualError(Error::ScryBlocked(scry_path));
+                                        break Err(ActualError(Error::ScryBlocked(scry_path)));
                                     } else {
-                                        ActualError(Error::ScryCrashed(D(0)));
+                                        break Err(ActualError(Error::ScryCrashed(D(0))));
                                     }
                                 }
                                 Right(cell) => match cell.tail().as_either_atom_cell() {
@@ -745,7 +747,7 @@ fn cg_interpret_inner(
                                         let hunk =
                                             T(stack, &[D(tas!(b"hunk")), scry_ref, scry_path]);
                                         mean_push(stack, hunk);
-                                        ActualError(Error::ScryCrashed(D(0)));
+                                        break Err(ActualError(Error::ScryCrashed(D(0))));
                                     }
                                     Right(cell) => {
                                         register_set(current_frame, d, cell.tail());
@@ -762,18 +764,18 @@ fn cg_interpret_inner(
                             },
                             Err(error) => match error {
                                 Error::Deterministic(trace) | Error::ScryCrashed(trace) => {
-                                    ActualError(Error::ScryCrashed(trace));
+                                    break Err(ActualError(Error::ScryCrashed(trace)));
                                 }
                                 Error::NonDeterministic(_) => {
-                                    ActualError(error);
+                                    break Err(ActualError(error));
                                 }
                                 Error::ScryBlocked(_) => {
-                                    ActualError(Error::NonDeterministic(D(0)));
+                                    break Err(ActualError(Error::NonDeterministic(D(0))));
                                 }
                             },
                         }
                     } else {
-                        ActualError(Error::Deterministic(D(0)));
+                        break Err(ActualError(Error::Deterministic(D(0))));
                     }
                 }
                 tas!(b"mer") => {
@@ -825,7 +827,7 @@ fn cg_interpret_inner(
                     }
                 }
                 tas!(b"bom") => {
-                    ActualError(Error::Deterministic(D(0)));
+                    break Err(ActualError(Error::Deterministic(D(0))));
                 }
                 _ => {
                     panic!("invalid bend instruction");
