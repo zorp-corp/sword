@@ -35,5 +35,4 @@ fn main() -> io::Result<()> {
     }
 
     panic!("Ares can only run as a serf!");
-
 }
