@@ -73,9 +73,9 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 #define PBYTES(x) ((size_t)(x) << 50)
 
 /* 4K page in bytes */
-#define P2BYTES(x) ((size_t)(x) << 14)
+#define P2BYTES(x) ((size_t)(x) << BT_PAGEBITS)
 /* the opposite of P2BYTES */
-#define B2PAGES(x) ((size_t)(x) >> 14)
+#define B2PAGES(x) ((size_t)(x) >> BT_PAGEBITS)
 
 
 #define __packed        __attribute__((__packed__))
@@ -101,16 +101,16 @@ addr2off(void *p)
 /* convert a pointer into a 32-bit page offset */
 {
   uintptr_t pu = (uintptr_t)p;
-  assert((pu & ((1 << 14) - 1)) == 0); /* p must be page-aligned */
+  assert((pu & ((1 << BT_PAGEBITS) - 1)) == 0); /* p must be page-aligned */
   uintptr_t off = pu - (uintptr_t)BT_MAPADDR;
-  return (vaof_t)(pu >> 14);
+  return (vaof_t)(pu >> BT_PAGEBITS);
 }
 
 static inline void *
 off2addr(vaof_t off)
 /* convert a 32-bit page offset into a pointer */
 {
-  uintptr_t pu = (uintptr_t)off << 14;
+  uintptr_t pu = (uintptr_t)off << BT_PAGEBITS;
   pu += (uintptr_t)BT_MAPADDR;
   return (void *)pu;
 }
@@ -139,6 +139,10 @@ off2addr(vaof_t off)
 /*
   FO2PA: file offset to page
   get a reference to a BT_page from a file offset
+
+  /* ;;: can simplify:
+
+  ((BT_page*)state->map)[fo]
 */
 #define FO2PA(map, fo)                          \
   ((BT_page *)&(map)[FO2BY(fo)])
@@ -307,7 +311,7 @@ struct BT_state {
   char         *path;
   void         *fixaddr;
   BYTE         *map;
-  BT_page      *node_freelist;
+  BT_page      *node_freelist;  /* ;;: REMOVE */
   BT_meta      *meta_pages[2];  /* double buffered */
   /* ;;: note, while meta_pages[which]->root stores a pgno, we may want to just
        store a pointer to root in state in addition to avoid a _node_find on it
@@ -550,7 +554,7 @@ _bt_datshift(BT_page *node, size_t i, size_t n)
   size_t siz = sizeof node->datk[0];
   size_t bytelen = (BT_DAT_MAXKEYS - i - n) * siz;
   memmove(&node->datk[i+n], &node->datk[i], bytelen);
-  ZERO(&node->datk[i], n * siz);
+  ZERO(&node->datk[i], n * siz); /* NB: not completely necessary */
   return BT_SUCC;
 }
 
@@ -656,6 +660,9 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
        be correct for leaf nodes) */
   vaof_t llo = parent->datk[childidx].va;
   vaof_t hhi = parent->datk[childidx+1].va;
+
+  /* NB: it can be assumed that llo <= lo and hi <= hhi because this routine is
+     called using an index found with _bt_childidx */
 
   /* duplicate */
   if (llo == lo && hhi == hi) {
@@ -1997,11 +2004,11 @@ _bt_state_meta_which(BT_state *state, int *which)
   BT_meta *m2 = state->meta_pages[1];
   *which = -1;
 
-  if (m1->flags == 0) {
+  if (m1->chk == 0) {
     /* first is dirty */
     *which = 1;
   }
-  else if (m2->flags == 0) {
+  else if (m2->chk == 0) {
     /* second is dirty */
     *which = 0;
   }
