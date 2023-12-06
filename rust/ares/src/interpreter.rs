@@ -1146,25 +1146,6 @@ pub fn mean_pop(stack: &mut NockStack) {
     }
 }
 
-/// Push onto the slow stack.
-pub fn slow_push(stack: &mut NockStack, noun: Noun) {
-    unsafe {
-        let cur_slow = *(stack.local_noun_pointer(2));
-        let new_slow = T(stack, &[noun, cur_slow]);
-        *(stack.local_noun_pointer(2)) = new_slow;
-    }
-}
-
-/// Pop off of the slow stack.
-pub fn slow_pop(stack: &mut NockStack) {
-    unsafe {
-        *(stack.local_noun_pointer(2)) = (*(stack.local_noun_pointer(2)))
-            .as_cell()
-            .expect("serf: unexpected end of slow stack\r")
-            .tail();
-    }
-}
-
 fn edit(
     stack: &mut NockStack,
     edit_axis: &BitSlice<u64, Lsb0>,

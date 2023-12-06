@@ -14,7 +14,7 @@ use crate::hamt::Hamt;
 use crate::jets::JetErr;
 // XX no, we have a completely different stack layout from the tree-walking interpreter. We can't
 // borrow helper functions from it
-use crate::interpreter::{inc, mean_pop, mean_push, slow_pop, slow_push, Context, Error};
+use crate::interpreter::{inc, Context, Error};
 use crate::jets::cold::Cold;
 use crate::jets::util::slot;
 use crate::jets::warm::Warm;
@@ -41,6 +41,40 @@ impl Preserve for Hill {
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         self.0.assert_in_stack(stack);
+    }
+}
+
+/// Push onto the mean stack.
+fn cg_mean_push(stack: &mut NockStack, frame: *mut Frame, noun: Noun) {
+    unsafe {
+        (*frame).mean = T(stack, &[noun, (*frame).mean]);
+    }
+}
+
+/// Pop off of the mean stack.
+fn cg_mean_pop(frame: *mut Frame) {
+    unsafe {
+        (*frame).mean = (*frame).mean
+            .as_cell()
+            .expect("serf: unexpected end of mean stack\r")
+            .tail();
+    }
+}
+
+/// Push onto the slow stack.
+fn cg_slow_push(stack: &mut NockStack, frame: *mut Frame, noun: Noun) {
+    unsafe {
+        (*frame).slow = T(stack, &[noun, (*frame).mean]);
+    }
+}
+
+/// Pop off of the slow stack.
+fn cg_slow_pop(frame: *mut Frame) {
+    unsafe {
+        (*frame).mean = (*frame).mean
+            .as_cell()
+            .expect("serf: unexpected end of mean stack\r")
+            .tail();
     }
 }
 
@@ -324,18 +358,18 @@ fn cg_interpret_inner(
                     let s = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
                     let s_value = register_get(current_frame, s);
                     let mean = T(&mut context.stack, &[l, s_value]);
-                    mean_push(&mut context.stack, mean);
+                    cg_mean_push(&mut context.stack, current_frame, mean);
                 }
                 tas!(b"man") => {
-                    mean_pop(&mut context.stack);
+                    cg_mean_pop(current_frame);
                 }
                 tas!(b"slo") => {
                     let s = slot(pole, 3).unwrap().as_direct().unwrap().data() as usize;
                     let s_value = register_get(current_frame, s);
-                    slow_push(&mut context.stack, s_value);
+                    cg_slow_push(&mut context.stack, current_frame, s_value);
                 }
                 tas!(b"sld") => {
-                    slow_pop(&mut context.stack);
+                    cg_slow_pop(current_frame);
                 }
                 tas!(b"hit") => {
                     let s = slot(pole, 3).unwrap().as_direct().unwrap().data() as usize;
@@ -746,7 +780,7 @@ fn cg_interpret_inner(
                                         let stack = &mut context.stack;
                                         let hunk =
                                             T(stack, &[D(tas!(b"hunk")), scry_ref, scry_path]);
-                                        mean_push(stack, hunk);
+                                        cg_mean_push(stack, current_frame, hunk);
                                         break Err(ActualError(Error::ScryCrashed(D(0))));
                                     }
                                     Right(cell) => {
