@@ -29,7 +29,6 @@
               "rustfmt"
               "rust-src"
             ])
-            pkgs.autoconf-archive
             pkgs.cargo-watch
             pkgs.iconv
             pkgs.llvmPackages.clang
