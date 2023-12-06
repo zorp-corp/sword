@@ -1973,6 +1973,60 @@ nonzero_crc_32(void *dat, size_t len)
   return chk;
 }
 
+static void
+_bt_state_restore_maps2(BT_state *state, BT_page *node,
+                        uint8_t depth, uint8_t maxdepth)
+{
+  size_t N = _bt_numkeys(node);
+
+  /* leaf */
+  if (depth == maxdepth) {
+    for (size_t i = 0; i < N-1; i++) {
+      vaof_t lo = node->datk[i].va;
+      vaof_t hi = node->datk[i+1].va;
+      pgno_t pg = node->datk[i].fo;
+
+      BYTE *loaddr = off2addr(lo);
+      BYTE *hiaddr = off2addr(hi);
+      size_t bytelen = hiaddr - loaddr;
+      off_t offset = P2BYTES(pg);
+
+      if (loaddr !=
+          mmap(loaddr,
+               bytelen,
+               PROT_READ | PROT_WRITE,
+               MAP_FIXED | MAP_SHARED,
+               state->data_fd,
+               offset)) {
+        DPRINTF("mmap: failed to map at addr %p", loaddr);
+        abort();
+      }
+    }
+    return;
+  }
+
+  /* branch - bfs all subtrees */
+  for (size_t i = 0; i < N-1; i++) {
+    /* ;;: assuming node stripes when partition striping is implemented will be
+         1:1 mapped to disk for simplicity. If that is not the case, they should
+         be handled here. */
+    pgno_t pg = node->datk[i].fo;
+    BT_page *child = _node_get(state, pg);
+    return _bt_state_restore_maps2(state, child, depth+1, maxdepth);
+  }
+}
+
+static void
+_bt_state_restore_maps(BT_state *state)
+/* restores the memory map of the btree since data can be arbitrarily located */
+{
+  /* TODO: add checks to ensure data isn't mapped into an invalid location
+     (e.g. a node stripe) */
+  BT_meta *meta = state->meta_pages[state->which];
+  BT_page *root = _node_get(state, meta->root);
+  _bt_state_restore_maps2(state, root, 1, meta->depth);
+}
+
 static int
 _bt_state_meta_which(BT_state *state, int *which)
 {
@@ -2142,8 +2196,10 @@ _bt_state_load(BT_state *state)
                     state->data_fd,
                     0);
 
-  if (state->map == MAP_FAILED)
+  if (state->map != BT_MAPADDR) {
+    DPRINTF("mmap: failed to map at addr %p", BT_MAPADDR);
     abort();
+  }
 
   p = (BT_page *)state->map;
   state->meta_pages[0] = METADATA(p);
@@ -2169,6 +2225,7 @@ _bt_state_load(BT_state *state)
     }
   }
   else {
+    /* restore ephemeral freelists */
     assert(SUCC(_nlist_read(state)));
     assert(SUCC(_mlist_read(state)));
     assert(SUCC(_flist_read(state)));
@@ -2177,6 +2234,9 @@ _bt_state_load(BT_state *state)
       return errno;
 
     state->file_size = stat.st_size;
+
+    /* restore data memory maps */
+    _bt_state_restore_maps(state);
   }
 
   return BT_SUCC;
@@ -2608,16 +2668,16 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
     abort();
 
   /* maps new file offset with same data back into memory */
-  void *map;
-  map = mmap(loaddr,
-             bytelen,
-             PROT_READ | PROT_WRITE,
-             MAP_FIXED | MAP_SHARED,
-             state->data_fd,
-             offset);
-
-  if (map == MAP_FAILED)
+  if (loaddr !=
+      mmap(loaddr,
+           bytelen,
+           PROT_READ | PROT_WRITE,
+           MAP_FIXED | MAP_SHARED,
+           state->data_fd,
+           offset)) {
+    DPRINTF("mmap: failed to map at addr %p", loaddr);
     abort();
+  }
 
   _bt_insert(state, lo, hi, newpg);
 
