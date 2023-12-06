@@ -632,7 +632,7 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
               BT_page *parent, size_t childidx)
 {
   DPRINTF("BEFORE INSERT lo %" PRIu32 " hi %" PRIu32 " fo %" PRIu32, lo, hi, fo);
-  /* _bt_printnode(parent); */
+  _bt_printnode(parent);
 
   /* ;;: TODO confirm this logic is appropriate for branch nodes. (It /should/
        be correct for leaf nodes) */
@@ -673,7 +673,7 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
   }
 
   DPUTS("AFTER INSERT");
-  /* _bt_printnode(parent); */
+  _bt_printnode(parent);
   return BT_SUCC;
 }
 
@@ -2867,203 +2867,3 @@ _bt_printnode(BT_page *node)
     printf("[%5zu] %10x %10x\n", i, node->datk[i].va, node->datk[i].fo);
   }
 }
-
-static void
-_test_nodeinteg(BT_state *state, BT_findpath *path,
-                vaof_t lo, vaof_t hi, pgno_t pg)
-{
-  size_t childidx = 0;
-  BT_page *parent = 0;
-
-  assert(SUCC(_bt_find(state, path, lo, hi)));
-  parent = path->path[path->depth];
-  /* _bt_printnode(parent); */
-  childidx = path->idx[path->depth];
-  assert(parent->datk[childidx].fo == pg);
-  assert(parent->datk[childidx].va == lo);
-  assert(parent->datk[childidx+1].va == hi);
-}
-
-int main(int argc, char *argv[])
-{
-  BT_state *state;
-  BT_findpath path = {0};
-  int rc = 0;
-
-
-//// ===========================================================================
-////                                  test0 wip
-
-  /* deletion coalescing */
-  bt_state_new(&state);
-  assert(SUCC(bt_state_open(state, "./pmatest", 0, 0644)));
-
-  /* enable coalescing of the memory freelist */
-#undef  CAN_COALESCE
-#define CAN_COALESCE 1
-
-  /* ;;: disabling for now as I don't have an answer to the "how to find the hi
-       address on a bt_free call so that _bt_delete can be called" question */
-#if 0
-  void *t0a = bt_malloc(state, 10);
-  void *t0b = bt_malloc(state, 10);
-  bt_free(state, t0a);
-  bt_free(state, t0b);
-  /* memory freelist got coallesced. next malloc call should find the same range
-     and result in attempting to insert a range that overlaps a non-coallesced
-     region */
-  void *t0ab = bt_malloc(state, 20);
-  /* t0a should have the same address as t0ab */
-  assert(t0a == t0ab);
-#endif
-
-  /* ;;: can still suitably test by calling insert and delete routines directly */
-  _bt_insert(state, 0x1000, 0x4000, 4);
-  _bt_insert(state, 0x4000, 0x8000, 4);
-  _bt_delete(state, 0x1000, 0x4000);
-  _bt_delete(state, 0x4000, 0x8000);
-  _bt_insert(state, 0x1000, 0x7000, 7);
-
-
-  //// ===========================================================================
-  ////                                    test1
-
-  bt_state_new(&state);
-  assert(SUCC(bt_state_open(state, "./pmatest", 0, 0644)));
-  void * xxx = bt_malloc(state, 10); /* tmp - testing malloc logic */
-
-
-  /* splitting tests. Insert sufficient data to force splitting. breakpoint before
-     that split is performed */
-
-  /* the hhi == hi case for more predictable splitting math */
-  vaof_t lo = 10;
-  /* vaof_t hi = BT_DAT_MAXKEYS * 4; */
-  vaof_t hi = 0xDEADBEEF;
-  pgno_t pg = 1;                /* dummy value */
-  for (size_t i = 0; i < BT_DAT_MAXKEYS * 4; ++i) {
-    /* if (i % (BT_DAT_MAXKEYS - 2) == 0) */
-    /*   bp(0);                    /\* breakpoint on split case *\/ */
-    _bt_insert(state, lo, hi, pg);
-    _test_nodeinteg(state, &path, lo, hi, pg);
-    lo++; pg++;
-  }
-
-  int which = state->which;
-  /* sham sync and re-run insertions */
-  _sham_sync(state);
-  for (size_t i = 0; i < BT_DAT_MAXKEYS * 4; ++i) {
-    _bt_insert(state, lo, hi, pg);
-    _test_nodeinteg(state, &path, lo++, hi, pg++);
-  }
-  assert(which != state->which);
-
-  assert(SUCC(bt_state_close(state)));
-
-
-
-//// ===========================================================================
-////                                    test2
-
-  assert(SUCC(bt_state_open(state, "./pmatest", 0, 644)));
-  _mlist_read(state);
-  _flist_read(state);
-
-  /* varieties of insert */
-
-  /* 2.1 exact match */
-  lo = 0x10;
-  hi = 0x20;
-  pg = 0xFFFFFFFF;
-
-  bp(0);
-  _bt_insert(state, lo, hi, pg);
-  _bt_insert(state, lo, hi, pg);
-
-  /* ;;: you should also probably assert the data is laid out in datk at you expect */
-  _test_nodeinteg(state, &path, lo, hi, pg);
-
-  _bt_delete(state, lo, hi);
-
-  /* 2.2 neither bounds match */
-  bp(0);
-  _bt_insert(state, lo, hi, pg);
-  _bt_insert(state, lo+2, hi-2, pg-1);
-
-  _test_nodeinteg(state, &path, lo, hi, pg);
-  _test_nodeinteg(state, &path, lo+2, hi-2, pg-1);
-
-  _bt_delete(state, lo, hi);
-  _bt_delete(state, lo+2, hi-2);
-
-  /* 2.3 space to right */
-  bp(0);
-  _bt_insert(state, lo, hi, pg);
-  _bt_insert(state, lo, hi-2, pg-1);
-
-  _test_nodeinteg(state, &path, lo, hi, pg);
-  _test_nodeinteg(state, &path, lo, hi-2, pg-1);
-
-  _bt_delete(state, lo, hi);
-  _bt_delete(state, lo, hi-2);
-
-  /* 2.4 space to left */
-  bp(0);
-
-  _bt_insert(state, lo, hi, pg);
-  _bt_insert(state, lo+2, hi, pg-1);
-
-  _test_nodeinteg(state, &path, lo, hi, pg);
-  _test_nodeinteg(state, &path, lo+2, hi, pg-1);
-
-  _bt_delete(state, lo, hi);
-  _bt_delete(state, lo+2, hi);
-
-  assert(SUCC(bt_state_close(state)));
-
-  return 0;
-}
-
-
-/* ;;:
-
-   1) checksum m1
-   2) sync m1
-   3) zero m2
-   4) copy all of m1 to m2 excluding m1
-
-   The current dirty metapage should have a zero checksum so that it happens to
-   be synced by the OS, it won't be valid.
-
-*/
-
-/* ;;:
-
-   Check if root page is dirty from metapage. if not, exit sync
-
-   Create a queue of dirty pages.
-
-   BFS the tree. Add root page. Add all pages in dirty bit set. Advance read
-   head to next page (index 1) and do the same until read head and write head
-   are equal.
-
-   queue consists of pairs of memory address and length.
-
-   if length field is zero, we'll msync length 1 page. -- which means this is a
-   node. if when iterating over queue, we find a zero length entry, then add
-   that node's dirty page.
-
-   ---
-
-   this /was/ the initial plan after some discussion. But after further
-   discussion, we can actually do a depth first search. To make implementation
-   even more simple, we can do an iterative dfs where we start from the root
-   each time. Why? Because the bulk of time to execute is going to be disc
-   io.
-
-   after each msync of a page, descend to the deepest dirty page. msync that
-   page. set that page's dirty bit in the parent to non-dirty. repeat. once
-   you're at the root page and there are no dirty bits set, sync the
-   root. Finally, sync the metapage (with checksumming).
-
- */
