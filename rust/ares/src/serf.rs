@@ -42,12 +42,9 @@ impl Context {
         // TODO: switch to Pma when ready
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
         let mut snapshot = DoubleJam::new(snap_path);
-        let mut stack = NockStack::new(1024 << 10 << 10, 0);
-        let newt = Newt::new();
-        let cache = Hamt::<Noun>::new();
+        let mut stack = NockStack::new(512 << 10 << 10, 0);
 
         let cold = Cold::new(&mut stack);
-        let warm = Warm::new();
         let hot = Hot::init(&mut stack);
 
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
@@ -55,11 +52,11 @@ impl Context {
 
         let nock_context = interpreter::Context {
             stack,
-            newt,
+            newt: Newt::new(),
             cold,
-            warm,
+            warm: Warm::new(),
             hot,
-            cache,
+            cache: Hamt::<Noun>::new(),
             scry_stack: D(0),
             trace_info,
         };

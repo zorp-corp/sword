@@ -254,18 +254,34 @@ enum NockWork {
     Work12(Nock12),
 }
 
+pub struct ContextSnapshot {
+    cold: Cold,
+    warm: Warm,
+}
+
 pub struct Context {
     pub stack: NockStack,
-    // For printing slogs; if None, print to stdout; Option slated to be removed
     pub newt: Newt,
     pub cold: Cold,
     pub warm: Warm,
     pub hot: Hot,
-    //  XX: persistent memo cache
-    // Per-event cache; option to share cache with virtualized events
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
+}
+
+impl Context {
+    pub fn save(&self) -> ContextSnapshot {
+        ContextSnapshot {
+            cold: self.cold,
+            warm: self.warm,
+        }
+    }
+
+    pub fn restore(&mut self, saved: &ContextSnapshot) {
+        self.cold = saved.cold;
+        self.warm = saved.warm;
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -301,6 +317,7 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
 pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Result {
     let terminator = Arc::clone(&TERMINATOR);
     let orig_subject = subject; // for debugging
+    let snapshot = context.save();
     let virtual_frame: *const u64 = context.stack.get_frame_pointer();
     let mut res: Noun = D(0);
 
@@ -858,7 +875,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
     match nock {
         Ok(res) => Ok(res),
-        Err(err) => Err(exit(context, virtual_frame, err)),
+        Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
     }
 }
 
@@ -1075,10 +1092,16 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> result::Res
     Ok(())
 }
 
-fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error {
+fn exit(
+    context: &mut Context,
+    snapshot: &ContextSnapshot,
+    virtual_frame: *const u64,
+    error: Error,
+) -> Error {
     unsafe {
-        let stack = &mut context.stack;
+        context.restore(snapshot);
 
+        let stack = &mut context.stack;
         let mut preserve = match error {
             Error::ScryBlocked(path) => path,
             Error::Deterministic(t) | Error::NonDeterministic(t) | Error::ScryCrashed(t) => {
@@ -1088,10 +1111,9 @@ fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error
             }
         };
 
-        while (stack).get_frame_pointer() != virtual_frame {
-            (stack).preserve(&mut preserve);
-            // (stack).preserve(&mut context.cold);
-            (stack).frame_pop();
+        while stack.get_frame_pointer() != virtual_frame {
+            stack.preserve(&mut preserve);
+            stack.frame_pop();
         }
 
         match error {
