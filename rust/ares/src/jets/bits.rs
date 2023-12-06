@@ -247,6 +247,12 @@ pub fn jet_rsh(context: &mut Context, subject: Noun) -> Result {
     }
 
     let new_size = bits_to_word(checked_sub(a.bit_size(), checked_left_shift(bloq, step)?)?)?;
+
+    if new_size > (1 << 25) {
+        eprintln!("atom of {} words at {:x}", a.size(), a.data_pointer() as usize);
+        panic!("unreasonably big atom in jet_rsh");
+    }
+    
     unsafe {
         let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(&mut context.stack, new_size);
         chop(bloq, step, len - step, 0, dest, a.as_bitslice())?;

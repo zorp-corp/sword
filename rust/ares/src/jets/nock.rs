@@ -75,6 +75,7 @@ pub mod util {
     use crate::jets;
     use crate::jets::bits::util::rip;
     use crate::jets::form::util::scow;
+    use crate::jets::list::util::lent;
     use crate::mem::NockStack;
     use crate::noun::{tape, Cell, Noun, D, T};
     use ares_macros::tas;
@@ -184,6 +185,10 @@ pub mod util {
                     // Error::ScryCrashed, jet_mink() compares the two scry handler stack Nouns> If they
                     // are identical, jet_mink() bails with Error::Deterministic. Otherwise, it forwards
                     // the Error::ScryCrashed to the senior virtualization call.
+                    let scry_stack_lent = lent(context.scry_stack).unwrap();
+                    let scry_snapshot_lent = lent(scry_snapshot).unwrap();
+                    eprintln!("{} >= {} right?", scry_snapshot_lent, scry_stack_lent);
+                    assert!(scry_snapshot_lent >= scry_stack_lent);
                     if unsafe { context.scry_stack.raw_equals(scry_snapshot) } {
                         Err(Error::Deterministic(trace))
                     } else {

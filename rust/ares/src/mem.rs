@@ -88,6 +88,12 @@ impl NockStack {
         }
     }
 
+    pub fn assert_is_sane(&self) {
+        assert!(
+            (self.frame_pointer <= self.stack_pointer && self.stack_pointer < self.alloc_pointer)
+            || (self.alloc_pointer < self.stack_pointer && self.stack_pointer <= self.frame_pointer))
+    }
+
     /** Resets the NockStack. */
     pub fn reset(&mut self, top_slots: usize) {
         self.frame_pointer = unsafe { self.start.add(RESERVED + top_slots) } as *mut u64;
@@ -213,6 +219,7 @@ impl NockStack {
             panic!("Allocation during cleanup phase is prohibited.");
         }
         self.alloc_pointer = self.alloc_pointer.sub(words);
+        self.assert_is_sane();
         self.alloc_pointer
     }
 
@@ -223,6 +230,7 @@ impl NockStack {
         }
         let alloc = self.alloc_pointer;
         self.alloc_pointer = self.alloc_pointer.add(words);
+        self.assert_is_sane();
         alloc
     }
 
@@ -621,6 +629,7 @@ impl NockStack {
         }
 
         self.pc = false;
+        self.assert_is_sane();
     }
 
     pub unsafe fn preserve<T: Preserve>(&mut self, x: &mut T) {
@@ -654,6 +663,7 @@ impl NockStack {
         }
 
         self.pc = false;
+        self.assert_is_sane();
     }
 
     /** Run a closure inside a frame, popping regardless of the value returned by the closure.
@@ -708,23 +718,27 @@ impl NockStack {
     unsafe fn push_west<T>(&mut self) -> *mut T {
         let alloc = self.stack_pointer;
         self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
+        self.assert_is_sane();
         alloc as *mut T
     }
 
     /** Push onto an east-oriented ligthweight stack, moving the stack_pointer */
     unsafe fn push_east<T>(&mut self) -> *mut T {
         self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
+        self.assert_is_sane();
         self.stack_pointer as *mut T
     }
 
     /** Pop a west-oriented lightweight stack, moving the stack pointer. */
     unsafe fn pop_west<T>(&mut self) {
         self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
+        self.assert_is_sane();
     }
 
     /** Pop an east-oriented lightweight stack, moving the stack pointer. */
     unsafe fn pop_east<T>(&mut self) {
         self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
+        self.assert_is_sane();
     }
 
     /** Pop the lightweight stack, moving the stack_pointer. Note that

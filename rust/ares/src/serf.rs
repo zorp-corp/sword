@@ -447,6 +447,7 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
     clear_interrupt();
 
     let stack = &mut context.nock_context.stack;
+    context.nock_context.cache = Hamt::<Noun>::new();
     //  crud ovo = [+(now) [%$ %arvo ~] [%crud goof ovo]]
     let job_cell = job.as_cell().expect("serf: work: job not a cell");
     let job_now = job_cell.head().as_atom().expect("serf: work: now not atom");
