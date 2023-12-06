@@ -42,7 +42,7 @@ impl Context {
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
         let mut stack = NockStack::new(1024 << 10 << 10, 0);
         let newt = Newt::new();
-        let cache = Hamt::<Noun>::new();
+        let cache = Hamt::<Noun>::new(&mut stack);
         let pma = PMA::open(snap_path).unwrap();
 
         let (epoch, event_num, arvo, mut cold) = unsafe {
@@ -117,7 +117,7 @@ impl Context {
             &mut self.nock_context.cold,
             &mut self.nock_context.hot,
         );
-        self.nock_context.cache = Hamt::new();
+        self.nock_context.cache = Hamt::new(&mut self.nock_context.stack);
         self.nock_context.scry_stack = D(0);
 
         // XX save to PMA
@@ -256,7 +256,7 @@ pub fn serf() -> io::Result<()> {
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {
         // Reset the local cache and scry handler stack
-        context.nock_context.cache = Hamt::<Noun>::new();
+        context.nock_context.cache = Hamt::<Noun>::new(&mut context.nock_context.stack);
         context.nock_context.scry_stack = D(0);
         context.nock_context.stack.frame_push(0);
 

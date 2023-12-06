@@ -279,9 +279,9 @@ pub mod util {
             let mut stack = NockStack::new(8 << 10 << 10, 0);
             let newt = Newt::new_mock();
             let cold = Cold::new(&mut stack);
-            let warm = Warm::new();
+            let warm = Warm::new(&mut stack);
             let hot = Hot::init(&mut stack);
-            let cache = Hamt::<Noun>::new();
+            let cache = Hamt::<Noun>::new(&mut stack);
 
             Context {
                 stack,

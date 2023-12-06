@@ -39,7 +39,7 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     let old_cache = context.cache;
     let old_scry_stack = context.scry_stack;
 
-    context.cache = Hamt::<Noun>::new();
+    context.cache = Hamt::<Noun>::new(&mut context.stack);
     context.scry_stack = T(&mut context.stack, &[scry_handler, old_scry_stack]);
 
     match util::mink(context, v_subject, v_formula) {

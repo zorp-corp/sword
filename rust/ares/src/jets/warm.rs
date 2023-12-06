@@ -85,8 +85,8 @@ impl Iterator for WarmEntry {
 
 impl Warm {
     #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Warm(Hamt::new())
+    pub fn new(stack: &mut NockStack) -> Self {
+        Warm(Hamt::new(stack))
     }
 
     fn insert(
@@ -111,7 +111,7 @@ impl Warm {
     }
 
     pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> Self {
-        let mut warm = Self::new();
+        let mut warm = Self::new(stack);
         for (mut path, axis, jet) in *hot {
             let batteries_list = cold.find(stack, &mut path);
             for batteries in batteries_list {

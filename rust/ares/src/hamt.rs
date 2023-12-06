@@ -161,6 +161,7 @@ impl<T: Copy> MutHamt<T> {
 }
 
 #[repr(packed)]
+#[repr(C)]
 struct Stem<T: Copy> {
     bitmap: u32,
     typemap: u32,
@@ -218,6 +219,7 @@ impl<T: Copy> Stem<T> {
 }
 
 #[repr(packed)]
+#[repr(C)]
 struct Leaf<T: Copy> {
     len: usize,
     buffer: *mut (Noun, T), // mutable for unifying equality
@@ -238,6 +240,8 @@ impl<T: Copy> Leaf<T> {
 }
 
 #[derive(Copy, Clone)]
+#[repr(packed)]
+#[repr(C)]
 union Entry<T: Copy> {
     stem: Stem<T>,
     leaf: Leaf<T>,
@@ -256,19 +260,21 @@ assert_eq_size!(&[(Noun, ())], Leaf<()>);
 assert_eq_size!(&[Entry<()>], Stem<()>);
 
 #[derive(Copy, Clone)]
-pub struct Hamt<T: Copy>(Stem<T>);
+pub struct Hamt<T: Copy>(*mut Stem<T>);
 
 impl<T: Copy + Preserve> Hamt<T> {
     pub fn is_null(&self) -> bool {
-        self.0.bitmap == 0
+        unsafe { (*self.0).bitmap == 0 }
     }
     // Make a new, empty HAMT
-    pub fn new() -> Self {
-        Hamt(Stem {
-            bitmap: 0,
-            typemap: 0,
-            buffer: null(),
-        })
+    pub fn new(stack: &mut NockStack) -> Self {
+        unsafe {
+            let stem_ptr = stack.struct_alloc::<Stem<T>>(1);
+            (*stem_ptr).bitmap = 0;
+            (*stem_ptr).typemap = 0;
+            (*stem_ptr).buffer = null();
+            Hamt(stem_ptr)
+        }
     }
 
     /**
@@ -278,7 +284,7 @@ impl<T: Copy + Preserve> Hamt<T> {
      * in the HAMT
      */
     pub fn lookup(&self, stack: &mut NockStack, n: &mut Noun) -> Option<T> {
-        let mut stem = self.0;
+        let mut stem = unsafe { *self.0 };
         let mut mug = mug_u32(stack, *n);
         'lookup: loop {
             let chunk = mug & 0x1F; // 5 bits
@@ -309,9 +315,9 @@ impl<T: Copy + Preserve> Hamt<T> {
     pub fn insert(&self, stack: &mut NockStack, n: &mut Noun, t: T) -> Hamt<T> {
         let mut mug = mug_u32(stack, *n);
         let mut depth = 0u8;
-        let mut stem = self.0;
-        let mut stem_ret = self.0;
-        let mut dest = &mut stem_ret as *mut Stem<T>;
+        let mut stem = unsafe { *self.0 };
+        let stem_ret = unsafe { stack.struct_alloc::<Stem<T>>(1) };
+        let mut dest = stem_ret;
         unsafe {
             'insert: loop {
                 let chunk = mug & 0x1F; // 5 bits
@@ -429,17 +435,12 @@ impl<T: Copy + Preserve> Hamt<T> {
     }
 }
 
-impl<T: Copy + Preserve> Default for Hamt<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl<T: Copy + Preserve> Preserve for Hamt<T> {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
-        stack.assert_struct_is_in(self.0.buffer, self.0.size());
+        stack.assert_struct_is_in(self.0, 1);
+        stack.assert_struct_is_in((*self.0).buffer, (*self.0).size());
         let mut traversal_stack: [Option<(Stem<T>, u32)>; 6] = [None; 6];
-        traversal_stack[0] = Some((self.0, 0));
+        traversal_stack[0] = Some(((*self.0), 0));
         let mut traversal_depth = 1;
         'check: loop {
             if traversal_depth == 0 {
@@ -481,78 +482,86 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
     }
 
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        if stack.is_in_frame(self.0.buffer) {
-            let dest_buffer = stack.struct_alloc_in_previous_frame(self.0.size());
-            copy_nonoverlapping(self.0.buffer, dest_buffer, self.0.size());
-            self.0.buffer = dest_buffer;
-            // Here we're using the Rust stack since the array is a fixed
-            // size. Thus it will be cleaned up if the Rust thread running
-            // this is killed, and is therefore not an issue vs. if it were allocated
-            // on the heap.
-            //
-            // In the past, this traversal stack was allocated in NockStack, but
-            // exactly the right way to do this is less clear with the split stack.
-            let mut traversal_stack: [Option<(Stem<T>, u32)>; 6] = [None; 6];
-            traversal_stack[0] = Some((self.0, 0));
-            let mut traversal_depth = 1;
-            'preserve: loop {
-                if traversal_depth == 0 {
-                    break;
-                }
-                let (stem, mut position) = traversal_stack[traversal_depth - 1]
-                    .expect("Attempted to access uninitialized array element");
-                // can we loop over the size and count leading 0s remaining in the bitmap?
-                'preserve_stem: loop {
-                    if position >= 32 {
-                        traversal_depth -= 1;
-                        continue 'preserve;
+        if stack.is_in_frame(self.0) {
+            let dest_stem = stack.struct_alloc_in_previous_frame(1);
+            copy_nonoverlapping(self.0, dest_stem, 1);
+            if stack.is_in_frame((*dest_stem).buffer) {
+                let dest_buffer = stack.struct_alloc_in_previous_frame((*dest_stem).size());
+                copy_nonoverlapping((*dest_stem).buffer, dest_buffer, (*dest_stem).size());
+                (*dest_stem).buffer = dest_buffer;
+                // Here we're using the Rust stack since the array is a fixed
+                // size. Thus it will be cleaned up if the Rust thread running
+                // this is killed, and is therefore not an issue vs. if it were allocated
+                // on the heap.
+                //
+                // In the past, this traversal stack was allocated in NockStack, but
+                // exactly the right way to do this is less clear with the split stack.
+                let mut traversal_stack: [Option<(Stem<T>, u32)>; 6] = [None; 6];
+                traversal_stack[0] = Some(((*dest_stem), 0));
+                let mut traversal_depth = 1;
+                'preserve: loop {
+                    if traversal_depth == 0 {
+                        break;
                     }
-                    match stem.entry(position) {
-                        None => {
-                            position += 1;
-                            continue 'preserve_stem;
+                    let (stem, mut position) = traversal_stack[traversal_depth - 1]
+                        .expect("Attempted to access uninitialized array element");
+                    // can we loop over the size and count leading 0s remaining in the bitmap?
+                    'preserve_stem: loop {
+                        if position >= 32 {
+                            traversal_depth -= 1;
+                            continue 'preserve;
                         }
-                        Some((Left(next_stem), idx)) => {
-                            if stack.is_in_frame(next_stem.buffer) {
-                                let dest_buffer =
-                                    stack.struct_alloc_in_previous_frame(next_stem.size());
-                                copy_nonoverlapping(
-                                    next_stem.buffer,
-                                    dest_buffer,
-                                    next_stem.size(),
-                                );
-                                let new_stem = Stem {
-                                    bitmap: next_stem.bitmap,
-                                    typemap: next_stem.typemap,
-                                    buffer: dest_buffer,
-                                };
-                                *(stem.buffer.add(idx) as *mut Entry<T>) = Entry { stem: new_stem };
-                                assert!(traversal_depth <= 5); // will increment
-                                traversal_stack[traversal_depth - 1] = Some((stem, position + 1));
-                                traversal_stack[traversal_depth] = Some((new_stem, 0));
-                                traversal_depth += 1;
-                                continue 'preserve;
-                            } else {
+                        match stem.entry(position) {
+                            None => {
                                 position += 1;
                                 continue 'preserve_stem;
                             }
-                        }
-                        Some((Right(leaf), idx)) => {
-                            if stack.is_in_frame(leaf.buffer) {
-                                let dest_buffer = stack.struct_alloc_in_previous_frame(leaf.len);
-                                copy_nonoverlapping(leaf.buffer, dest_buffer, leaf.len);
-                                let new_leaf = Leaf {
-                                    len: leaf.len,
-                                    buffer: dest_buffer,
-                                };
-                                for pair in new_leaf.to_mut_slice().iter_mut() {
-                                    pair.0.preserve(stack);
-                                    pair.1.preserve(stack);
+                            Some((Left(next_stem), idx)) => {
+                                if stack.is_in_frame(next_stem.buffer) {
+                                    let dest_buffer =
+                                        stack.struct_alloc_in_previous_frame(next_stem.size());
+                                    copy_nonoverlapping(
+                                        next_stem.buffer,
+                                        dest_buffer,
+                                        next_stem.size(),
+                                    );
+                                    let new_stem = Stem {
+                                        bitmap: next_stem.bitmap,
+                                        typemap: next_stem.typemap,
+                                        buffer: dest_buffer,
+                                    };
+                                    *(stem.buffer.add(idx) as *mut Entry<T>) =
+                                        Entry { stem: new_stem };
+                                    assert!(traversal_depth <= 5); // will increment
+                                    traversal_stack[traversal_depth - 1] =
+                                        Some((stem, position + 1));
+                                    traversal_stack[traversal_depth] = Some((new_stem, 0));
+                                    traversal_depth += 1;
+                                    continue 'preserve;
+                                } else {
+                                    position += 1;
+                                    continue 'preserve_stem;
                                 }
-                                *(stem.buffer.add(idx) as *mut Entry<T>) = Entry { leaf: new_leaf };
                             }
-                            position += 1;
-                            continue 'preserve_stem;
+                            Some((Right(leaf), idx)) => {
+                                if stack.is_in_frame(leaf.buffer) {
+                                    let dest_buffer =
+                                        stack.struct_alloc_in_previous_frame(leaf.len);
+                                    copy_nonoverlapping(leaf.buffer, dest_buffer, leaf.len);
+                                    let new_leaf = Leaf {
+                                        len: leaf.len,
+                                        buffer: dest_buffer,
+                                    };
+                                    for pair in new_leaf.to_mut_slice().iter_mut() {
+                                        pair.0.preserve(stack);
+                                        pair.1.preserve(stack);
+                                    }
+                                    *(stem.buffer.add(idx) as *mut Entry<T>) =
+                                        Entry { leaf: new_leaf };
+                                }
+                                position += 1;
+                                continue 'preserve_stem;
+                            }
                         }
                     }
                 }

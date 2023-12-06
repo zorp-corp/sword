@@ -64,9 +64,9 @@ fn main() -> io::Result<()> {
         .as_cell()
         .expect("Input must be jam of subject/formula pair");
     let newt = Newt::new_mock();
-    let cache = Hamt::<Noun>::new();
+    let cache = Hamt::<Noun>::new(&mut stack);
     let cold = Cold::new(&mut stack);
-    let warm = Warm::new();
+    let warm = Warm::new(&mut stack);
     let hot = Hot::init(&mut stack);
     let mut context = Context {
         stack,

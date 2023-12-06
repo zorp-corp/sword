@@ -339,9 +339,9 @@ impl Cold {
     }
 
     pub fn new(stack: &mut NockStack) -> Self {
-        let battery_to_paths = Hamt::new();
-        let root_to_paths = Hamt::new();
-        let path_to_batteries = Hamt::new();
+        let battery_to_paths = Hamt::new(stack);
+        let root_to_paths = Hamt::new(stack);
+        let path_to_batteries = Hamt::new(stack);
         unsafe {
             let cold_mem_ptr: *mut ColdMem = stack.struct_alloc(1);
             *cold_mem_ptr = ColdMem {
