@@ -261,7 +261,8 @@ pub fn jet_here(context: &mut Context, subject: Noun) -> Result {
     let p_vex = vex.head();
     let q_vex = vex.tail();
 
-    if q_vex.is_atom() {
+    // XX fixes Vere's jet mismatch with Hoon 139.
+    if unsafe { q_vex.raw_equals(D(0)) } {
         return Ok(vex.as_noun());
     }
 
