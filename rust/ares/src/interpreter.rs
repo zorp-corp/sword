@@ -1225,8 +1225,9 @@ unsafe fn write_trace(context: &mut Context) {
         let trace_stack = *(context.stack.local_noun_pointer(1) as *mut *const TraceStack);
         // Abort writing to trace file if we encountered an error. This should
         // result in a well-formed partial trace file.
-        if let Err(e) = write_nock_trace(&mut context.stack, info, trace_stack) {
-            eprintln!("\rserf: error writing nock trace to file: {:?}", e);
+        if let Err(_e) = write_nock_trace(&mut context.stack, info, trace_stack) {
+            //  XX: need NockStack allocated string interpolation
+            // eprintln!("\rserf: error writing nock trace to file: {:?}", e);
             context.trace_info = None;
         }
     }
@@ -1291,31 +1292,21 @@ mod hint {
                                                     &mut jet_res,
                                                 )
                                             } {
-                                                //  XX: need string interpolation without allocation, then delete eprintln
+                                                //  XX: need NockStack allocated string interpolation
                                                 // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, nock_res, jet_res);
-                                                eprintln!(
-                                                    "\rjet {} failed, raw: {:?}, jetted: {}",
-                                                    jet_name, nock_res, jet_res
-                                                );
-                                                let tape = tape(stack, "jet mismatch");
-                                                let mean = T(stack, &[D(tas!(b"mean")), tape]);
-                                                mean_push(stack, mean);
+                                                // let mean = T(stack, &[D(tas!(b"mean")), tape]);
+                                                // mean_push(stack, mean);
                                                 Some(Err(Error::Deterministic(D(0))))
                                             } else {
                                                 Some(Ok(nock_res))
                                             }
                                         }
                                         Err(error) => {
-                                            let stack = &mut context.stack;
-                                            //  XX: need string interpolation without allocation, then delete eprintln
+                                            //  XX: need NockStack allocated string interpolation
+                                            // let stack = &mut context.stack;
                                             // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, err, jet_res);
-                                            eprintln!(
-                                                "\rjet {} failed, raw: {:?}, jetted: {}",
-                                                jet_name, error, jet_res
-                                            );
-                                            let tape = tape(stack, "jet mismatch");
-                                            let mean = T(stack, &[D(tas!(b"mean")), tape]);
-                                            mean_push(stack, mean);
+                                            // let mean = T(stack, &[D(tas!(b"mean")), tape]);
+                                            // mean_push(stack, mean);
 
                                             match error {
                                                 Error::NonDeterministic(_) => {
@@ -1331,12 +1322,11 @@ mod hint {
                             }
                             Err(JetErr::Punt) => None,
                             Err(err) => {
-                                let stack = &mut context.stack;
-                                //  XX: need string interpolation without allocation
+                                //  XX: need NockStack allocated string interpolation
+                                // let stack = &mut context.stack;
                                 // let tape = tape(stack, "{} jet error in {}", err, jet_name);
-                                let tape = tape(stack, "jet error");
-                                let mean = T(stack, &[D(tas!(b"mean")), tape]);
-                                mean_push(stack, mean);
+                                // let mean = T(stack, &[D(tas!(b"mean")), tape]);
+                                // mean_push(stack, mean);
                                 Some(Err(err.into()))
                             }
                         }

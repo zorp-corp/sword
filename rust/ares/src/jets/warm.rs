@@ -122,7 +122,8 @@ impl Warm {
                 if let Ok(mut formula) = unsafe { (*battery).slot_atom(axis) } {
                     warm.insert(stack, &mut formula, path, batteries, jet);
                 } else {
-                    eprintln!("Bad axis {} into formula {:?}", axis, battery);
+                    //  XX: need NockStack allocated string interpolation
+                    // eprintln!("Bad axis {} into formula {:?}", axis, battery);
                     continue;
                 }
             }
