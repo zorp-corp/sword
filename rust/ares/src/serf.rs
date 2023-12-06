@@ -42,7 +42,7 @@ impl Context {
         // TODO: switch to Pma when ready
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
         let mut snapshot = DoubleJam::new(snap_path);
-        let mut stack = NockStack::new(256 << 10 << 10, 0);
+        let mut stack = NockStack::new(512 << 10 << 10, 0);
 
         let cold = Cold::new(&mut stack);
         let hot = Hot::init(&mut stack);
