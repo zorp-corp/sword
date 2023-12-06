@@ -433,7 +433,7 @@ mod tests {
          [[1 1] "abc"] at +6 of (easy 'a')
         */
 
-        /// ((easy 'a') [[1 1] "abc"])
+        // ((easy 'a') [[1 1] "abc"])
         //  [[1 1] "abc"]
         let sam_jam = A(&mut c.stack, &ubig!(3205468216717221061))
             .as_atom()
@@ -447,7 +447,7 @@ mod tests {
         let ctx = T(&mut c.stack, &[D(0), D(97), D(0)]);
         util::assert_jet_in_door(c, jet_easy, sam, ctx, ans);
 
-        /// ((easy %foo) [[1 1] "abc"])
+        // ((easy %foo) [[1 1] "abc"])
         //  [[1 1] "abc"]
         let sam_jam = A(&mut c.stack, &ubig!(3205468216717221061))
             .as_atom()
