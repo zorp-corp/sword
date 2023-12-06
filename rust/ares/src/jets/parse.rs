@@ -261,7 +261,7 @@ pub fn jet_here(context: &mut Context, subject: Noun) -> Result {
     let p_vex = vex.head();
     let q_vex = vex.tail();
 
-    if unsafe { q_vex.raw_equals(D(0)) } {
+    if q_vex.is_atom() {
         return Ok(vex.as_noun());
     }
 
@@ -270,7 +270,8 @@ pub fn jet_here(context: &mut Context, subject: Noun) -> Result {
     let quq_vex = uq_vex.tail();
     let pquq_vex = quq_vex.as_cell()?.head();
 
-    let gud = T(&mut context.stack, &[p_tub, pquq_vex, puq_vex]);
+    let inner_gud = T(&mut context.stack, &[p_tub, pquq_vex]);
+    let gud = T(&mut context.stack, &[inner_gud, puq_vex]);
     let wag = slam(context, hez, gud)?;
 
     Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex]))
