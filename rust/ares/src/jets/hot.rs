@@ -4,8 +4,9 @@ use ares_macros::tas;
 use either::Either::{self, Left, Right};
 use std::ptr::null_mut;
 
-// const A_50: Either<u8, (u64, u64)> = Right((tas!(b"a"), 50));
-const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
+/** Root for Hoon %k.139
+ */
+pub const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
 
 // // This is the const state all in one spot as literals
 // #[allow(clippy::complexity)]
@@ -57,6 +58,10 @@ const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
 //     (&[A_50, Left(b"mink")], 1, jet_mink),
 // ];
 
+/** 
+ * (path, axis in battery, jet function pointer)
+ * see the [Jet] typedef in ares::jets for the proper prototype
+ */
 pub type HotEntry = (&'static [Either<&'static [u8], (u64, u64)>], u64, Jet);
 
 #[allow(clippy::complexity)]
