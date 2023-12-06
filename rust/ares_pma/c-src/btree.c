@@ -304,7 +304,6 @@ struct BT_flistnode {
 typedef struct BT_state BT_state;
 struct BT_state {
   int           data_fd;
-  int           meta_fd;        /* ;;: confident can be removed because we're not explicitly calling write() */
   char         *path;
   void         *fixaddr;
   BYTE         *map;
@@ -2399,7 +2398,7 @@ bt_state_new(BT_state **state)
   TRACE();
 
   BT_state *s = calloc(1, sizeof *s);
-  s->meta_fd = s->data_fd = -1;
+  s->data_fd = -1;
   s->fixaddr = BT_MAPADDR;
   *state = s;
   return BT_SUCC;
@@ -2429,20 +2428,12 @@ bt_state_open(BT_state *state, const char *path, ULONG flags, mode_t mode)
   if (!SUCC(rc = _bt_state_load(state)))
     goto e;
 
-  /* ;;: this may be entirely unnecessary */
-  oflags |= O_DSYNC;            /* see man 2 open */
-  if ((state->meta_fd = open(dpath, oflags, mode)) == -1) {
-    rc = errno;
-    goto e;
-  }
-
   state->path = strdup(dpath);
 
  e:
   /* cleanup FDs stored in state if anything failed */
   if (!SUCC(rc)) {
     if (state->data_fd != -1) CLOSE_FD(state->data_fd);
-    if (state->meta_fd != -1) CLOSE_FD(state->meta_fd);
   }
 
   free(dpath);
@@ -2454,7 +2445,6 @@ bt_state_close(BT_state *state)
 {
   int rc;
   if (state->data_fd != -1) CLOSE_FD(state->data_fd);
-  if (state->meta_fd != -1) CLOSE_FD(state->meta_fd);
 
   _mlist_delete(state);
   _flist_delete(state);
