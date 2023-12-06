@@ -258,12 +258,9 @@ struct BT_meta {
   uint32_t  _pad0;
   uint64_t  txnid;
   void     *fix_addr;           /* fixed addr of btree */
-
   pgno_t   blk_base[8];         /* block base array for striped node partition */
-
   /* ;;: for the blk_base array, code may be simpler if this were an array of
        BT_page *. */
-
   uint8_t  blk_cnt;             /* currently highest valid block base */
   uint8_t  depth;               /* tree depth */
 #define BP_META  ((uint8_t)0x02)
@@ -2325,6 +2322,9 @@ _bt_sync_meta(BT_state *state)
   BT_meta *newmeta;
   uint32_t chk;
   int newwhich;
+
+  /* increment the txnid */
+  meta->txnid += 1;
 
   /* checksum the metapage */
   chk = nonzero_crc_32(meta, BT_META_LEN);
