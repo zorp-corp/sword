@@ -2,7 +2,7 @@ use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
 use crate::jets::cold::Cold;
-use crate::jets::hot::Hot;
+use crate::jets::hot::{Hot, HotEntry};
 use crate::jets::list::util::{lent, zing};
 use crate::jets::nock::util::mook;
 use crate::jets::warm::Warm;
@@ -38,28 +38,29 @@ struct Context {
 }
 
 impl Context {
-    pub fn new(snap_path: &PathBuf, trace_info: Option<TraceInfo>) -> Self {
+    pub fn new(
+        snap_path: &PathBuf,
+        trace_info: Option<TraceInfo>,
+        constant_hot_state: &[HotEntry],
+    ) -> Self {
         // TODO: switch to Pma when ready
         // let snap = &mut snapshot::pma::Pma::new(snap_path);
         let mut snapshot = DoubleJam::new(snap_path);
-        let mut stack = NockStack::new(1024 << 10 << 10, 0);
-        let newt = Newt::new();
-        let cache = Hamt::<Noun>::new();
+        let mut stack = NockStack::new(512 << 10 << 10, 0);
 
         let cold = Cold::new(&mut stack);
-        let warm = Warm::new();
-        let hot = Hot::init(&mut stack);
+        let hot = Hot::init(&mut stack, constant_hot_state);
 
         let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
         let mug = mug_u32(&mut stack, arvo);
 
         let nock_context = interpreter::Context {
             stack,
-            newt,
+            newt: Newt::new(),
             cold,
-            warm,
+            warm: Warm::new(),
             hot,
-            cache,
+            cache: Hamt::<Noun>::new(),
             scry_stack: D(0),
             trace_info,
         };
@@ -179,7 +180,7 @@ lazy_static! {
  * This is suitable for talking to the king process.  To test, change the arg_c[0] line in
  * u3_lord_init in vere to point at this binary and start vere like normal.
  */
-pub fn serf() -> io::Result<()> {
+pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     // Register SIGINT signal hook to set flag first time, shutdown second time
     signal_hook::flag::register_conditional_shutdown(SIGINT, 1, Arc::clone(&TERMINATOR))?;
     signal_hook::flag::register(SIGINT, Arc::clone(&TERMINATOR))?;
@@ -215,7 +216,7 @@ pub fn serf() -> io::Result<()> {
         }
     }
 
-    let mut context = Context::new(&snap_path, trace_info);
+    let mut context = Context::new(&snap_path, trace_info, constant_hot_state);
     context.ripe();
 
     // Can't use for loop because it borrows newt
@@ -450,6 +451,7 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
     clear_interrupt();
 
     let stack = &mut context.nock_context.stack;
+    context.nock_context.cache = Hamt::<Noun>::new();
     //  crud ovo = [+(now) [%$ %arvo ~] [%crud goof ovo]]
     let job_cell = job.as_cell().expect("serf: work: job not a cell");
     let job_now = job_cell.head().as_atom().expect("serf: work: now not atom");
