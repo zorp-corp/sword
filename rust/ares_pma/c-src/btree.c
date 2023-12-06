@@ -49,12 +49,6 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 #define CAN_COALESCE 0
 /* ;;: remove once confident in logic and delete all code dependencies on
      state->node_freelist */
-#define USE_NLIST 1
-#if USE_NLIST
-/* ;;: obviously this should be removed once we've fully switched over to the
-     nlist. And calls to _node_alloc should be updated to calls to _bt_nalloc */
-#define _node_alloc(...) _bt_nalloc(__VA_ARGS__)
-#endif
 
 #define ZERO(s, n) memset((s), 0, (n))
 
@@ -308,7 +302,6 @@ struct BT_state {
   char         *path;
   void         *fixaddr;
   BYTE         *map;
-  BT_page      *node_freelist;  /* ;;: REMOVE */
   BT_meta      *meta_pages[2];  /* double buffered */
   /* ;;: note, while meta_pages[which]->root stores a pgno, we may want to just
        store a pointer to root in state in addition to avoid a _node_find on it
@@ -372,7 +365,7 @@ _node_get(BT_state *state, pgno_t pgno)
   return FO2PA(state->map, pgno);
 }
 
-/* ;;: I don't think we should need this if _node_alloc also returns a disc offset */
+/* ;;: I don't think we should need this if _bt_nalloc also returns a disc offset */
 static pgno_t
 _fo_get(BT_state *state, BT_page *node)
 {
@@ -381,26 +374,13 @@ _fo_get(BT_state *state, BT_page *node)
   return BY2FO(vaddr - start);
 }
 
-#ifndef USE_NLIST
-static BT_page *                /* ;;: change to return both a file and node offset as params to function. actual return value is error code */
-_node_alloc(BT_state *state)
-{
-  /* TODO: will eventually need to walk a node freelist that allocs space for
-     the striped node partitions. Since this is unimplemented, just allocating
-     space from first 2M */
-
-  size_t width = (BYTE *)state->node_freelist - state->map;
-  assert(width < MBYTES(2));
-  /* ;;: todo confirm data sections are zeroed */
-  /* ZERO(state->node_freelist, BT_PAGESIZE); */
-  return ++state->node_freelist;
-}
-#endif
-
 static BT_page *
 _bt_nalloc(BT_state *state)
 /* allocate a node in the node freelist */
 {
+  /* TODO: maybe change _bt_nalloc to return both a file and a node offset as
+     params to the function and make actual return value an error code. This is
+     to avoid forcing some callers to immediately use _fo_get */
   BT_nlistnode **n = &state->nlist;
 
   for (; *n; n = &(*n)->next) {
@@ -409,6 +389,7 @@ _bt_nalloc(BT_state *state)
          end of the current stripe. If so, allocate a new region and append that
          to the freelist. */
     size_t width = (BYTE *)state->nlist - state->map;
+    /* ;;: asserting 2M for now since partition striping is unimplemented */
     assert(width < MBYTES(2));
     /* perfect fit */
     if ((*n)->sz == 1) {
@@ -431,7 +412,7 @@ _bt_nalloc(BT_state *state)
 static int
 _node_cow(BT_state *state, BT_page *node, pgno_t *pgno)
 {
-  BT_page *ret = _node_alloc(state);
+  BT_page *ret = _bt_nalloc(state);
   memcpy(ret->datk, node->datk, sizeof node->datk[0] * BT_DAT_MAXENTRIES);
   *pgno = _fo_get(state, ret);
   return BT_SUCC;
@@ -612,7 +593,7 @@ _bt_split_child(BT_state *state, BT_page *parent, size_t i, pgno_t *newchild)
   int rc = BT_SUCC;
   size_t N;
   BT_page *left = _node_get(state, parent->datk[i].fo);
-  BT_page *right = _node_alloc(state);
+  BT_page *right = _bt_nalloc(state);
   if (right == 0)
     return ENOMEM;
   if (!SUCC(rc = _bt_split_datcopy(left, right)))
@@ -1362,8 +1343,8 @@ _bt_insert(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo)
 
     /* the old root is now the left child of the new root */
     BT_page *left = root;
-    BT_page *right = _node_alloc(state);
-    BT_page *rootnew = _node_alloc(state);
+    BT_page *right = _bt_nalloc(state);
+    BT_page *rootnew = _bt_nalloc(state);
 
     /* split root's data across left and right nodes */
     _bt_split_datcopy(left, right);
@@ -1516,7 +1497,6 @@ _flist_new(BT_state *state)
   return BT_SUCC;
 }
 
-#if USE_NLIST
 static int
 _nlist_new(BT_state *state)
 #define NLIST_PG_START 2        /* the third page */
@@ -1671,7 +1651,6 @@ _nlist_read(BT_state *state)
 
   return rc;
 }
-#endif
 
 static BT_mlistnode *
 _mlist_read2(BT_state *state, BT_page *node, uint8_t maxdepth, uint8_t depth)
@@ -2106,8 +2085,7 @@ _bt_state_meta_new(BT_state *state)
 
   TRACE();
 
-  /* ;;: HERE HERE HERE: call node_alloc */
-  root = _node_alloc(state);
+  root = _bt_nalloc(state);
   _bt_root_new(root);
 
   pagesize = sizeof *p1;
@@ -2171,19 +2149,6 @@ _bt_state_load(BT_state *state)
   state->meta_pages[0] = METADATA(p);
   state->meta_pages[0] = METADATA(p + 1);
 
-#ifndef USE_NLIST
-  state->node_freelist = &((BT_page *)state->map)[3]; /* begin allocating nodes
-                                                       on third page (first two
-                                                       are for metadata) -- this
-                                                       was quite dumb. This is
-                                                       the fourth page of
-                                                       course. But it worked,
-                                                       because in _bt_root_new
-                                                       we use the third page
-                                                       without calling the
-                                                       allocation function */
-#endif
-
   /* new db, so populate metadata */
   if (new) {
     /* ;;: move this logic to _flist_new */
@@ -2194,10 +2159,9 @@ _bt_state_load(BT_state *state)
 
     state->file_size = PMA_GROW_SIZE;
 
-#if USE_NLIST
-    /* ;;: necessary to call this before _bt_state_meta_new */
     assert(SUCC(_nlist_new(state)));
-#endif
+    assert(SUCC(_mlist_new(state)));
+    assert(SUCC(_flist_new(state)));
 
     if (!SUCC(rc = _bt_state_meta_new(state))) {
       munmap(state->map, BT_ADDRSIZE);
@@ -2205,24 +2169,14 @@ _bt_state_load(BT_state *state)
     }
   }
   else {
+    assert(SUCC(_nlist_read(state)));
+    assert(SUCC(_mlist_read(state)));
+    assert(SUCC(_flist_read(state)));
+
     if (fstat(state->data_fd, &stat) != 0)
       return errno;
 
     state->file_size = stat.st_size;
-  }
-
-  if (new) {
-    assert(SUCC(_mlist_new(state)));
-    assert(SUCC(_flist_new(state)));
-  }
-  else {
-    assert(SUCC(_mlist_read(state)));
-    assert(SUCC(_flist_read(state)));
-#if USE_NLIST
-    /* ;;: this might need to be re-ordered given that _nlist_new needs to be
-         called before _bt_state_meta_new. Haven't thought about it yet. */
-    assert(SUCC(_nlist_read(state)));
-#endif
   }
 
   return BT_SUCC;
