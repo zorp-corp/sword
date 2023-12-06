@@ -58,7 +58,7 @@ pub const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
 //     (&[A_50, Left(b"mink")], 1, jet_mink),
 // ];
 
-/** 
+/**
  * (path, axis in battery, jet function pointer)
  * see the [Jet] typedef in ares::jets for the proper prototype
  */
