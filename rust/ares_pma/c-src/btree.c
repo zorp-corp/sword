@@ -2164,6 +2164,9 @@ _bt_state_load(BT_state *state)
                     state->data_fd,
                     0);
 
+  if (state->map == MAP_FAILED)
+    abort();
+
   p = (BT_page *)state->map;
   state->meta_pages[0] = METADATA(p);
   state->meta_pages[0] = METADATA(p + 1);
@@ -2651,12 +2654,16 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
     abort();
 
   /* maps new file offset with same data back into memory */
-  mmap(loaddr,
-       bytelen,
-       PROT_READ | PROT_WRITE,
-       MAP_FIXED | MAP_SHARED,
-       state->data_fd,
-       offset);
+  void *map;
+  map = mmap(loaddr,
+             bytelen,
+             PROT_READ | PROT_WRITE,
+             MAP_FIXED | MAP_SHARED,
+             state->data_fd,
+             offset);
+
+  if (map == MAP_FAILED)
+    abort();
 
   _bt_insert(state, lo, hi, newpg);
 
