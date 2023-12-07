@@ -234,6 +234,7 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
     let raq = slot(van, 26)?;
     let fel = slot(van, 27)?;
 
+    // XX should we use a struct for this?
     // +$  edge  [p=hair q=(unit [p=* q=nail])]
     let hair = T(&mut context.stack, &[D(1), D(1)]);
     let mut par_u = T(&mut context.stack, &[hair, D(0)]);
@@ -275,6 +276,8 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
         par_u = unsafe { *(context.stack.top()) };
         unsafe { context.stack.pop::<Noun>(); };
     }
+
+    unsafe { context.stack.frame_pop(); };
 
     Ok(T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]))
 }
