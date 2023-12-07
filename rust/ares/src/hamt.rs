@@ -741,10 +741,10 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
-        todo!()
+        self.0 as u64
     }
 
     unsafe fn handle_from_u64(meta_handle: u64) -> Self {
-        todo!()
+        Hamt(meta_handle as *mut Stem<T>)
     }
 }
