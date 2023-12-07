@@ -194,6 +194,47 @@ struct BatteriesListMem {
     next: BatteriesList,
 }
 
+impl Persist for BatteriesList {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+        let mut bytes = 0;
+        let mut list = *self;
+        loop {
+            if list.0.is_null() { break; }
+            if pma.contains(list.0, 1) { break; }
+            bytes += size_of::<BatteriesListMem>();
+            bytes += (*list.0).batteries.space_needed(stack, pma);
+
+            list = (*list.0).next;
+        }
+        bytes
+    }
+
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+        let mut dest = self;
+
+        loop {
+            if (*dest).0.is_null() { break; }
+            if pma.contains((*dest).0, 1) { break; }
+
+            let list_mem_ptr = *buffer as *mut BatteriesListMem;
+            copy_nonoverlapping((*dest).0, list_mem_ptr, 1);
+            *buffer = list_mem_ptr.add(1) as *mut u8;
+            (*dest).0 = list_mem_ptr;
+
+            (*(*dest).0).batteries.copy_to_buffer(stack, pma, buffer);
+            dest = &mut (*(*dest).0).next;
+        }
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        BatteriesList(meta_handle as *mut BatteriesListMem)
+    }
+}
+
 impl Preserve for BatteriesList {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         if self.0.is_null() {
