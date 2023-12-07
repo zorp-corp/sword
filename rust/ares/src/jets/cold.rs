@@ -302,9 +302,13 @@ impl Persist for Cold {
         &mut self,
         stack: &mut NockStack,
         pma: &PMA,
-        buffer: *mut u8,
-    ) -> (u64, *mut u8) {
+        buffer: &mut *mut u8,
+    ) {
         todo!()
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
     }
 
     unsafe fn handle_from_u64(meta_handle: u64) -> Self {

@@ -7,6 +7,7 @@ use std::ffi::{c_void, CString};
 use std::mem::size_of;
 use std::path::PathBuf;
 use std::ptr::copy_nonoverlapping;
+use std::convert::TryInto;
 
 const PMA_MODE: mode_t = 0o600; // RW for user only
 const PMA_FLAGS: ULONG = 0; // ignored for now
@@ -119,20 +120,31 @@ pub trait Persist {
         &mut self,
         stack: &mut NockStack,
         pma: &PMA,
-        buffer: *mut u8,
-    ) -> (u64, *mut u8);
+        buffer: &mut *mut u8,
+    );
 
     /// Persist an object into the PMA using [space_needed] and [copy_to_buffer], returning
     /// a [u64] (probably a pointer or tagged pointer) that can be saved into
     fn save_to_pma(&mut self, stack: &mut NockStack, pma: &PMA) -> u64 {
         unsafe {
-            let space_as_pages =
-                self.space_needed(stack, pma) + (BT_PAGESIZE as usize - 1) >> BT_PAGEBITS;
-            let buffer = bt_malloc(pma.0, space_as_pages) as *mut u8;
-            self.copy_to_buffer(stack, pma, buffer).0
+            let space = self.space_needed(stack, pma); 
+            
+            if space == 0 {
+                return self.handle_to_u64();
+            }
+
+            let space_as_pages = (space + (BT_PAGESIZE as usize - 1)) >> BT_PAGEBITS;
+
+            let mut buffer = bt_malloc(pma.0, space_as_pages) as *mut u8;
+            let orig_buffer = buffer;
+            self.copy_to_buffer(stack, pma, &mut buffer);
+            assert!(orig_buffer.offset_from(buffer) > 0);
+            assert!(orig_buffer.offset_from(buffer) <= space.try_into().unwrap());
+            self.handle_to_u64()
         }
     }
 
+    unsafe fn handle_to_u64(&self) -> u64;
     unsafe fn handle_from_u64(meta_handle: u64) -> Self;
 }
 
@@ -149,22 +161,24 @@ impl Persist for Snapshot {
         &mut self,
         stack: &mut NockStack,
         pma: &PMA,
-        buffer: *mut u8,
-    ) -> (u64, *mut u8) {
-        let snapshot_buffer = buffer as *mut SnapshotMem;
-        let arvo_buffer = buffer.add(((size_of::<SnapshotMem>() + 7) >> 3) << 3);
+        buffer: &mut *mut u8,
+    ) {
+        let snapshot_buffer = *buffer as *mut SnapshotMem;
         std::ptr::copy_nonoverlapping(self.0, snapshot_buffer, 1);
         *self = Snapshot(snapshot_buffer);
+        *buffer = snapshot_buffer.add(1) as *mut u8;
 
         let mut arvo = (*snapshot_buffer).arvo;
-        let (_, cold_buffer) = arvo.copy_to_buffer(stack, pma, arvo_buffer);
+        arvo.copy_to_buffer(stack, pma, buffer);
         (*snapshot_buffer).arvo = arvo;
 
         let mut cold = (*snapshot_buffer).cold;
-        let (_, rest_buffer) = cold.copy_to_buffer(stack, pma, cold_buffer);
+        cold.copy_to_buffer(stack, pma, buffer);
         (*snapshot_buffer).cold = cold;
+    }
 
-        (snapshot_buffer as u64, rest_buffer)
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
     }
 
     unsafe fn handle_from_u64(meta_handle: u64) -> Self {
@@ -226,9 +240,9 @@ impl Persist for Noun {
         &mut self,
         stack: &mut NockStack,
         pma: &PMA,
-        buffer: *mut u8,
-    ) -> (u64, *mut u8) {
-        let mut buffer_u64 = buffer as *mut u64;
+        buffer: &mut *mut u8,
+    ) {
+        let mut buffer_u64 = (*buffer) as *mut u64;
         stack.frame_push(0);
         *(stack.push::<(Noun, *mut Noun)>()) = (*self, self as *mut Noun);
 
@@ -288,8 +302,11 @@ impl Persist for Noun {
                 }
             }
         }
+        *buffer = buffer_u64 as *mut u8;
+    }
 
-        (self.as_raw(), buffer_u64 as *mut u8)
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.as_raw()
     }
 
     unsafe fn handle_from_u64(meta_handle: u64) -> Self {

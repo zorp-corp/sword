@@ -2,8 +2,10 @@ use crate::mem::{unifying_equality, NockStack, Preserve};
 use crate::mug::mug_u32;
 use crate::noun::Noun;
 use either::Either::{self, *};
-use std::ptr::{copy_nonoverlapping, null};
+use std::ptr::{copy_nonoverlapping, null, null_mut};
 use std::slice;
+use crate::persist::{Persist, PMA};
+use std::mem::size_of;
 
 type MutStemEntry<T> = Either<*mut MutStem<T>, Leaf<T>>;
 
@@ -165,7 +167,7 @@ impl<T: Copy> MutHamt<T> {
 struct Stem<T: Copy> {
     bitmap: u32,
     typemap: u32,
-    buffer: *const Entry<T>,
+    buffer: *mut Entry<T>,
 }
 
 impl<T: Copy> Copy for Stem<T> {}
@@ -270,9 +272,11 @@ impl<T: Copy + Preserve> Hamt<T> {
     pub fn new(stack: &mut NockStack) -> Self {
         unsafe {
             let stem_ptr = stack.struct_alloc::<Stem<T>>(1);
-            (*stem_ptr).bitmap = 0;
-            (*stem_ptr).typemap = 0;
-            (*stem_ptr).buffer = null();
+            *stem_ptr = Stem {
+                bitmap: 0,
+                typemap: 0,
+                buffer: null_mut(),
+            };
             Hamt(stem_ptr)
         }
     }
@@ -567,5 +571,176 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                 }
             }
         }
+    }
+}
+
+#[derive(Copy,Clone)]
+struct StemTraversalEntry<T: Copy> {
+    bitmap_remaining: u32,
+    typemap_remaining: u32,
+    stem_ptr: *mut Stem<T>,
+}
+
+impl<T: Copy + Persist> Persist for Hamt<T> {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+        if pma.contains(self.0, 1) { return 0; }
+        let mut bytes: usize = size_of::<Stem<T>>();
+        if pma.contains((*self.0).buffer, (*self.0).size()) { return bytes };
+
+        let mut depth: usize = 0;
+        let mut traversal = [
+            Stem {
+                bitmap: 0,
+                typemap: 0,
+                buffer: null_mut(),
+            }; 
+            6
+        ];
+        traversal[0] = (*self.0);
+
+        loop {
+            assert!(depth < 6);
+            if traversal[depth].bitmap == 0 {
+                if depth == 0 { break bytes; }
+                depth -= 1;
+            }
+
+            let next_chunk = traversal[depth].bitmap.trailing_zeros();
+            let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
+            let next_entry = *traversal[depth].buffer;
+            traversal[depth].bitmap = traversal[depth].bitmap >> (next_chunk + 1);
+            traversal[depth].typemap = traversal[depth].typemap >> (next_chunk + 1);
+            traversal[depth].buffer = traversal[depth].buffer.add(1);
+
+            if next_type { // true->stem false->leaf
+                // found another stem
+                traversal[depth + 1] = next_entry.stem;
+
+                if pma.contains(traversal[depth + 1].buffer, traversal[depth + 1].size()) {
+                    continue;
+                }
+
+                // count the buffer for the next stem
+                bytes += traversal[depth + 1].size() * size_of::<Entry<T>>();
+                depth += 1;
+            } else {
+                let mut leaf = next_entry.leaf;
+
+                if leaf.len == 0 {
+                    continue;
+                }
+
+                if pma.contains(leaf.buffer, leaf.len) {
+                    continue;
+                }
+
+                bytes += size_of::<(Noun, T)>() * leaf.len;
+                
+                while leaf.len > 0 {
+                    bytes += (*leaf.buffer).0.space_needed(stack, pma);
+                    bytes += (*leaf.buffer).1.space_needed(stack, pma);
+                    leaf.buffer = leaf.buffer.add(1);
+                    leaf.len -= 1;
+                }
+            }
+        }
+    }
+
+    // XX this is subtly wrong, we need to track destination pointers somehow and not just write
+    // into the traversal stack
+    unsafe fn copy_to_buffer(
+        &mut self,
+        stack: &mut NockStack,
+        pma: &PMA,
+        buffer: &mut *mut u8,
+    ) {
+        if pma.contains(self.0, 1) { return; }
+        let stem_ptr = *buffer as *mut Stem<T>;
+        copy_nonoverlapping(self.0, stem_ptr, 1);
+        *buffer = stem_ptr.add(1) as *mut u8;
+        (*self).0 = stem_ptr;
+
+        let stem_buffer_size = (*stem_ptr).size();
+        if pma.contains((*stem_ptr).buffer, stem_buffer_size) { return; }
+        let stem_buffer_ptr = *buffer as *mut Entry<T>;
+        copy_nonoverlapping((*stem_ptr).buffer, stem_buffer_ptr, stem_buffer_size);
+        *buffer = stem_buffer_ptr.add(stem_buffer_size) as *mut u8;
+        (*stem_ptr).buffer = stem_buffer_ptr;
+
+        let mut depth: usize = 0;
+        let mut traversal = [
+            Stem {
+                bitmap: 0,
+                typemap: 0,
+                buffer: null_mut(),
+            };
+            6
+        ];
+
+        traversal[0] = *stem_ptr;
+
+        loop {
+            if traversal[depth].bitmap == 0 {
+                if depth == 0 {
+                    break;
+                }
+                depth -= 1;
+                continue;
+            }
+
+            let next_chunk = traversal[depth].bitmap.trailing_zeros();
+            let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
+            let next_entry_ptr = traversal[depth].buffer;
+
+            traversal[depth].bitmap = traversal[depth].bitmap >> (next_chunk + 1);
+            traversal[depth].typemap = traversal[depth].typemap >> (next_chunk + 1);
+            traversal[depth].buffer = traversal[depth].buffer.add(1);
+
+            if next_type {
+                // Stem case
+                assert!(depth < 5);
+
+                let stem_ptr: *mut Stem<T> = &mut (*next_entry_ptr).stem;
+                let stem_size = (*stem_ptr).size();
+                let stem_buffer_ptr = *buffer as *mut Entry<T>;
+
+                copy_nonoverlapping((*stem_ptr).buffer, stem_buffer_ptr, stem_size);
+                *buffer = stem_buffer_ptr.add(stem_size) as *mut u8;
+
+                (*stem_ptr).buffer = stem_buffer_ptr;
+                
+                traversal[depth + 1] = *stem_ptr;
+                depth += 1;
+                continue;
+            } else {
+                // Leaf case
+                let leaf_ptr: *mut Leaf<T> = &mut (*next_entry_ptr).leaf;
+                let leaf_buffer_ptr = *buffer as *mut (Noun, T);
+
+                copy_nonoverlapping((*leaf_ptr).buffer, leaf_buffer_ptr, (*leaf_ptr).len);
+                *buffer = leaf_buffer_ptr.add((*leaf_ptr).len) as *mut u8;
+                
+                (*leaf_ptr).buffer = leaf_buffer_ptr;
+
+                let mut leaf_idx = 0;
+
+                while leaf_idx < (*leaf_ptr).len {
+                    (*(*leaf_ptr).buffer.add(leaf_idx)).0.copy_to_buffer(stack, pma, buffer);
+                    (*(*leaf_ptr).buffer.add(leaf_idx)).1.copy_to_buffer(stack, pma, buffer);
+
+                    leaf_idx += 1;
+                }
+
+                continue;
+            }
+        }
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        todo!()
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        todo!()
     }
 }
