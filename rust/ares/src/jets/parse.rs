@@ -244,7 +244,7 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
 
     // +$  edge  [p=hair q=(unit [p=* q=nail])]
     let hair = T(&mut context.stack, &[D(1), D(1)]);
-    let mut par_u = StirPair{
+    let mut par_u = StirPair {
         har: hair,
         res: D(0),
     };
@@ -257,31 +257,29 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
     let quq_wag: Noun;
 
     // push incremental, succesful [fel] parse results onto stack
-    {
-        let mut vex = slam(context, fel, tub)?.as_cell()?;
-        let mut p_vex = vex.head();
-        let mut q_vex = vex.tail();
-        eprintln!("stir: got vex");
-        while !unsafe { q_vex.raw_equals(D(0)) } {
-            let puq_vex = q_vex.as_cell()?.head();
-            let quq_vex = q_vex.as_cell()?.tail();
+    let mut vex = slam(context, fel, tub)?.as_cell()?;
+    let mut p_vex = vex.head();
+    let mut q_vex = vex.tail();
+    eprintln!("stir: got vex");
+    while !unsafe { q_vex.raw_equals(D(0)) } {
+        let puq_vex = q_vex.as_cell()?.head();
+        let quq_vex = q_vex.as_cell()?.tail();
 
-            par_u.har = p_vex;
-            par_u.res = puq_vex;
-            unsafe { *(context.stack.push::<StirPair>()) = par_u };
+        par_u.har = p_vex;
+        par_u.res = puq_vex;
+        unsafe { *(context.stack.push::<StirPair>()) = par_u };
 
-            tub = quq_vex;
+        tub = quq_vex;
 
-            vex = slam(context, fel, tub)?.as_cell()?;
-            p_vex = vex.head();
-            q_vex = vex.tail();
-        }
-        eprintln!("stir: vex loop done");
-
-        p_wag = p_vex;
-        puq_wag = rud;
-        quq_wag = tub;
+        vex = slam(context, fel, tub)?.as_cell()?;
+        p_vex = vex.head();
+        q_vex = vex.tail();
     }
+    eprintln!("stir: vex loop done");
+
+    p_wag = p_vex;
+    puq_wag = rud;
+    quq_wag = tub;
 
     // unwind the stack, folding parse results into [wag] by way of [raq]
     eprintln!("stir: unwinding stack");
@@ -289,13 +287,17 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
         p_wag = util::last(p_wag, puq_wag)?;
         let sam = T(&mut context.stack, &[par_u.res, puq_wag]);
         puq_wag = slam(context, raq, sam)?;
-        unsafe { context.stack.pop::<StirPair>(); };
+        unsafe {
+            context.stack.pop::<StirPair>();
+        };
         par_u = unsafe { *(context.stack.top::<StirPair>()) };
     }
 
     eprintln!("stir: unwind done");
 
-    unsafe { context.stack.frame_pop(); };
+    unsafe {
+        context.stack.frame_pop();
+    };
 
     eprintln!("stir: done");
     Ok(T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]))
