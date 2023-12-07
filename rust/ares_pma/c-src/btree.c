@@ -1514,6 +1514,20 @@ _nlist_new(BT_state *state)
   return BT_SUCC;
 }
 
+static int
+_nlist_delete(BT_state *state)
+{
+  BT_nlistnode *head, *prev;
+  head = prev = state->nlist;
+  while (head->next) {
+    prev = head;
+    head = head->next;
+    free(prev);
+  }
+  state->nlist = 0;
+  return BT_SUCC;
+}
+
 static BT_nlistnode *
 _nlist_read_prev(BT_nlistnode *head, BT_nlistnode *curr)
 {
@@ -2469,14 +2483,19 @@ int
 bt_state_close(BT_state *state)
 {
   int rc;
-  if (state->data_fd != -1) CLOSE_FD(state->data_fd);
+  bt_sync(state);
 
   _mlist_delete(state);
   _flist_delete(state);
+  _nlist_delete(state);
 
-  /* ;;: wip delete the file because we haven't implemented persistence yet */
-  if (!SUCC(rc = remove(state->path)))
+  if ((rc = munmap(state->map, BT_ADDRSIZE)) != 0) {
+    rc = errno;
     return rc;
+  }
+  if (state->data_fd != -1) CLOSE_FD(state->data_fd);
+
+  ZERO(state, sizeof *state);
 
   return BT_SUCC;
 }
