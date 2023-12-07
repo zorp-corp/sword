@@ -111,6 +111,9 @@ impl Context {
         // Reset the nock stack, freeing all memory used to compute the event
         self.nock_context.stack.reset(0);
 
+        // Since we reset the nockstack the stack-allocated hot state isn't valid anymore
+        self.nock_context.hot = Hot::init(&mut self.nock_context.stack);
+
         // XX some things were invalidated when we reset the stack
         self.nock_context.warm = Warm::init(
             &mut self.nock_context.stack,
