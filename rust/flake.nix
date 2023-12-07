@@ -30,6 +30,7 @@
               "rust-src"
             ])
             pkgs.cargo-watch
+            pkgs.bacon
             pkgs.iconv
             pkgs.llvmPackages.clang
             pkgs.pkg-config
