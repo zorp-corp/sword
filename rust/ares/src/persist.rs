@@ -57,7 +57,7 @@ impl PMA {
 
     #[cfg(windows)]
     pub fn open(path: PathBuf) -> Result<Self, std::io::Error> {
-        todo!()
+        unimplemented!()
     }
 
     #[inline]
