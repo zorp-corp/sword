@@ -240,15 +240,6 @@ pub fn jet_easy(context: &mut Context, subject: Noun) -> Result {
     ))
 }
 
-/*
-    u3x_cell(tub, &p_tub, &q_tub);
-    return u3nq(u3k(p_tub),
-                u3_nul,
-                u3k(huf),
-                u3k(tub));
-
-*/
-
 pub fn jet_here(context: &mut Context, subject: Noun) -> Result {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
@@ -408,6 +399,19 @@ mod tests {
     use crate::noun::{D, T};
     use crate::serialization::cue;
     use ibig::ubig;
+
+    //  XX: need unit tests for:
+    //      +last
+    //      +bend
+    //      +comp
+    //      +glue
+    //      +pfix
+    //      +pose
+    //      +sfix
+    //      +here
+    //      +just
+    //      +mask
+    //      +stag
 
     #[test]
     fn test_easy() {
