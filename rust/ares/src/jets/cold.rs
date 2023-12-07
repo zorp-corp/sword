@@ -307,6 +307,50 @@ struct NounListMem {
     next: NounList,
 }
 
+impl Persist for NounList {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+        let mut bytes: usize = 0;
+        let mut list = *self;
+
+        loop {
+            if list.0.is_null() { break; }
+            if pma.contains(list.0, 1) { break; }
+
+            bytes += size_of::<NounListMem>();
+            bytes += (*list.0).element.space_needed(stack, pma);
+
+            list = (*list.0).next;
+        }
+        bytes
+    }
+
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+        let mut dest = self;
+
+        loop {
+            if (*dest).0.is_null() { break; }
+            if pma.contains((*dest).0, 1) { break; }
+
+            let noun_list_mem_ptr = *buffer as *mut NounListMem;
+            copy_nonoverlapping((*dest).0, noun_list_mem_ptr, 1);
+            *buffer = noun_list_mem_ptr.add(1) as *mut u8;
+
+            (*dest).0 = noun_list_mem_ptr;
+            (*(*dest).0).element.copy_to_buffer(stack, pma, buffer);
+
+            dest = &mut (*(*dest).0).next;
+        }
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        NounList(meta_handle as *mut NounListMem)
+    }
+}
+
 impl Preserve for NounList {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         if self.0.is_null() {
