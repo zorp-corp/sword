@@ -225,6 +225,12 @@ pub fn jet_sfix(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+#[derive(Copy, Clone)]
+struct StirPair {
+    pub har: Noun,
+    pub res: Noun,
+}
+
 pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
     context.stack.frame_push(0);
 
@@ -234,10 +240,16 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
     let raq = slot(van, 26)?;
     let fel = slot(van, 27)?;
 
-    // XX should we use a struct for this?
+    eprintln!("stir: got my nouns");
+
     // +$  edge  [p=hair q=(unit [p=* q=nail])]
     let hair = T(&mut context.stack, &[D(1), D(1)]);
-    let mut par_u = T(&mut context.stack, &[hair, D(0)]);
+    let mut par_u = StirPair{
+        har: hair,
+        res: D(0),
+    };
+
+    eprintln!("stir: prepared pair");
 
     // initial accumulator (deconstructed)
     let mut p_wag: Noun;
@@ -249,12 +261,14 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
         let mut vex = slam(context, fel, tub)?.as_cell()?;
         let mut p_vex = vex.head();
         let mut q_vex = vex.tail();
+        eprintln!("stir: got vex");
         while !unsafe { q_vex.raw_equals(D(0)) } {
             let puq_vex = q_vex.as_cell()?.head();
             let quq_vex = q_vex.as_cell()?.tail();
 
-            par_u = T(&mut context.stack, &[p_vex, puq_vex]);
-            unsafe { *(context.stack.push()) = par_u };
+            par_u.har = p_vex;
+            par_u.res = puq_vex;
+            unsafe { *(context.stack.push::<StirPair>()) = par_u };
 
             tub = quq_vex;
 
@@ -262,6 +276,7 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
             p_vex = vex.head();
             q_vex = vex.tail();
         }
+        eprintln!("stir: vex loop done");
 
         p_wag = p_vex;
         puq_wag = rud;
@@ -269,16 +284,20 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
     }
 
     // unwind the stack, folding parse results into [wag] by way of [raq]
+    eprintln!("stir: unwinding stack");
     while !context.stack.stack_is_empty() {
         p_wag = util::last(p_wag, puq_wag)?;
-        let sam = T(&mut context.stack, &[par_u.as_cell()?.tail(), puq_wag]);
+        let sam = T(&mut context.stack, &[par_u.res, puq_wag]);
         puq_wag = slam(context, raq, sam)?;
-        par_u = unsafe { *(context.stack.top()) };
-        unsafe { context.stack.pop::<Noun>(); };
+        unsafe { context.stack.pop::<StirPair>(); };
+        par_u = unsafe { *(context.stack.top::<StirPair>()) };
     }
+
+    eprintln!("stir: unwind done");
 
     unsafe { context.stack.frame_pop(); };
 
+    eprintln!("stir: done");
     Ok(T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]))
 }
 
