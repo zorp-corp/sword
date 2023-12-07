@@ -876,6 +876,21 @@ impl Atom {
             *self
         }
     }
+
+    /** Make an atom from a raw u64
+     *
+     * # Safety 
+     *
+     * Note that the [u64] parameter is *not*, in general, the value of the atom!
+     *
+     * In particular, anything with the high bit set will be treated as a tagged pointer.
+     * This method is only to be used to restore an atom from the raw [u64] representation
+     * returned by [Noun::as_raw], and should only be used if we are sure the restored noun is in
+     * fact an atom.
+     */
+    pub unsafe fn from_raw(raw: u64) -> Atom {
+        Atom { raw }
+    }
 }
 
 impl fmt::Display for Atom {

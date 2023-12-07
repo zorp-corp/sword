@@ -5,6 +5,7 @@ use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
 use crate::persist::{Persist, PMA};
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
+use std::mem::size_of;
 
 pub enum Error {
     NoParent,
@@ -30,6 +31,55 @@ struct BatteriesMem {
     battery: Noun,
     parent_axis: Atom,
     parent_batteries: Batteries,
+}
+
+impl Persist for Batteries {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+        let mut bytes = 0;
+        let mut batteries = *self;
+
+        loop {
+            if batteries.0.is_null() { break; }
+            if pma.contains(batteries.0, 1) { break; }
+            bytes += size_of::<BatteriesMem>();
+            bytes += (*batteries.0).battery.space_needed(stack, pma);
+            bytes += (*batteries.0).parent_axis.space_needed(stack, pma);
+            batteries = (*batteries.0).parent_batteries;
+        }
+        bytes
+    }
+
+    unsafe fn copy_to_buffer(
+        &mut self,           
+        stack: &mut NockStack,
+        pma: &PMA,
+        buffer: &mut *mut u8,
+    ) {
+        let mut dest = self;
+        loop {
+            if (*dest).0.is_null() { break; }
+            if pma.contains((*dest).0, 1) { break; }
+
+            let batteries_mem_ptr = *buffer as *mut BatteriesMem;
+            copy_nonoverlapping((*dest).0, batteries_mem_ptr, 1);
+            *buffer = batteries_mem_ptr.add(1) as *mut u8;
+
+            (*batteries_mem_ptr).battery.copy_to_buffer(stack, pma, buffer);
+            (*batteries_mem_ptr).parent_axis.copy_to_buffer(stack, pma, buffer);
+
+            (*dest).0 = batteries_mem_ptr;
+            dest = &mut (*(*dest).0).parent_batteries;
+        }
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        Batteries(meta_handle as *mut BatteriesMem)
+    }
+
 }
 
 impl Preserve for Batteries {

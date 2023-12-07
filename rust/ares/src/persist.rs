@@ -1,6 +1,6 @@
 use crate::jets::cold::Cold;
 use crate::mem::NockStack;
-use crate::noun::{Allocated, Cell, CellMemory, IndirectAtom, Noun};
+use crate::noun::{Allocated, Cell, CellMemory, IndirectAtom, Noun, Atom};
 use ares_pma::*;
 use either::Either::{Left, Right};
 use std::ffi::{c_void, CString};
@@ -197,6 +197,47 @@ unsafe fn mark(a: Allocated) -> bool {
 unsafe fn unmark(a: Allocated) {
     let metadata = a.get_metadata();
     a.set_metadata(metadata & !NOUN_MARKED);
+}
+
+impl Persist for Atom {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+        if let Ok(indirect) = self.as_indirect() {
+            let count = indirect.raw_size();
+            if !pma.contains(indirect.to_raw_pointer(), count) {
+                if !mark(indirect.as_allocated()) {
+                    return count * size_of::<u64>();
+                }
+            }
+        }
+        0
+    }
+
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+        if let Ok(mut indirect) = self.as_indirect() {
+            let count = indirect.raw_size();
+            if !pma.contains(indirect.to_raw_pointer(), count) {
+                if let Some(forward) = indirect.forwarding_pointer() {
+                    *self = forward.as_atom();
+                } else {
+                    let indirect_buffer_ptr = *buffer as *mut u64;
+                    copy_nonoverlapping(indirect.to_raw_pointer(), indirect_buffer_ptr, count);
+                    *buffer = indirect_buffer_ptr.add(count) as *mut u8;
+
+                    indirect.set_forwarding_pointer(indirect_buffer_ptr);
+
+                    *self = IndirectAtom::from_raw_pointer(indirect_buffer_ptr).as_atom();
+                }
+            }
+        }
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.as_noun().as_raw()
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        Atom::from_raw(meta_handle)
+    }
 }
 
 impl Persist for Noun {
