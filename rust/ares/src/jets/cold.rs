@@ -430,7 +430,13 @@ struct ColdMem {
 
 impl Persist for Cold {
     unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
-        todo!()
+        if pma.contains(self.0, 1) { return 0; }
+
+        let mut bytes = size_of::<ColdMem>();
+        bytes += (*(*self).0).battery_to_paths.space_needed(stack, pma);
+        bytes += (*(*self).0).root_to_paths.space_needed(stack, pma);
+        bytes += (*(*self).0).path_to_batteries.space_needed(stack, pma);
+        bytes
     }
 
     unsafe fn copy_to_buffer(
@@ -439,7 +445,17 @@ impl Persist for Cold {
         pma: &PMA,
         buffer: &mut *mut u8,
     ) {
-        todo!()
+        if pma.contains(self.0, 1) { return; }
+
+        let cold_mem_ptr = *buffer as *mut ColdMem;
+        copy_nonoverlapping(self.0, cold_mem_ptr, 1);
+        *buffer = cold_mem_ptr.add(1) as *mut u8;
+
+        (*self).0 = cold_mem_ptr;
+
+        (*(*self).0).battery_to_paths.copy_to_buffer(stack, pma, buffer);
+        (*(*self).0).root_to_paths.copy_to_buffer(stack, pma, buffer);
+        (*(*self).0).path_to_batteries.copy_to_buffer(stack, pma, buffer);
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
