@@ -31,6 +31,7 @@
             ])
             pkgs.autoconf-archive
             pkgs.cargo-watch
+            pkgs.bacon
             pkgs.iconv
             pkgs.llvmPackages.clang
             pkgs.pkg-config
