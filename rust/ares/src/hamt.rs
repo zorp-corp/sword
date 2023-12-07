@@ -1,11 +1,11 @@
 use crate::mem::{unifying_equality, NockStack, Preserve};
 use crate::mug::mug_u32;
 use crate::noun::Noun;
+use crate::persist::{Persist, PMA};
 use either::Either::{self, *};
+use std::mem::size_of;
 use std::ptr::{copy_nonoverlapping, null, null_mut};
 use std::slice;
-use crate::persist::{Persist, PMA};
-use std::mem::size_of;
 
 type MutStemEntry<T> = Either<*mut MutStem<T>, Leaf<T>>;
 
@@ -574,7 +574,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
     }
 }
 
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 struct StemTraversalEntry<T: Copy> {
     bitmap_remaining: u32,
     typemap_remaining: u32,
@@ -583,25 +583,28 @@ struct StemTraversalEntry<T: Copy> {
 
 impl<T: Copy + Persist> Persist for Hamt<T> {
     unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
-        if pma.contains(self.0, 1) { return 0; }
+        if pma.contains(self.0, 1) {
+            return 0;
+        }
         let mut bytes: usize = size_of::<Stem<T>>();
-        if pma.contains((*self.0).buffer, (*self.0).size()) { return bytes };
+        if pma.contains((*self.0).buffer, (*self.0).size()) {
+            return bytes;
+        };
 
         let mut depth: usize = 0;
-        let mut traversal = [
-            Stem {
-                bitmap: 0,
-                typemap: 0,
-                buffer: null_mut(),
-            }; 
-            6
-        ];
+        let mut traversal = [Stem {
+            bitmap: 0,
+            typemap: 0,
+            buffer: null_mut(),
+        }; 6];
         traversal[0] = (*self.0);
 
         loop {
             assert!(depth < 6);
             if traversal[depth].bitmap == 0 {
-                if depth == 0 { break bytes; }
+                if depth == 0 {
+                    break bytes;
+                }
                 depth -= 1;
             }
 
@@ -612,7 +615,8 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             traversal[depth].typemap = traversal[depth].typemap >> (next_chunk + 1);
             traversal[depth].buffer = traversal[depth].buffer.add(1);
 
-            if next_type { // true->stem false->leaf
+            if next_type {
+                // true->stem false->leaf
                 // found another stem
                 traversal[depth + 1] = next_entry.stem;
 
@@ -635,7 +639,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
                 }
 
                 bytes += size_of::<(Noun, T)>() * leaf.len;
-                
+
                 while leaf.len > 0 {
                     bytes += (*leaf.buffer).0.space_needed(stack, pma);
                     bytes += (*leaf.buffer).1.space_needed(stack, pma);
@@ -648,34 +652,30 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
 
     // XX this is subtly wrong, we need to track destination pointers somehow and not just write
     // into the traversal stack
-    unsafe fn copy_to_buffer(
-        &mut self,
-        stack: &mut NockStack,
-        pma: &PMA,
-        buffer: &mut *mut u8,
-    ) {
-        if pma.contains(self.0, 1) { return; }
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+        if pma.contains(self.0, 1) {
+            return;
+        }
         let stem_ptr = *buffer as *mut Stem<T>;
         copy_nonoverlapping(self.0, stem_ptr, 1);
         *buffer = stem_ptr.add(1) as *mut u8;
         (*self).0 = stem_ptr;
 
         let stem_buffer_size = (*stem_ptr).size();
-        if pma.contains((*stem_ptr).buffer, stem_buffer_size) { return; }
+        if pma.contains((*stem_ptr).buffer, stem_buffer_size) {
+            return;
+        }
         let stem_buffer_ptr = *buffer as *mut Entry<T>;
         copy_nonoverlapping((*stem_ptr).buffer, stem_buffer_ptr, stem_buffer_size);
         *buffer = stem_buffer_ptr.add(stem_buffer_size) as *mut u8;
         (*stem_ptr).buffer = stem_buffer_ptr;
 
         let mut depth: usize = 0;
-        let mut traversal = [
-            Stem {
-                bitmap: 0,
-                typemap: 0,
-                buffer: null_mut(),
-            };
-            6
-        ];
+        let mut traversal = [Stem {
+            bitmap: 0,
+            typemap: 0,
+            buffer: null_mut(),
+        }; 6];
 
         traversal[0] = *stem_ptr;
 
@@ -708,7 +708,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
                 *buffer = stem_buffer_ptr.add(stem_size) as *mut u8;
 
                 (*stem_ptr).buffer = stem_buffer_ptr;
-                
+
                 traversal[depth + 1] = *stem_ptr;
                 depth += 1;
                 continue;
@@ -719,14 +719,18 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
 
                 copy_nonoverlapping((*leaf_ptr).buffer, leaf_buffer_ptr, (*leaf_ptr).len);
                 *buffer = leaf_buffer_ptr.add((*leaf_ptr).len) as *mut u8;
-                
+
                 (*leaf_ptr).buffer = leaf_buffer_ptr;
 
                 let mut leaf_idx = 0;
 
                 while leaf_idx < (*leaf_ptr).len {
-                    (*(*leaf_ptr).buffer.add(leaf_idx)).0.copy_to_buffer(stack, pma, buffer);
-                    (*(*leaf_ptr).buffer.add(leaf_idx)).1.copy_to_buffer(stack, pma, buffer);
+                    (*(*leaf_ptr).buffer.add(leaf_idx))
+                        .0
+                        .copy_to_buffer(stack, pma, buffer);
+                    (*(*leaf_ptr).buffer.add(leaf_idx))
+                        .1
+                        .copy_to_buffer(stack, pma, buffer);
 
                     leaf_idx += 1;
                 }

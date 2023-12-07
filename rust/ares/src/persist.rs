@@ -1,13 +1,13 @@
 use crate::jets::cold::Cold;
 use crate::mem::NockStack;
-use crate::noun::{Allocated, Cell, CellMemory, IndirectAtom, Noun, Atom};
+use crate::noun::{Allocated, Atom, Cell, CellMemory, IndirectAtom, Noun};
 use ares_pma::*;
 use either::Either::{Left, Right};
+use std::convert::TryInto;
 use std::ffi::{c_void, CString};
 use std::mem::size_of;
 use std::path::PathBuf;
 use std::ptr::copy_nonoverlapping;
-use std::convert::TryInto;
 
 const PMA_MODE: mode_t = 0o600; // RW for user only
 const PMA_FLAGS: ULONG = 0; // ignored for now
@@ -116,19 +116,14 @@ pub trait Persist {
     /// Copy into the provided buffer, which may be assumed to be at least as large as the size
     /// returned by [space_needed] on the same structure. Return a u64 handle that could be saved
     /// in metadata
-    unsafe fn copy_to_buffer(
-        &mut self,
-        stack: &mut NockStack,
-        pma: &PMA,
-        buffer: &mut *mut u8,
-    );
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8);
 
     /// Persist an object into the PMA using [space_needed] and [copy_to_buffer], returning
     /// a [u64] (probably a pointer or tagged pointer) that can be saved into
     fn save_to_pma(&mut self, stack: &mut NockStack, pma: &PMA) -> u64 {
         unsafe {
-            let space = self.space_needed(stack, pma); 
-            
+            let space = self.space_needed(stack, pma);
+
             if space == 0 {
                 return self.handle_to_u64();
             }
@@ -157,12 +152,7 @@ impl Persist for Snapshot {
         (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed
     }
 
-    unsafe fn copy_to_buffer(
-        &mut self,
-        stack: &mut NockStack,
-        pma: &PMA,
-        buffer: &mut *mut u8,
-    ) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
         let snapshot_buffer = *buffer as *mut SnapshotMem;
         std::ptr::copy_nonoverlapping(self.0, snapshot_buffer, 1);
         *self = Snapshot(snapshot_buffer);
@@ -277,12 +267,7 @@ impl Persist for Noun {
         space
     }
 
-    unsafe fn copy_to_buffer(
-        &mut self,
-        stack: &mut NockStack,
-        pma: &PMA,
-        buffer: &mut *mut u8,
-    ) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
         let mut buffer_u64 = (*buffer) as *mut u64;
         stack.frame_push(0);
         *(stack.push::<(Noun, *mut Noun)>()) = (*self, self as *mut Noun);

@@ -879,7 +879,7 @@ impl Atom {
 
     /** Make an atom from a raw u64
      *
-     * # Safety 
+     * # Safety
      *
      * Note that the [u64] parameter is *not*, in general, the value of the atom!
      *
