@@ -340,9 +340,8 @@ pub fn jet_stag(context: &mut Context, subject: Noun) -> Result {
 
 pub mod util {
     use crate::interpreter::{inc, Context};
-    use crate::jets::util::test::*;
-    use crate::jets::{Jet, Result};
-    use crate::noun::{Cell, Noun, D, T};
+    use crate::jets::Result;
+    use crate::noun::{Noun, D, T};
     use std::cmp::Ordering;
 
     pub fn last(zyc: Noun, naz: Noun) -> Result {
@@ -400,19 +399,6 @@ pub mod util {
     pub fn fail(context: &mut Context, hair: Noun) -> Result {
         Ok(T(&mut context.stack, &[hair, D(0)]))
     }
-
-    pub fn assert_jet_in_door(
-        context: &mut Context,
-        jet: Jet,
-        sam: Noun, //&[fn(&mut Context) -> Noun],  // regular sample
-        ctx: Noun, //&[fn(&mut Context) -> Noun],  // door sample as context
-        res: Noun,
-    ) {
-        let pay = Cell::new(&mut context.stack, sam, ctx).as_noun();
-        let sbj = Cell::new(&mut context.stack, D(0), pay).as_noun();
-        let jet_res = jet(context, sbj).unwrap();
-        assert_noun_eq(&mut context.stack, jet_res, res);
-    }
 }
 
 #[cfg(test)]
@@ -421,17 +407,11 @@ mod tests {
     use crate::jets::util::test::*;
     use crate::noun::{D, T};
     use crate::serialization::cue;
-
     use ibig::ubig;
 
     #[test]
     fn test_easy() {
         let c = &mut init_context();
-
-        /*
-         'a' at +6 of easy
-         [[1 1] "abc"] at +6 of (easy 'a')
-        */
 
         // ((easy 'a') [[1 1] "abc"])
         //  [[1 1] "abc"]
@@ -445,7 +425,7 @@ mod tests {
             .unwrap();
         let ans = cue(&mut c.stack, ans_jam);
         let ctx = T(&mut c.stack, &[D(0), D(97), D(0)]);
-        util::assert_jet_in_door(c, jet_easy, sam, ctx, ans);
+        assert_jet_door(c, jet_easy, sam, ctx, ans);
 
         // ((easy %foo) [[1 1] "abc"])
         //  [[1 1] "abc"]
@@ -459,6 +439,6 @@ mod tests {
             .unwrap();
         let ans = cue(&mut c.stack, ans_jam);
         let ctx = T(&mut c.stack, &[D(0), D(0x6f6f66), D(0)]);
-        util::assert_jet_in_door(c, jet_easy, sam, ctx, ans);
+        assert_jet_door(c, jet_easy, sam, ctx, ans);
     }
 }

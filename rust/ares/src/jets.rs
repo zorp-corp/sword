@@ -327,7 +327,11 @@ pub mod util {
         }
 
         pub fn assert_jet(context: &mut Context, jet: Jet, sam: Noun, res: Noun) {
-            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            assert_jet_door(context, jet, sam, D(0), res)
+        }
+
+        pub fn assert_jet_door(context: &mut Context, jet: Jet, sam: Noun, pay: Noun, res: Noun) {
+            let sam = T(&mut context.stack, &[D(0), sam, pay]);
             let jet_res = assert_no_alloc(|| jet(context, sam).unwrap());
             assert_noun_eq(&mut context.stack, jet_res, res);
         }
