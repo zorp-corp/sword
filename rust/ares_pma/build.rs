@@ -1,7 +1,6 @@
 extern crate bindgen;
 
 use std::env;
-use std::fs::create_dir_all;
 use std::path::PathBuf;
 
 use bindgen::CargoCallbacks;
