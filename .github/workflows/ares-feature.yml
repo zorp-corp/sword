@@ -5,9 +5,7 @@ on:
     paths:
       - '.github/workflows/ares-feature.yml'
       - '.github/workflows/ares-shared.yml'
-      - 'rust/ares/**'
-      - 'rust/ares_macros/**'
-      - 'rust/ibig-rs/**'
+      - 'rust/**'
 
 jobs:
   urbit:
