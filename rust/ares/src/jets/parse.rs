@@ -225,6 +225,7 @@ pub fn jet_sfix(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+// +$  edge  [p=hair q=(unit [p=* q=nail])]
 #[derive(Copy, Clone)]
 struct StirPair {
     pub har: Noun,
@@ -240,67 +241,61 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
     let raq = slot(van, 26)?;
     let fel = slot(van, 27)?;
 
-    eprintln!("stir: got my nouns");
-
-    // +$  edge  [p=hair q=(unit [p=* q=nail])]
-    let hair = T(&mut context.stack, &[D(1), D(1)]);
-    let mut par_u = StirPair {
-        har: hair,
-        res: D(0),
-    };
-
-    eprintln!("stir: prepared pair");
-
     // initial accumulator (deconstructed)
     let mut p_wag: Noun;
     let mut puq_wag: Noun;
     let quq_wag: Noun;
 
     // push incremental, succesful [fel] parse results onto stack
-    let mut vex = slam(context, fel, tub)?.as_cell()?;
-    let mut p_vex = vex.head();
-    let mut q_vex = vex.tail();
-    eprintln!("stir: got vex");
-    while !unsafe { q_vex.raw_equals(D(0)) } {
-        let puq_vex = q_vex.as_cell()?.head();
-        let quq_vex = q_vex.as_cell()?.tail();
+    {
+        let mut vex = slam(context, fel, tub)?.as_cell()?;
+        let mut p_vex = vex.head();
+        let mut q_vex = vex.tail();
+        eprintln!("stir: got vex\r");
+        let i = 0;
+        while unsafe { !q_vex.raw_equals(D(0)) } {
+            eprintln!("stir: starting vex loop {}\r", i);
+            let puq_vex = q_vex.as_cell()?.head();
 
-        par_u.har = p_vex;
-        par_u.res = puq_vex;
-        unsafe { *(context.stack.push::<StirPair>()) = par_u };
+            unsafe {
+                *(context.stack.push::<StirPair>()) = StirPair{
+                    har: p_vex,
+                    res: puq_vex,
+                };
+            };
 
-        tub = quq_vex;
+            tub = q_vex.as_cell()?.tail();
 
-        vex = slam(context, fel, tub)?.as_cell()?;
-        p_vex = vex.head();
-        q_vex = vex.tail();
+            vex = slam(context, fel, tub)?.as_cell()?;
+            p_vex = vex.head();
+            q_vex = vex.tail();
+        }
+        eprintln!("stir: vex loop done\r");
+
+        p_wag = p_vex;
+        puq_wag = rud;
+        quq_wag = tub;
     }
-    eprintln!("stir: vex loop done");
-
-    p_wag = p_vex;
-    puq_wag = rud;
-    quq_wag = tub;
 
     // unwind the stack, folding parse results into [wag] by way of [raq]
-    eprintln!("stir: unwinding stack");
+    eprintln!("stir: unwinding stack\r");
     while !context.stack.stack_is_empty() {
-        p_wag = util::last(p_wag, puq_wag)?;
+        let par_u = unsafe { *(context.stack.top::<StirPair>()) };
+        p_wag = util::last(par_u.har, p_wag)?;
         let sam = T(&mut context.stack, &[par_u.res, puq_wag]);
         puq_wag = slam(context, raq, sam)?;
         unsafe {
             context.stack.pop::<StirPair>();
         };
-        par_u = unsafe { *(context.stack.top::<StirPair>()) };
     }
 
-    eprintln!("stir: unwind done");
-
+    let mut res = T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]);
     unsafe {
+        context.stack.preserve(&mut res);
         context.stack.frame_pop();
     };
 
-    eprintln!("stir: done");
-    Ok(T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]))
+    Ok(res)
 }
 
 //
