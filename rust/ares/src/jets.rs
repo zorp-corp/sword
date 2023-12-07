@@ -10,6 +10,7 @@ pub mod lock;
 pub mod lute;
 pub mod math;
 pub mod nock;
+pub mod parse;
 pub mod serial;
 pub mod sort;
 pub mod tree;
@@ -21,15 +22,16 @@ use crate::jets::form::*;
 use crate::jets::hash::*;
 use crate::jets::hot::{Hot, URBIT_HOT_STATE};
 use crate::jets::list::*;
-use crate::jets::lute::*;
-use crate::jets::math::*;
-use crate::jets::nock::*;
-use crate::jets::serial::*;
-use crate::jets::sort::*;
-
 use crate::jets::lock::aes::*;
 use crate::jets::lock::ed::*;
 use crate::jets::lock::sha::*;
+use crate::jets::lute::*;
+use crate::jets::math::*;
+use crate::jets::nock::*;
+use crate::jets::parse::*;
+use crate::jets::serial::*;
+use crate::jets::sort::*;
+
 use crate::jets::tree::*;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
@@ -167,7 +169,8 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
-    use crate::noun::{Noun, D};
+    use crate::interpreter::interpret;
+    use crate::noun::{Noun, D, T};
     use bitvec::prelude::{BitSlice, Lsb0};
     use std::result;
 
@@ -268,6 +271,23 @@ pub mod util {
         Ok(())
     }
 
+    pub fn kick(context: &mut Context, core: Noun, axis: Noun) -> result::Result<Noun, JetErr> {
+        let formula: Noun = T(&mut context.stack, &[D(9), axis, D(0), D(1)]);
+        interpret(context, core, formula).map_err(JetErr::Fail)
+    }
+
+    pub fn slam(context: &mut Context, gate: Noun, sample: Noun) -> result::Result<Noun, JetErr> {
+        let core: Noun = T(
+            &mut context.stack,
+            &[
+                gate.as_cell()?.head(),
+                sample,
+                gate.as_cell()?.tail().as_cell()?.tail(),
+            ],
+        );
+        kick(context, core, D(2))
+    }
+
     pub mod test {
         use super::*;
         use crate::hamt::Hamt;
@@ -307,7 +327,11 @@ pub mod util {
         }
 
         pub fn assert_jet(context: &mut Context, jet: Jet, sam: Noun, res: Noun) {
-            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            assert_jet_door(context, jet, sam, D(0), res)
+        }
+
+        pub fn assert_jet_door(context: &mut Context, jet: Jet, sam: Noun, pay: Noun, res: Noun) {
+            let sam = T(&mut context.stack, &[D(0), sam, pay]);
             let jet_res = assert_no_alloc(|| jet(context, sam).unwrap());
             assert_noun_eq(&mut context.stack, jet_res, res);
         }
