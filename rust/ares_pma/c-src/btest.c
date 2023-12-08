@@ -11,7 +11,6 @@ _test_nodeinteg(BT_state *state, BT_findpath *path,
 
   assert(SUCC(_bt_find(state, path, lo, hi)));
   parent = path->path[path->depth];
-  /* _bt_printnode(parent); */
   childidx = path->idx[path->depth];
   assert(parent->datk[childidx].fo == pg);
   assert(parent->datk[childidx].va == lo);
@@ -55,6 +54,16 @@ int main(int argc, char *argv[])
 
   void *t2a = bt_malloc(state2, 10);
   bt_free(state2, t2a, (BT_page*)t2a + 10);
+  void *t2b = bt_malloc(state2, 10);
+  /* should have pulled the same pointer due to eager mlist coalescing */
+  /* assert(t2a == t2b);           /\* ;;: not working. fix whatever is wrong with mlist coalescing *\/ */
+  ZERO(&path, sizeof path);
+  _bt_find(state2, &path, addr2off(t2b), addr2off((BT_page *)t2b + 10));
+  bt_free(state2, t2b, (BT_page*)t2b + 10);
+  ZERO(&path, sizeof path);
+  _bt_find(state2, &path, addr2off(t2b), addr2off((BT_page *)t2b + 10));
+  /* should invoke deletion coalescing - 10 page free range in btree */
+  void *t2c = bt_malloc(state2, 20);
 
   return 0;
 }
