@@ -255,12 +255,9 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
                 let vex = slam(context, fel, tub)?.as_cell()?;
                 let mut p_vex = vex.head();
                 let mut q_vex = vex.tail();
-                eprintln!("stir: got vex\r\n");
-                let i = 0;
                 while !q_vex.raw_equals(D(0)) {
-                    eprintln!("stir: starting vex loop {}\r\n", i);
-                    let puq_vex = q_vex.as_cell()?.head();
-                    let quq_vex = q_vex.as_cell()?.tail();
+                    let puq_vex = slot(q_vex, 6)?;
+                    let quq_vex = slot(q_vex, 7)?;
 
                     *(context.stack.push::<StirPair>()) = StirPair {
                         har: p_vex,
@@ -280,28 +277,21 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
             }
 
             // unwind the stack, folding parse results into [wag] by way of [raq]
-            let mut j = 0;
             while !context.stack.stack_is_empty() {
-                eprintln!("stir: unwinding stack loop {}\r\n", j);
                 let par_u = *(context.stack.top::<StirPair>());
                 p_wag = util::last(par_u.har, p_wag)?;
                 let sam = T(&mut context.stack, &[par_u.res, puq_wag]);
                 puq_wag = slam(context, raq, sam)?;
                 context.stack.pop::<StirPair>();
-                j += 1;
             }
 
             let res = T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]);
-
-            eprintln!("stir: done!\r\n");
-
             Ok(res)
         })
     }
 }
 
 fn stew_wor(ort: Noun, wan: Noun) -> result::Result<bool, JetErr> {
-    eprintln!("stew_wor\r");
     if !ort.as_atom()?.is_direct() {
         return Err(JetErr::Fail(Error::Deterministic(D(0))));
     } else {
@@ -499,14 +489,14 @@ pub mod util {
         let zyl = zyc.as_cell()?;
         let nal = naz.as_cell()?;
 
-        let zyll = zyl.head().as_direct()?.data();
-        let zylc = zyl.tail().as_direct()?.data();
-        let nall = nal.head().as_direct()?.data();
-        let nalc = nal.tail().as_direct()?.data();
+        let p_zyc = zyl.head().as_direct()?.data();
+        let q_zyc = zyl.tail().as_direct()?.data();
+        let p_naz = nal.head().as_direct()?.data();
+        let q_naz = nal.tail().as_direct()?.data();
 
-        match zyll.cmp(&nall) {
+        match p_zyc.cmp(&p_naz) {
             Ordering::Equal => {
-                if zylc > nalc {
+                if q_zyc > q_naz {
                     Ok(zyc)
                 } else {
                     Ok(naz)
