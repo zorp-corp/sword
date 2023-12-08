@@ -440,21 +440,6 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
         jet_stag,
     ),
     //
-    // (
-    //     &[
-    //         K_139,
-    //         Left(b"one"),
-    //         Left(b"two"),
-    //         Left(b"tri"),
-    //         Left(b"qua"),
-    //         Left(b"stir"),
-    //         Left(b"fun"),
-    //     ],
-    //     1,
-    //     jet_stir,
-    // ),
-    //
-    //
     (
         &[
             K_139,
@@ -462,12 +447,27 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
             Left(b"two"),
             Left(b"tri"),
             Left(b"qua"),
-            Left(b"stew"),
+            Left(b"stir"),
             Left(b"fun"),
         ],
         1,
-        jet_stew,
+        jet_stir,
     ),
+    //
+    // (
+    //     &[
+    //         K_139,
+    //         Left(b"one"),
+    //         Left(b"two"),
+    //         Left(b"tri"),
+    //         Left(b"qua"),
+    //         Left(b"stew"),
+    //         Left(b"fun"),
+    //     ],
+    //     1,
+    //     jet_stew,
+    // ),
+    //
     (
         &[
             K_139,

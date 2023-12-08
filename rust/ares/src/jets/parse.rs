@@ -252,35 +252,27 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
 
             // push incremental, succesful [fel] parse results onto stack
             {
-                let mut vex = slam(context, fel, tub)?.as_cell()?;
+                let vex = slam(context, fel, tub)?.as_cell()?;
                 let mut p_vex = vex.head();
                 let mut q_vex = vex.tail();
-                eprintln!("stir: got vex\r");
+                eprintln!("stir: got vex\r\n");
                 let i = 0;
-                while unsafe { !q_vex.raw_equals(D(0)) } {
-                    eprintln!("stir: starting vex loop {}\r", i);
+                while !q_vex.raw_equals(D(0)) {
+                    eprintln!("stir: starting vex loop {}\r\n", i);
                     let puq_vex = q_vex.as_cell()?.head();
                     let quq_vex = q_vex.as_cell()?.tail();
 
-                    unsafe {
-                        *(context.stack.push::<StirPair>()) = StirPair {
-                            har: p_vex,
-                            res: puq_vex,
-                        };
+                    *(context.stack.push::<StirPair>()) = StirPair {
+                        har: p_vex,
+                        res: puq_vex,
                     };
 
                     tub = quq_vex;
 
-                    let slam_vex = slam(context, fel, tub);
-                    if slam_vex.is_err() {
-                        eprintln!("stir: slam vex failed\r");
-                    }
-
-                    vex = slam_vex?.as_cell()?;
+                    let vex = slam(context, fel, tub)?.as_cell()?;
                     p_vex = vex.head();
                     q_vex = vex.tail();
                 }
-                eprintln!("stir: vex loop done\r");
 
                 p_wag = p_vex;
                 puq_wag = rud;
@@ -288,18 +280,20 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
             }
 
             // unwind the stack, folding parse results into [wag] by way of [raq]
-            eprintln!("stir: unwinding stack\r");
+            let mut j = 0;
             while !context.stack.stack_is_empty() {
-                let par_u = unsafe { *(context.stack.top::<StirPair>()) };
+                eprintln!("stir: unwinding stack loop {}\r\n", j);
+                let par_u = *(context.stack.top::<StirPair>());
                 p_wag = util::last(par_u.har, p_wag)?;
                 let sam = T(&mut context.stack, &[par_u.res, puq_wag]);
                 puq_wag = slam(context, raq, sam)?;
-                unsafe {
-                    context.stack.pop::<StirPair>();
-                };
+                context.stack.pop::<StirPair>();
+                j += 1;
             }
 
             let res = T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]);
+
+            eprintln!("stir: done!\r\n");
 
             Ok(res)
         })

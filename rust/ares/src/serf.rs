@@ -12,7 +12,7 @@ use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
 use crate::snapshot::double_jam::DoubleJam;
 use crate::snapshot::Snapshot;
 use crate::trace::*;
-use crate::{interpreter, trace};
+use crate::interpreter;
 use ares_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;

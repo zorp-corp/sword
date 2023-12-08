@@ -917,7 +917,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     match nock {
         Ok(res) => Ok(res),
         Err(err) => {
-            let h = unsafe { *(context.stack.local_noun_pointer(0)) };
             return Err(exit(context, &snapshot, virtual_frame, err));
         }
     }
