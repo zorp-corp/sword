@@ -663,11 +663,11 @@ impl NockStack {
      */
     pub unsafe fn with_frame<F, O>(&mut self, num_locals: usize, f: F) -> O
     where
-        F: FnOnce() -> O,
+        F: FnOnce(&mut NockStack) -> O,
         O: Preserve
     {
         self.frame_push(num_locals);
-        let mut ret = f();
+        let mut ret = f(self);
         ret.preserve(self);
         self.frame_pop();
         ret
