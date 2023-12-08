@@ -663,10 +663,12 @@ impl NockStack {
      */
     pub unsafe fn with_frame<F, O>(&mut self, num_locals: usize, f: F) -> O
     where
-        F: FnOnce() -> O,
+        F: FnOnce(&mut NockStack) -> O,
+        O: Preserve,
     {
         self.frame_push(num_locals);
-        let ret = f();
+        let mut ret = f(self);
+        ret.preserve(self);
         self.frame_pop();
         ret
     }
@@ -1131,5 +1133,21 @@ impl Preserve for Noun {
 impl Stack for NockStack {
     unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64 {
         self.layout_alloc(layout)
+    }
+}
+
+impl<T: Preserve, E: Preserve> Preserve for Result<T, E> {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        match self.as_mut() {
+            Ok(t_ref) => t_ref.preserve(stack),
+            Err(e_ref) => e_ref.preserve(stack),
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        match self.as_ref() {
+            Ok(t_ref) => t_ref.assert_in_stack(stack),
+            Err(e_ref) => e_ref.assert_in_stack(stack),
+        }
     }
 }

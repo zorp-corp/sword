@@ -9,6 +9,7 @@ use crate::jets::warm::Warm;
 use crate::jets::JetErr;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
+use crate::mem::Preserve;
 use crate::newt::Newt;
 use crate::noun;
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
@@ -282,6 +283,26 @@ impl Context {
         self.cold = saved.cold;
         self.warm = saved.warm;
     }
+
+    /**
+     * For jets that need a stack frame internally.
+     *
+     * This ensures that the frame is cleaned up even if the closure short-circuites to an error
+     * result using e.g. the ? syntax. We need this method separately from with_frame to allow the
+     * jet to use the entire context without the borrow checker complaining about the mutable
+     * references.
+     */
+    pub unsafe fn with_stack_frame<F, O>(&mut self, slots: usize, f: F) -> O
+    where
+        F: FnOnce(&mut Context) -> O,
+        O: Preserve,
+    {
+        self.stack.frame_push(slots);
+        let mut ret = f(self);
+        ret.preserve(&mut self.stack);
+        self.stack.frame_pop();
+        ret
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -290,6 +311,26 @@ pub enum Error {
     ScryCrashed(Noun),      // trace
     Deterministic(Noun),    // trace
     NonDeterministic(Noun), // trace
+}
+
+impl Preserve for Error {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        match self {
+            Error::ScryBlocked(ref mut path) => path.preserve(stack),
+            Error::ScryCrashed(ref mut trace) => trace.preserve(stack),
+            Error::Deterministic(ref mut trace) => trace.preserve(stack),
+            Error::NonDeterministic(ref mut trace) => trace.preserve(stack),
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        match self {
+            Error::ScryBlocked(ref path) => path.assert_in_stack(stack),
+            Error::ScryCrashed(ref trace) => trace.assert_in_stack(stack),
+            Error::Deterministic(ref trace) => trace.assert_in_stack(stack),
+            Error::NonDeterministic(ref trace) => trace.assert_in_stack(stack),
+        }
+    }
 }
 
 impl From<noun::Error> for Error {
