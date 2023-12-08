@@ -664,7 +664,7 @@ impl NockStack {
     pub unsafe fn with_frame<F, O>(&mut self, num_locals: usize, f: F) -> O
     where
         F: FnOnce(&mut NockStack) -> O,
-        O: Preserve
+        O: Preserve,
     {
         self.frame_push(num_locals);
         let mut ret = f(self);
@@ -1139,24 +1139,15 @@ impl Stack for NockStack {
 impl<T: Preserve, E: Preserve> Preserve for Result<T, E> {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         match self.as_mut() {
-            Ok(t_ref) => {
-                t_ref.preserve(stack)
-            },
-            Err(e_ref) => {
-                e_ref.preserve(stack)
-            }
+            Ok(t_ref) => t_ref.preserve(stack),
+            Err(e_ref) => e_ref.preserve(stack),
         }
     }
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         match self.as_ref() {
-            Ok(t_ref) => {
-                t_ref.assert_in_stack(stack)
-            },
-            Err(e_ref) => {
-                e_ref.assert_in_stack(stack)
-            }
+            Ok(t_ref) => t_ref.assert_in_stack(stack),
+            Err(e_ref) => e_ref.assert_in_stack(stack),
         }
     }
 }
-

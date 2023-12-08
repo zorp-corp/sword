@@ -58,19 +58,15 @@ pub enum JetErr {
 impl Preserve for JetErr {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         match self {
-            JetErr::Punt => {},
-            JetErr::Fail(ref mut err) => {
-                err.preserve(stack)
-            },
+            JetErr::Punt => {}
+            JetErr::Fail(ref mut err) => err.preserve(stack),
         }
     }
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         match self {
-            JetErr::Punt => {},
-            JetErr::Fail(ref err) => {
-                err.assert_in_stack(stack)
-            },
+            JetErr::Punt => {}
+            JetErr::Fail(ref err) => err.assert_in_stack(stack),
         }
     }
 }
