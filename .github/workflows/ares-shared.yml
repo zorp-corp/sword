@@ -21,6 +21,16 @@ jobs:
         with:
           extra_nix_config: "extra-experimental-features = nix-command flakes"
 
+      - name: Set cache key for dev env
+        run: export ARES_NIX_DEVSHELL_PATH=$(nix eval --raw ".#devShells.x86_64-linux.default.outPath")
+
+      - name: Cache rust build artifacts
+        id: cache_rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          env-vars: "CARGO CC CFLAGX CXX CMAKE RUST ARES"
+          workspaces: "rust/ares -> target"
+
       # Check formatting
       - name: Format
         run: |
