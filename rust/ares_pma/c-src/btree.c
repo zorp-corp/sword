@@ -1020,10 +1020,11 @@ _bt_delco_trim_rsubtree_lhs2(BT_state *state, vaof_t lo, vaof_t hi,
 {
   BT_page *node = _node_get(state, nodepg);
   size_t hiidx = 0;
+  size_t N = _bt_numkeys(node);
 
   /* find hi idx of range */
   size_t i;
-  for (i = 0; i < BT_DAT_MAXKEYS-1; i++) {
+  for (i = 0; i < N-1; i++) {
     vaof_t hhi = node->datk[i].va;
     if (hhi >= hi) {
       hiidx = i;
@@ -1097,7 +1098,7 @@ _bt_delco_trim_lsubtree_rhs2(BT_state *state, vaof_t lo, vaof_t hi,
   /* drop the subtrees right of the range */
   if (depth != maxdepth) {
     /* recur and droptree for branches */
-    for (i = loidx+1; i < BT_DAT_MAXKEYS-1; i++) {
+    for (i = loidx+1; i < N-1; i++) {
       pgno_t childpg = node->datk[i].fo;
       if (childpg == 0)
         break;
@@ -1154,7 +1155,7 @@ _bt_delco(BT_state *state, vaof_t lo, vaof_t hi,
   }
 
   /* find high idx of range */
-  for (size_t i = loidx; i < BT_DAT_MAXKEYS-1; i++) {
+  for (size_t i = loidx; i < N-1; i++) {
     vaof_t hhi = node->datk[i].va;
     if (hhi >= hi) {
       assert(i > 0);
@@ -2312,8 +2313,9 @@ _bt_sync_leaf(BT_state *state, BT_page *node)
      the node itself and mark it as clean in the parent. */
   pgno_t pg;
   size_t i = 0;
+  size_t N = _bt_numkeys(node);
 
-  for (size_t i = 0; i < BT_DAT_MAXKEYS-1; i++) {
+  for (size_t i = 0; i < N-1; i++) {
     if (!_bt_ischilddirty(node, i))
       continue;                 /* not dirty. nothing to do */
 
@@ -2398,6 +2400,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
    itself and mark it clean. */
 {
   int rc = 0;
+  size_t N = _bt_numkeys(node);
 
   /* leaf */
   if (depth == maxdepth) {
@@ -2406,7 +2409,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
   }
 
   /* do dfs */
-  for (size_t i = 0; i < BT_DAT_MAXKEYS-1; i++) {
+  for (size_t i = 0; i < N-1; i++) {
     if (!_bt_ischilddirty(node, i))
       continue;                 /* not dirty. nothing to do */
 
