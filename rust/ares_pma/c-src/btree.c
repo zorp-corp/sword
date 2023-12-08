@@ -759,10 +759,10 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
 
   assert(head);
 
-  while (head->next) {
+  while (head) {
     BYTE   *vob = head->va;
     size_t  siz = head->sz;
-    BYTE   *nob = head->next->va;
+    BYTE   *nob = head->next ? head->next->va : 0;
 
     /* freed chunk immediately precedes head */
     if (hi == vob) {
@@ -810,14 +810,27 @@ _pending_nlist_insert(BT_state *state, pgno_t nodepg)
     return;
   }
 
+  if (!head->next) {
+    if (head->va < va)
+      goto append;
+    /* otherwise prepend and update mlist head reference */
+    BT_nlistnode *new = calloc(1, sizeof *new);
+    new->sz = 1;
+    new->va = va;
+    new->next = head;
+    state->nlist = new;
+  }
+
   /* we don't need to account for a freelist node's size because we aren't
      coalescing the pending freelists */
-  while (head->next) {
-    if (head->next->va > va)
+  while (head) {
+    BT_page *nva = head->next ? head->next->va : (void*)-1;
+    if (nva > va)
       break;
     head = head->next;
   }
 
+ append:
   /* head->next is either null or has a higher address than va */
   BT_nlistnode *new = calloc(1, sizeof *new);
   new->sz = 1;

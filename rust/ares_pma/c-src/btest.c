@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
   bt_free(state2, t2a, (BT_page*)t2a + 10);
   void *t2b = bt_malloc(state2, 10);
   /* should have pulled the same pointer due to eager mlist coalescing */
-  /* assert(t2a == t2b);           /\* ;;: not working. fix whatever is wrong with mlist coalescing *\/ */
+  assert(t2a == t2b);
   ZERO(&path, sizeof path);
   _bt_find(state2, &path, addr2off(t2b), addr2off((BT_page *)t2b + 10));
   bt_free(state2, t2b, (BT_page*)t2b + 10);
