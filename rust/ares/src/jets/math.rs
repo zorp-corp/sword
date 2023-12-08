@@ -12,7 +12,7 @@
  * Another approach is use a global custom allocator.  This is fairly involved, but it would allow
  * us to use any library without worrying whether it allocates.
  */
-use crate::interpreter::{Context, Error};
+use crate::interpreter::{assert_is_list, Context, Error};
 use crate::jets::util::*;
 use crate::jets::{JetErr, Result};
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
@@ -115,6 +115,7 @@ pub fn jet_dvr(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub fn jet_gte(context: &mut Context, subject: Noun) -> Result {
+    assert_is_list(unsafe { *(context.stack.local_noun_pointer(0)) });
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
