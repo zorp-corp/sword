@@ -1,5 +1,4 @@
 use crate::hamt::Hamt;
-use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
 use crate::jets::cold::Cold;
 use crate::jets::hot::{Hot, HotEntry};
@@ -13,6 +12,7 @@ use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
 use crate::snapshot::double_jam::DoubleJam;
 use crate::snapshot::Snapshot;
 use crate::trace::*;
+use crate::{interpreter, trace};
 use ares_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;
@@ -307,7 +307,8 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
 }
 
 fn goof(context: &mut Context, traces: Noun) -> Noun {
-    let trace = zing(&mut context.nock_context.stack, traces).unwrap();
+    // eprintln!("serf: goof: traces: {}", traces);
+    let trace = zing(&mut context.nock_context.stack, traces).expect("serf: goof: zing failed");
     let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
     let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")

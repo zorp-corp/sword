@@ -256,17 +256,23 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
         while unsafe { !q_vex.raw_equals(D(0)) } {
             eprintln!("stir: starting vex loop {}\r", i);
             let puq_vex = q_vex.as_cell()?.head();
+            let quq_vex = q_vex.as_cell()?.tail();
 
             unsafe {
-                *(context.stack.push::<StirPair>()) = StirPair{
+                *(context.stack.push::<StirPair>()) = StirPair {
                     har: p_vex,
                     res: puq_vex,
                 };
             };
 
-            tub = q_vex.as_cell()?.tail();
+            tub = quq_vex;
 
-            vex = slam(context, fel, tub)?.as_cell()?;
+            let slam_vex = slam(context, fel, tub);
+            if slam_vex.is_err() {
+                eprintln!("stir: slam vex failed\r");
+            }
+
+            vex = slam_vex?.as_cell()?;
             p_vex = vex.head();
             q_vex = vex.tail();
         }

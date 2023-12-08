@@ -348,6 +348,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
         push_formula(&mut context.stack, formula, true)?;
 
         loop {
+            assert_is_list(*(context.stack.local_noun_pointer(0)), "loop top");
             let work: NockWork = *context.stack.top();
             match work {
                 NockWork::Done => {
@@ -410,6 +411,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         context.stack.pop::<NockWork>();
                     } else {
                         // Axis invalid for input Noun
+                        assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 0");
                         break Err(Error::Deterministic(D(0)));
                     }
                 }
@@ -419,6 +421,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                 }
                 NockWork::Work2(mut vale) => {
                     if (*terminator).load(Ordering::Relaxed) {
+                        assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 2");
                         break Err(Error::NonDeterministic(D(0)));
                     }
 
@@ -489,6 +492,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             context.stack.pop::<NockWork>();
                         } else {
                             // Cannot increment (Nock 4) a cell
+                            assert_is_list(*(context.stack.local_noun_pointer(0)), "TODO 4");
                             break Err(Error::Deterministic(D(0)));
                         }
                     }
@@ -532,10 +536,12 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 push_formula(stack, cond.once, cond.tail)?;
                             } else {
                                 // Test branch of Nock 6 must return 0 or 1
+                                assert_is_list(*(context.stack.local_noun_pointer(0)), "TODO 6");
                                 break Err(Error::Deterministic(D(0)));
                             }
                         } else {
                             // Test branch of Nock 6 must return a direct atom
+                            assert_is_list(*(context.stack.local_noun_pointer(0)), "TODO 6.1");
                             break Err(Error::Deterministic(D(0)));
                         }
                     }
@@ -592,6 +598,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                 },
                 NockWork::Work9(mut kale) => {
                     if (*terminator).load(Ordering::Relaxed) {
+                        assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 9");
                         break Err(Error::NonDeterministic(D(0)));
                     }
 
@@ -617,6 +624,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                             }
                                             Err(JetErr::Punt) => {}
                                             Err(err) => {
+                                                assert_is_list(
+                                                    *(context.stack.local_noun_pointer(0)),
+                                                    "WORK 9.1"
+                                                );
                                                 break Err(err.into());
                                             }
                                         }
@@ -663,6 +674,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 }
                             } else {
                                 // Axis into core must be atom
+                                assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 9.2");
                                 break Err(Error::Deterministic(D(0)));
                             }
                         }
@@ -708,6 +720,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     context.stack.pop::<NockWork>();
                                 }
                                 Err(err) => {
+                                    assert_is_list(*(context.stack.local_noun_pointer(0)), "TODO 11D COMPHINT");
                                     break Err(err);
                                 }
                             }
@@ -731,6 +744,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     context.stack.pop::<NockWork>();
                                 }
                                 Err(err) => {
+                                    assert_is_list(*(context.stack.local_noun_pointer(0)), "TODO 11D COMPRES");
                                     break Err(err);
                                 }
                             }
@@ -770,6 +784,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     context.stack.pop::<NockWork>();
                                 }
                                 Err(err) => {
+                                    assert_is_list(*(context.stack.local_noun_pointer(0)), "TODO 11S COMP RES");
                                     break Err(err);
                                 }
                             }
@@ -831,8 +846,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 Ok(noun) => match noun.as_either_atom_cell() {
                                     Left(atom) => {
                                         if atom.as_noun().raw_equals(D(0)) {
+                                            assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 12 SCRY BLOK");
                                             break Err(Error::ScryBlocked(scry.path));
                                         } else {
+                                            assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 12 SCRY CRASH");
                                             break Err(Error::ScryCrashed(D(0)));
                                         }
                                     }
@@ -842,6 +859,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                             let hunk =
                                                 T(stack, &[D(tas!(b"hunk")), scry.reff, scry.path]);
                                             mean_push(stack, hunk);
+                                            assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 12 SCRY CRASH 2");
                                             break Err(Error::ScryCrashed(D(0)));
                                         }
                                         Right(cell) => {
@@ -853,18 +871,22 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 },
                                 Err(error) => match error {
                                     Error::Deterministic(trace) | Error::ScryCrashed(trace) => {
+                                        assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 12.1");
                                         break Err(Error::ScryCrashed(trace));
                                     }
                                     Error::NonDeterministic(_) => {
+                                        assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 12.2");
                                         break Err(error);
                                     }
                                     Error::ScryBlocked(_) => {
+                                        assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 12.3");
                                         break Err(Error::NonDeterministic(D(0)));
                                     }
                                 },
                             }
                         } else {
                             // No scry handler
+                            assert_is_list(*(context.stack.local_noun_pointer(0)), "WORK 12 NO HANDLER");
                             break Err(Error::Deterministic(D(0)));
                         }
                     }
@@ -875,7 +897,11 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
     match nock {
         Ok(res) => Ok(res),
-        Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
+        Err(err) => {
+            let h = unsafe { *(context.stack.local_noun_pointer(0)) };
+            assert_is_list(h, "FINAL MATCH");
+            return Err(exit(context, &snapshot, virtual_frame, err));
+        }
     }
 }
 
@@ -1092,6 +1118,19 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> result::Res
     Ok(())
 }
 
+fn assert_is_list(mut noun: Noun, tag: &str) {
+    loop {
+        if let Ok(cell) = noun.as_cell() {
+            noun = cell.tail();
+        } else {
+            if ! unsafe { noun.raw_equals(D(0)) } {
+                panic!("assertion failed: {} is not a list", tag);
+                break;
+            }
+        }
+    }
+}
+
 fn exit(
     context: &mut Context,
     snapshot: &ContextSnapshot,
@@ -1107,6 +1146,8 @@ fn exit(
             Error::Deterministic(t) | Error::NonDeterministic(t) | Error::ScryCrashed(t) => {
                 // Return $tang of traces
                 let h = *(stack.local_noun_pointer(0));
+                assert_is_list(h, "EXIT");
+                // eprintln!("crashing with mean stack: {:?}", h);
                 T(stack, &[h, t])
             }
         };
