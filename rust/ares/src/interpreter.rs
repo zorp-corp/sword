@@ -22,6 +22,7 @@ use std::result;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Instant;
+use crate::mem::Preserve;
 
 crate::gdb!();
 
@@ -290,6 +291,42 @@ pub enum Error {
     ScryCrashed(Noun),      // trace
     Deterministic(Noun),    // trace
     NonDeterministic(Noun), // trace
+}
+
+impl Preserve for Error {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        match self {
+            Error::ScryBlocked(ref mut path) => {
+                path.preserve(stack)
+            },
+            Error::ScryCrashed(ref mut trace) => {
+                trace.preserve(stack)
+            },
+            Error::Deterministic(ref mut trace) => {
+                trace.preserve(stack)
+            }
+            Error::NonDeterministic(ref mut trace) => {
+                trace.preserve(stack)
+            }
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        match self {
+            Error::ScryBlocked(ref path) => {
+                path.assert_in_stack(stack)
+            },
+            Error::ScryCrashed(ref trace) => {
+                trace.assert_in_stack(stack)
+            },
+            Error::Deterministic(ref trace) => {
+                trace.assert_in_stack(stack)
+            }
+            Error::NonDeterministic(ref trace) => {
+                trace.assert_in_stack(stack)
+            }
+        }
+    }
 }
 
 impl From<noun::Error> for Error {

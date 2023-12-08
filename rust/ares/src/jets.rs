@@ -34,7 +34,7 @@ use crate::jets::sort::*;
 
 use crate::jets::tree::*;
 use crate::jets::warm::Warm;
-use crate::mem::NockStack;
+use crate::mem::{NockStack, Preserve};
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots, D};
 use ares_macros::tas;
@@ -53,6 +53,26 @@ pub type Jet = fn(&mut Context, Noun) -> Result;
 pub enum JetErr {
     Punt,        // Retry with the raw nock
     Fail(Error), // Error; do not retry
+}
+
+impl Preserve for JetErr {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        match self {
+            JetErr::Punt => {},
+            JetErr::Fail(ref mut err) => {
+                err.preserve(stack)
+            },
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        match self {
+            JetErr::Punt => {},
+            JetErr::Fail(ref err) => {
+                err.assert_in_stack(stack)
+            },
+        }
+    }
 }
 
 impl From<Error> for JetErr {
