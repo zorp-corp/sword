@@ -487,9 +487,10 @@ _bt_find2(BT_state *state,
 }
 
 static void
-_bt_root_new(BT_page *root)
+_bt_root_new(BT_meta *meta, BT_page *root)
 {
-  root->datk[0].va = 0;
+  /* The first usable address in the PMA is just beyond the first node stripe */
+  root->datk[0].va = meta->blk_base[0] + BLK_BASE_LEN0;
   root->datk[0].fo = 0;
   root->datk[1].va = UINT32_MAX;
   root->datk[1].fo = 0;
@@ -2154,8 +2155,11 @@ _bt_state_meta_new(BT_state *state)
 
   TRACE();
 
+  /* initialize the block base array */
+  meta.blk_base[0] = BT_PAGESIZE * BT_NUMMETAS;
+
   root = _bt_nalloc(state);
-  _bt_root_new(root);
+  _bt_root_new(&meta, root);
 
   pagesize = sizeof *p1;
 
@@ -2170,9 +2174,6 @@ _bt_state_meta_new(BT_state *state)
   meta.flags = BP_META;
   meta.root = _fo_get(state, root);
   assert(meta.root == INITIAL_ROOTPG); /* ;;: remove?? */
-
-  /* initialize the block base array */
-  meta.blk_base[0] = BT_NUMMETAS + 1;
 
   /* initialize the metapages */
   p1 = &((BT_page *)state->map)[0];
@@ -2218,7 +2219,7 @@ _bt_state_load(BT_state *state)
 
   p = (BT_page *)state->map;
   state->meta_pages[0] = METADATA(p);
-  state->meta_pages[0] = METADATA(p + 1);
+  state->meta_pages[1] = METADATA(p + 1);
 
   /* new db, so populate metadata */
   if (new) {

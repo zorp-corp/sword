@@ -22,26 +22,39 @@ int main(int argc, char *argv[])
 {
   DPUTS("PMA Tests");
 
-  BT_state *state;
+  BT_state *state1;
   BT_findpath path = {0};
   int rc = 0;
 
-  bt_state_new(&state);
-
-  
+
   DPUTS("== test 1: insert");
-  assert(SUCC(bt_state_open(state, "./pmatest", 0, 0644)));
 
-  vaof_t lo = 10;
+  bt_state_new(&state1);
+
+  assert(SUCC(bt_state_open(state1, "./pmatest1", 0, 0644)));
+
+#define LOWEST_ADDR 0x200000;
+  vaof_t lo = LOWEST_ADDR;
   vaof_t hi = 0xDEADBEEF;
   pgno_t pg = 1;                /* dummy value */
   for (size_t i = 0; i < BT_DAT_MAXKEYS * 4; ++i) {
-    /* if (i % (BT_DAT_MAXKEYS - 2) == 0) */
-    /*   bp(0);                    /\* breakpoint on split case *\/ */
-    _bt_insert(state, lo, hi, pg);
-    _test_nodeinteg(state, &path, lo, hi, pg);
+    DPRINTF("== i: %zu", i);
+    _bt_insert(state1, lo, hi, pg);
+    _test_nodeinteg(state1, &path, lo, hi, pg);
     lo++; pg++;
   }
+
+  bt_state_close(state1);
+
+
+  DPUTS("== test 2: malloc");
+  BT_state *state2;
+
+  bt_state_new(&state2);
+  assert(SUCC(bt_state_open(state2, "./pmatest2", 0, 0644)));
+
+  void *t2a = bt_malloc(state2, 10);
+  bt_free(state2, t2a, (BT_page*)t2a + 10);
 
   return 0;
 }
