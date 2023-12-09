@@ -1134,7 +1134,7 @@
   |=  want=need
   =|  bart=(list @uvre)
   =|  wart=(list @uvre)
-  =/  tack=(list need)  ~[need]
+  =/  tack=(list need)  ~[want]
   |-  ^-  [bait=(list @uvre) walt=(list @uvre)]
   ?~  tack  [(flop bart) (flop wart)]
   ?-  -.i.tack
@@ -1188,6 +1188,7 @@
   hill
 --
 ::    codegen interface
+:-  %1
 |%
 ::  
 ::    core reference
@@ -1341,6 +1342,12 @@
           %man
         ?>  ?=(^ mean.fram)
         $(mean.fram t.mean.fram) :: =. here would hit the TMI problem
+      ::
+          %sld
+        ~|  %todo  !!
+      ::
+          %slo
+        ~|  %todo  !!
       ::
           %hit
         go
@@ -1634,6 +1641,12 @@
     ::
         %ipb
       (pink -.i (turn s.i near))
+    ::
+        %slo
+      ~|  %todo  !!
+    ::
+        %sld
+      ~|  %todo  !!
     ==
   ::
   ::   print a control flow instruction
