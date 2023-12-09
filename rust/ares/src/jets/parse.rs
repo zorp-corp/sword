@@ -292,7 +292,6 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
 }
 
 fn stew_wor(ort: Noun, wan: Noun) -> result::Result<bool, JetErr> {
-    eprintln!("stew_wor\r");
     if !ort.as_atom()?.is_direct() {
         return Err(JetErr::Fail(Error::Deterministic(D(0))));
     } else {
@@ -302,7 +301,7 @@ fn stew_wor(ort: Noun, wan: Noun) -> result::Result<bool, JetErr> {
             } else {
                 let ort_dat = ort.as_direct()?.data();
                 let wan_dat = wan.as_direct()?.data();
-                eprintln!("stew wor: done\r");
+                eprintln!("stew_wor: return {}\r", ort_dat < wan_dat);
                 return Ok(ort_dat < wan_dat);
             }
         } else {
@@ -313,7 +312,7 @@ fn stew_wor(ort: Noun, wan: Noun) -> result::Result<bool, JetErr> {
             } else {
                 let ort_dat = ort.as_direct()?.data();
                 let h_wan_dat = h_wan.as_direct()?.data();
-                eprintln!("stew wor: done\r");
+                eprintln!("stew_wor: return {}\r", ort_dat < h_wan_dat);
                 return Ok(ort_dat < h_wan_dat);
             }
         }
@@ -321,7 +320,7 @@ fn stew_wor(ort: Noun, wan: Noun) -> result::Result<bool, JetErr> {
 }
 
 pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
-    eprintln!("jet_stew\r");
+    eprintln!("jet_stew: start\r");
     let tub = slot(subject, 6)?;
     let con = slot(subject, 7)?;
     let mut hel = slot(con, 2)?;
@@ -334,8 +333,10 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
         if !iq_tub.as_atom()?.is_direct() {
             return util::fail(context, tub);
         } else {
+            let iq_tub_dat = iq_tub.as_direct()?.data();
             loop {
                 if !hel.is_cell() {
+                    eprintln!("jet_stew: hel not cell\r");
                     return util::fail(context, tub);
                 } else {
                     let n_hel = slot(hel, 2)?;
@@ -346,9 +347,9 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                     let bit;
 
                     if !pn_hel.is_cell() {
-                        let iq_tub_dat = iq_tub.as_direct()?.data();
                         let pn_hel_dat = pn_hel.as_direct()?.data();
                         bit = iq_tub_dat == pn_hel_dat;
+                        eprintln!("jet_stew: first bit to {}\r", bit);
                     } else {
                         let hpn_hel = pn_hel.as_cell()?.head();
                         let tpn_hel = pn_hel.as_cell()?.tail();
@@ -356,20 +357,23 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                         if !hpn_hel.as_atom()?.is_direct() || !tpn_hel.as_atom()?.is_direct() {
                             return util::fail(context, tub);
                         } else {
-                            let iq_tub_dat = iq_tub.as_direct()?.data();
                             let hpn_hel_dat = hpn_hel.as_direct()?.data();
                             let tpn_hel_dat = tpn_hel.as_direct()?.data();
-                            bit = (iq_tub_dat >= hpn_hel_dat) && (iq_tub_dat <= tpn_hel_dat);
+                            bit = iq_tub_dat >= hpn_hel_dat && iq_tub_dat <= tpn_hel_dat;
+                            eprintln!("jet_stew: second bit to {}\r", bit);
                         }
                     }
 
                     if bit {
-                        eprintln!("jet_stew: bit slam\r");
+                        eprintln!("jet_stew: slam\r");
                         return slam(context, qn_hel, tub);
                     } else {
+                        eprintln!("jet_stew: stew_wor\r");
                         if stew_wor(iq_tub, pn_hel)? {
+                            eprintln!("jet_stew: left\r");
                             hel = l_hel;
                         } else {
+                            eprintln!("jet_stew: right\r");
                             hel = r_hel;
                         }
                     }
