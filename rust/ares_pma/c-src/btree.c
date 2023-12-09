@@ -705,7 +705,7 @@ _bt_delco_1pass_0(BT_state *state, vaof_t lo, vaof_t hi,
   }
 
   /* and then the entry that matches hi */
-  for (; i < N-1; i++) {
+  for (; i < N; i++) {
     vaof_t hhi = node->datk[i].va;
     if (hhi >= hi) {
       hiidx = hi;
@@ -1038,7 +1038,7 @@ _bt_delco_trim_rsubtree_lhs2(BT_state *state, vaof_t lo, vaof_t hi,
 
   /* find hi idx of range */
   size_t i;
-  for (i = 0; i < N-1; i++) {
+  for (i = 0; i < N; i++) {
     vaof_t hhi = node->datk[i].va;
     if (hhi >= hi) {
       hiidx = i;
@@ -1169,7 +1169,7 @@ _bt_delco(BT_state *state, vaof_t lo, vaof_t hi,
   }
 
   /* find high idx of range */
-  for (size_t i = loidx; i < N-1; i++) {
+  for (size_t i = loidx; i < N; i++) {
     vaof_t hhi = node->datk[i].va;
     if (hhi >= hi) {
       assert(i > 0);
@@ -2745,7 +2745,7 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
   assert(loidx != 0);
 
   /* find hiidx of range */
-  for (size_t i = loidx; i < N-1; i++) {
+  for (size_t i = loidx; i < N; i++) {
     vaof_t hhi = node->datk[i+1].va;
     if (hhi >= hi) {
       hiidx = i;
