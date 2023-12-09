@@ -12,29 +12,10 @@ use std::ptr::copy_nonoverlapping;
 const PMA_MODE: mode_t = 0o600; // RW for user only
 const PMA_FLAGS: ULONG = 0; // ignored for now
 
-const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
-
 const NOUN_MARKED: u64 = 1 << 63;
 
 /// Handle to a PMA
 pub struct PMA(*mut BT_state);
-
-pub struct Snapshot(pub *mut SnapshotMem);
-
-#[repr(C)]
-#[repr(packed)]
-pub struct SnapshotMem {
-    pub epoch: u64,
-    pub event_num: u64,
-    pub arvo: Noun,
-    pub cold: Cold,
-}
-
-#[repr(usize)]
-enum BTMetaField {
-    SnapshotVersion = 0,
-    Snapshot = 1,
-}
 
 impl PMA {
     #[cfg(unix)]
@@ -61,32 +42,18 @@ impl PMA {
     }
 
     #[inline]
-    fn meta_get(&self, field: BTMetaField) -> u64 {
-        unsafe { bt_meta_get(self.0, field as usize) }
+    pub fn meta_get(&self, field: usize) -> u64 {
+        unsafe { bt_meta_get(self.0, field) }
     }
 
     #[inline]
-    fn meta_set(&self, field: BTMetaField, val: u64) {
-        unsafe { bt_meta_set(self.0, field as usize, val) };
+    pub fn meta_set(&self, field: usize, val: u64) {
+        unsafe { bt_meta_set(self.0, field, val) };
     }
 
     pub unsafe fn contains<T>(&self, ptr: *const T, count: usize) -> bool {
         bt_inbounds(self.0, ptr as *mut c_void) != 0
             && bt_inbounds(self.0, ptr.add(count) as *mut c_void) != 0
-    }
-
-    pub fn load(&self) -> Snapshot {
-        let snapshot_version = self.meta_get(BTMetaField::SnapshotVersion);
-
-        match snapshot_version {
-            1 => Snapshot(self.meta_get(BTMetaField::Snapshot) as *mut SnapshotMem),
-            _ => panic!("Unsupported snapshot version"),
-        }
-    }
-
-    pub fn save(&self, stack: &mut NockStack, snapshot: &mut Snapshot) {
-        self.meta_set(BTMetaField::SnapshotVersion, PMA_CURRENT_SNAPSHOT_VERSION);
-        self.meta_set(BTMetaField::Snapshot, snapshot.save_to_pma(stack, self));
     }
 
     pub fn sync(&self) {
@@ -120,7 +87,7 @@ pub trait Persist {
 
     /// Persist an object into the PMA using [space_needed] and [copy_to_buffer], returning
     /// a [u64] (probably a pointer or tagged pointer) that can be saved into
-    fn save_to_pma(&mut self, stack: &mut NockStack, pma: &PMA) -> u64 {
+    unsafe fn save_to_pma(&mut self, stack: &mut NockStack, pma: &PMA) -> u64 {
         unsafe {
             let space = self.space_needed(stack, pma);
 
@@ -141,39 +108,6 @@ pub trait Persist {
 
     unsafe fn handle_to_u64(&self) -> u64;
     unsafe fn handle_from_u64(meta_handle: u64) -> Self;
-}
-
-impl Persist for Snapshot {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
-        let mut arvo = (*(self.0)).arvo;
-        let mut cold = (*(self.0)).cold;
-        let arvo_space_needed = arvo.space_needed(stack, pma);
-        let cold_space_needed = cold.space_needed(stack, pma);
-        (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed
-    }
-
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
-        let snapshot_buffer = *buffer as *mut SnapshotMem;
-        std::ptr::copy_nonoverlapping(self.0, snapshot_buffer, 1);
-        *self = Snapshot(snapshot_buffer);
-        *buffer = snapshot_buffer.add(1) as *mut u8;
-
-        let mut arvo = (*snapshot_buffer).arvo;
-        arvo.copy_to_buffer(stack, pma, buffer);
-        (*snapshot_buffer).arvo = arvo;
-
-        let mut cold = (*snapshot_buffer).cold;
-        cold.copy_to_buffer(stack, pma, buffer);
-        (*snapshot_buffer).cold = cold;
-    }
-
-    unsafe fn handle_to_u64(&self) -> u64 {
-        self.0 as u64
-    }
-
-    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
-        Snapshot(meta_handle as *mut SnapshotMem)
-    }
 }
 
 /// Ensure an allocated noun is marked and return if it was already marked

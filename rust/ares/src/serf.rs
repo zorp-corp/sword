@@ -10,13 +10,14 @@ use crate::mem::NockStack;
 use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
-use crate::persist::{Snapshot, SnapshotMem, PMA};
+use crate::persist::{Persist, PMA};
 use crate::trace::*;
 use ares_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;
 use std::fs::create_dir_all;
 use std::io;
+use std::mem::size_of;
 use std::path::PathBuf;
 use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -26,6 +27,57 @@ use std::time::Instant;
 crate::gdb!();
 
 const FLAG_TRACE: u32 = 1 << 8;
+
+#[repr(usize)]
+enum BTMetaField {
+    SnapshotVersion = 0,
+    Snapshot = 1,
+}
+struct Snapshot(pub *mut SnapshotMem);
+
+impl Persist for Snapshot {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+        let mut arvo = (*(self.0)).arvo;
+        let mut cold = (*(self.0)).cold;
+        let arvo_space_needed = arvo.space_needed(stack, pma);
+        let cold_space_needed = cold.space_needed(stack, pma);
+        (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed
+    }
+
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+        let snapshot_buffer = *buffer as *mut SnapshotMem;
+        std::ptr::copy_nonoverlapping(self.0, snapshot_buffer, 1);
+        *self = Snapshot(snapshot_buffer);
+        *buffer = snapshot_buffer.add(1) as *mut u8;
+
+        let mut arvo = (*snapshot_buffer).arvo;
+        arvo.copy_to_buffer(stack, pma, buffer);
+        (*snapshot_buffer).arvo = arvo;
+
+        let mut cold = (*snapshot_buffer).cold;
+        cold.copy_to_buffer(stack, pma, buffer);
+        (*snapshot_buffer).cold = cold;
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        Snapshot(meta_handle as *mut SnapshotMem)
+    }
+}
+
+#[repr(C)]
+#[repr(packed)]
+struct SnapshotMem {
+    pub epoch: u64,
+    pub event_num: u64,
+    pub arvo: Noun,
+    pub cold: Cold,
+}
+
+const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
 
 struct Context {
     epoch: u64,
@@ -37,22 +89,66 @@ struct Context {
 }
 
 impl Context {
-    pub fn new(snap_path: PathBuf, trace_info: Option<TraceInfo>) -> Self {
-        // TODO: switch to Pma when ready
-        // let snap = &mut snapshot::pma::Pma::new(snap_path);
+    pub fn load(snap_path: PathBuf, trace_info: Option<TraceInfo>) -> Context {
+        let mut pma = PMA::open(snap_path).expect("serf: pma open failed");
+
+        let snapshot_version = pma.meta_get(BTMetaField::SnapshotVersion as usize);
+
+        let snapshot = match snapshot_version {
+            0 => None,
+            1 => Some(unsafe {
+                Snapshot::handle_from_u64(pma.meta_get(BTMetaField::Snapshot as usize))
+            }),
+            _ => panic!("Unsupported snapshot version"),
+        };
+
+        Context::new(trace_info, pma, snapshot)
+    }
+
+    pub fn save(&mut self) {
+        let handle = unsafe {
+            let mut snapshot = Snapshot({
+                let snapshot_mem_ptr: *mut SnapshotMem = self.nock_context.stack.struct_alloc(1);
+
+                // Save into PMA (does not sync)
+                (*snapshot_mem_ptr).epoch = self.epoch;
+                (*snapshot_mem_ptr).event_num = self.event_num;
+                (*snapshot_mem_ptr).arvo = self.arvo;
+                (*snapshot_mem_ptr).cold = self.nock_context.cold;
+                snapshot_mem_ptr
+            });
+
+            let handle = snapshot.save_to_pma(&mut self.nock_context.stack, &mut self.pma);
+
+            self.epoch = (*snapshot.0).epoch;
+            self.arvo = (*snapshot.0).arvo;
+            self.event_num = (*snapshot.0).event_num;
+            self.nock_context.cold = (*snapshot.0).cold;
+
+            handle
+        };
+        self.pma.meta_set(
+            BTMetaField::SnapshotVersion as usize,
+            PMA_CURRENT_SNAPSHOT_VERSION,
+        );
+        self.pma.meta_set(BTMetaField::Snapshot as usize, handle);
+    }
+
+    fn new(trace_info: Option<TraceInfo>, pma: PMA, snapshot: Option<Snapshot>) -> Self {
         let mut stack = NockStack::new(1024 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
-        let pma = PMA::open(snap_path).unwrap();
 
         let (epoch, event_num, arvo, mut cold) = unsafe {
-            let snapshot = pma.load();
-            (
-                (*(snapshot.0)).epoch,
-                (*(snapshot.0)).event_num,
-                (*(snapshot.0)).arvo,
-                (*(snapshot.0)).cold,
-            )
+            match snapshot {
+                Some(snapshot) => (
+                    (*(snapshot.0)).epoch,
+                    (*(snapshot.0)).event_num,
+                    (*(snapshot.0)).arvo,
+                    (*(snapshot.0)).cold,
+                ),
+                None => (0, 0, D(0), Cold::new(&mut stack)),
+            }
         };
 
         let mut hot = Hot::init(&mut stack);
@@ -89,24 +185,7 @@ impl Context {
         //  XX: assert event numbers are continuous
         self.arvo = new_arvo;
         self.event_num = new_event_num;
-        let snapshot = unsafe {
-            let snapshot_mem_ptr: *mut SnapshotMem = self.nock_context.stack.struct_alloc(1);
-
-            // Save into PMA (does not sync)
-            (*snapshot_mem_ptr).epoch = self.epoch;
-            (*snapshot_mem_ptr).event_num = self.event_num;
-            (*snapshot_mem_ptr).arvo = self.arvo;
-            (*snapshot_mem_ptr).cold = self.nock_context.cold;
-            let mut snapshot = Snapshot(snapshot_mem_ptr);
-            self.pma.save(&mut self.nock_context.stack, &mut snapshot);
-            snapshot
-        };
-
-        // reset pointers in context to PMA
-        unsafe {
-            self.arvo = (*(snapshot.0)).arvo;
-            self.nock_context.cold = (*(snapshot.0)).cold;
-        }
+        self.save();
 
         // Reset the nock stack, freeing all memory used to compute the event
         self.nock_context.stack.reset(0);
@@ -253,7 +332,7 @@ pub fn serf() -> io::Result<()> {
         }
     }
 
-    let mut context = Context::new(snap_path, trace_info);
+    let mut context = Context::load(snap_path, trace_info);
     context.ripe();
 
     // Can't use for loop because it borrows newt
