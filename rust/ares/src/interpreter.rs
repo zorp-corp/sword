@@ -300,9 +300,9 @@ impl Context {
         self.stack.frame_push(slots);
         let mut ret = f(self);
         ret.preserve(&mut self.stack);
-        self.stack.preserve(&mut self.cache);
-        self.stack.preserve(&mut self.cold);
-        self.stack.preserve(&mut self.warm);
+        self.cache.preserve(&mut self.stack);
+        self.cold.preserve(&mut self.stack);
+        self.warm.preserve(&mut self.stack);
         self.stack.frame_pop();
         ret
     }
