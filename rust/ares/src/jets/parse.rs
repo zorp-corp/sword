@@ -292,6 +292,7 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
 }
 
 fn stew_wor(ort: Noun, wan: Noun) -> result::Result<bool, JetErr> {
+    eprintln!("stew_wor\r");
     if !ort.as_atom()?.is_direct() {
         return Err(JetErr::Fail(Error::Deterministic(D(0))));
     } else {
@@ -301,6 +302,7 @@ fn stew_wor(ort: Noun, wan: Noun) -> result::Result<bool, JetErr> {
             } else {
                 let ort_dat = ort.as_direct()?.data();
                 let wan_dat = wan.as_direct()?.data();
+                eprintln!("stew wor: done\r");
                 return Ok(ort_dat < wan_dat);
             }
         } else {
@@ -311,6 +313,7 @@ fn stew_wor(ort: Noun, wan: Noun) -> result::Result<bool, JetErr> {
             } else {
                 let ort_dat = ort.as_direct()?.data();
                 let h_wan_dat = h_wan.as_direct()?.data();
+                eprintln!("stew wor: done\r");
                 return Ok(ort_dat < h_wan_dat);
             }
         }
@@ -361,6 +364,7 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                     }
 
                     if bit {
+                        eprintln!("jet_stew: bit slam\r");
                         return slam(context, qn_hel, tub);
                     } else {
                         if stew_wor(iq_tub, pn_hel)? {
