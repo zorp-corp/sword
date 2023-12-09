@@ -162,6 +162,17 @@ impl<T: Copy> MutHamt<T> {
     }
 }
 
+/**
+ * This is the core memory structure of an immutable HAMT.
+ *
+ * The root Stem lives in its own memory allocation, addressed by the pointer wrapped by [Hamt].
+ * All other Stems and Leaves live in memory blocks pointed to by [buffer]. The memory pointed to
+ * by this field may be zero to 32 entries, depending on the *number of bits set* in bitmap.
+ *
+ * Addressing a chunk of the key's hash is done by counting the number of set bits in the bitmap
+ * before the chunk'th bit. The typemap is a parallel bitmap in which bits are set if the
+ * corresponding entry is a stem, and cleared if it is a leaf.
+ */
 #[repr(packed)]
 #[repr(C)]
 struct Stem<T: Copy> {
@@ -643,8 +654,6 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
         }
     }
 
-    // XX this is subtly wrong, we need to track destination pointers somehow and not just write
-    // into the traversal stack
     unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
         if pma.contains(self.0, 1) {
             return;
@@ -704,7 +713,6 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
 
                 traversal[depth + 1] = *stem_ptr;
                 depth += 1;
-                continue;
             } else {
                 // Leaf case
                 let leaf_ptr: *mut Leaf<T> = &mut (*next_entry_ptr).leaf;
@@ -727,8 +735,6 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
 
                     leaf_idx += 1;
                 }
-
-                continue;
             }
         }
     }
