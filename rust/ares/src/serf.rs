@@ -191,9 +191,18 @@ impl Context {
         self.nock_context.stack.reset(0);
 
         // Since we reset the nockstack the stack-allocated hot state isn't valid anymore
+        //
+        // XX What should be done instead is, at serf initialization: push a frame and 
+        // initialize the hot stack within it, then preserve() the hot stack to the outer frame.
+        // Then, save the stack and reset to the saved stack for each event, thus avoiding the need
+        // to recreate the hot state each event, since it does not change over the execution of the
+        // interpreter.
         self.nock_context.hot = Hot::init(&mut self.nock_context.stack);
 
-        // XX some things were invalidated when we reset the stack
+        // XX the above trick won't work for the warm state, since it changes whenever the cold
+        // state does. One possibility is to just save the warm and hot states in the snapshot
+        // anyway, but throw them away in load() since function pointers are invalidated by the
+        // restart. 
         self.nock_context.warm = Warm::init(
             &mut self.nock_context.stack,
             &mut self.nock_context.cold,
