@@ -708,7 +708,7 @@ _bt_delco_1pass_0(BT_state *state, vaof_t lo, vaof_t hi,
   for (; i < N; i++) {
     vaof_t hhi = node->datk[i].va;
     if (hhi >= hi) {
-      hiidx = hi;
+      hiidx = i;
       break;
     }
   }
@@ -717,7 +717,7 @@ _bt_delco_1pass_0(BT_state *state, vaof_t lo, vaof_t hi,
      the dfs */
   for (i = loidx; i < hiidx; i++) {
     vaof_t llo = node->datk[i].va;
-    pgno_t pg = node->datk[i].va;
+    pgno_t pg = node->datk[i].fo;
 
     /* if at the leaf level, terminate with failure if pg is not free */
     if (depth == maxdepth) {

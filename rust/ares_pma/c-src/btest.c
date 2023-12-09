@@ -59,9 +59,18 @@ int main(int argc, char *argv[])
   assert(t2a == t2b);
   ZERO(&path, sizeof path);
   _bt_find(state2, &path, addr2off(t2b), addr2off((BT_page *)t2b + 10));
+#define T2P1_PRNT0 (path.path[path.depth])
+#define T2P1_CIDX0 (path.idx[path.depth])
+#define T2P1_CIDX1 (path.idx[path.depth] + 1)
+  /* check length as represented in btree */
+  assert(T2P1_PRNT0->datk[T2P1_CIDX1].va
+         - T2P1_PRNT0->datk[T2P1_CIDX0].va
+         == 10);
   bt_free(state2, t2b, (BT_page*)t2b + 10);
   ZERO(&path, sizeof path);
   _bt_find(state2, &path, addr2off(t2b), addr2off((BT_page *)t2b + 10));
+  /* fo should be zero (free) */
+  assert(path.path[path.depth]->datk[path.idx[path.depth]].fo == 0);
   /* should invoke deletion coalescing - 10 page free range in btree */
   void *t2c = bt_malloc(state2, 20);
 
