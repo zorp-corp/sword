@@ -1242,9 +1242,11 @@ _bt_delco(BT_state *state, vaof_t lo, vaof_t hi,
     memmove(dst, src, len);
     ZERO(dst+len, end-(dst+len));
 
-    /* trim left subtree then trim right subtree */
-    _bt_delco_trim_lsubtree_rhs(state, lo, hi, lsubtree, depth+1);
-    _bt_delco_trim_rsubtree_lhs(state, lo, hi, rsubtree, depth+1);
+    /* unless at leaf trim left subtree then trim right subtree */
+    if (depth < maxdepth) {
+      _bt_delco_trim_lsubtree_rhs(state, lo, hi, lsubtree, depth+1);
+      _bt_delco_trim_rsubtree_lhs(state, lo, hi, rsubtree, depth+1);
+    }
 
     /* done */
     return;
