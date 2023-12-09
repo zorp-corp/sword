@@ -574,13 +574,6 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
     }
 }
 
-#[derive(Copy, Clone)]
-struct StemTraversalEntry<T: Copy> {
-    bitmap_remaining: u32,
-    typemap_remaining: u32,
-    stem_ptr: *mut Stem<T>,
-}
-
 impl<T: Copy + Persist> Persist for Hamt<T> {
     unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
         if pma.contains(self.0, 1) {
