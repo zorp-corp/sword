@@ -75,18 +75,31 @@ impl PMA {
     }
 }
 
+/**
+ * This trait defines operations for copying a structure into the PMA.
+ *
+ * This is done in two phases. The [space_needed] phase counts how much space the structure needs in
+ * the PMA, not counting referenced structures already in the PMA. Then a buffer is allocated in
+ * the PMA of at least the computed size, and the [copy_to_buffer] phase copies the structure into
+ * this buffer.
+ *
+ * The phases are separated so that instances of the trait may compose, while still allocating a
+ * single buffer. Thus, in the instance for a HAMT, the [space_needed] method for the HAMT will
+ * call the [space_needed] method on each noun key, and on each value, as well as computing the
+ * size of the HAMT's own structures. Similarly, the [copy_to_buffer] method for the HAMT will call
+ * the [copy_to_buffer] method for the keys and values as it copies its own structures in.
+ */
 pub trait Persist {
     /// Count how much space is needed, in bytes. May set marks so long as marks are cleaned up by
     /// [copy_into_buffer]
     unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize;
 
     /// Copy into the provided buffer, which may be assumed to be at least as large as the size
-    /// returned by [space_needed] on the same structure. Return a u64 handle that could be saved
-    /// in metadata
+    /// returned by [space_needed] on the same structure.
     unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8);
 
     /// Persist an object into the PMA using [space_needed] and [copy_to_buffer], returning
-    /// a [u64] (probably a pointer or tagged pointer) that can be saved into
+    /// a [u64] (probably a pointer or tagged pointer) that can be saved into metadata.
     unsafe fn save_to_pma(&mut self, stack: &mut NockStack, pma: &PMA) -> u64 {
         unsafe {
             let space = self.space_needed(stack, pma);
@@ -176,22 +189,16 @@ impl Persist for Noun {
             let noun = *(stack.top::<Noun>());
             stack.pop::<Noun>();
 
-            if let Ok(allocated) = noun.as_allocated() {
-                // not counting direct atoms, they go in
-                match allocated.as_either() {
-                    Left(indirect) => {
-                        let count = indirect.raw_size();
-                        if !pma.contains(indirect.to_raw_pointer(), count) {
-                            if !mark(allocated) {
-                                space += count * size_of::<u64>();
-                            }
-                        }
-                    }
-                    Right(cell) => {
-                        if !pma.contains(cell.to_raw_pointer(), 1) {
-                            if !mark(allocated) {
-                                space += size_of::<CellMemory>();
-                            }
+            match noun.as_either_atom_cell() {
+                Left(mut atom) => {
+                    space += atom.space_needed(stack, pma);
+                }
+                Right(cell) => {
+                    if !pma.contains(cell.to_raw_pointer(), 1) {
+                        if !mark(cell.as_allocated()) {
+                            space += size_of::<CellMemory>();
+                            (*stack.push::<Noun>()) = cell.tail();
+                            (*stack.push::<Noun>()) = cell.head();
                         }
                     }
                 }
