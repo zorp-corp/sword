@@ -2,12 +2,16 @@ use std::result;
 
 /** Parsing jets
  */
+use either::{Left, Right};
 use crate::interpreter::{Context, Error};
+use crate::jets::math::util::{gte, lte};
 use crate::jets::util::{kick, slam, slot};
 use crate::jets::Result;
-use crate::noun::{Noun, D, T};
+use crate::mem::NockStack;
+use crate::noun::{Noun, D, T, YES};
 
 use super::JetErr;
+use super::math::util::lth;
 
 crate::gdb!();
 
@@ -291,29 +295,26 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-fn stew_wor(ort: Noun, wan: Noun) -> result::Result<bool, JetErr> {
-    if !ort.as_atom()?.is_direct() {
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
-    } else {
-        if !wan.is_cell() {
-            if !wan.as_atom()?.is_direct() {
-                return Err(JetErr::Fail(Error::Deterministic(D(0))));
-            } else {
-                let ort_dat = ort.as_direct()?.data();
-                let wan_dat = wan.as_direct()?.data();
-                eprintln!("stew_wor: return {}\r", ort_dat < wan_dat);
-                return Ok(ort_dat < wan_dat);
+fn stew_wor(stack: &mut NockStack, ort: Noun, wan: Noun) -> Result {
+    match ort.as_either_atom_cell() {
+        Left(ort_atom) => {
+            match wan.as_either_atom_cell() {
+                Left(wan_atom) => {
+                    Ok(lth(stack, ort_atom, wan_atom))
+                }
+                Right(wan_cell) => {
+                    Ok(lth(stack, ort_atom, wan_cell.head().as_atom()?))
+                }
             }
-        } else {
-            let h_wan = wan.as_cell()?.head();
-
-            if !h_wan.as_atom()?.is_direct() {
-                return Err(JetErr::Fail(Error::Deterministic(D(0))));
-            } else {
-                let ort_dat = ort.as_direct()?.data();
-                let h_wan_dat = h_wan.as_direct()?.data();
-                eprintln!("stew_wor: return {}\r", ort_dat < h_wan_dat);
-                return Ok(ort_dat < h_wan_dat);
+        }
+        Right(ort_cell) => {
+            match wan.as_either_atom_cell() {
+                Left(wan_atom) => {
+                    Ok(lth(stack, ort_cell.tail().as_atom()?, wan_atom))
+                }
+                Right(wan_cell) => {
+                    Ok(lth(stack, ort_cell.tail().as_atom()?, wan_cell.head().as_atom()?))
+                }
             }
         }
     }
@@ -326,16 +327,15 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
     let mut hel = slot(con, 2)?;
 
     let q_tub = tub.as_cell()?.tail();
-    if !q_tub.is_cell() {
+    if unsafe { q_tub.raw_equals(D(0)) } {
         return util::fail(context, tub);
     } else {
         let iq_tub = q_tub.as_cell()?.head();
         if !iq_tub.as_atom()?.is_direct() {
             return util::fail(context, tub);
         } else {
-            let iq_tub_dat = iq_tub.as_direct()?.data();
             loop {
-                if !hel.is_cell() {
+                if unsafe { hel.raw_equals(D(0)) } {
                     eprintln!("jet_stew: hel not cell\r");
                     return util::fail(context, tub);
                 } else {
@@ -347,8 +347,7 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                     let bit;
 
                     if !pn_hel.is_cell() {
-                        let pn_hel_dat = pn_hel.as_direct()?.data();
-                        bit = iq_tub_dat == pn_hel_dat;
+                        bit = unsafe { iq_tub.raw_equals(pn_hel) };
                         eprintln!("jet_stew: first bit to {}\r", bit);
                     } else {
                         let hpn_hel = pn_hel.as_cell()?.head();
@@ -357,9 +356,10 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                         if !hpn_hel.as_atom()?.is_direct() || !tpn_hel.as_atom()?.is_direct() {
                             return util::fail(context, tub);
                         } else {
-                            let hpn_hel_dat = hpn_hel.as_direct()?.data();
-                            let tpn_hel_dat = tpn_hel.as_direct()?.data();
-                            bit = iq_tub_dat >= hpn_hel_dat && iq_tub_dat <= tpn_hel_dat;
+                            let iq_tub_atom = iq_tub.as_atom()?;
+                            let hpn_hel_atom = hpn_hel.as_atom()?;
+                            let tpn_hel_atom = tpn_hel.as_atom()?;
+                            bit = gte(&mut context.stack, iq_tub_atom, hpn_hel_atom) && lte(&mut context.stack, iq_tub_atom, tpn_hel_atom);
                             eprintln!("jet_stew: second bit to {}\r", bit);
                         }
                     }
@@ -369,7 +369,7 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                         return slam(context, qn_hel, tub);
                     } else {
                         eprintln!("jet_stew: stew_wor\r");
-                        if stew_wor(iq_tub, pn_hel)? {
+                        if unsafe { stew_wor(&mut context.stack, iq_tub, pn_hel)?.raw_equals(YES) } {
                             eprintln!("jet_stew: left\r");
                             hel = l_hel;
                         } else {

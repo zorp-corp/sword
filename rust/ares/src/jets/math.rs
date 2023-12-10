@@ -120,21 +120,7 @@ pub fn jet_gte(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() >= b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() > b.bit_size() {
-        YES
-    } else if a.bit_size() < b.bit_size() {
-        NO
-    } else if a.as_ubig(stack) >= b.as_ubig(stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(if util::gte(stack, a, b) { YES } else { NO })
 }
 
 pub fn jet_gth(context: &mut Context, subject: Noun) -> Result {
@@ -143,21 +129,7 @@ pub fn jet_gth(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() > b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() > b.bit_size() {
-        YES
-    } else if a.bit_size() < b.bit_size() {
-        NO
-    } else if a.as_ubig(stack) > b.as_ubig(stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(if util::gth(stack, a, b) { YES } else { NO })
 }
 
 pub fn jet_lte(context: &mut Context, subject: Noun) -> Result {
@@ -166,21 +138,7 @@ pub fn jet_lte(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() <= b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() < b.bit_size() {
-        YES
-    } else if a.bit_size() > b.bit_size() {
-        NO
-    } else if a.as_ubig(stack) <= b.as_ubig(stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(if util::lte(stack, a, b) { YES } else { NO })
 }
 
 pub fn jet_lth(context: &mut Context, subject: Noun) -> Result {
@@ -307,6 +265,25 @@ pub mod util {
         }
     }
 
+    /// Greater than
+    pub fn gth(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            if a.data() > b.data() {
+                true
+            } else {
+                false
+            }
+        } else if a.bit_size() > b.bit_size() {
+            true
+        } else if a.bit_size() < b.bit_size() {
+            false
+        } else if a.as_ubig(stack) > b.as_ubig(stack) {
+            true
+        } else {
+            false
+        }
+    }
+
     /// Less than
     pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
@@ -323,6 +300,44 @@ pub mod util {
             YES
         } else {
             NO
+        }
+    }
+
+    /// Less than or equal to
+    pub fn lte(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            if a.data() <= b.data() {
+                true
+            } else {
+                false
+            }
+        } else if a.bit_size() < b.bit_size() {
+            true
+        } else if a.bit_size() > b.bit_size() {
+            false
+        } else if a.as_ubig(stack) <= b.as_ubig(stack) {
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Greater than or equal to
+    pub fn gte(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            if a.data() >= b.data() {
+                true
+            } else {
+                false
+            }
+        } else if a.bit_size() > b.bit_size() {
+            true
+        } else if a.bit_size() < b.bit_size() {
+            false
+        } else if a.as_ubig(stack) >= b.as_ubig(stack) {
+            true
+        } else {
+            false
         }
     }
 
