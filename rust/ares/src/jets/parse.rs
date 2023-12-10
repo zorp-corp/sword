@@ -321,23 +321,22 @@ fn stew_wor(stack: &mut NockStack, ort: Noun, wan: Noun) -> Result {
 }
 
 pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
-    eprintln!("jet_stew: start\r");
     let tub = slot(subject, 6)?;
     let con = slot(subject, 7)?;
     let mut hel = slot(con, 2)?;
 
+    let p_tub = tub.as_cell()?.head();
     let q_tub = tub.as_cell()?.tail();
     if unsafe { q_tub.raw_equals(D(0)) } {
-        return util::fail(context, tub);
+        return util::fail(context, p_tub);
     } else {
         let iq_tub = q_tub.as_cell()?.head();
         if !iq_tub.as_atom()?.is_direct() {
-            return util::fail(context, tub);
+            return util::fail(context, p_tub);
         } else {
             loop {
                 if unsafe { hel.raw_equals(D(0)) } {
-                    eprintln!("jet_stew: hel not cell\r");
-                    return util::fail(context, tub);
+                    return util::fail(context, p_tub);
                 } else {
                     let n_hel = slot(hel, 2)?;
                     let l_hel = slot(hel, 6)?;
@@ -347,33 +346,29 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                     let bit;
 
                     if !pn_hel.is_cell() {
-                        bit = unsafe { iq_tub.raw_equals(pn_hel) };
-                        eprintln!("jet_stew: first bit to {}\r", bit);
+                        bit = iq_tub.as_direct()?.data() == pn_hel.as_direct()?.data();
                     } else {
                         let hpn_hel = pn_hel.as_cell()?.head();
                         let tpn_hel = pn_hel.as_cell()?.tail();
 
                         if !hpn_hel.as_atom()?.is_direct() || !tpn_hel.as_atom()?.is_direct() {
-                            return util::fail(context, tub);
+                            return util::fail(context, p_tub);
                         } else {
                             let iq_tub_atom = iq_tub.as_atom()?;
                             let hpn_hel_atom = hpn_hel.as_atom()?;
                             let tpn_hel_atom = tpn_hel.as_atom()?;
                             bit = gte(&mut context.stack, iq_tub_atom, hpn_hel_atom) && lte(&mut context.stack, iq_tub_atom, tpn_hel_atom);
-                            eprintln!("jet_stew: second bit to {}\r", bit);
                         }
                     }
 
                     if bit {
-                        eprintln!("jet_stew: slam\r");
                         return slam(context, qn_hel, tub);
                     } else {
-                        eprintln!("jet_stew: stew_wor\r");
                         if unsafe { stew_wor(&mut context.stack, iq_tub, pn_hel)?.raw_equals(YES) } {
-                            eprintln!("jet_stew: left\r");
+                            if unsafe { l_hel.raw_equals(D(0)) } {
+                            }
                             hel = l_hel;
                         } else {
-                            eprintln!("jet_stew: right\r");
                             hel = r_hel;
                         }
                     }
