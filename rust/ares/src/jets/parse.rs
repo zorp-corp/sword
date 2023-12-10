@@ -128,6 +128,28 @@ pub fn jet_comp(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+pub fn jet_cook(context: &mut Context, subject: Noun) -> Result {
+    let tub = slot(subject, 6)?;
+    let van = slot(subject, 7)?;
+    let poq = slot(van, 12)?;
+    let sef = slot(van, 13)?;
+
+    let vex = slam(context, sef, tub)?.as_cell()?;
+    let p_vex = vex.head();
+    let q_vex = vex.tail();
+
+    if unsafe { q_vex.raw_equals(D(0)) } {
+        Ok(vex.as_noun())
+    } else {
+        let uq_vex = q_vex.as_cell()?.tail().as_cell()?;
+        let puq_vex = uq_vex.head();
+        let quq_vex = uq_vex.tail();
+
+        let wag = slam(context, poq, puq_vex)?;
+        Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex]))
+    }
+}
+
 pub fn jet_glue(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let vex = slot(sam, 2)?.as_cell()?;
