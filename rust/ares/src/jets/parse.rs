@@ -1,16 +1,13 @@
-use std::result;
-
 /** Parsing jets
  */
 use either::{Left, Right};
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::math::util::{gte, lte};
 use crate::jets::util::{kick, slam, slot};
 use crate::jets::Result;
 use crate::mem::NockStack;
 use crate::noun::{Noun, D, T, YES};
 
-use super::JetErr;
 use super::math::util::lth;
 
 crate::gdb!();
@@ -71,6 +68,26 @@ pub fn jet_bend(context: &mut Context, subject: Noun) -> Result {
             let q_vux = vux.as_cell()?.tail();
             Ok(T(&mut context.stack, &[yur, D(0), q_vux, quq_yit]))
         }
+    }
+}
+
+pub fn jet_cold(context: &mut Context, subject: Noun) -> Result {
+    let tub = slot(subject, 6)?;
+    let van = slot(subject, 7)?;
+    let cus = slot(van, 12)?;
+    let sef = slot(van, 13)?;
+
+    let vex = slam(context, sef, tub)?.as_cell()?;
+    let p_vex = vex.head();
+    let q_vex = vex.tail();
+
+    if unsafe { q_vex.raw_equals(D(0)) } {
+        Ok(vex.as_noun())
+    } else {
+        let uq_vex = q_vex.as_cell()?.tail().as_cell()?;
+        let quq_vex = uq_vex.tail();
+
+        Ok(T(&mut context.stack, &[p_vex, D(0), cus, quq_vex]))
     }
 }
 
