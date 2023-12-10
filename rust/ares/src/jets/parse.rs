@@ -378,6 +378,35 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
+pub fn jet_shim(context: &mut Context, subject: Noun) -> Result {
+    let tub = slot(subject, 6)?;
+    let van = slot(subject, 7)?;
+    let zep = slot(van, 6)?;
+
+    let p_tub = tub.as_cell()?.head();
+    let q_tub = tub.as_cell()?.tail();
+
+    if unsafe { q_tub.raw_equals(D(0)) } {
+        return util::fail(context, p_tub);
+    }
+    else {
+        let p_zep = zep.as_cell()?.head();
+        let q_zep = zep.as_cell()?.tail();
+        let iq_tub = q_tub.as_cell()?.head();
+
+        let p_zep_dat = p_zep.as_direct()?.data();
+        let q_zep_dat = q_zep.as_direct()?.data();
+        let iq_tub_dat = iq_tub.as_direct()?.data();
+
+        if (iq_tub_dat >= p_zep_dat) && (iq_tub_dat <= q_zep_dat) {
+            return util::next(context, tub);
+        }
+        else {
+            return util::fail(context, p_tub);
+        }
+    }
+}
+
 //
 //  Rule Builders
 //
