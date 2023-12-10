@@ -185,6 +185,40 @@ pub fn jet_pfix(context: &mut Context, subject: Noun) -> Result {
     Ok(T(&mut context.stack, &[arg, q_yit]))
 }
 
+pub fn jet_plug(context: &mut Context, subject: Noun) -> Result {
+    let vex = slot(subject, 12)?;
+    let sab = slot(subject, 13)?;
+
+    let p_vex = vex.as_cell()?.head();
+    let q_vex = vex.as_cell()?.tail();
+
+    if unsafe { q_vex.raw_equals(D(0)) } {
+        Ok(vex)
+    }
+    else {
+        let uq_vex = q_vex.as_cell()?.tail().as_cell()?;
+        let puq_vex = uq_vex.head();
+        let quq_vex = uq_vex.tail();
+
+        let yit = slam(context, sab, quq_vex)?.as_cell()?;
+        let p_yit = yit.head();
+        let q_yit = yit.tail();
+
+        let yur = util::last(p_vex, p_yit)?;
+
+        if unsafe { q_yit.raw_equals(D(0)) } {
+            Ok(T(&mut context.stack, &[yur, D(0)]))
+        } else {
+            let uq_yit = q_yit.as_cell()?.tail().as_cell()?;
+            let puq_yit = uq_yit.head();
+            let quq_yit = uq_yit.tail();
+
+            let inner = T(&mut context.stack, &[puq_vex, puq_yit]);
+            Ok(T(&mut context.stack, &[yur, D(0), inner, quq_yit]))
+        }
+    }
+}
+
 pub fn jet_pose(context: &mut Context, subject: Noun) -> Result {
     let vex = slot(subject, 12)?.as_cell()?;
     let sab = slot(subject, 13)?;
