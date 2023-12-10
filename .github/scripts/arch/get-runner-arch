@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# This could be improved by separately looking up OS and architecture
+# but it will do for now.
+for kv in "X64-Linux,x86_64-linux" "X64-macOS,x86_64-darwin" "ARM64-macOS,aarch64-darwin"; do
+  KEY=${kv%,*};
+  VAL=${kv#*,};
+
+  if [ "$KEY" = "${1}-${2}" ]
+  then
+    echo "nix-arch=${VAL}"
+    exit 0
+  fi
+done
+echo "Unknown Github runner arch-os pair: ${1}-${2}"
+exit 1

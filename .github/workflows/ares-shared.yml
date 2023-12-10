@@ -15,6 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      # Determine proper nix platform attribute for runner
+      - name: Determine Nix platform
+        id: set-nix-platform
+        working-directory: .
+        run:
+          .github/scripts/arch/get-runner-arch ${{ runner.arch }} ${{ runner.os }} > $GITHUB_OUTPUT
+
       # Install nix, required by nix-shell-action
       - uses: cachix/install-nix-action@v23
         name: Install Nix
@@ -22,13 +29,32 @@ jobs:
           extra_nix_config: "extra-experimental-features = nix-command flakes"
 
       - name: Set cache key for dev env
-        run: export ARES_NIX_DEVSHELL_PATH=$(nix eval --raw ".#devShells.x86_64-linux.default.outPath")
+        id: set-cache-key
+        run: |
+          echo "Determining devshell path for platform ${{ steps.set-nix-platform.outputs.nix-arch }}"
+          echo "nix-devshell-path=$(nix eval --raw ".#devShells.${{ steps.set-nix-platform.outputs.nix-arch }}.default.outPath")" >> $GITHUB_OUTPUT
+
+      - name: Cache nix build artifacts
+        id: nix-cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            nix-devshell.nixstore
+          key: nix-${{ steps.set-cache-key.outputs.nix-devshell-path }}
+
+      - name: Restore cached nix artifacts
+        if: steps.nix-cache.outputs.cache-hit == 'true'
+        working-directory: .
+        run: |
+          pwd
+          ls
+          nix-store --import < nix-devshell.nixstore
 
       - name: Cache rust build artifacts
         id: cache_rust
         uses: Swatinem/rust-cache@v2
         with:
-          env-vars: "CARGO CC CFLAGX CXX CMAKE RUST ARES"
+          key: rust-${{ steps.set-cache-key.outputs.nix-devshell-path }}
           workspaces: "rust/ares -> target"
 
       # Check formatting
@@ -55,4 +81,13 @@ jobs:
       - name: Test
         run: |
           nix develop --command bash -c "cargo test --verbose -- --test-threads=1"
+
+      - name: Build nix cache export
+        if: steps.nix-cache.outputs.cache-hit != 'true'
+        run: |
+          pwd
+          nix eval --json ".#devShells.${{ steps.set-nix-platform.outputs.nix-arch }}.default.buildInputs" 2>/dev/null
+          nix eval --json ".#devShells.${{ steps.set-nix-platform.outputs.nix-arch }}.default.buildInputs" 2>/dev/null | jq -r '.[]' | xargs nix-store --query --requisites
+          nix-store --export $(nix eval --json ".#devShells.${{ steps.set-nix-platform.outputs.nix-arch }}.default.buildInputs" 2>/dev/null | jq -r '.[]' | xargs nix-store --query --requisites) > ../../nix-devshell.nixstore
+          ls -lh
 
