@@ -104,7 +104,7 @@ impl NockStack {
             let new_frame_pointer = self.start.add(self.size).sub(RESERVED + top_slots) as *mut u64;
             *new_frame_pointer.add(FRAME) = ptr::null::<u64>() as u64;
             *new_frame_pointer.add(STACK) = ptr::null::<u64>() as u64;
-            *new_frame_pointer.add(ALLOC) = self.start as u64;
+            *new_frame_pointer.add(ALLOC) = self.start.add(self.size) as u64;
             self.frame_pointer = new_frame_pointer;
             self.stack_pointer = new_frame_pointer;
             self.alloc_pointer = new_alloc_pointer;
