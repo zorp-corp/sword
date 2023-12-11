@@ -7,6 +7,7 @@ use crate::jets::list::util::{lent, zing};
 use crate::jets::nock::util::mook;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
+use crate::mem::Preserve;
 use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
@@ -23,7 +24,6 @@ use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use crate::mem::Preserve;
 
 crate::gdb!();
 
@@ -90,9 +90,11 @@ struct Context {
 }
 
 impl Context {
-    pub fn load(snap_path: PathBuf, trace_info: Option<TraceInfo>,
-                constant_hot_state: &[HotEntry],
-                ) -> Context {
+    pub fn load(
+        snap_path: PathBuf,
+        trace_info: Option<TraceInfo>,
+        constant_hot_state: &[HotEntry],
+    ) -> Context {
         let mut pma = PMA::open(snap_path).expect("serf: pma open failed");
 
         let snapshot_version = pma.meta_get(BTMetaField::SnapshotVersion as usize);
@@ -137,9 +139,12 @@ impl Context {
         self.pma.meta_set(BTMetaField::Snapshot as usize, handle);
     }
 
-    fn new(trace_info: Option<TraceInfo>, pma: PMA, snapshot: Option<Snapshot>,
-           constant_hot_state: &[HotEntry],
-           ) -> Self {
+    fn new(
+        trace_info: Option<TraceInfo>,
+        pma: PMA,
+        snapshot: Option<Snapshot>,
+        constant_hot_state: &[HotEntry],
+    ) -> Self {
         let mut stack = NockStack::new(1024 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
@@ -193,7 +198,9 @@ impl Context {
 
         unsafe {
             self.nock_context.hot.preserve(&mut self.nock_context.stack);
-            self.nock_context.warm.preserve(&mut self.nock_context.stack);
+            self.nock_context
+                .warm
+                .preserve(&mut self.nock_context.stack);
 
             // Reset the nock stack, freeing all memory used to compute the event
             self.nock_context.stack.flip_top_frame(0);
