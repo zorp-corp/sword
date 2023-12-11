@@ -23,6 +23,7 @@ use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
+use crate::mem::Preserve;
 
 crate::gdb!();
 
@@ -79,17 +80,16 @@ struct SnapshotMem {
 
 const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
 
-struct Context<'a> {
+struct Context {
     epoch: u64,
     event_num: u64,
     pma: PMA,
     arvo: Noun,
     mug: u32,
-    constant_hot_state: &'a [HotEntry],
     nock_context: interpreter::Context,
 }
 
-impl<'a> Context<'a> {
+impl Context {
     pub fn load(snap_path: PathBuf, trace_info: Option<TraceInfo>,
                 constant_hot_state: &[HotEntry],
                 ) -> Context {
@@ -138,7 +138,7 @@ impl<'a> Context<'a> {
     }
 
     fn new(trace_info: Option<TraceInfo>, pma: PMA, snapshot: Option<Snapshot>,
-           constant_hot_state: &'a [HotEntry],
+           constant_hot_state: &[HotEntry],
            ) -> Self {
         let mut stack = NockStack::new(1024 << 10 << 10, 0);
         let newt = Newt::new();
@@ -178,7 +178,6 @@ impl<'a> Context<'a> {
             arvo,
             mug,
             nock_context,
-            constant_hot_state,
         }
     }
 
@@ -192,27 +191,14 @@ impl<'a> Context<'a> {
         self.event_num = new_event_num;
         self.save();
 
-        // Reset the nock stack, freeing all memory used to compute the event
-        self.nock_context.stack.reset(0);
+        unsafe {
+            self.nock_context.hot.preserve(&mut self.nock_context.stack);
+            self.nock_context.warm.preserve(&mut self.nock_context.stack);
 
-        // Since we reset the nockstack the stack-allocated hot state isn't valid anymore
-        //
-        // XX What should be done instead is, at serf initialization: push a frame and
-        // initialize the hot stack within it, then preserve() the hot stack to the outer frame.
-        // Then, save the stack and reset to the saved stack for each event, thus avoiding the need
-        // to recreate the hot state each event, since it does not change over the execution of the
-        // interpreter.
-        self.nock_context.hot = Hot::init(&mut self.nock_context.stack, self.constant_hot_state);
+            // Reset the nock stack, freeing all memory used to compute the event
+            self.nock_context.stack.flip_top_frame(0);
+        }
 
-        // XX the above trick won't work for the warm state, since it changes whenever the cold
-        // state does. One possibility is to just save the warm and hot states in the snapshot
-        // anyway, but throw them away in load() since function pointers are invalidated by the
-        // restart.
-        self.nock_context.warm = Warm::init(
-            &mut self.nock_context.stack,
-            &mut self.nock_context.cold,
-            &mut self.nock_context.hot,
-        );
         self.nock_context.cache = Hamt::new(&mut self.nock_context.stack);
         self.nock_context.scry_stack = D(0);
 
