@@ -9,6 +9,7 @@ use crate::jets::warm::Warm;
 use crate::jets::JetErr;
 use crate::mem::unifying_equality;
 use crate::mem::NockStack;
+use crate::mem::Preserve;
 use crate::newt::Newt;
 use crate::noun;
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
@@ -254,18 +255,57 @@ enum NockWork {
     Work12(Nock12),
 }
 
+pub struct ContextSnapshot {
+    cold: Cold,
+    warm: Warm,
+}
+
 pub struct Context {
     pub stack: NockStack,
-    // For printing slogs; if None, print to stdout; Option slated to be removed
     pub newt: Newt,
     pub cold: Cold,
     pub warm: Warm,
     pub hot: Hot,
-    //  XX: persistent memo cache
-    // Per-event cache; option to share cache with virtualized events
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
+}
+
+impl Context {
+    pub fn save(&self) -> ContextSnapshot {
+        ContextSnapshot {
+            cold: self.cold,
+            warm: self.warm,
+        }
+    }
+
+    pub fn restore(&mut self, saved: &ContextSnapshot) {
+        self.cold = saved.cold;
+        self.warm = saved.warm;
+    }
+
+    /**
+     * For jets that need a stack frame internally.
+     *
+     * This ensures that the frame is cleaned up even if the closure short-circuites to an error
+     * result using e.g. the ? syntax. We need this method separately from with_frame to allow the
+     * jet to use the entire context without the borrow checker complaining about the mutable
+     * references.
+     */
+    pub unsafe fn with_stack_frame<F, O>(&mut self, slots: usize, f: F) -> O
+    where
+        F: FnOnce(&mut Context) -> O,
+        O: Preserve,
+    {
+        self.stack.frame_push(slots);
+        let mut ret = f(self);
+        ret.preserve(&mut self.stack);
+        self.cache.preserve(&mut self.stack);
+        self.cold.preserve(&mut self.stack);
+        self.warm.preserve(&mut self.stack);
+        self.stack.frame_pop();
+        ret
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -274,6 +314,26 @@ pub enum Error {
     ScryCrashed(Noun),      // trace
     Deterministic(Noun),    // trace
     NonDeterministic(Noun), // trace
+}
+
+impl Preserve for Error {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        match self {
+            Error::ScryBlocked(ref mut path) => path.preserve(stack),
+            Error::ScryCrashed(ref mut trace) => trace.preserve(stack),
+            Error::Deterministic(ref mut trace) => trace.preserve(stack),
+            Error::NonDeterministic(ref mut trace) => trace.preserve(stack),
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        match self {
+            Error::ScryBlocked(ref path) => path.assert_in_stack(stack),
+            Error::ScryCrashed(ref trace) => trace.assert_in_stack(stack),
+            Error::Deterministic(ref trace) => trace.assert_in_stack(stack),
+            Error::NonDeterministic(ref trace) => trace.assert_in_stack(stack),
+        }
+    }
 }
 
 impl From<noun::Error> for Error {
@@ -301,6 +361,7 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
 pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Result {
     let terminator = Arc::clone(&TERMINATOR);
     let orig_subject = subject; // for debugging
+    let snapshot = context.save();
     let virtual_frame: *const u64 = context.stack.get_frame_pointer();
     let mut res: Noun = D(0);
 
@@ -858,7 +919,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
     match nock {
         Ok(res) => Ok(res),
-        Err(err) => Err(exit(context, virtual_frame, err)),
+        Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
     }
 }
 
@@ -1075,10 +1136,16 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> result::Res
     Ok(())
 }
 
-fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error {
+fn exit(
+    context: &mut Context,
+    snapshot: &ContextSnapshot,
+    virtual_frame: *const u64,
+    error: Error,
+) -> Error {
     unsafe {
-        let stack = &mut context.stack;
+        context.restore(snapshot);
 
+        let stack = &mut context.stack;
         let mut preserve = match error {
             Error::ScryBlocked(path) => path,
             Error::Deterministic(t) | Error::NonDeterministic(t) | Error::ScryCrashed(t) => {
@@ -1088,10 +1155,9 @@ fn exit(context: &mut Context, virtual_frame: *const u64, error: Error) -> Error
             }
         };
 
-        while (stack).get_frame_pointer() != virtual_frame {
-            (stack).preserve(&mut preserve);
-            // (stack).preserve(&mut context.cold);
-            (stack).frame_pop();
+        while stack.get_frame_pointer() != virtual_frame {
+            stack.preserve(&mut preserve);
+            stack.frame_pop();
         }
 
         match error {
@@ -1225,8 +1291,9 @@ unsafe fn write_trace(context: &mut Context) {
         let trace_stack = *(context.stack.local_noun_pointer(1) as *mut *const TraceStack);
         // Abort writing to trace file if we encountered an error. This should
         // result in a well-formed partial trace file.
-        if let Err(e) = write_nock_trace(&mut context.stack, info, trace_stack) {
-            eprintln!("\rserf: error writing nock trace to file: {:?}", e);
+        if let Err(_e) = write_nock_trace(&mut context.stack, info, trace_stack) {
+            //  XX: need NockStack allocated string interpolation
+            // eprintln!("\rserf: error writing nock trace to file: {:?}", e);
             context.trace_info = None;
         }
     }
@@ -1291,31 +1358,21 @@ mod hint {
                                                     &mut jet_res,
                                                 )
                                             } {
-                                                //  XX: need string interpolation without allocation, then delete eprintln
+                                                //  XX: need NockStack allocated string interpolation
                                                 // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, nock_res, jet_res);
-                                                eprintln!(
-                                                    "\rjet {} failed, raw: {:?}, jetted: {}",
-                                                    jet_name, nock_res, jet_res
-                                                );
-                                                let tape = tape(stack, "jet mismatch");
-                                                let mean = T(stack, &[D(tas!(b"mean")), tape]);
-                                                mean_push(stack, mean);
+                                                // let mean = T(stack, &[D(tas!(b"mean")), tape]);
+                                                // mean_push(stack, mean);
                                                 Some(Err(Error::Deterministic(D(0))))
                                             } else {
                                                 Some(Ok(nock_res))
                                             }
                                         }
                                         Err(error) => {
-                                            let stack = &mut context.stack;
-                                            //  XX: need string interpolation without allocation, then delete eprintln
+                                            //  XX: need NockStack allocated string interpolation
+                                            // let stack = &mut context.stack;
                                             // let tape = tape(stack, "jet mismatch in {}, raw: {}, jetted: {}", jet_name, err, jet_res);
-                                            eprintln!(
-                                                "\rjet {} failed, raw: {:?}, jetted: {}",
-                                                jet_name, error, jet_res
-                                            );
-                                            let tape = tape(stack, "jet mismatch");
-                                            let mean = T(stack, &[D(tas!(b"mean")), tape]);
-                                            mean_push(stack, mean);
+                                            // let mean = T(stack, &[D(tas!(b"mean")), tape]);
+                                            // mean_push(stack, mean);
 
                                             match error {
                                                 Error::NonDeterministic(_) => {
@@ -1331,12 +1388,11 @@ mod hint {
                             }
                             Err(JetErr::Punt) => None,
                             Err(err) => {
-                                let stack = &mut context.stack;
-                                //  XX: need string interpolation without allocation
+                                //  XX: need NockStack allocated string interpolation
+                                // let stack = &mut context.stack;
                                 // let tape = tape(stack, "{} jet error in {}", err, jet_name);
-                                let tape = tape(stack, "jet error");
-                                let mean = T(stack, &[D(tas!(b"mean")), tape]);
-                                mean_push(stack, mean);
+                                // let mean = T(stack, &[D(tas!(b"mean")), tape]);
+                                // mean_push(stack, mean);
                                 Some(Err(err.into()))
                             }
                         }

@@ -99,8 +99,9 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
 ///
 /// This should result in a well-formed partial trace file.
 pub fn write_serf_trace_safe(info: &mut Option<TraceInfo>, name: &str, start: Instant) {
-    if let Err(e) = write_serf_trace(info.as_mut().unwrap(), name, start) {
-        eprintln!("\rserf: error writing event trace to file: {:?}", e);
+    if let Err(_e) = write_serf_trace(info.as_mut().unwrap(), name, start) {
+        //  XX: need NockStack allocated string interpolation
+        // eprintln!("\rserf: error writing event trace to file: {:?}", e);
         *info = None;
     }
 }

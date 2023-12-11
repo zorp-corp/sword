@@ -2,7 +2,7 @@ use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
 use crate::jets::cold::Cold;
-use crate::jets::hot::Hot;
+use crate::jets::hot::{Hot, HotEntry};
 use crate::jets::list::util::{lent, zing};
 use crate::jets::nock::util::mook;
 use crate::jets::warm::Warm;
@@ -79,17 +79,20 @@ struct SnapshotMem {
 
 const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
 
-struct Context {
+struct Context<'a> {
     epoch: u64,
     event_num: u64,
     pma: PMA,
     arvo: Noun,
     mug: u32,
+    constant_hot_state: &'a [HotEntry],
     nock_context: interpreter::Context,
 }
 
-impl Context {
-    pub fn load(snap_path: PathBuf, trace_info: Option<TraceInfo>) -> Context {
+impl<'a> Context<'a> {
+    pub fn load(snap_path: PathBuf, trace_info: Option<TraceInfo>,
+                constant_hot_state: &[HotEntry],
+                ) -> Context {
         let mut pma = PMA::open(snap_path).expect("serf: pma open failed");
 
         let snapshot_version = pma.meta_get(BTMetaField::SnapshotVersion as usize);
@@ -102,7 +105,7 @@ impl Context {
             _ => panic!("Unsupported snapshot version"),
         };
 
-        Context::new(trace_info, pma, snapshot)
+        Context::new(trace_info, pma, snapshot, constant_hot_state)
     }
 
     pub fn save(&mut self) {
@@ -134,7 +137,9 @@ impl Context {
         self.pma.meta_set(BTMetaField::Snapshot as usize, handle);
     }
 
-    fn new(trace_info: Option<TraceInfo>, pma: PMA, snapshot: Option<Snapshot>) -> Self {
+    fn new(trace_info: Option<TraceInfo>, pma: PMA, snapshot: Option<Snapshot>,
+           constant_hot_state: &'a [HotEntry],
+           ) -> Self {
         let mut stack = NockStack::new(1024 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
@@ -151,9 +156,8 @@ impl Context {
             }
         };
 
-        let mut hot = Hot::init(&mut stack);
+        let mut hot = Hot::init(&mut stack, constant_hot_state);
         let warm = Warm::init(&mut stack, &mut cold, &mut hot);
-
         let mug = mug_u32(&mut stack, arvo);
 
         let nock_context = interpreter::Context {
@@ -174,6 +178,7 @@ impl Context {
             arvo,
             mug,
             nock_context,
+            constant_hot_state,
         }
     }
 
@@ -197,7 +202,7 @@ impl Context {
         // Then, save the stack and reset to the saved stack for each event, thus avoiding the need
         // to recreate the hot state each event, since it does not change over the execution of the
         // interpreter.
-        self.nock_context.hot = Hot::init(&mut self.nock_context.stack);
+        self.nock_context.hot = Hot::init(&mut self.nock_context.stack, self.constant_hot_state);
 
         // XX the above trick won't work for the warm state, since it changes whenever the cold
         // state does. One possibility is to just save the warm and hot states in the snapshot
@@ -306,7 +311,7 @@ lazy_static! {
  * This is suitable for talking to the king process.  To test, change the arg_c[0] line in
  * u3_lord_init in vere to point at this binary and start vere like normal.
  */
-pub fn serf() -> io::Result<()> {
+pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     // Register SIGINT signal hook to set flag first time, shutdown second time
     signal_hook::flag::register_conditional_shutdown(SIGINT, 1, Arc::clone(&TERMINATOR))?;
     signal_hook::flag::register(SIGINT, Arc::clone(&TERMINATOR))?;
@@ -335,13 +340,14 @@ pub fn serf() -> io::Result<()> {
         None
     };
     if let Some(ref mut info) = trace_info.as_mut() {
-        if let Err(e) = write_metadata(info) {
-            eprintln!("\rError initializing trace file: {:?}", e);
+        if let Err(_e) = write_metadata(info) {
+            //  XX: need NockStack allocated string interpolation
+            // eprintln!("\rError initializing trace file: {:?}", e);
             trace_info = None;
         }
     }
 
-    let mut context = Context::load(snap_path, trace_info);
+    let mut context = Context::load(snap_path, trace_info, constant_hot_state);
     context.ripe();
 
     // Can't use for loop because it borrows newt
@@ -576,6 +582,7 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
     clear_interrupt();
 
     let stack = &mut context.nock_context.stack;
+    context.nock_context.cache = Hamt::<Noun>::new(stack);
     //  crud ovo = [+(now) [%$ %arvo ~] [%crud goof ovo]]
     let job_cell = job.as_cell().expect("serf: work: job not a cell");
     let job_now = job_cell.head().as_atom().expect("serf: work: now not atom");
