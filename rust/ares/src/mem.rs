@@ -133,6 +133,7 @@ impl NockStack {
             *self.frame_pointer.sub(FRAME + 1) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
             *self.frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
             *self.frame_pointer.sub(ALLOC + 1) = self.start as u64; // "alloc pointer" from "previous" frame
+            assert!(self.is_west());
         };
     }
 
