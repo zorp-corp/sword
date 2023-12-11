@@ -124,7 +124,7 @@ impl NockStack {
         }
     }
 
-    /** Resets the NockStack. */
+    /** Resets the NockStack. The top frame is west as in the initial creation of the NockStack. */
     pub fn reset(&mut self, top_slots: usize) {
         self.frame_pointer = unsafe { self.start.add(RESERVED + top_slots) } as *mut u64;
         self.stack_pointer = self.frame_pointer;
