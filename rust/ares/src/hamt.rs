@@ -500,6 +500,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
         if stack.is_in_frame(self.0) {
             let dest_stem = stack.struct_alloc_in_previous_frame(1);
             copy_nonoverlapping(self.0, dest_stem, 1);
+            self.0 = dest_stem;
             if stack.is_in_frame((*dest_stem).buffer) {
                 let dest_buffer = stack.struct_alloc_in_previous_frame((*dest_stem).size());
                 copy_nonoverlapping((*dest_stem).buffer, dest_buffer, (*dest_stem).size());
