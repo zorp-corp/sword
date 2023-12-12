@@ -7,10 +7,11 @@ use bindgen::CargoCallbacks;
 
 fn main() {
     let profile = env::var("PROFILE").unwrap();
-    let opt_level = match profile.as_ref() {
-        "debug" => 0,
-        "release" => 3,
-        _ => panic!("Unknown profile: {}", profile),
+    let opt_level = env::var("OPT_LEVEL").unwrap();
+    let define_debug = if profile == "debug" {
+        "-DDEBUG"
+    } else {
+        "-UDEBUG" 
     };
 
     // This is the directory where the `c` library is located.
@@ -41,6 +42,8 @@ fn main() {
                 .to_str()
                 .expect("Path is not a valid string"),
         )
+        .flag(format!("-O{}", opt_level).as_ref())
+        .flag(define_debug) 
         .flag("-g3")
         .flag("-Wall")
         .flag("-Wextra")
