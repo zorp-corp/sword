@@ -382,6 +382,7 @@ _bt_nalloc(BT_state *state)
      params to the function and make actual return value an error code. This is
      to avoid forcing some callers to immediately use _fo_get */
   BT_nlistnode **n = &state->nlist;
+  BT_page *ret = 0;
 
   for (; *n; n = &(*n)->next) {
     /* ;;: this assert is temporary. When partition striping is
@@ -396,7 +397,7 @@ _bt_nalloc(BT_state *state)
       BT_page *ret;
       ret = (*n)->va;
       *n = (*n)->next;
-      return ret;
+      break;
     }
     /* larger than necessary: shrink the node */
     if ((*n)->sz > 1) {
@@ -404,9 +405,12 @@ _bt_nalloc(BT_state *state)
       ret = (*n)->va;
       (*n)->sz -= 1;
       (*n)->va = (*n)->va + 1;
-      return ret;
+      break;
     }
   }
+
+  /* make node writeable */
+  mprotect(ret, sizeof(BT_page), PROT_READ | PROT_WRITE);
 }
 
 static int
@@ -1494,6 +1498,7 @@ _flist_grow(BT_state *state, BT_flistnode *space)
 
 static int
 _flist_new(BT_state *state)
+#define FLIST_PG_START (((BT_PAGESIZE * BT_NUMMETAS) + BLK_BASE_LEN0) / BT_PAGESIZE)
 {
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
@@ -1507,8 +1512,7 @@ _flist_new(BT_state *state)
 
   head->next = 0;
   head->sz = len;
-  head->pg = PMA_GROW_SIZE; /* ;;: should we invoke logic to expand the backing file
-                          here? probably. implement it */ /*  */
+  head->pg = FLIST_PG_START;
   state->flist = head;
 
   return BT_SUCC;
@@ -2022,15 +2026,30 @@ _bt_state_restore_maps2(BT_state *state, BT_page *node,
       size_t bytelen = hiaddr - loaddr;
       off_t offset = P2BYTES(pg);
 
-      if (loaddr !=
-          mmap(loaddr,
-               bytelen,
-               PROT_READ | PROT_WRITE,
-               MAP_FIXED | MAP_SHARED,
-               state->data_fd,
-               offset)) {
-        DPRINTF("mmap: failed to map at addr %p", loaddr);
-        abort();
+      if (pg != 0) {
+        /* not freespace, map readonly data on disk */
+        if (loaddr !=
+            mmap(loaddr,
+                 bytelen,
+                 PROT_READ,
+                 MAP_FIXED | MAP_SHARED,
+                 state->data_fd,
+                 offset)) {
+          DPRINTF("mmap: failed to map at addr %p", loaddr);
+          abort();
+        }
+      }
+      else {
+        /* freespace, map no access */
+        if (loaddr !=
+            mmap(loaddr,
+                 bytelen,
+                 PROT_NONE,
+                 MAP_FIXED | MAP_ANONYMOUS | MAP_NORESERVE,
+                 -1, 0)) {
+          DPRINTF("mmap: failed to map at addr %p", loaddr);
+          abort();
+        }
       }
     }
     return;
@@ -2224,8 +2243,10 @@ _bt_state_load(BT_state *state)
   }
 
   state->map = mmap(BT_MAPADDR,
-                    BT_ADDRSIZE,
-                    PROT_READ | PROT_WRITE,
+                    BT_ADDRSIZE,            /* should actually just be first 2M
+                                               stripe. and then from there
+                                               should map like it's freespace. */
+                    PROT_READ | PROT_WRITE, /* ;;: PROT_READ */
                     MAP_FIXED | MAP_SHARED,
                     state->data_fd,
                     0);
@@ -2392,6 +2413,13 @@ _bt_sync_meta(BT_state *state)
   /* zero the new metapage's checksum */
   newwhich = state->which ? 0 : 1;
   newmeta = state->meta_pages[newwhich];
+
+  /* make new metapage writeable */
+  if (mprotect(newmeta, sizeof(BT_page), PROT_READ | PROT_WRITE) != 0) {
+    DPRINTF("mprotect of new metapage failed with %s", strerror(errno));
+    abort();
+  }
+
   newmeta->chk = 0;
 
   /* copy over metapage to new metapage excluding the checksum */
@@ -2407,8 +2435,14 @@ _bt_sync_meta(BT_state *state)
 
   newmeta->root = newrootpg;
 
-  /* finally, switch the metapage we're referring to */
+  /* switch the metapage we're referring to */
   state->which = newwhich;
+
+  /* finally, make old metapage read-only */
+  if (mprotect(meta, sizeof(BT_page), PROT_READ) != 0) {
+    DPRINTF("mprotect of old metapage failed with %s", strerror(errno));
+    abort();
+  }
 
   return BT_SUCC;
 }
@@ -2424,7 +2458,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
   /* leaf */
   if (depth == maxdepth) {
     _bt_sync_leaf(state, node);
-    return BT_SUCC;
+    goto e;
   }
 
   /* do dfs */
@@ -2442,8 +2476,15 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
     if (msync(child, sizeof(BT_page), MS_SYNC))
       return errno;
 
-    /* clean the child */
+    /* unset child dirty bit */
     _bt_cleanchild(node, i);
+  }
+
+ e:
+  /* all modifications done in node, mark it read-only */
+  if (mprotect(node, sizeof(BT_page), PROT_READ) != 0) {
+    DPRINTF("mprotect of node failed with %s", strerror(errno));
+    abort();
   }
 
   return BT_SUCC;
@@ -2572,6 +2613,20 @@ bt_free(BT_state *state, void *lo, void *hi)
   vaof_t hioff = addr2off(hi);
   _bt_insert(state, looff, hioff, 0);
   _mlist_insert(state, lo, hi);
+
+  /* ;;: is this correct? Shouldn't this actually happen when we merge the
+       pending_mlist on sync? */
+  size_t bytelen = (BYTE *)hi - (BYTE *)lo;
+
+  if (lo !=
+      mmap(lo,
+           bytelen,
+           PROT_NONE,
+           MAP_ANONYMOUS | MAP_FIXED | MAP_NORESERVE,
+           -1, 0)) {
+    DPRINTF("mmap: failed to map at addr %p", lo);
+    abort();
+  }
 }
 
 // XX need to mprotect PROT_READ all ranges synced including root/meta
@@ -2594,6 +2649,12 @@ bt_sync(BT_state *state)
   /* sync the root page */
   if (msync(root, sizeof(BT_page), MS_SYNC))
     return errno;
+
+  /* make root read-only */
+  if (mprotect(root, sizeof(BT_page), PROT_READ) != 0) {
+    DPRINTF("mprotect of root failed with %s", strerror(errno));
+    abort();
+  }
 
   /* then sync the metapage */
   if (rc = _bt_sync_meta(state))
@@ -2920,3 +2981,49 @@ _bt_printnode(BT_page *node)
     printf("[%5zu] %10x %10x\n", i, node->datk[i].va, node->datk[i].fo);
   }
 }
+
+/*
+  _bt_state_restore_maps2
+  if pg 0:
+  mmap MAP_ANONYMOUS | MAP_FIXED | MAP_NO_RESERVE
+  PROT_NONE
+
+  if pg !0:
+  mmap MAP_SHARED | MAP_FIXED
+  PROT_READ
+
+
+  ------------------
+
+  the three routines that make modification to the data maps are:
+
+  bt_malloc:
+
+  MAP_SHARED | MAP_FIXED
+  PROT_READ | PROT_WRITE
+
+  _bt_data_cow:
+
+  MAP_SHARED | MAP_FIXED
+  PROT_READ | PROT_WRITE
+
+  bt_sync:
+
+  (mprotect)
+  PROT_READ
+
+  bt_free:
+
+  MAP_ANONYMOUS | MAP_FIXED | MAP_NO_RESERVE
+  PROT_NONE
+
+  -----------------
+
+  8 linear mappings (striping)
+
+  when we _bt_nalloc, mprotect(PROT_READ | PROT_WRITE)
+
+  when we free a node: mprotect(PROT_NONE)
+
+  additionally, when we sync, all allocated nodes: mprotect(PROT_READ)
+*/
