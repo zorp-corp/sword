@@ -1334,11 +1334,35 @@ mod hint {
 
     /// Extracts a constant from a formula, skipping over
     /// safe/static hints, doing no computation.
+    /*
+u3_weak
+u3r_skip(u3_noun fol)
+{
+  while ( c3y == u3du(fol) ) {
+    switch ( u3h(fol) ) {
+      default: return u3_none;
+      case 1:  return u3t(fol);
+      case 11: {
+        u3_noun arg = u3t(fol),
+                hod = u3h(arg);
+
+        if ( (c3y == u3du(hod)) && (u3_none == u3r_skip(u3t(hod))) ) {
+          return u3_none;
+        }
+        fol = u3t(arg);
+      }
+    }
+  }
+  return u3_none;
+}
+     */
     pub fn skip(formula: Noun) -> Option<Noun> {
         let mut fol = formula;
         loop {
-            if let Ok(fol_cell) = fol.as_cell() {
-                match fol_cell.head().as_direct().unwrap().data() {
+            if fol.is_cell() {
+                let fol_cell = fol.as_cell().unwrap();
+                let op = fol_cell.head().as_direct().unwrap().data();
+                match op {
                     1 => return Some(fol_cell.tail()),
                     11 => {
                         let arg = fol_cell.tail().as_cell().unwrap();
@@ -1352,8 +1376,9 @@ mod hint {
                     }
                     _ => return None,
                 }
-            } else {
-                return None;
+            }
+            else {
+                break None;
             }
         }
     }
