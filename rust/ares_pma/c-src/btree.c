@@ -112,7 +112,7 @@ off2addr(vaof_t off)
 #define BT_PAGEWORD 32ULL
 #define BT_NUMMETAS 2                     /* 2 metapages */
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
-#define PMA_GROW_SIZE (BT_PAGESIZE * 1024)
+#define PMA_GROW_SIZE (BT_PAGESIZE * 1024 * 64)
 
 #define BT_NOPAGE 0
 
@@ -2218,6 +2218,9 @@ _bt_state_load(BT_state *state)
     DPUTS("creating new db");
     state->file_size = PMA_GROW_SIZE;
     new = 1;
+    if(ftruncate(state->data_fd, PMA_GROW_SIZE)) {
+      return errno;
+    }
   }
 
   state->map = mmap(BT_MAPADDR,
@@ -2536,6 +2539,7 @@ bt_malloc(BT_state *state, size_t pages)
       (*n)->va = (BT_page *)(*n)->va + pages;
       break;
     }
+  // XX return early if nothing suitable found in freelist
   }
 
   pgno_t pgno = _bt_falloc(state, pages);
@@ -2545,10 +2549,22 @@ bt_malloc(BT_state *state, size_t pages)
              addr2off(ret) + pages,
              pgno);
 
+  DPRINTF("map %p to offset %lld bytes (%lld pages)\n", ret, P2BYTES(pgno), pgno);
+  if (ret !=
+      mmap(ret,
+           P2BYTES(pages),
+           PROT_READ | PROT_WRITE,
+           MAP_FIXED | MAP_SHARED,
+           state->data_fd,
+           P2BYTES(pgno))) {
+    DPRINTF("mmap: failed to map at addr %p", ret);
+    abort();
+  }
   bp(ret != 0);
   return ret;
 }
 
+// XX need to mmap fixed/anon/no_reserve and prot_none
 void
 bt_free(BT_state *state, void *lo, void *hi)
 {
@@ -2558,6 +2574,7 @@ bt_free(BT_state *state, void *lo, void *hi)
   _mlist_insert(state, lo, hi);
 }
 
+// XX need to mprotect PROT_READ all ranges synced including root/meta
 int
 bt_sync(BT_state *state)
 {
