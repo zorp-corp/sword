@@ -267,6 +267,7 @@ pub struct Context {
     pub warm: Warm,
     pub hot: Hot,
     pub cache: Hamt<Noun>,
+    pub keep: Hamt<Noun>, // persistent cache
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
 }
@@ -301,6 +302,7 @@ impl Context {
         let mut ret = f(self);
         ret.preserve(&mut self.stack);
         self.cache.preserve(&mut self.stack);
+        self.keep.preserve(&mut self.stack);
         self.cold.preserve(&mut self.stack);
         self.warm.preserve(&mut self.stack);
         self.stack.frame_pop();
@@ -403,6 +405,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     debug_assertions(stack, res);
 
                     stack.preserve(&mut context.cache);
+                    stack.preserve(&mut context.keep);
                     stack.preserve(&mut context.cold);
                     stack.preserve(&mut context.warm);
                     stack.preserve(&mut res);
@@ -422,6 +425,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     debug_assertions(stack, res);
 
                     stack.preserve(&mut context.cache);
+                    stack.preserve(&mut context.keep);
                     stack.preserve(&mut context.cold);
                     stack.preserve(&mut context.warm);
                     stack.preserve(&mut res);
@@ -743,6 +747,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                 }
                 NockWork::Work11D(mut dint) => match dint.todo {
                     Todo11D::ComputeHint => {
+                        // XX support actual computation of %memo clues instead of just
+                        //    assuming the clue will be a constant (like [1 0] or /my/cache/path)
+                        //    i.e., we should support ~>  %memo.[(turn /foo/bar/baz |=(a=@ (add a %offset)))]  ...
+                        // NB: vere doesn't support non-constant %memo clues yet either
                         if let Some(ret) =
                             hint::match_pre_hint(context, subject, dint.tag, dint.hint, dint.body)
                         {
@@ -1324,6 +1332,32 @@ mod hint {
         }
     }
 
+    /// Extracts a constant from a formula, skipping over
+    /// safe/static hints, doing no computation.
+    pub fn skip(formula: Noun) -> Option<Noun> {
+        let mut fol = formula;
+        loop {
+            if let Ok(fol_cell) = fol.as_cell() {
+                match fol_cell.head().as_direct().unwrap().data() {
+                    1 => return Some(fol_cell.tail()),
+                    11 => {
+                        let arg = fol_cell.tail().as_cell().unwrap();
+                        let hod = arg.head();
+                        if hod.is_cell() {
+                            if skip(hod.as_cell().unwrap().tail()).is_none() {
+                                return None;
+                            }
+                        }
+                        fol = arg.tail();
+                    }
+                    _ => return None,
+                }
+            } else {
+                return None;
+            }
+        }
+    }
+
     /** Match dynamic hints before the hint formula is evaluated */
     pub fn match_pre_hint(
         context: &mut Context,
@@ -1406,7 +1440,17 @@ mod hint {
             tas!(b"memo") => {
                 let stack = &mut context.stack;
                 let mut key = Cell::new(stack, subject, body).as_noun();
-                context.cache.lookup(stack, &mut key).map(Ok)
+                // XX this assumes the clue is a constant; i.e., it is *not* computed
+                if let Some(con) = skip(hint) {
+                    if con.is_cell() {
+                        eprintln!("serf: looking in keep\r");
+                        context.keep.lookup(stack, &mut key).map(Ok)
+                    } else {
+                        context.cache.lookup(stack, &mut key).map(Ok)
+                    }
+                } else {
+                    None
+                }
             }
             _ => None,
         }
@@ -1509,12 +1553,24 @@ mod hint {
         let cold = &mut context.cold;
         let hot = &context.hot;
         let cache = &mut context.cache;
+        let keep = &mut context.keep;
 
         //  XX: handle IndirectAtom tags
         match tag.direct()?.data() {
             tas!(b"memo") => {
                 let mut key = Cell::new(stack, subject, body).as_noun();
-                context.cache = cache.insert(stack, &mut key, res);
+                if let Some(clue) = hint {
+                    if clue.is_cell() {
+                        if unsafe { context.scry_stack.raw_equals(D(0)) } {
+                            eprintln!("serf: memoizing in keep\r");
+                            context.keep = keep.insert(stack, &mut key, res);
+                        }
+                        // XX add a printf that says "userspace can't insert into
+                        //    persistent cache"
+                    } else {
+                        context.cache = cache.insert(stack, &mut key, res);
+                    }
+                }
             }
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
                 mean_pop(stack);

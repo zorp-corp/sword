@@ -319,6 +319,7 @@ pub mod util {
             let warm = Warm::new();
             let hot = Hot::init(&mut stack, URBIT_HOT_STATE);
             let cache = Hamt::<Noun>::new();
+            let keep = Hamt::<Noun>::new();
 
             Context {
                 stack,
@@ -327,6 +328,7 @@ pub mod util {
                 warm,
                 hot,
                 cache,
+                keep,
                 scry_stack: D(0),
                 trace_info: None,
             }

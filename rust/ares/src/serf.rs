@@ -61,6 +61,7 @@ impl Context {
             warm: Warm::new(),
             hot,
             cache: Hamt::<Noun>::new(),
+            keep: Hamt::<Noun>::new(),
             scry_stack: D(0),
             trace_info,
         };
