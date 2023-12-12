@@ -2477,9 +2477,6 @@ bt_state_open(BT_state *state, const char *path, ULONG flags, mode_t mode)
   if (!dpath) return ENOMEM;
   sprintf(dpath, "%s" DATANAME, path);
 
-  if (mkdir(path, 0774) == -1)
-    return errno;
-
   if ((state->data_fd = open(dpath, oflags, mode)) == -1)
     return errno;
 
@@ -2592,7 +2589,7 @@ uint64_t
 bt_meta_get(BT_state *state, size_t idx)
 {
   BT_meta *meta = state->meta_pages[state->which];
-  assert((uintptr_t)&meta->roots[idx] - (uintptr_t)&meta <= sizeof *meta);
+  assert((uintptr_t)&(meta->roots[idx]) - (uintptr_t)meta <= sizeof *meta);
   return meta->roots[idx];
 }
 
@@ -2600,7 +2597,7 @@ void
 bt_meta_set(BT_state *state, size_t idx, uint64_t val)
 {
   BT_meta *meta = state->meta_pages[state->which];
-  assert((uintptr_t)&meta->roots[idx] - (uintptr_t)&meta <= sizeof *meta);
+  assert((uintptr_t)&(meta->roots[idx]) - (uintptr_t)meta <= sizeof *meta);
   meta->roots[idx] = val;
 }
 
