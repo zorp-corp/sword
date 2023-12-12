@@ -611,6 +611,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
                     break bytes;
                 }
                 depth -= 1;
+                continue;
             }
 
             let next_chunk = traversal[depth].bitmap.trailing_zeros();
