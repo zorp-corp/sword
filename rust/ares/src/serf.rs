@@ -225,6 +225,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         // Reset the local cache and scry handler stack
         context.nock_context.cache = Hamt::<Noun>::new();
         context.nock_context.scry_stack = D(0);
+        context.nock_context.stack.frame_push(0);
 
         let tag = slot(writ, 2)?.as_direct().unwrap();
         match tag.data() {
@@ -269,15 +270,13 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         clear_interrupt();
 
         // Persist data that should survive between events
-        //  XX: Such data should go in the PMA once that's available, except
-        //  the warm and hot state which should survive between events but not interpreter runs
+        //  XX: Such data should go in the PMA once that's available
         unsafe {
             let stack = &mut context.nock_context.stack;
             stack.preserve(&mut context.arvo);
             stack.preserve(&mut context.nock_context.cold);
             stack.preserve(&mut context.nock_context.warm);
-            stack.preserve(&mut context.nock_context.hot);
-            stack.flip_top_frame(0);
+            stack.frame_pop();
         }
     }
 
