@@ -10,8 +10,6 @@ use crate::mem::NockStack;
 use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
-use crate::snapshot::double_jam::DoubleJam;
-use crate::snapshot::Snapshot;
 use crate::trace::*;
 use ares_macros::tas;
 use signal_hook;
@@ -31,7 +29,6 @@ const FLAG_TRACE: u32 = 1 << 8;
 struct Context {
     epoch: u64,
     event_num: u64,
-    snapshot: DoubleJam,
     arvo: Noun,
     mug: u32,
     nock_context: interpreter::Context,
@@ -44,14 +41,12 @@ impl Context {
         constant_hot_state: &[HotEntry],
     ) -> Self {
         // TODO: switch to Pma when ready
-        // let snap = &mut snapshot::pma::Pma::new(snap_path);
-        let mut snapshot = DoubleJam::new(snap_path);
         let mut stack = NockStack::new(512 << 10 << 10, 0);
 
         let cold = Cold::new(&mut stack);
         let hot = Hot::init(&mut stack, constant_hot_state);
 
-        let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
+        let (epoch, event_num, arvo) = (0, 0, D(0));
         let mug = mug_u32(&mut stack, arvo);
 
         let nock_context = interpreter::Context {
@@ -68,7 +63,6 @@ impl Context {
         Context {
             epoch,
             event_num,
-            snapshot,
             arvo,
             mug,
             nock_context,
@@ -83,8 +77,6 @@ impl Context {
         //  XX: assert event numbers are continuous
         self.arvo = new_arvo;
         self.event_num = new_event_num;
-        self.snapshot
-            .save(&mut self.nock_context.stack, &mut self.arvo);
         self.mug = mug_u32(&mut self.nock_context.stack, self.arvo);
     }
 
@@ -93,8 +85,8 @@ impl Context {
     //
 
     pub fn sync(&mut self) {
-        self.snapshot
-            .sync(&mut self.nock_context.stack, self.epoch, self.event_num);
+        // TODO actually sync
+        eprintln!("serf: TODO sync");
     }
 
     //
