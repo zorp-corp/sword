@@ -2552,9 +2552,6 @@ bt_state_open(BT_state *state, const char *path, ULONG flags, mode_t mode)
   if (!dpath) return ENOMEM;
   sprintf(dpath, "%s" DATANAME, path);
 
-  if (mkdir(path, 0774) == -1)
-    return errno;
-
   if ((state->data_fd = open(dpath, oflags, mode)) == -1)
     return errno;
 

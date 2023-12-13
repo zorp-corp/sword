@@ -29,7 +29,8 @@ int main(int argc, char *argv[])
   DPUTS("== test 1: insert");
 
   bt_state_new(&state1);
-
+  if (mkdir("./pmatest1", 0774) == -1)
+    return errno;
   assert(SUCC(bt_state_open(state1, "./pmatest1", 0, 0644)));
 
 #define LOWEST_ADDR 0x200000;
@@ -50,6 +51,8 @@ int main(int argc, char *argv[])
   BT_state *state2;
 
   bt_state_new(&state2);
+  if (mkdir("./pmatest2", 0774) == -1)
+    return errno;
   assert(SUCC(bt_state_open(state2, "./pmatest2", 0, 0644)));
 
   void *t2a = bt_malloc(state2, 10);
