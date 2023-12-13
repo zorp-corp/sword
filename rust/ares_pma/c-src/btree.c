@@ -117,6 +117,13 @@ off2addr(vaof_t off)
 
 #define BT_NOPAGE 0
 
+#define BT_PROT_CLEAN (PROT_READ)
+#define BT_FLAG_CLEAN (MAP_FIXED | MAP_SHARED)
+#define BT_PROT_FREE  (PROT_NONE)
+#define BT_FLAG_FREE  (MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE)
+#define BT_PROT_DIRTY (PROT_READ | PROT_WRITE)
+#define BT_FLAG_DIRTY (MAP_FIXED | MAP_SHARED)
+
 /*
   FO2BY: file offset to byte
   get byte INDEX into pma map from file offset
@@ -2032,11 +2039,11 @@ _bt_state_restore_maps2(BT_state *state, BT_page *node,
         if (loaddr !=
             mmap(loaddr,
                  bytelen,
-                 PROT_READ,
-                 MAP_FIXED | MAP_SHARED,
+                 BT_PROT_CLEAN,
+                 BT_FLAG_CLEAN,
                  state->data_fd,
                  offset)) {
-          DPRINTF("mmap: failed to map at addr %p", loaddr);
+          DPRINTF("mmap: failed to map at addr %p, errno: %s", loaddr, strerror(errno));
           abort();
         }
       }
@@ -2045,10 +2052,10 @@ _bt_state_restore_maps2(BT_state *state, BT_page *node,
         if (loaddr !=
             mmap(loaddr,
                  bytelen,
-                 PROT_NONE,
-                 MAP_FIXED | MAP_ANONYMOUS | MAP_NORESERVE,
+                 BT_PROT_FREE,
+                 BT_FLAG_FREE,
                  0, 0)) {
-          DPRINTF("mmap: failed to map at addr %p", loaddr);
+          DPRINTF("mmap: failed to map at addr %p, errno: %s", loaddr, strerror(errno));
           abort();
         }
       }
@@ -2264,13 +2271,13 @@ _bt_state_load(BT_state *state)
   /* map first node stripe (along with metapages) as read only */
   state->map = mmap(BT_MAPADDR,
                     BT_META_SECTION_WIDTH + BLK_BASE_LEN0,
-                    PROT_READ,
-                    MAP_FIXED | MAP_SHARED,
+                    BT_PROT_CLEAN,
+                    BT_FLAG_CLEAN,
                     state->data_fd,
                     0);
 
   if (state->map != BT_MAPADDR) {
-    DPRINTF("mmap: failed to map at addr %p", BT_MAPADDR);
+    DPRINTF("mmap: failed to map at addr %p, errno: %s", BT_MAPADDR, strerror(errno));
     abort();
   }
 
@@ -2621,11 +2628,11 @@ bt_malloc(BT_state *state, size_t pages)
   if (ret !=
       mmap(ret,
            P2BYTES(pages),
-           PROT_READ | PROT_WRITE,
-           MAP_FIXED | MAP_SHARED,
+           BT_PROT_DIRTY,
+           BT_FLAG_DIRTY,
            state->data_fd,
            P2BYTES(pgno))) {
-    DPRINTF("mmap: failed to map at addr %p", ret);
+    DPRINTF("mmap: failed to map at addr %p, errno: %s", ret, strerror(errno));
     abort();
   }
   bp(ret != 0);
@@ -2648,10 +2655,10 @@ bt_free(BT_state *state, void *lo, void *hi)
   if (lo !=
       mmap(lo,
            bytelen,
-           PROT_NONE,
-           MAP_ANONYMOUS | MAP_FIXED | MAP_NORESERVE,
+           BT_PROT_FREE,
+           BT_FLAG_FREE,
            0, 0)) {
-    DPRINTF("mmap: failed to map at addr %p :: %s", lo, strerror(errno));
+    DPRINTF("mmap: failed to map at addr %p, errno: %s", lo, strerror(errno));
     abort();
   }
 }
@@ -2812,11 +2819,11 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
   if (loaddr !=
       mmap(loaddr,
            bytelen,
-           PROT_READ | PROT_WRITE,
-           MAP_FIXED | MAP_SHARED,
+           BT_PROT_DIRTY,
+           BT_FLAG_DIRTY,
            state->data_fd,
            offset)) {
-    DPRINTF("mmap: failed to map at addr %p", loaddr);
+    DPRINTF("mmap: failed to map at addr %p, errno: %s", loaddr, strerror(errno));
     abort();
   }
 
