@@ -36,7 +36,7 @@ struct Context {
 
 impl Context {
     pub fn new(
-        snap_path: &PathBuf,
+        _snap_path: &PathBuf,
         trace_info: Option<TraceInfo>,
         constant_hot_state: &[HotEntry],
     ) -> Self {
