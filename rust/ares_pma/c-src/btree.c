@@ -395,14 +395,12 @@ _bt_nalloc(BT_state *state)
     assert(width < MBYTES(2));
     /* perfect fit */
     if ((*n)->sz == 1) {
-      BT_page *ret;
       ret = (*n)->va;
       *n = (*n)->next;
       break;
     }
     /* larger than necessary: shrink the node */
     if ((*n)->sz > 1) {
-      BT_page *ret;
       ret = (*n)->va;
       (*n)->sz -= 1;
       (*n)->va = (*n)->va + 1;
@@ -419,8 +417,8 @@ _bt_nalloc(BT_state *state)
 static int
 _node_cow(BT_state *state, BT_page *node, pgno_t *pgno)
 {
-  BT_page *ret = _bt_nalloc(state);
-  memcpy(ret->datk, node->datk, sizeof node->datk[0] * BT_DAT_MAXENTRIES);
+  BT_page *ret = _bt_nalloc(state); /* ;;: todo: assert node has no dirty entries */
+  memcpy(ret->datk, node->datk, sizeof node->datk[0] * BT_DAT_MAXKEYS);
   *pgno = _fo_get(state, ret);
   return BT_SUCC;
 }
@@ -2049,7 +2047,7 @@ _bt_state_restore_maps2(BT_state *state, BT_page *node,
                  bytelen,
                  PROT_NONE,
                  MAP_FIXED | MAP_ANONYMOUS | MAP_NORESERVE,
-                 -1, 0)) {
+                 0, 0)) {
           DPRINTF("mmap: failed to map at addr %p", loaddr);
           abort();
         }
@@ -2652,8 +2650,8 @@ bt_free(BT_state *state, void *lo, void *hi)
            bytelen,
            PROT_NONE,
            MAP_ANONYMOUS | MAP_FIXED | MAP_NORESERVE,
-           -1, 0)) {
-    DPRINTF("mmap: failed to map at addr %p", lo);
+           0, 0)) {
+    DPRINTF("mmap: failed to map at addr %p :: %s", lo, strerror(errno));
     abort();
   }
 }
