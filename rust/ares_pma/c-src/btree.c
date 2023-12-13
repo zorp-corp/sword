@@ -88,7 +88,7 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 #define SUCC(x) ((x) == BT_SUCC)
 
 
-#define BT_MAPADDR  ((void *) S(0x1000,0000,0000))
+#define BT_MAPADDR  ((BYTE *) S(0x1000,0000,0000))
 
 static inline vaof_t
 addr2off(void *p)
@@ -111,6 +111,7 @@ off2addr(vaof_t off)
 
 #define BT_PAGEWORD 32ULL
 #define BT_NUMMETAS 2                     /* 2 metapages */
+#define BT_META_SECTION_WIDTH (BT_NUMMETAS * BT_PAGESIZE)
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
 #define PMA_GROW_SIZE (BT_PAGESIZE * 1024 * 64)
 
@@ -235,7 +236,7 @@ static_assert(BT_DAT_MAXBYTES % sizeof(BT_dat) == 0);
    a meta page is like any other page, but the data section is used to store
    additional information
 */
-#define BLK_BASE_LEN0 (MBYTES(2) - (BT_PAGESIZE * BT_NUMMETAS))
+#define BLK_BASE_LEN0 (MBYTES(2) - BT_META_SECTION_WIDTH)
 #define BLK_BASE_LEN1 (BLK_BASE_LEN0 * 4)
 #define BLK_BASE_LEN2 (BLK_BASE_LEN1 * 4)
 #define BLK_BASE_LEN3 (BLK_BASE_LEN2 * 4)
@@ -409,8 +410,10 @@ _bt_nalloc(BT_state *state)
     }
   }
 
-  /* make node writeable */
+  /* make node writable */
   mprotect(ret, sizeof(BT_page), PROT_READ | PROT_WRITE);
+
+  return ret;
 }
 
 static int
@@ -1498,7 +1501,7 @@ _flist_grow(BT_state *state, BT_flistnode *space)
 
 static int
 _flist_new(BT_state *state)
-#define FLIST_PG_START (((BT_PAGESIZE * BT_NUMMETAS) + BLK_BASE_LEN0) / BT_PAGESIZE)
+#define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0) / BT_PAGESIZE)
 {
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
@@ -2189,6 +2192,13 @@ _bt_state_meta_new(BT_state *state)
 
   TRACE();
 
+  /* open the metapage region for writing */
+  if (mprotect(BT_MAPADDR, BT_META_SECTION_WIDTH,
+               PROT_READ | PROT_WRITE) != 0) {
+    DPRINTF("mprotect of metapage section failed with %s", strerror(errno));
+    abort();
+  }
+
   /* initialize the block base array */
   meta.blk_base[0] = BT_PAGESIZE * BT_NUMMETAS;
 
@@ -2219,6 +2229,17 @@ _bt_state_meta_new(BT_state *state)
        first?? */
   memcpy(METADATA(p2), &meta, sizeof meta);
 
+  /* only the active metapage should be writable (first page) */
+  if (mprotect(BT_MAPADDR, BT_META_SECTION_WIDTH, PROT_READ) != 0) {
+    DPRINTF("mprotect of metapage section failed with %s", strerror(errno));
+    abort();
+  }
+  if (mprotect(BT_MAPADDR, BT_PAGESIZE,
+               PROT_READ | PROT_WRITE) != 0) {
+    DPRINTF("mprotect of current metapage failed with %s", strerror(errno));
+    abort();
+  }
+
   return BT_SUCC;
 }
 
@@ -2242,11 +2263,10 @@ _bt_state_load(BT_state *state)
     }
   }
 
+  /* map first node stripe (along with metapages) as read only */
   state->map = mmap(BT_MAPADDR,
-                    BT_ADDRSIZE,            /* should actually just be first 2M
-                                               stripe. and then from there
-                                               should map like it's freespace. */
-                    PROT_READ | PROT_WRITE, /* ;;: PROT_READ */
+                    BT_META_SECTION_WIDTH + BLK_BASE_LEN0,
+                    PROT_READ,
                     MAP_FIXED | MAP_SHARED,
                     state->data_fd,
                     0);
@@ -2420,7 +2440,7 @@ _bt_sync_meta(BT_state *state)
   newwhich = state->which ? 0 : 1;
   newmeta = state->meta_pages[newwhich];
 
-  /* make new metapage writeable */
+  /* make new metapage writable */
   if (mprotect(newmeta, sizeof(BT_page), PROT_READ | PROT_WRITE) != 0) {
     DPRINTF("mprotect of new metapage failed with %s", strerror(errno));
     abort();
@@ -2527,6 +2547,9 @@ bt_state_open(BT_state *state, const char *path, ULONG flags, mode_t mode)
   if (!dpath) return ENOMEM;
   sprintf(dpath, "%s" DATANAME, path);
 
+  if (mkdir(path, 0774) == -1)
+    return errno;
+
   if ((state->data_fd = open(dpath, oflags, mode)) == -1)
     return errno;
 
@@ -2596,7 +2619,7 @@ bt_malloc(BT_state *state, size_t pages)
              addr2off(ret) + pages,
              pgno);
 
-  DPRINTF("map %p to offset %lld bytes (%lld pages)\n", ret, P2BYTES(pgno), pgno);
+  DPRINTF("map %p to offset 0x%zx bytes (0x%x pages)\n", ret, P2BYTES(pgno), pgno);
   if (ret !=
       mmap(ret,
            P2BYTES(pages),
@@ -2929,7 +2952,7 @@ int
 bt_inbounds(BT_state *state, void *p)
 /* 1: if in the bounds of the PMA, 0 otherwise */
 {
-  return p >= BT_MAPADDR
+  return p >= (void *)BT_MAPADDR
     && p < (void *)((uintptr_t)BT_MAPADDR + BT_ADDRSIZE);
 }
 
