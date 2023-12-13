@@ -150,6 +150,7 @@ pub mod util {
         let scry_snapshot = context.scry_stack;
 
         context.cache = Hamt::<Noun>::new();
+        context.keep = Hamt::<Noun>::new();
         context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
 
         match interpret(context, subject, formula) {
