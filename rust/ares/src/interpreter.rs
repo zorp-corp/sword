@@ -1334,28 +1334,6 @@ mod hint {
 
     /// Extracts a constant from a formula, skipping over
     /// safe/static hints, doing no computation.
-    /*
-u3_weak
-u3r_skip(u3_noun fol)
-{
-  while ( c3y == u3du(fol) ) {
-    switch ( u3h(fol) ) {
-      default: return u3_none;
-      case 1:  return u3t(fol);
-      case 11: {
-        u3_noun arg = u3t(fol),
-                hod = u3h(arg);
-
-        if ( (c3y == u3du(hod)) && (u3_none == u3r_skip(u3t(hod))) ) {
-          return u3_none;
-        }
-        fol = u3t(arg);
-      }
-    }
-  }
-  return u3_none;
-}
-     */
     pub fn skip(formula: Noun) -> Option<Noun> {
         let mut fol = formula;
         loop {
@@ -1376,8 +1354,7 @@ u3r_skip(u3_noun fol)
                     }
                     _ => return None,
                 }
-            }
-            else {
+            } else {
                 break None;
             }
         }
@@ -1586,10 +1563,10 @@ u3r_skip(u3_noun fol)
                 let mut key = Cell::new(stack, subject, body).as_noun();
                 if let Some(clue) = hint {
                     if clue.is_cell() {
-                        if unsafe { context.scry_stack.raw_equals(D(0)) } {
-                            eprintln!("serf: memoizing in keep\r");
-                            context.keep = keep.insert(stack, &mut key, res);
-                        }
+                        // if unsafe { context.scry_stack.raw_equals(D(0)) } {
+                        eprintln!("serf: memoizing in keep\r");
+                        context.keep = keep.insert(stack, &mut key, res);
+                        // }
                         // XX add a printf that says "userspace can't insert into
                         //    persistent cache"
                     } else {
