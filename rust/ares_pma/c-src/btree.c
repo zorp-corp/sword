@@ -2370,6 +2370,12 @@ _bt_sync_leaf(BT_state *state, BT_page *node)
     if (msync(addr, bytelen, MS_SYNC))
       return errno;
 
+    /* mprotect the data */
+    if (mprotect(addr, bytelen, PROT_READ) != 0) {
+      DPRINTF("mprotect of leaf data failed with %s", strerror(errno));
+      abort();
+    }
+
     /* and clean the dirty bit */
     _bt_cleanchild(node, i);
   }
