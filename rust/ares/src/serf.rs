@@ -16,7 +16,7 @@ use signal_hook;
 use signal_hook::consts::SIGINT;
 use std::fs::create_dir_all;
 use std::io;
-use std::path::PathBuf;
+use std::path::Path;
 use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
