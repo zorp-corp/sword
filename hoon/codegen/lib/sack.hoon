@@ -476,7 +476,7 @@
       =.  moot
         (~(jab by moot) rail.kant |=(=toot toot(soot i.t.salt, form note)))
       ?~  noir  $(soda t.soda, salt [[| ~] t.t.salt])
-      ?.  (~(huge so soot) i.t.salt)  $(soda t.soda, salt [soot t.t.salt])
+      ?.  (~(huge so soot) i.t.salt)  $(soda t.soda, salt [soot t.t.salt]) :: XX shouldn't that be root?
       %=  $
         soda  [[%& u.noir] [%| %wot] t.soda]
         halt  [rail.kant halt]
@@ -594,7 +594,7 @@
       ?~  mail
         ?~  sirs :: not actually a call just the entrypoint
           ^^$(mile t.mile, flux (~(put in flux) mill))
-        %=  ^^$ :: an un-analyzed indirect call
+        %=  ^^$ :: an un-analyzed indirect call XX direct surely?
           mile  t.mile
           work  [i.mile work]
           slag  (~(gas in slag) [mill sirs])
