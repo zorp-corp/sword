@@ -416,7 +416,7 @@ _bt_nalloc(BT_state *state)
   }
 
   /* make node writable */
-  mprotect(ret, sizeof(BT_page), PROT_READ | PROT_WRITE);
+  mprotect(ret, sizeof(BT_page), BT_PROT_DIRTY);
 
   return ret;
 }
@@ -2199,7 +2199,7 @@ _bt_state_meta_new(BT_state *state)
 
   /* open the metapage region for writing */
   if (mprotect(BT_MAPADDR, BT_META_SECTION_WIDTH,
-               PROT_READ | PROT_WRITE) != 0) {
+               BT_PROT_DIRTY) != 0) {
     DPRINTF("mprotect of metapage section failed with %s", strerror(errno));
     abort();
   }
@@ -2235,12 +2235,12 @@ _bt_state_meta_new(BT_state *state)
   memcpy(METADATA(p2), &meta, sizeof meta);
 
   /* only the active metapage should be writable (first page) */
-  if (mprotect(BT_MAPADDR, BT_META_SECTION_WIDTH, PROT_READ) != 0) {
+  if (mprotect(BT_MAPADDR, BT_META_SECTION_WIDTH, BT_PROT_CLEAN) != 0) {
     DPRINTF("mprotect of metapage section failed with %s", strerror(errno));
     abort();
   }
   if (mprotect(BT_MAPADDR, BT_PAGESIZE,
-               PROT_READ | PROT_WRITE) != 0) {
+               BT_PROT_DIRTY) != 0) {
     DPRINTF("mprotect of current metapage failed with %s", strerror(errno));
     abort();
   }
@@ -2396,7 +2396,7 @@ _bt_sync_leaf(BT_state *state, BT_page *node)
       return errno;
 
     /* mprotect the data */
-    if (mprotect(addr, bytelen, PROT_READ) != 0) {
+    if (mprotect(addr, bytelen, BT_PROT_CLEAN) != 0) {
       DPRINTF("mprotect of leaf data failed with %s", strerror(errno));
       abort();
     }
@@ -2445,8 +2445,8 @@ _bt_sync_meta(BT_state *state)
   newwhich = state->which ? 0 : 1;
   newmeta = state->meta_pages[newwhich];
 
-  /* make new metapage writable */
-  if (mprotect(newmeta, sizeof(BT_page), PROT_READ | PROT_WRITE) != 0) {
+  /* mprotect dirty new metapage */
+  if (mprotect(newmeta, sizeof(BT_page), BT_PROT_DIRTY) != 0) {
     DPRINTF("mprotect of new metapage failed with %s", strerror(errno));
     abort();
   }
@@ -2469,8 +2469,8 @@ _bt_sync_meta(BT_state *state)
   /* switch the metapage we're referring to */
   state->which = newwhich;
 
-  /* finally, make old metapage read-only */
-  if (mprotect(meta, sizeof(BT_page), PROT_READ) != 0) {
+  /* finally, make old metapage clean */
+  if (mprotect(meta, sizeof(BT_page), BT_PROT_CLEAN) != 0) {
     DPRINTF("mprotect of old metapage failed with %s", strerror(errno));
     abort();
   }
@@ -2513,7 +2513,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
 
  e:
   /* all modifications done in node, mark it read-only */
-  if (mprotect(node, sizeof(BT_page), PROT_READ) != 0) {
+  if (mprotect(node, sizeof(BT_page), BT_PROT_CLEAN) != 0) {
     DPRINTF("mprotect of node failed with %s", strerror(errno));
     abort();
   }
@@ -2685,7 +2685,7 @@ bt_sync(BT_state *state)
     return errno;
 
   /* make root read-only */
-  if (mprotect(root, sizeof(BT_page), PROT_READ) != 0) {
+  if (mprotect(root, sizeof(BT_page), BT_PROT_CLEAN) != 0) {
     DPRINTF("mprotect of root failed with %s", strerror(errno));
     abort();
   }
