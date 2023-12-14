@@ -14,6 +14,7 @@ use crate::snapshot::double_jam::DoubleJam;
 use crate::snapshot::Snapshot;
 use crate::trace::*;
 use ares_macros::tas;
+use hw_exception;
 use signal_hook;
 use signal_hook::consts::SIGINT;
 use std::fs::create_dir_all;
@@ -184,6 +185,11 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     // Register SIGINT signal hook to set flag first time, shutdown second time
     signal_hook::flag::register_conditional_shutdown(SIGINT, 1, Arc::clone(&TERMINATOR))?;
     signal_hook::flag::register(SIGINT, Arc::clone(&TERMINATOR))?;
+
+    unsafe {
+        // Register a hook for SIGSEGV, which captures and throws a backtrace.
+        hw_exception::register_hook(&[hw_exception::Signo::SIGSEGV], |e| hw_exception::throw(e));
+    }
 
     let pier_path_string = std::env::args()
         .nth(2)

@@ -18,6 +18,7 @@ assert_no_alloc = "1.1.2"
 bitvec = "1.0.0"
 criterion = "0.4"
 either = "1.9.0"
+hw-exception = "0.1.0"
 ibig = { path = "../ibig-rs" }
 intmap = "1.1.0"
 json = "0.12.4"
