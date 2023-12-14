@@ -2,7 +2,7 @@ use crate::jets::*;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, T};
 use ares_macros::tas;
 use either::Either::{self, Left, Right};
-use std::ptr::null_mut;
+use std::ptr::{copy_nonoverlapping, null_mut};
 
 /** Root for Hoon %k.139
  */
@@ -825,4 +825,28 @@ struct HotMem {
     axis: Atom, // Axis of jetted formula in *battery*;
     jet: Jet,
     next: Hot,
+}
+
+impl Preserve for Hot {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        let mut it = self;
+        while !it.0.is_null() && stack.is_in_frame(it.0) {
+            let dest_mem = stack.struct_alloc_in_previous_frame(1);
+            copy_nonoverlapping(it.0, dest_mem, 1);
+            it.0 = dest_mem;
+            (*it.0).a_path.preserve(stack);
+            (*it.0).axis.preserve(stack);
+            it = &mut (*it.0).next;
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        let mut it = self;
+        while !it.0.is_null() {
+            stack.assert_struct_is_in(it.0, 1);
+            (*it.0).a_path.assert_in_stack(stack);
+            (*it.0).axis.assert_in_stack(stack);
+            it = &mut (*it.0).next;
+        }
+    }
 }
