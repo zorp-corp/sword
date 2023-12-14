@@ -830,7 +830,7 @@ struct HotMem {
 impl Preserve for Hot {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         let mut it = self;
-        while !it.0.is_null() && !stack.is_in_frame(it.0) {
+        while !it.0.is_null() && stack.is_in_frame(it.0) {
             let dest_mem = stack.struct_alloc_in_previous_frame(1);
             copy_nonoverlapping(it.0, dest_mem, 1);
             it.0 = dest_mem;
