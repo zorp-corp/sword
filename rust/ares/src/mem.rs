@@ -212,8 +212,13 @@ impl NockStack {
         if self.pc {
             panic!("Allocation during cleanup phase is prohibited.");
         }
+
         self.alloc_pointer = self.alloc_pointer.sub(words);
-        self.alloc_pointer
+        if self.alloc_pointer > self.stack_pointer {
+            self.alloc_pointer
+        } else {
+            ptr::null_mut()
+        }
     }
 
     /** Bump the alloc pointer for an east frame to make space for an allocation */
@@ -221,9 +226,14 @@ impl NockStack {
         if self.pc {
             panic!("Allocation during cleanup phase is prohibited.");
         }
+
         let alloc = self.alloc_pointer;
         self.alloc_pointer = self.alloc_pointer.add(words);
-        alloc
+        if self.alloc_pointer < self.stack_pointer {
+            alloc
+        } else {
+            ptr::null_mut()
+        }
     }
 
     /** Allocate space for an indirect pointer in a west frame */
@@ -264,56 +274,47 @@ impl NockStack {
         }
     }
 
-    unsafe fn struct_alloc_in_previous_frame_west<T>(&mut self, count: usize) -> *mut T {
+    unsafe fn raw_alloc_in_previous_frame_west(&mut self, words: usize) -> *mut u64 {
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
         let alloc = *self.prev_alloc_pointer_pointer();
-        *(self.prev_alloc_pointer_pointer()) =
-            (*(self.prev_alloc_pointer_pointer())).add(word_size_of::<T>() * count);
-        alloc as *mut T
+        *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).add(words);
+        if *self.prev_alloc_pointer_pointer() < self.stack_pointer {
+            alloc
+        } else {
+            ptr::null_mut()
+        }
     }
 
-    unsafe fn struct_alloc_in_previous_frame_east<T>(&mut self, count: usize) -> *mut T {
-        // note that the allocation is on the east frame, and thus resembles raw_alloc_west
-        *(self.prev_alloc_pointer_pointer()) =
-            (*(self.prev_alloc_pointer_pointer())).sub(word_size_of::<T>() * count);
-        *(self.prev_alloc_pointer_pointer()) as *mut T
+    unsafe fn raw_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
+        // note that the allocation is on the west frame, and thus resembles raw_alloc_west
+        *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).sub(words);
+        if *self.prev_alloc_pointer_pointer() > self.stack_pointer {
+            *self.prev_alloc_pointer_pointer()
+        } else {
+            ptr::null_mut()
+        }
     }
 
-    /** Allocates space in the previous frame for some number of T's. This calls pre_copy()
-     * first to ensure that the stack frame is in cleanup phase, which is the only time we
-     * should be allocating in a previous frame.*/
+    /** Allocate space in the previous stack frame. This calls pre_copy() first to ensure that the
+     * stack frame is in cleanup phase, which is the only time we should be allocating in a previous
+     * frame. */
+    unsafe fn raw_alloc_in_previous_frame(&mut self, words: usize) -> *mut u64 {
+        self.pre_copy();
+        if self.is_west() {
+            self.raw_alloc_in_previous_frame_west(words)
+        } else {
+            self.raw_alloc_in_previous_frame_east(words)
+        }
+    }
+
+    /** Allocates space in the previous frame for some number of T's. */
     pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
-        self.pre_copy();
-        if self.is_west() {
-            self.struct_alloc_in_previous_frame_west(count)
-        } else {
-            self.struct_alloc_in_previous_frame_east(count)
-        }
+        self.raw_alloc_in_previous_frame(word_size_of::<T>() * count) as *mut T
     }
 
-    unsafe fn indirect_alloc_in_previous_frame_west(&mut self, words: usize) -> *mut u64 {
-        let alloc = *self.prev_alloc_pointer_pointer();
-        *(self.prev_alloc_pointer_pointer()) =
-            (*(self.prev_alloc_pointer_pointer())).add(words + 2);
-        alloc
-    }
-
-    unsafe fn indirect_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
-        *(self.prev_alloc_pointer_pointer()) =
-            (*(self.prev_alloc_pointer_pointer())).sub(words + 2);
-        *self.prev_alloc_pointer_pointer()
-    }
-
-    /** Allocate space for an indirect atom in the previous stack frame. This call pre_copy()
-     * first to ensure that the stack frame is in cleanup phase, which is the only time we
-     * should be allocating in a previous frame. */
+    /** Allocate space for an indirect atom in the previous stack frame. */
     unsafe fn indirect_alloc_in_previous_frame(&mut self, words: usize) -> *mut u64 {
-        self.pre_copy();
-        if self.is_west() {
-            self.indirect_alloc_in_previous_frame_west(words)
-        } else {
-            self.indirect_alloc_in_previous_frame_east(words)
-        }
+        self.raw_alloc_in_previous_frame(words + 2)
     }
 
     /** Allocate space for an alloc::Layout in a stack frame */
@@ -705,18 +706,35 @@ impl NockStack {
         }
     }
 
-    /** Push onto a west-oriented lightweight stack, moving the stack_pointer.
-     * */
+    /** Push onto a west-oriented lightweight stack, moving the stack_pointer. */
     unsafe fn push_west<T>(&mut self) -> *mut T {
+        let ap = if self.pc {
+            *(self.prev_alloc_pointer_pointer())
+        } else {
+            self.alloc_pointer
+        };
         let alloc = self.stack_pointer;
         self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
-        alloc as *mut T
+        if self.stack_pointer < ap {
+            alloc as *mut T
+        } else {
+            ptr::null_mut()
+        }
     }
 
     /** Push onto an east-oriented ligthweight stack, moving the stack_pointer */
     unsafe fn push_east<T>(&mut self) -> *mut T {
+        let ap = if self.pc {
+            *(self.prev_alloc_pointer_pointer())
+        } else {
+            self.alloc_pointer
+        };
         self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
-        self.stack_pointer as *mut T
+        if self.stack_pointer > ap {
+            self.stack_pointer as *mut T
+        } else {
+            ptr::null_mut()
+        }
     }
 
     /** Pop a west-oriented lightweight stack, moving the stack pointer. */

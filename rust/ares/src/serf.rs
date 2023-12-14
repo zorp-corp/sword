@@ -312,9 +312,9 @@ fn goof(context: &mut Context, traces: Noun) -> Noun {
     let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
         .tail();
-    //  XX: noun::Error should use a bail enum system similar to u3m_bail motes;
-    //      might be able to replace NockErr with mote and map determinism to individual motes;
-    //      for, always set to %exit
+    //  XX: interpreter::Error should use a bail enum system similar to u3m_bail motes;
+    //      might be able to replace Deterministic / NonDeterministic with mote and map determinism
+    //      to individual motes; for now, always use %exit
     T(&mut context.nock_context.stack, &[D(tas!(b"exit")), tang])
 }
 
@@ -339,8 +339,8 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
     match slam_res {
         Ok(res) => Ok(res),
         Err(error) => match error {
-            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
-                Err(goof(context, trace))
+            Error::Deterministic(traces) | Error::NonDeterministic(traces) => {
+                Err(goof(context, traces))
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
                 panic!("serf: soft: .^ invalid outside of virtual Nock")
@@ -373,8 +373,8 @@ fn play_life(context: &mut Context, eve: Noun) {
             context.play_done();
         }
         Err(error) => match error {
-            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
-                let goof = goof(context, trace);
+            Error::Deterministic(traces) | Error::NonDeterministic(traces) => {
+                let goof = goof(context, traces);
                 context.play_bail(goof);
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
