@@ -97,19 +97,14 @@ int main(int argc, char *argv[])
     BT_page *hi;
   };
 
-  /* ;;: getting strange abort in bt_malloc precisely when i = 131
-
-    bt_malloc:2632 mmap: failed to map at addr 0x100811538000, errno: Invalid argument
-
-    * obviously the addr is arbitrary
-  */
 #define ITERATIONS 1000
 #define MAXALLOCPG 0xFF
   lohi_pair allocs[ITERATIONS] = {0};
   for (size_t i = 0; i < ITERATIONS; i++) {
-    /* malloc a random number of pages < 256 and store in the allocs array */
+    /* malloc a random number of pages <= 256 and store in the allocs array */
     int pages = rand();
     pages &= MAXALLOCPG;
+    pages += 1;
     allocs[i].lo = bt_malloc(state3, pages);
     allocs[i].hi = allocs[i].lo + pages;
   }
