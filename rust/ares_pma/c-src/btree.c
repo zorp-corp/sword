@@ -419,7 +419,10 @@ _bt_nalloc(BT_state *state)
   }
 
   /* make node writable */
-  mprotect(ret, sizeof(BT_page), BT_PROT_DIRTY);
+  mprotect(ret, sizeof(BT_page), BT_PROT_DIRTY) {
+    DPRINTF("mprotect of node: %p failed with %s", ret, strerror(errno));
+    abort();
+  }
 
   return ret;
 }
@@ -2687,8 +2690,10 @@ bt_sync(BT_state *state)
   _pending_flist_merge(state);
 
   /* sync the root page */
-  if (msync(root, sizeof(BT_page), MS_SYNC))
-    return errno;
+  if (msync(root, sizeof(BT_page), MS_SYNC)) {
+    DPRINTF("msync of root: %p failed with %s", root, strerror(errno));
+    abort();
+  }
 
   /* make root read-only */
   if (mprotect(root, sizeof(BT_page), BT_PROT_CLEAN) != 0) {
