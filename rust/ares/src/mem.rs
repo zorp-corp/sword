@@ -213,11 +213,12 @@ impl NockStack {
             panic!("Allocation during cleanup phase is prohibited.");
         }
 
-        self.alloc_pointer = self.alloc_pointer.sub(words);
-        if self.alloc_pointer > self.stack_pointer {
-            self.alloc_pointer
-        } else {
+        let alloc = self.alloc_pointer.sub(words);
+        if alloc < self.stack_pointer {
             ptr::null_mut()
+        } else {
+            self.alloc_pointer = alloc;
+            alloc
         }
     }
 
@@ -228,11 +229,12 @@ impl NockStack {
         }
 
         let alloc = self.alloc_pointer;
-        self.alloc_pointer = self.alloc_pointer.add(words);
-        if self.alloc_pointer < self.stack_pointer {
-            alloc
-        } else {
+        let new_ap = self.alloc_pointer.add(words);
+        if new_ap > self.stack_pointer {
             ptr::null_mut()
+        } else {
+            self.alloc_pointer = new_ap;
+            alloc
         }
     }
 
@@ -277,21 +279,23 @@ impl NockStack {
     unsafe fn raw_alloc_in_previous_frame_west(&mut self, words: usize) -> *mut u64 {
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
         let alloc = *self.prev_alloc_pointer_pointer();
-        *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).add(words);
-        if *self.prev_alloc_pointer_pointer() < self.stack_pointer {
-            alloc
-        } else {
+        let new_prev_ap = (*(self.prev_alloc_pointer_pointer())).add(words);
+        if new_prev_ap > self.stack_pointer {
             ptr::null_mut()
+        } else {
+            *(self.prev_alloc_pointer_pointer()) = new_prev_ap;
+            alloc
         }
     }
 
     unsafe fn raw_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
         // note that the allocation is on the west frame, and thus resembles raw_alloc_west
-        *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).sub(words);
-        if *self.prev_alloc_pointer_pointer() > self.stack_pointer {
-            *self.prev_alloc_pointer_pointer()
-        } else {
+        let alloc = (*(self.prev_alloc_pointer_pointer())).sub(words);
+        if alloc < self.stack_pointer {
             ptr::null_mut()
+        } else {
+            *(self.prev_alloc_pointer_pointer()) = alloc;
+            alloc
         }
     }
 
@@ -357,17 +361,27 @@ impl NockStack {
      * or not pre_copy() has been called.*/
     unsafe fn pre_copy(&mut self) {
         if !self.pc {
-            *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
-            *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
-            *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
+            let old_stack_pointer = self.stack_pointer;
 
-            self.pc = true;
             // Change polarity of lightweight stack.
             if self.is_west() {
                 self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
+                if self.stack_pointer < old_stack_pointer {
+                    // OOM
+                    std::ptr::null::<usize>().read_volatile();
+                }
             } else {
                 self.stack_pointer = self.alloc_pointer.add(RESERVED);
+                if self.stack_pointer > old_stack_pointer {
+                    // OOM
+                    std::ptr::null::<usize>().read_volatile();
+                }
             }
+            self.pc = true;
+
+            *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
+            *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
+            *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
         }
     }
 
@@ -637,15 +651,27 @@ impl NockStack {
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
     pub fn frame_push(&mut self, num_locals: usize) {
+        if self.pc {
+            panic!("frame_push during cleanup phase is prohibited.");
+        }
+
         let current_frame_pointer = self.frame_pointer;
         let current_stack_pointer = self.stack_pointer;
         let current_alloc_pointer = self.alloc_pointer;
         unsafe {
-            self.frame_pointer = if self.is_west() {
-                current_alloc_pointer.sub(num_locals + RESERVED)
+            if self.is_west() {
+                self.frame_pointer = current_alloc_pointer.sub(num_locals + RESERVED);
+                if self.frame_pointer <= current_stack_pointer {
+                    // OOM
+                    std::ptr::null::<usize>().read_volatile();
+                }
             } else {
-                current_alloc_pointer.add(num_locals + RESERVED)
-            };
+                self.frame_pointer = current_alloc_pointer.add(num_locals + RESERVED);
+                if self.frame_pointer >= current_stack_pointer {
+                    // OOM
+                    std::ptr::null::<usize>().read_volatile();
+                }
+            }
             self.alloc_pointer = current_stack_pointer;
             self.stack_pointer = self.frame_pointer;
 
@@ -653,8 +679,6 @@ impl NockStack {
             *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
             *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
         }
-
-        self.pc = false;
     }
 
     /** Run a closure inside a frame, popping regardless of the value returned by the closure.
@@ -714,11 +738,12 @@ impl NockStack {
             self.alloc_pointer
         };
         let alloc = self.stack_pointer;
-        self.stack_pointer = self.stack_pointer.add(word_size_of::<T>());
-        if self.stack_pointer < ap {
-            alloc as *mut T
-        } else {
+        let new_sp = self.stack_pointer.add(word_size_of::<T>());
+        if new_sp > ap {
             ptr::null_mut()
+        } else {
+            self.stack_pointer = new_sp;
+            alloc as *mut T
         }
     }
 
@@ -729,11 +754,12 @@ impl NockStack {
         } else {
             self.alloc_pointer
         };
-        self.stack_pointer = self.stack_pointer.sub(word_size_of::<T>());
-        if self.stack_pointer > ap {
-            self.stack_pointer as *mut T
-        } else {
+        let alloc = self.stack_pointer.sub(word_size_of::<T>());
+        if alloc < ap {
             ptr::null_mut()
+        } else {
+            self.stack_pointer = alloc;
+            alloc as *mut T
         }
     }
 

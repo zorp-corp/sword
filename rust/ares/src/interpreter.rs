@@ -1217,9 +1217,18 @@ fn exit(
                 Error::ScryCrashed(_) => Error::ScryCrashed(preserve),
                 Error::ScryBlocked(_) => error,
             },
+            // XX: Once the PMA is ready, we could:
+            //      * skip pop & preserve on NonDeterministic errors
+            //      * preserve the stack trace to the PMA
+            //      * reset the cold state
+            //      * reset the NockStack
+            //      * +mook & print the stack trace
             Err(_) => {
+                while (*stack).get_frame_pointer() != virtual_frame {
+                    (*stack).frame_pop();
+                }
                 Error::NonDeterministic(Mote::Meme, D(0))
-            },
+            }
         }
     }
 }
