@@ -1,6 +1,8 @@
 #include "btree.h"
 #include "btree.c"
 
+#include <stdlib.h>
+#include <stdio.h>
 
 static void
 _test_nodeinteg(BT_state *state, BT_findpath *path,
@@ -76,6 +78,44 @@ int main(int argc, char *argv[])
   assert(path.path[path.depth]->datk[path.idx[path.depth]].fo == 0);
   /* should invoke deletion coalescing - 10 page free range in btree */
   void *t2c = bt_malloc(state2, 20);
+
+  bt_state_close(state2);
+
+
+  DPUTS("== test 3: ephemeral structure restoration");
+  BT_state *state3;
+
+  bt_state_new(&state3);
+  if (mkdir("./pmatest3", 0774) == -1)
+    return errno;
+  assert(SUCC(bt_state_open(state3, "./pmatest3", 0, 0644)));
+
+  typedef struct lohi_pair lohi_pair;
+  struct lohi_pair
+  {
+    BT_page *lo;
+    BT_page *hi;
+  };
+
+  /* ;;: getting strange abort in bt_malloc precisely when i = 131
+
+    bt_malloc:2632 mmap: failed to map at addr 0x100811538000, errno: Invalid argument
+
+    * obviously the addr is arbitrary
+  */
+#define ITERATIONS 1000
+#define MAXALLOCPG 0xFF
+  lohi_pair allocs[ITERATIONS] = {0};
+  for (size_t i = 0; i < ITERATIONS; i++) {
+    /* malloc a random number of pages < 256 and store in the allocs array */
+    int pages = rand();
+    pages &= MAXALLOCPG;
+    allocs[i].lo = bt_malloc(state3, pages);
+    allocs[i].hi = allocs[i].lo + pages;
+  }
+
+  /* sync the state */
+  bt_sync(state3);
 
   return 0;
 }
