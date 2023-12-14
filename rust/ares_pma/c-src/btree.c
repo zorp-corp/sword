@@ -87,6 +87,9 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 #define BT_SUCC 0
 #define SUCC(x) ((x) == BT_SUCC)
 
+/* given a pointer p returns the low page-aligned addr */
+#define LO_ALIGN_PAGE(p) ((BT_page *)(((uintptr_t)p) & ~(BT_PAGESIZE - 1)))
+
 
 #define BT_MAPADDR  ((BYTE *) S(0x1000,0000,0000))
 
@@ -2392,8 +2395,10 @@ _bt_sync_leaf(BT_state *state, BT_page *node)
     void *addr = off2addr(lo);
 
     /* sync the page */
-    if (msync(addr, bytelen, MS_SYNC))
-      return errno;
+    if (msync(addr, bytelen, MS_SYNC)) {
+      DPRINTF("msync of leaf: %p failed with %s", addr, strerror(errno));
+      abort();
+    }
 
     /* mprotect the data */
     if (mprotect(addr, bytelen, BT_PROT_CLEAN) != 0) {
@@ -2438,15 +2443,17 @@ _bt_sync_meta(BT_state *state)
   meta->chk = chk;
 
   /* sync the metapage */
-  if (msync(meta, sizeof(BT_page), MS_SYNC))
-    return errno;
+  if (msync(LO_ALIGN_PAGE(meta), sizeof(BT_page), MS_SYNC)) {
+    DPRINTF("msync of metapage: %p failed with %s", meta, strerror(errno));
+    abort();
+  }
 
   /* zero the new metapage's checksum */
   newwhich = state->which ? 0 : 1;
   newmeta = state->meta_pages[newwhich];
 
   /* mprotect dirty new metapage */
-  if (mprotect(newmeta, sizeof(BT_page), BT_PROT_DIRTY) != 0) {
+  if (mprotect(LO_ALIGN_PAGE(newmeta), sizeof(BT_page), BT_PROT_DIRTY) != 0) {
     DPRINTF("mprotect of new metapage failed with %s", strerror(errno));
     abort();
   }
@@ -2470,7 +2477,7 @@ _bt_sync_meta(BT_state *state)
   state->which = newwhich;
 
   /* finally, make old metapage clean */
-  if (mprotect(meta, sizeof(BT_page), BT_PROT_CLEAN) != 0) {
+  if (mprotect(LO_ALIGN_PAGE(meta), sizeof(BT_page), BT_PROT_CLEAN) != 0) {
     DPRINTF("mprotect of old metapage failed with %s", strerror(errno));
     abort();
   }
@@ -2504,8 +2511,10 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
       return rc;
 
     /* sync the child node */
-    if (msync(child, sizeof(BT_page), MS_SYNC))
-      return errno;
+    if (msync(child, sizeof(BT_page), MS_SYNC)) {
+      DPRINTF("msync of child node: %p failed with %s", child, strerror(errno));
+      abort();
+    }
 
     /* unset child dirty bit */
     _bt_cleanchild(node, i);
