@@ -265,6 +265,7 @@ impl Persist for Noun {
             }
         }
         *buffer = buffer_u64 as *mut u8;
+        stack.frame_pop();
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {

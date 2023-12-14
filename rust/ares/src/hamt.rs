@@ -606,6 +606,8 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             return bytes;
         };
 
+        bytes += (*self.0).size() * size_of::<Entry<T>>();
+
         let mut depth: usize = 0;
         let mut traversal = [Stem {
             bitmap: 0,
