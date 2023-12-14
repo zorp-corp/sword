@@ -160,9 +160,17 @@ impl NockStack {
         let ptr_u64 = ptr as *const u64;
         let prev = *self.prev_stack_pointer_pointer();
         if self.is_west() {
-            ptr_u64 >= self.alloc_pointer && ptr_u64 < prev
+            if prev.is_null() {
+                ptr_u64 >= self.alloc_pointer && ptr_u64 < self.start.add(self.size)
+            } else {
+                ptr_u64 >= self.alloc_pointer && ptr_u64 < prev
+            }
         } else {
-            ptr_u64 >= prev && ptr_u64 < self.alloc_pointer
+            if prev.is_null () {
+                ptr_u64 >= self.start && ptr_u64 < self.alloc_pointer
+            } else {
+                ptr_u64 >= prev && ptr_u64 < self.alloc_pointer
+            }
         }
     }
 
