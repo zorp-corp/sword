@@ -165,12 +165,10 @@ impl NockStack {
             } else {
                 ptr_u64 >= self.alloc_pointer && ptr_u64 < prev
             }
+        } else if prev.is_null() {
+            ptr_u64 >= self.start && ptr_u64 < self.alloc_pointer
         } else {
-            if prev.is_null() {
-                ptr_u64 >= self.start && ptr_u64 < self.alloc_pointer
-            } else {
-                ptr_u64 >= prev && ptr_u64 < self.alloc_pointer
-            }
+            ptr_u64 >= prev && ptr_u64 < self.alloc_pointer
         }
     }
 
