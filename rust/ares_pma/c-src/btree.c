@@ -419,7 +419,7 @@ _bt_nalloc(BT_state *state)
   }
 
   /* make node writable */
-  mprotect(ret, sizeof(BT_page), BT_PROT_DIRTY) {
+  if (mprotect(ret, sizeof(BT_page), BT_PROT_DIRTY) != 0) {
     DPRINTF("mprotect of node: %p failed with %s", ret, strerror(errno));
     abort();
   }
@@ -2398,7 +2398,7 @@ _bt_sync_leaf(BT_state *state, BT_page *node)
     void *addr = off2addr(lo);
 
     /* sync the page */
-    if (msync(addr, bytelen, MS_SYNC)) {
+    if (msync(addr, bytelen, MS_SYNC) != 0) {
       DPRINTF("msync of leaf: %p failed with %s", addr, strerror(errno));
       abort();
     }
@@ -2446,7 +2446,7 @@ _bt_sync_meta(BT_state *state)
   meta->chk = chk;
 
   /* sync the metapage */
-  if (msync(LO_ALIGN_PAGE(meta), sizeof(BT_page), MS_SYNC)) {
+  if (msync(LO_ALIGN_PAGE(meta), sizeof(BT_page), MS_SYNC) != 0) {
     DPRINTF("msync of metapage: %p failed with %s", meta, strerror(errno));
     abort();
   }
@@ -2514,7 +2514,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
       return rc;
 
     /* sync the child node */
-    if (msync(child, sizeof(BT_page), MS_SYNC)) {
+    if (msync(child, sizeof(BT_page), MS_SYNC) != 0) {
       DPRINTF("msync of child node: %p failed with %s", child, strerror(errno));
       abort();
     }
@@ -2690,7 +2690,7 @@ bt_sync(BT_state *state)
   _pending_flist_merge(state);
 
   /* sync the root page */
-  if (msync(root, sizeof(BT_page), MS_SYNC)) {
+  if (msync(root, sizeof(BT_page), MS_SYNC) != 0) {
     DPRINTF("msync of root: %p failed with %s", root, strerror(errno));
     abort();
   }
