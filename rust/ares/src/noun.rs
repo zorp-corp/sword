@@ -32,14 +32,14 @@ const CELL_TAG: u64 = u64::MAX & INDIRECT_MASK;
 const CELL_MASK: u64 = !(u64::MAX >> 3);
 
 /*  A note on forwarding pointers:
- *  
+ *
  *  Forwarding pointers are only used temporarily during copies between NockStack frames and between
  *  the NockStack and the PMA. Since unifying equality checks can create structural sharing between
  *  Noun objects, forwarding pointers act as a signal that a Noun has already been copied to the
  *  "to" space. The old Noun object in the "from" space is given a forwarding pointer so that any
  *  future refernces to the same structure know that it has already been copied and that they should
  *  retain the structural sharing relationship by referencing the new copy in the "to" copy space.
- * 
+ *
  *  The Nouns in the "from" space marked with forwarding pointers are dangling pointers after a copy
  *  operation. No code outside of the copying code checks for forwarding pointers. This invariant
  *  must be enforced in two ways:
