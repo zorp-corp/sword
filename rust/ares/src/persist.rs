@@ -211,19 +211,18 @@ impl Persist for Noun {
     unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
         let mut buffer_u64 = (*buffer) as *mut u64;
         stack.frame_push(0);
-        *(stack.push::<(Noun, *mut Noun)>()) = (*self, self as *mut Noun);
+        *(stack.push::<*mut Noun>()) = (self as *mut Noun);
 
         loop {
             if stack.stack_is_empty() {
                 break;
             }
 
-            let (noun, dest) = *(stack.top::<(Noun, *mut Noun)>());
+            let dest = *(stack.top::<*mut Noun>());
+            stack.pop::<*mut Noun>();
 
-            match noun.as_either_direct_allocated() {
-                Left(direct) => {
-                    *dest = noun;
-                }
+            match (*dest).as_either_direct_allocated() {
+                Left(direct) => {}
                 Right(allocated) => {
                     if let Some(a) = allocated.forwarding_pointer() {
                         *dest = a.as_noun();
@@ -234,7 +233,6 @@ impl Persist for Noun {
                         Left(mut indirect) => {
                             let count = indirect.raw_size();
                             if pma.contains(indirect.to_raw_pointer(), count) {
-                                *dest = noun;
                                 continue;
                             }
 
@@ -246,7 +244,6 @@ impl Persist for Noun {
                         }
                         Right(mut cell) => {
                             if pma.contains(cell.to_raw_pointer(), 1) {
-                                *dest = noun;
                                 continue;
                             }
 
@@ -258,10 +255,8 @@ impl Persist for Noun {
 
                             *dest = Cell::from_raw_pointer(new_cell_mem).as_noun();
 
-                            *(stack.push::<(Noun, *mut Noun)>()) =
-                                (cell.tail(), &mut (*new_cell_mem).tail);
-                            *(stack.push::<(Noun, *mut Noun)>()) =
-                                (cell.head(), &mut (*new_cell_mem).head);
+                            *(stack.push::<*mut Noun>()) = &mut (*new_cell_mem).tail;
+                            *(stack.push::<*mut Noun>()) = &mut (*new_cell_mem).head;
 
                             buffer_u64 = new_cell_mem.add(1) as *mut u64;
                         }
