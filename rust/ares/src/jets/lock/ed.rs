@@ -1,8 +1,8 @@
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::bits::util::met;
-use crate::jets::util::slot;
+use crate::jets::util::{slot, BAIL_EXIT};
 use crate::jets::{JetErr, Result};
-use crate::noun::{IndirectAtom, Noun, D, NO, YES};
+use crate::noun::{IndirectAtom, Noun, NO, YES};
 use urcrypt_sys::*;
 
 crate::gdb!();
@@ -12,7 +12,7 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
     let sed = slot(subject, 6)?.as_atom()?;
 
     if met(3, sed) > 32 {
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
+        return Err(BAIL_EXIT);
     }
 
     unsafe {
@@ -38,7 +38,7 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
 
     if met(3, sec_key) > 32 {
         // sek is size checked by +puck via +suck
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
+        return Err(BAIL_EXIT);
     }
     if met(3, pub_key) > 32 {
         // pub is not size checked in Hoon, but it must be 32 bytes or less for
@@ -71,7 +71,7 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
     unsafe {
         let sed_bytes = sed.as_bytes();
         if sed_bytes.len() > 32 {
-            return Err(JetErr::Fail(Error::Deterministic(D(0))));
+            return Err(BAIL_EXIT);
         };
 
         let msg_bytes = &(msg.as_bytes())[0..met(3, msg)]; // drop trailing zeros
@@ -168,7 +168,7 @@ mod tests {
             &mut c.stack,
             &ubig!(_0xfb099b0acc4d1ce37f9982a2ed331245e0cdfdf6979364b7676a142b8233e53b),
         );
-        assert_jet_err(c, jet_shar, sam, JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_shar, sam, BAIL_EXIT);
     }
 
     #[test]

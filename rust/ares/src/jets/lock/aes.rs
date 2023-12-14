@@ -127,9 +127,9 @@ pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
 }
 
 mod util {
-    use crate::interpreter::Error;
     use crate::jets::bits::util::met;
     use crate::jets::list;
+    use crate::jets::util::BAIL_FAIL;
     use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
     use crate::noun::{Atom, IndirectAtom, Noun, D, T};
@@ -263,7 +263,7 @@ mod util {
         unsafe {
             let txt_len = match len.as_direct() {
                 Ok(direct) => direct.data() as usize,
-                Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+                Err(_) => return Err(BAIL_FAIL),
             };
             let (_, txt_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
             txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
