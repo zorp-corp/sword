@@ -252,6 +252,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
                 let lit = slot(writ, 7)?;
                 if context.epoch == 0 && context.event_num == 0 {
                     // apply lifecycle to first batch
+                    eprintln!("ares: got %play life event");
                     play_life(&mut context, lit);
                 } else {
                     play_list(&mut context, lit);
@@ -362,20 +363,27 @@ fn play_life(context: &mut Context, eve: Noun) {
 
         boot_res
     } else {
+        eprintln!("ares: calling interpret");
         interpret(&mut context.nock_context, eve, lyf)
     };
+    eprintln!("ares: interpret done");
 
     match res {
         Ok(gat) => {
+            eprintln!("ares: interpret ok");
             let eved = lent(eve).expect("serf: play: boot event number failure") as u64;
             let arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
 
+            eprintln!("ares: calling event update");
             context.event_update(eved, arvo);
+            eprintln!("ares: calling play done");
             context.play_done();
         }
         Err(error) => match error {
             Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
+                eprintln!("ares: interpret error: {:?}", error);
                 let goof = goof(context, trace);
+                eprintln!("ares: calling play_bail");
                 context.play_bail(goof);
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
