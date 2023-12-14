@@ -160,11 +160,15 @@ impl NockStack {
         let ptr_u64 = ptr as *const u64;
         let prev = *self.prev_stack_pointer_pointer();
         if self.is_west() {
+            // If we are in a top/west frame, the stack pointer will be null, so our allocation
+            // arena was the alloc pointer to the top of the NockStack arena
             if prev.is_null() {
                 ptr_u64 >= self.alloc_pointer && ptr_u64 < self.start.add(self.size)
             } else {
                 ptr_u64 >= self.alloc_pointer && ptr_u64 < prev
             }
+        // If we are in a top/east frame, the stack pointer will be null, so our allocation arena
+        // was the alloc pointer to the bottom of the NockStack arena
         } else if prev.is_null() {
             ptr_u64 >= self.start && ptr_u64 < self.alloc_pointer
         } else {
