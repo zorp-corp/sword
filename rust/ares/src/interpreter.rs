@@ -1188,26 +1188,38 @@ fn exit(
     unsafe {
         context.restore(snapshot);
 
-        let stack = &mut context.stack;
-        let mut preserve = match error {
-            Error::ScryBlocked(path) => path,
-            Error::Deterministic(_, t) | Error::NonDeterministic(_, t) | Error::ScryCrashed(t) => {
-                // Return $tang of traces
-                let h = *(stack.local_noun_pointer(0));
-                T(stack, &[h, t])
+        let stack: *mut NockStack = &mut context.stack;
+        // Catch OOM errors while preserving stack traces
+        let result = hw_exception::catch(|| {
+            let mut preserve = match error {
+                Error::ScryBlocked(path) => path,
+                Error::Deterministic(_, t)
+                | Error::NonDeterministic(_, t)
+                | Error::ScryCrashed(t) => {
+                    // Return $tang of traces
+                    let h = *((*stack).local_noun_pointer(0));
+                    T(&mut (*stack), &[h, t])
+                }
+            };
+
+            while (*stack).get_frame_pointer() != virtual_frame {
+                (*stack).preserve(&mut preserve);
+                (*stack).frame_pop();
             }
-        };
 
-        while stack.get_frame_pointer() != virtual_frame {
-            stack.preserve(&mut preserve);
-            stack.frame_pop();
-        }
+            preserve
+        });
 
-        match error {
-            Error::Deterministic(mote, _) => Error::Deterministic(mote, preserve),
-            Error::NonDeterministic(mote, _) => Error::NonDeterministic(mote, preserve),
-            Error::ScryCrashed(_) => Error::ScryCrashed(preserve),
-            Error::ScryBlocked(_) => error,
+        match result {
+            Ok(preserve) => match error {
+                Error::Deterministic(mote, _) => Error::Deterministic(mote, preserve),
+                Error::NonDeterministic(mote, _) => Error::NonDeterministic(mote, preserve),
+                Error::ScryCrashed(_) => Error::ScryCrashed(preserve),
+                Error::ScryBlocked(_) => error,
+            },
+            Err(_) => {
+                Error::NonDeterministic(Mote::Meme, D(0))
+            },
         }
     }
 }

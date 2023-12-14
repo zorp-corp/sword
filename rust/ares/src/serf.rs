@@ -313,6 +313,7 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
 }
 
 fn goof(context: &mut Context, mote: Mote, traces: Noun) -> Noun {
+    // XX: probably needs to be wrapped in hw_exception::catch
     let trace = zing(&mut context.nock_context.stack, traces).unwrap();
     let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
     let tang = mook(&mut context.nock_context, tone, false)
