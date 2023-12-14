@@ -113,8 +113,8 @@ pub trait Persist {
             let mut buffer = bt_malloc(pma.0, space_as_pages) as *mut u8;
             let orig_buffer = buffer;
             self.copy_to_buffer(stack, pma, &mut buffer);
-            assert!(buffer.offset_from(orig_buffer) > 0);
-            assert!(buffer.offset_from(orig_buffer) == space.try_into().unwrap());
+            let space_isize: isize = space.try_into().unwrap();
+            assert!(buffer.offset_from(orig_buffer) == space_isize);
             self.handle_to_u64()
         }
     }
