@@ -19,6 +19,30 @@ _test_nodeinteg(BT_state *state, BT_findpath *path,
   assert(parent->datk[childidx+1].va == hi);
 }
 
+static size_t
+_mlist_sizep(BT_mlistnode *head)
+/* calculate the size of the mlist in pages */
+{
+  size_t sz = 0;
+  while (head) {
+    sz += head->sz;
+    head = head->next;
+  }
+  return sz;
+}
+
+static size_t
+_flist_sizep(BT_flistnode *head)
+/* calculate the size of the flist in pages */
+{
+  size_t sz = 0;
+  while (head) {
+    sz += head->sz;
+    head = head->next;
+  }
+  return sz;
+}
+
 int main(int argc, char *argv[])
 {
   DPUTS("PMA Tests");
@@ -40,7 +64,6 @@ int main(int argc, char *argv[])
   vaof_t hi = 0xDEADBEEF;
   pgno_t pg = 1;                /* dummy value */
   for (size_t i = 0; i < BT_DAT_MAXKEYS * 4; ++i) {
-    DPRINTF("== i: %zu", i);
     _bt_insert(state1, lo, hi, pg);
     _test_nodeinteg(state1, &path, lo, hi, pg);
     lo++; pg++;
@@ -100,6 +123,9 @@ int main(int argc, char *argv[])
 #define ITERATIONS 1000
 #define MAXALLOCPG 0xFF
   lohi_pair allocs[ITERATIONS] = {0};
+  size_t alloc_sizp = 0;
+  size_t flist_sizp = _flist_sizep(state3->flist);
+  size_t mlist_sizp = _mlist_sizep(state3->mlist);
   for (size_t i = 0; i < ITERATIONS; i++) {
     /* malloc a random number of pages <= 256 and store in the allocs array */
     int pages = random();
@@ -107,6 +133,12 @@ int main(int argc, char *argv[])
     pages += 1;
     allocs[i].lo = bt_malloc(state3, pages);
     allocs[i].hi = allocs[i].lo + pages;
+    alloc_sizp += pages;
+    /* validate size changes to mlist and flist */
+    assert(_flist_sizep(state3->flist)
+           == (flist_sizp - alloc_sizp));
+    assert(_mlist_sizep(state3->mlist)
+           == (mlist_sizp - alloc_sizp));
   }
 
   /* sync the state */
@@ -114,9 +146,16 @@ int main(int argc, char *argv[])
 
   /* TODO: close and reopen state. validate ephemeral structures */
 
+  flist_sizp = _flist_sizep(state3->flist);
+  mlist_sizp = _mlist_sizep(state3->mlist);
+  alloc_sizp = 0;
   for (size_t i = 0; i < ITERATIONS / 2; i++) {
     /* free half of the allocations */
     bt_free(state3, allocs[i].lo, allocs[i].hi);
+    alloc_sizp += allocs[i].hi - allocs[i].lo;
+    /* validate size changes to mlist */
+    assert(_mlist_sizep(state3->mlist)
+           == (mlist_sizp + alloc_sizp));
   }
 
   /* resync the state */
