@@ -2157,6 +2157,60 @@ _bt_state_meta_which(BT_state *state, int *which)
 static int
 _bt_state_read_header(BT_state *state)
 {
+  BT_meta *m1, *m2;
+  int which = 0;
+  int rc = 1;
+  m1 = state->meta_pages[0];
+  m2 = state->meta_pages[1];
+
+  TRACE();
+
+  /* validate magic */
+  if (m1->magic != BT_MAGIC) {
+    DPRINTF("metapage 0x%pX inconsistent magic: 0x%" PRIX32, m1, m1->magic);
+    return EINVAL;
+  }
+  if (m2->magic != BT_MAGIC) {
+    DPRINTF("metapage 0x%pX inconsistent magic: 0x%" PRIX32, m2, m2->magic);
+    return EINVAL;
+  }
+
+  /* validate flags */
+  if (m1->flags & BP_META != BP_META) {
+    DPRINTF("metapage 0x%pX missing meta page flag", m1);
+    return EINVAL;
+  }
+  if (m2->flags & BP_META != BP_META) {
+    DPRINTF("metapage 0x%pX missing meta page flag", m2);
+    return EINVAL;
+  }
+
+  /* validate binary version */
+  if (m1->version != BT_VERSION) {
+    DPRINTF("version mismatch on metapage: 0x%pX, metapage version: %" PRIu32 ", binary version %u",
+            m1, m1->version, BT_VERSION);
+    return EINVAL;
+  }
+
+  /* validate binary version */
+  if (m2->version != BT_VERSION) {
+    DPRINTF("version mismatch on metapage: 0x%pX, metapage version: %" PRIu32 ", binary version %u",
+            m2, m2->version, BT_VERSION);
+    return EINVAL;
+  }
+
+  if (!SUCC(rc = _bt_state_meta_which(state, &which)))
+    return rc;
+
+  state->which = which;
+
+  return BT_SUCC;
+}
+
+#if 0
+static int
+_bt_state_read_header(BT_state *state)
+{
   /* TODO: actually read the header and copy the data to meta when we implement
      persistence */
   BT_page metas[2];
@@ -2217,6 +2271,7 @@ _bt_state_read_header(BT_state *state)
 
   return BT_SUCC;
 }
+#endif
 
 static int
 _bt_state_meta_new(BT_state *state)
@@ -2289,6 +2344,15 @@ _bt_state_load(BT_state *state)
 
   TRACE();
 
+  /* map first node stripe (along with metapages) as read only */
+  state->map = mmap(BT_MAPADDR,
+                    BT_META_SECTION_WIDTH + BLK_BASE_LEN0,
+                    BT_PROT_CLEAN,
+                    BT_FLAG_CLEAN,
+                    state->data_fd,
+                    0);
+
+
   if (!SUCC(rc = _bt_state_read_header(state))) {
     if (rc != ENOENT) return rc;
     DPUTS("creating new db");
@@ -2298,14 +2362,6 @@ _bt_state_load(BT_state *state)
       return errno;
     }
   }
-
-  /* map first node stripe (along with metapages) as read only */
-  state->map = mmap(BT_MAPADDR,
-                    BT_META_SECTION_WIDTH + BLK_BASE_LEN0,
-                    BT_PROT_CLEAN,
-                    BT_FLAG_CLEAN,
-                    state->data_fd,
-                    0);
 
   if (state->map != BT_MAPADDR) {
     DPRINTF("mmap: failed to map at addr %p, errno: %s", BT_MAPADDR, strerror(errno));
