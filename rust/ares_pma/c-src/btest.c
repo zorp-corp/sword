@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
   lohi_pair allocs[ITERATIONS] = {0};
   for (size_t i = 0; i < ITERATIONS; i++) {
     /* malloc a random number of pages <= 256 and store in the allocs array */
-    int pages = rand();
+    int pages = random();
     pages &= MAXALLOCPG;
     pages += 1;
     allocs[i].lo = bt_malloc(state3, pages);
@@ -110,7 +110,19 @@ int main(int argc, char *argv[])
   }
 
   /* sync the state */
+  /* bt_sync(state3); */
+
+  /* TODO: close and reopen state. validate ephemeral structures */
+
+  for (size_t i = 0; i < ITERATIONS / 2; i++) {
+    /* free half of the allocations */
+    bt_free(state3, allocs[i].lo, allocs[i].hi);
+  }
+
+  /* resync the state */
   bt_sync(state3);
+
+  /* TODO: close and reopen state. validate ephemeral structures */
 
   return 0;
 }

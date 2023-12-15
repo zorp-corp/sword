@@ -50,6 +50,9 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 /* ;;: remove once confident in logic and delete all code dependencies on
      state->node_freelist */
 
+/* prints a node before and after a call to _bt_insertdat */
+#define DEBUG_PRINTNODE 0
+
 #define ZERO(s, n) memset((s), 0, (n))
 
 #define S7(A, B, C, D, E, F, G) A##B##C##D##E##F##G
@@ -650,8 +653,10 @@ static int
 _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
               BT_page *parent, size_t childidx)
 {
+#if DEBUG_PRINTNODE
   DPRINTF("BEFORE INSERT lo %" PRIu32 " hi %" PRIu32 " fo %" PRIu32, lo, hi, fo);
   _bt_printnode(parent);
+#endif
 
   /* ;;: TODO confirm this logic is appropriate for branch nodes. (It /should/
        be correct for leaf nodes) */
@@ -691,8 +696,10 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
       : lfo + (hi - lva);
   }
 
+#if DEBUG_PRINTNODE
   DPUTS("AFTER INSERT");
   _bt_printnode(parent);
+#endif
   return BT_SUCC;
 }
 
@@ -770,12 +777,22 @@ _bt_delco_1pass(BT_state *state, vaof_t lo, vaof_t hi)
 
 static void
 _mlist_insert(BT_state *state, void *lo, void *hi)
-{
+{                /* ;;: this logic could be simplified with indirect pointers */
   BT_mlistnode *head = state->mlist;
   BYTE *lob = lo;
   BYTE *hib = hi;
 
   assert(head);
+
+  /* special case: freed chunk precedes but is not contiguous with head */
+  if (hi < head->va) {
+    BT_mlistnode *new = calloc(1, sizeof *new);
+    new->sz = (hib - lob);
+    new->va = lob;
+    new->next = head;
+    state->mlist = new;
+    return;
+  }
 
   while (head) {
     BYTE   *vob = head->va;
@@ -783,7 +800,7 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
     BYTE   *nob = head->next ? head->next->va : 0;
 
     /* freed chunk immediately precedes head */
-    if (hi == vob) {
+    if (hib == vob) {
       head->va = lo;
       head->sz += (hib - lob);
       return;
@@ -923,7 +940,7 @@ _pending_nlist_merge(BT_state *state)
 
 static void
 _pending_flist_insert(BT_state *state, pgno_t pg, size_t sz)
-{
+{ /* ;;: again, this logic could probably be simplified with an indirect pointer */
   BT_flistnode *head = state->pending_flist;
 
   /* freelist may be empty. create head */
@@ -955,12 +972,21 @@ _pending_flist_insert(BT_state *state, pgno_t pg, size_t sz)
     return;
   }
 
-  /* otherwise, insert a new node following head */
+  /* otherwise, insert a new node either preceding or following head */
   BT_flistnode *new = calloc(1, sizeof *new);
   new->pg = pg;
   new->sz = sz;
-  new->next = head->next;
-  head->next = new;
+
+  if (head->pg < pg + sz) {
+    /* should only happen if head is the first node in the freelist */
+    assert(head == state->pending_flist);
+    new->next = head;
+    state->pending_flist = new;
+  }
+  else {
+    new->next = head->next;
+    head->next = new;
+  }
 }
 
 static void
@@ -3018,8 +3044,8 @@ _sham_sync(BT_state *state)
 static void
 _bt_printnode(BT_page *node)
 {
-  printf("node: %p\n", node);
-  printf("data: \n");
+  fprintf(stderr, "node: %p\n", node);
+  fprintf(stderr, "data: \n");
   for (size_t i = 0; i < BT_DAT_MAXKEYS; ++i) {
     if (i && node->datk[i].va == 0)
       break;
