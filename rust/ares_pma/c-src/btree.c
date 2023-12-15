@@ -2577,7 +2577,6 @@ bt_state_new(BT_state **state)
   BT_state *s = calloc(1, sizeof *s);
   s->data_fd = -1;
   s->fixaddr = BT_MAPADDR;
-  s->which = -1;
   *state = s;
   return BT_SUCC;
 }
