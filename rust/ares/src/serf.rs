@@ -110,8 +110,8 @@ impl Context {
         Context::new(trace_info, snapshot, constant_hot_state)
     }
 
-    pub fn save(&mut self) {
-        let handle = unsafe {
+    pub unsafe fn save(&mut self) {
+        let handle = {
             let mut snapshot = Snapshot({
                 let snapshot_mem_ptr: *mut SnapshotMem = self.nock_context.stack.struct_alloc(1);
 
@@ -188,7 +188,12 @@ impl Context {
     // Setters
     //
 
-    pub fn event_update(&mut self, new_event_num: u64, new_arvo: Noun) {
+    ///
+    /// ## Safety
+    ///
+    /// calls save(), which invalidates all nouns not in the context
+    /// until [preserve_event_update_leftovers] is called to resolve forwarding pointers.
+    pub unsafe fn event_update(&mut self, new_event_num: u64, new_arvo: Noun) {
         //  XX: assert event numbers are continuous
         self.arvo = new_arvo;
         self.event_num = new_event_num;
@@ -199,6 +204,21 @@ impl Context {
 
         // XX save to PMA
         self.mug = mug_u32(&mut self.nock_context.stack, self.arvo);
+    }
+
+    ///
+    /// ## Safety
+    ///
+    /// Preserves nouns and jet states in context and then calls [flip_top_frame].
+    /// Other stack-allocated objects needing preservation should be preserved between
+    /// [event_update] and invocation of this function
+    pub unsafe fn preserve_event_update_leftovers(&mut self) {
+        let stack = &mut self.nock_context.stack;
+        stack.preserve(&mut self.arvo);
+        stack.preserve(&mut self.nock_context.cold);
+        stack.preserve(&mut self.nock_context.warm);
+        stack.preserve(&mut self.nock_context.hot);
+        stack.flip_top_frame(0);
     }
 
     //
@@ -370,15 +390,6 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
 
         clear_interrupt();
 
-        // 
-        unsafe {
-            let stack = &mut context.nock_context.stack;
-            stack.preserve(&mut context.arvo);
-            stack.preserve(&mut context.nock_context.cold);
-            stack.preserve(&mut context.nock_context.warm);
-            stack.preserve(&mut context.nock_context.hot);
-            stack.flip_top_frame(0);
-        }
     }
 
     Ok(())
@@ -471,7 +482,10 @@ fn play_life(context: &mut Context, eve: Noun) {
             let eved = lent(eve).expect("serf: play: boot event number failure") as u64;
             let arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
 
-            context.event_update(eved, arvo);
+            unsafe {
+                context.event_update(eved, arvo);
+                context.preserve_event_update_leftovers();
+            }
             context.play_done();
         }
         Err(error) => match error {
@@ -504,7 +518,10 @@ fn play_list(context: &mut Context, mut lit: Noun) {
                     .tail();
                 eve += 1;
 
-                context.event_update(eve, arvo);
+                unsafe {
+                    context.event_update(eve, arvo);
+                    context.preserve_event_update_leftovers();
+                }
             }
             Err(goof) => {
                 return context.play_bail(goof);
@@ -533,10 +550,14 @@ fn work(context: &mut Context, job: Noun) {
     match soft(context, job, trace_name) {
         Ok(res) => {
             let cell = res.as_cell().expect("serf: work: +slam returned atom");
-            let fec = cell.head();
+            let mut fec = cell.head();
             let eve = context.event_num;
 
-            context.event_update(eve + 1, cell.tail());
+            unsafe {
+                context.event_update(eve + 1, cell.tail());
+                context.nock_context.stack.preserve(&mut fec);
+                context.preserve_event_update_leftovers();
+            }
             context.work_done(fec);
         }
         Err(goof) => {
@@ -560,7 +581,7 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
     let now = inc(stack, job_now).as_noun();
     let wire = T(stack, &[D(0), D(tas!(b"arvo")), D(0)]);
     let crud = DirectAtom::new_panic(tas!(b"crud"));
-    let ovo = T(stack, &[now, wire, crud.as_noun(), goof, job_cell.tail()]);
+    let mut ovo = T(stack, &[now, wire, crud.as_noun(), goof, job_cell.tail()]);
     let trace_name = if context.nock_context.trace_info.is_some() {
         Some(work_trace_name(
             &mut context.nock_context.stack,
@@ -574,10 +595,15 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
     match soft(context, ovo, trace_name) {
         Ok(res) => {
             let cell = res.as_cell().expect("serf: work: crud +slam returned atom");
-            let fec = cell.head();
+            let mut fec = cell.head();
             let eve = context.event_num;
 
-            context.event_update(eve + 1, cell.tail());
+            unsafe {
+                context.event_update(eve + 1, cell.tail());
+                context.nock_context.stack.preserve(&mut ovo);
+                context.nock_context.stack.preserve(&mut fec);
+                context.preserve_event_update_leftovers();
+            }
             context.work_swap(ovo, fec);
         }
         Err(goof_crud) => {
