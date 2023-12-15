@@ -2,7 +2,6 @@ use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
-use crate::snapshot::pma::{pma_in_arena, pma_malloc_w};
 use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
@@ -569,79 +568,6 @@ impl NockStack {
                 }
             } else {
                 return;
-            }
-        }
-    }
-
-    pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
-        // copy_pma() should only be called when there is a single stack
-        // frame; these asserts assure that.
-        assert!(
-            self.is_west()
-                && (*(self.prev_stack_pointer_pointer())).is_null()
-                && (*(self.prev_frame_pointer_pointer())).is_null()
-        );
-        assert!(self.stack_is_empty());
-        let noun_ptr = noun as *mut Noun;
-        *(self.push::<Noun>()) = *noun;
-        *(self.push::<*mut Noun>()) = noun_ptr;
-        loop {
-            if self.stack_is_empty() {
-                break;
-            }
-
-            let next_dest = *(self.top::<*mut Noun>());
-            self.pop::<*mut Noun>();
-            let next_noun = *(self.top::<Noun>());
-            self.pop::<Noun>();
-
-            match next_noun.as_either_direct_allocated() {
-                Either::Left(_direct) => {
-                    *next_dest = next_noun;
-                }
-                Either::Right(allocated) => match allocated.forwarding_pointer() {
-                    Option::Some(new_allocated) => {
-                        *next_dest = new_allocated.as_noun();
-                    }
-                    Option::None => {
-                        if pma_in_arena(allocated.to_raw_pointer()) {
-                            *next_dest = allocated.as_noun();
-                        } else {
-                            match allocated.as_either() {
-                                Either::Left(mut indirect) => {
-                                    let new_indirect_alloc =
-                                        pma_malloc_w(indirect_raw_size(indirect));
-
-                                    copy_nonoverlapping(
-                                        indirect.to_raw_pointer(),
-                                        new_indirect_alloc,
-                                        indirect_raw_size(indirect),
-                                    );
-
-                                    indirect.set_forwarding_pointer(new_indirect_alloc);
-
-                                    *next_dest = IndirectAtom::from_raw_pointer(new_indirect_alloc)
-                                        .as_noun();
-                                }
-                                Either::Right(mut cell) => {
-                                    let new_cell_alloc: *mut CellMemory =
-                                        pma_malloc_w(word_size_of::<CellMemory>());
-
-                                    (*new_cell_alloc).metadata = (*cell.to_raw_pointer()).metadata;
-
-                                    *(self.push::<Noun>()) = cell.tail();
-                                    *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
-                                    *(self.push::<Noun>()) = cell.head();
-                                    *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
-
-                                    cell.set_forwarding_pointer(new_cell_alloc);
-
-                                    *next_dest = Cell::from_raw_pointer(new_cell_alloc).as_noun();
-                                }
-                            }
-                        }
-                    }
-                },
             }
         }
     }

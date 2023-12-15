@@ -13,7 +13,6 @@ pub mod noun;
 pub mod serf;
 //pub mod bytecode;
 pub mod serialization;
-pub mod snapshot;
 pub mod trace;
 
 /** Introduce useful functions for debugging
