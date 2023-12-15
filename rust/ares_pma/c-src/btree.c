@@ -3049,7 +3049,7 @@ _bt_printnode(BT_page *node)
   for (size_t i = 0; i < BT_DAT_MAXKEYS; ++i) {
     if (i && node->datk[i].va == 0)
       break;
-    printf("[%5zu] %10x %10x\n", i, node->datk[i].va, node->datk[i].fo);
+    fprintf(stderr, "[%5zu] %10x %10x\n", i, node->datk[i].va, node->datk[i].fo);
   }
 }
 
