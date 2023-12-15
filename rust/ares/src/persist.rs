@@ -17,12 +17,12 @@ const NOUN_MARKED: u64 = 1 << 63;
 
 /// Handle to a PMA
 #[derive(Copy,Clone)]
-struct PMAState(*mut BT_state);
+struct PMAState(u64); // this is idiotic but necessary for Rust to let us put this in a oncelock
 
-pub const PMA: OnceLock<PMAState> = OnceLock::new();
+static PMA: OnceLock<PMAState> = OnceLock::new();
 
-fn get_pma_state() -> Option<PMAState> {
-    PMA.get().map(|r| { *r })
+fn get_pma_state() -> Option<*mut BT_state> {
+    PMA.get().map(|r| { r.0 as *mut BT_state })
 }
 
 fn pma_state_err() -> std::io::Error {
@@ -39,7 +39,8 @@ pub fn pma_open(path: PathBuf) -> Result<(), std::io::Error> {
         bt_state_new(&mut state);
         let err = bt_state_open(state, path_cstring.as_ptr(), PMA_FLAGS, PMA_MODE);
         if err == 0 {
-            PMA.set(PMAState(state)); //.or(Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, "PMA")))?
+            PMA.set(PMAState(state as u64)).or_else(|state| { Err(state.0 as *mut BT_state) }).expect("PMA state already initialized to:");
+            assert!(get_pma_state().is_some());
             Ok(())
         } else {
             // XX need to free the state
@@ -55,7 +56,7 @@ pub fn pma_open(path: PathBuf) -> Result<Self, std::io::Error> {
 
 pub fn pma_close() -> Result<(), std::io::Error> {
     // XX need a way to free the state after
-    let err = unsafe { bt_state_close(get_pma_state().ok_or_else(pma_state_err)?.0) };
+    let err = unsafe { bt_state_close(get_pma_state().ok_or_else(pma_state_err)?) };
     if err == 0 {
         Ok(())
     } else {
@@ -65,18 +66,18 @@ pub fn pma_close() -> Result<(), std::io::Error> {
 
 #[inline]
 pub fn pma_meta_get(field: usize) -> u64 {
-    unsafe { bt_meta_get(get_pma_state().unwrap().0, field) }
+    unsafe { bt_meta_get(get_pma_state().unwrap(), field) }
 }
 
 #[inline]
 pub fn pma_meta_set(field: usize, val: u64) {
-    unsafe { bt_meta_set(get_pma_state().unwrap().0, field, val) };
+    unsafe { bt_meta_set(get_pma_state().unwrap(), field, val) };
 }
 
 pub unsafe fn pma_contains<T>(ptr: *const T, count: usize) -> bool {
     if let Some(pma_state) = get_pma_state() {
-        bt_inbounds(pma_state.0, ptr as *mut c_void) != 0
-            && bt_inbounds(pma_state.0, ptr.add(count) as *mut c_void) != 0
+        bt_inbounds(pma_state, ptr as *mut c_void) != 0
+            && bt_inbounds(pma_state, ptr.add(count) as *mut c_void) != 0
     } else {
         false
     }
@@ -84,7 +85,7 @@ pub unsafe fn pma_contains<T>(ptr: *const T, count: usize) -> bool {
 
 pub fn pma_sync() {
     unsafe {
-        if bt_sync(get_pma_state().unwrap().0) != 0 {
+        if bt_sync(get_pma_state().unwrap()) != 0 {
             panic!("PMA sync failed but did not abort: this should never happen.");
         }
     }
@@ -93,7 +94,7 @@ pub fn pma_sync() {
 pub unsafe fn pma_dirty<T>(ptr: *mut T, count: usize) {
     let lo = bt_page_round_down(ptr);
     let hi = bt_page_round_up(ptr.add(count));
-    let e = bt_dirty(get_pma_state().unwrap().0, lo, hi);
+    let e = bt_dirty(get_pma_state().unwrap(), lo, hi);
     assert!(e == 0);
 }
 
@@ -133,7 +134,7 @@ pub trait Persist {
 
             let space_as_pages = (space + (BT_PAGESIZE as usize - 1)) >> BT_PAGEBITS;
 
-            let mut buffer = bt_malloc(get_pma_state().unwrap().0, space_as_pages) as *mut u8;
+            let mut buffer = bt_malloc(get_pma_state().unwrap(), space_as_pages) as *mut u8;
             let orig_buffer = buffer;
             self.copy_to_buffer(stack, &mut buffer);
             let space_isize: isize = space.try_into().unwrap();
