@@ -2670,7 +2670,7 @@ bt_malloc(BT_state *state, size_t pages)
              addr2off(ret) + pages,
              pgno);
 
-  DPRINTF("map %p to offset 0x%zx bytes (0x%x pages)\n", ret, P2BYTES(pgno), pgno);
+  DPRINTF("map %p to offset 0x%zx bytes (0x%zx pages)\n", ret, P2BYTES(pgno), pages);
   if (ret !=
       mmap(ret,
            P2BYTES(pages),
