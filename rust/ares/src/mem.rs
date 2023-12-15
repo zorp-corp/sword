@@ -2,6 +2,7 @@ use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
+use crate::persist::PMA;
 use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
@@ -50,6 +51,7 @@ pub struct NockStack {
     alloc_pointer: *mut u64,
     /** MMap which must be kept alive as long as this NockStack is */
     memory: MmapMut,
+    /** PMA from which we will copy into the NockStack */
     /** Whether or not pre_copy() has been called on the current stack frame. */
     pc: bool,
 }

@@ -8,6 +8,7 @@ use std::ffi::{c_void, CString};
 use std::mem::size_of;
 use std::path::PathBuf;
 use std::ptr::copy_nonoverlapping;
+use std::sync::OnceLock;
 
 const PMA_MODE: mode_t = 0o600; // RW for user only
 const PMA_FLAGS: ULONG = 0; // ignored for now
@@ -15,65 +16,87 @@ const PMA_FLAGS: ULONG = 0; // ignored for now
 const NOUN_MARKED: u64 = 1 << 63;
 
 /// Handle to a PMA
-pub struct PMA(*mut BT_state);
+#[derive(Copy,Clone)]
+struct PMAState(*mut BT_state);
 
-impl PMA {
-    #[cfg(unix)]
-    pub fn open(path: PathBuf) -> Result<Self, std::io::Error> {
-        let mut state: *mut BT_state = std::ptr::null_mut();
+pub const PMA: OnceLock<PMAState> = OnceLock::new();
 
-        // correct for Unix thus cfg gated
-        let path_cstring = CString::new(path.into_os_string().as_encoded_bytes())?;
-        unsafe {
-            bt_state_new(&mut state);
-            let err = bt_state_open(state, path_cstring.as_ptr(), PMA_FLAGS, PMA_MODE);
-            if err == 0 {
-                Ok(PMA(state))
-            } else {
-                // XX need to free the state
-                Err(std::io::Error::from_raw_os_error(err))
-            }
-        }
-    }
+fn get_pma_state() -> Option<PMAState> {
+    PMA.get().map(|r| { *r })
+}
 
-    #[cfg(windows)]
-    pub fn open(path: PathBuf) -> Result<Self, std::io::Error> {
-        unimplemented!()
-    }
+fn pma_state_err() -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::AlreadyExists, "PMA")
+}
 
-    #[inline]
-    pub fn meta_get(&self, field: usize) -> u64 {
-        unsafe { bt_meta_get(self.0, field) }
-    }
+#[cfg(unix)]
+pub fn pma_open(path: PathBuf) -> Result<(), std::io::Error> {
+    let mut state: *mut BT_state = std::ptr::null_mut();
 
-    #[inline]
-    pub fn meta_set(&self, field: usize, val: u64) {
-        unsafe { bt_meta_set(self.0, field, val) };
-    }
-
-    pub unsafe fn contains<T>(&self, ptr: *const T, count: usize) -> bool {
-        bt_inbounds(self.0, ptr as *mut c_void) != 0
-            && bt_inbounds(self.0, ptr.add(count) as *mut c_void) != 0
-    }
-
-    pub fn sync(&self) {
-        unsafe {
-            if bt_sync(self.0) != 0 {
-                panic!("PMA sync failed but did not abort: this should never happen.");
-            }
-        }
-    }
-
-    pub fn close(self) -> Result<(), std::io::Error> {
-        // XX need a way to free the state after
-        let err = unsafe { bt_state_close(self.0) };
+    // correct for Unix thus cfg gated
+    let path_cstring = CString::new(path.into_os_string().as_encoded_bytes())?;
+    unsafe {
+        bt_state_new(&mut state);
+        let err = bt_state_open(state, path_cstring.as_ptr(), PMA_FLAGS, PMA_MODE);
         if err == 0 {
+            PMA.set(PMAState(state)); //.or(Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, "PMA")))?
             Ok(())
         } else {
+            // XX need to free the state
             Err(std::io::Error::from_raw_os_error(err))
         }
     }
 }
+
+#[cfg(windows)]
+pub fn pma_open(path: PathBuf) -> Result<Self, std::io::Error> {
+    unimplemented!()
+}
+
+pub fn pma_close() -> Result<(), std::io::Error> {
+    // XX need a way to free the state after
+    let err = unsafe { bt_state_close(get_pma_state().ok_or_else(pma_state_err)?.0) };
+    if err == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::from_raw_os_error(err))
+    }
+}
+
+#[inline]
+pub fn pma_meta_get(field: usize) -> u64 {
+    unsafe { bt_meta_get(get_pma_state().unwrap().0, field) }
+}
+
+#[inline]
+pub fn pma_meta_set(field: usize, val: u64) {
+    unsafe { bt_meta_set(get_pma_state().unwrap().0, field, val) };
+}
+
+pub unsafe fn pma_contains<T>(ptr: *const T, count: usize) -> bool {
+    if let Some(pma_state) = get_pma_state() {
+        bt_inbounds(pma_state.0, ptr as *mut c_void) != 0
+            && bt_inbounds(pma_state.0, ptr.add(count) as *mut c_void) != 0
+    } else {
+        false
+    }
+}
+
+pub fn pma_sync() {
+    unsafe {
+        if bt_sync(get_pma_state().unwrap().0) != 0 {
+            panic!("PMA sync failed but did not abort: this should never happen.");
+        }
+    }
+}
+
+pub unsafe fn pma_dirty<T>(ptr: *mut T, count: usize) {
+    let lo = bt_page_round_down(ptr);
+    let hi = bt_page_round_up(ptr.add(count));
+    let e = bt_dirty(get_pma_state().unwrap().0, lo, hi);
+    assert!(e == 0);
+}
+
 
 /**
  * This trait defines operations for copying a structure into the PMA.
@@ -92,17 +115,17 @@ impl PMA {
 pub trait Persist {
     /// Count how much space is needed, in bytes. May set marks so long as marks are cleaned up by
     /// [copy_into_buffer]
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize;
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize;
 
     /// Copy into the provided buffer, which may be assumed to be at least as large as the size
     /// returned by [space_needed] on the same structure.
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8);
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8);
 
     /// Persist an object into the PMA using [space_needed] and [copy_to_buffer], returning
     /// a [u64] (probably a pointer or tagged pointer) that can be saved into metadata.
-    unsafe fn save_to_pma(&mut self, stack: &mut NockStack, pma: &PMA) -> u64 {
+    unsafe fn save_to_pma(&mut self, stack: &mut NockStack) -> u64 {
         unsafe {
-            let space = self.space_needed(stack, pma);
+            let space = self.space_needed(stack);
 
             if space == 0 {
                 return self.handle_to_u64();
@@ -110,9 +133,9 @@ pub trait Persist {
 
             let space_as_pages = (space + (BT_PAGESIZE as usize - 1)) >> BT_PAGEBITS;
 
-            let mut buffer = bt_malloc(pma.0, space_as_pages) as *mut u8;
+            let mut buffer = bt_malloc(get_pma_state().unwrap().0, space_as_pages) as *mut u8;
             let orig_buffer = buffer;
-            self.copy_to_buffer(stack, pma, &mut buffer);
+            self.copy_to_buffer(stack, &mut buffer);
             let space_isize: isize = space.try_into().unwrap();
             assert!(buffer.offset_from(orig_buffer) == space_isize);
             self.handle_to_u64()
@@ -137,10 +160,10 @@ unsafe fn unmark(a: Allocated) {
 }
 
 impl Persist for Atom {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
         if let Ok(indirect) = self.as_indirect() {
             let count = indirect.raw_size();
-            if !pma.contains(indirect.to_raw_pointer(), count) {
+            if !pma_contains(indirect.to_raw_pointer(), count) {
                 if !mark(indirect.as_allocated()) {
                     return count * size_of::<u64>();
                 }
@@ -149,10 +172,10 @@ impl Persist for Atom {
         0
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
         if let Ok(mut indirect) = self.as_indirect() {
             let count = indirect.raw_size();
-            if !pma.contains(indirect.to_raw_pointer(), count) {
+            if !pma_contains(indirect.to_raw_pointer(), count) {
                 if let Some(forward) = indirect.forwarding_pointer() {
                     *self = forward.as_atom();
                 } else {
@@ -178,7 +201,7 @@ impl Persist for Atom {
 }
 
 impl Persist for Noun {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
         let mut space = 0usize;
         stack.frame_push(0);
         *(stack.push::<Noun>()) = *self;
@@ -191,10 +214,10 @@ impl Persist for Noun {
 
             match noun.as_either_atom_cell() {
                 Left(mut atom) => {
-                    space += atom.space_needed(stack, pma);
+                    space += atom.space_needed(stack);
                 }
                 Right(cell) => {
-                    if !pma.contains(cell.to_raw_pointer(), 1) {
+                    if !pma_contains(cell.to_raw_pointer(), 1) {
                         if !mark(cell.as_allocated()) {
                             space += size_of::<CellMemory>();
                             (*stack.push::<Noun>()) = cell.tail();
@@ -208,7 +231,7 @@ impl Persist for Noun {
         space
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
         let mut buffer_u64 = (*buffer) as *mut u64;
         stack.frame_push(0);
         *(stack.push::<*mut Noun>()) = (self as *mut Noun);
@@ -232,7 +255,7 @@ impl Persist for Noun {
                     match allocated.as_either() {
                         Left(mut indirect) => {
                             let count = indirect.raw_size();
-                            if pma.contains(indirect.to_raw_pointer(), count) {
+                            if pma_contains(indirect.to_raw_pointer(), count) {
                                 continue;
                             }
 
@@ -243,7 +266,7 @@ impl Persist for Noun {
                             buffer_u64 = buffer_u64.add(count);
                         }
                         Right(mut cell) => {
-                            if pma.contains(cell.to_raw_pointer(), 1) {
+                            if pma_contains(cell.to_raw_pointer(), 1) {
                                 continue;
                             }
 
@@ -275,4 +298,17 @@ impl Persist for Noun {
     unsafe fn handle_from_u64(meta_handle: u64) -> Self {
         Noun::from_raw(meta_handle)
     }
+}
+
+/** Mask to mask out pointer bits not aligned with a BT_PAGESIZE page */
+const BT_PAGEBITS_MASK_OUT: u64 = !((1 << BT_PAGEBITS) - 1);
+
+// round an address down to a page boundary
+fn bt_page_round_down<T>(ptr: *mut T) -> *mut c_void {
+    ((ptr as u64) & BT_PAGEBITS_MASK_OUT) as *mut c_void
+}
+
+// round an address up to a page boundary
+fn bt_page_round_up<T>(ptr: *mut T) -> *mut c_void {
+    (((ptr as u64) + (BT_PAGESIZE as u64) - 1) & BT_PAGEBITS_MASK_OUT) as *mut c_void
 }

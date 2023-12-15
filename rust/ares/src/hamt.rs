@@ -2,7 +2,7 @@ use crate::mem::{NockStack, Preserve};
 use crate::unifying_equality::unifying_equality;
 use crate::mug::mug_u32;
 use crate::noun::Noun;
-use crate::persist::{Persist, PMA};
+use crate::persist::{Persist, pma_contains};
 use either::Either::{self, *};
 use std::mem::size_of;
 use std::ptr::{copy_nonoverlapping, null, null_mut};
@@ -598,12 +598,12 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
 }
 
 impl<T: Copy + Persist> Persist for Hamt<T> {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
-        if pma.contains(self.0, 1) {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+        if pma_contains(self.0, 1) {
             return 0;
         }
         let mut bytes: usize = size_of::<Stem<T>>();
-        if pma.contains((*self.0).buffer, (*self.0).size()) {
+        if pma_contains((*self.0).buffer, (*self.0).size()) {
             return bytes;
         };
 
@@ -639,7 +639,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
                 // found another stem
                 traversal[depth + 1] = next_entry.stem;
 
-                if pma.contains(traversal[depth + 1].buffer, traversal[depth + 1].size()) {
+                if pma_contains(traversal[depth + 1].buffer, traversal[depth + 1].size()) {
                     continue;
                 }
 
@@ -653,15 +653,15 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
                     continue;
                 }
 
-                if pma.contains(leaf.buffer, leaf.len) {
+                if pma_contains(leaf.buffer, leaf.len) {
                     continue;
                 }
 
                 bytes += size_of::<(Noun, T)>() * leaf.len;
 
                 while leaf.len > 0 {
-                    bytes += (*leaf.buffer).0.space_needed(stack, pma);
-                    bytes += (*leaf.buffer).1.space_needed(stack, pma);
+                    bytes += (*leaf.buffer).0.space_needed(stack);
+                    bytes += (*leaf.buffer).1.space_needed(stack);
                     leaf.buffer = leaf.buffer.add(1);
                     leaf.len -= 1;
                 }
@@ -669,8 +669,8 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
         }
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
-        if pma.contains(self.0, 1) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+        if pma_contains(self.0, 1) {
             return;
         }
         let stem_ptr = *buffer as *mut Stem<T>;
@@ -679,7 +679,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
         (*self).0 = stem_ptr;
 
         let stem_buffer_size = (*stem_ptr).size();
-        if pma.contains((*stem_ptr).buffer, stem_buffer_size) {
+        if pma_contains((*stem_ptr).buffer, stem_buffer_size) {
             return;
         }
         let stem_buffer_ptr = *buffer as *mut Entry<T>;
@@ -743,10 +743,10 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
                 while leaf_idx < (*leaf_ptr).len {
                     (*(*leaf_ptr).buffer.add(leaf_idx))
                         .0
-                        .copy_to_buffer(stack, pma, buffer);
+                        .copy_to_buffer(stack, buffer);
                     (*(*leaf_ptr).buffer.add(leaf_idx))
                         .1
-                        .copy_to_buffer(stack, pma, buffer);
+                        .copy_to_buffer(stack, buffer);
 
                     leaf_idx += 1;
                 }

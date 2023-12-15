@@ -1,3 +1,4 @@
+use crate::persist::pma_meta_set;
 use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
@@ -11,7 +12,7 @@ use crate::mem::Preserve;
 use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
-use crate::persist::{Persist, PMA};
+use crate::persist::{Persist, pma_open, pma_meta_get, pma_sync};
 use crate::trace::*;
 use ares_macros::tas;
 use signal_hook;
@@ -37,26 +38,26 @@ enum BTMetaField {
 struct Snapshot(pub *mut SnapshotMem);
 
 impl Persist for Snapshot {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
         let mut arvo = (*(self.0)).arvo;
         let mut cold = (*(self.0)).cold;
-        let arvo_space_needed = arvo.space_needed(stack, pma);
-        let cold_space_needed = cold.space_needed(stack, pma);
+        let arvo_space_needed = arvo.space_needed(stack);
+        let cold_space_needed = cold.space_needed(stack);
         (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
         let snapshot_buffer = *buffer as *mut SnapshotMem;
         std::ptr::copy_nonoverlapping(self.0, snapshot_buffer, 1);
         *self = Snapshot(snapshot_buffer);
         *buffer = snapshot_buffer.add(1) as *mut u8;
 
         let mut arvo = (*snapshot_buffer).arvo;
-        arvo.copy_to_buffer(stack, pma, buffer);
+        arvo.copy_to_buffer(stack, buffer);
         (*snapshot_buffer).arvo = arvo;
 
         let mut cold = (*snapshot_buffer).cold;
-        cold.copy_to_buffer(stack, pma, buffer);
+        cold.copy_to_buffer(stack, buffer);
         (*snapshot_buffer).cold = cold;
     }
 
@@ -83,7 +84,6 @@ const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
 struct Context {
     epoch: u64,
     event_num: u64,
-    pma: PMA,
     arvo: Noun,
     mug: u32,
     nock_context: interpreter::Context,
@@ -95,19 +95,19 @@ impl Context {
         trace_info: Option<TraceInfo>,
         constant_hot_state: &[HotEntry],
     ) -> Context {
-        let mut pma = PMA::open(snap_path).expect("serf: pma open failed");
+        pma_open(snap_path).expect("serf: pma open failed");
 
-        let snapshot_version = pma.meta_get(BTMetaField::SnapshotVersion as usize);
+        let snapshot_version = pma_meta_get(BTMetaField::SnapshotVersion as usize);
 
         let snapshot = match snapshot_version {
             0 => None,
             1 => Some(unsafe {
-                Snapshot::handle_from_u64(pma.meta_get(BTMetaField::Snapshot as usize))
+                Snapshot::handle_from_u64(pma_meta_get(BTMetaField::Snapshot as usize))
             }),
             _ => panic!("Unsupported snapshot version"),
         };
 
-        Context::new(trace_info, pma, snapshot, constant_hot_state)
+        Context::new(trace_info, snapshot, constant_hot_state)
     }
 
     pub fn save(&mut self) {
@@ -123,7 +123,7 @@ impl Context {
                 snapshot_mem_ptr
             });
 
-            let handle = snapshot.save_to_pma(&mut self.nock_context.stack, &mut self.pma);
+            let handle = snapshot.save_to_pma(&mut self.nock_context.stack);
 
             self.epoch = (*snapshot.0).epoch;
             self.arvo = (*snapshot.0).arvo;
@@ -132,16 +132,15 @@ impl Context {
 
             handle
         };
-        self.pma.meta_set(
+        pma_meta_set(
             BTMetaField::SnapshotVersion as usize,
             PMA_CURRENT_SNAPSHOT_VERSION,
         );
-        self.pma.meta_set(BTMetaField::Snapshot as usize, handle);
+        pma_meta_set(BTMetaField::Snapshot as usize, handle);
     }
 
     fn new(
         trace_info: Option<TraceInfo>,
-        pma: PMA,
         snapshot: Option<Snapshot>,
         constant_hot_state: &[HotEntry],
     ) -> Self {
@@ -179,7 +178,6 @@ impl Context {
         Context {
             epoch,
             event_num,
-            pma,
             arvo,
             mug,
             nock_context,
@@ -201,14 +199,6 @@ impl Context {
 
         // XX save to PMA
         self.mug = mug_u32(&mut self.nock_context.stack, self.arvo);
-    }
-
-    //
-    // Snapshot functions
-    //
-
-    pub fn sync(&mut self) {
-        self.pma.sync()
     }
 
     //
@@ -348,8 +338,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
                     tas!(b"exit") => eprintln!("exit"),
                     tas!(b"save") => {
                         // XX what is eve for?
-                        eprintln!("save");
-                        context.sync();
+                        pma_sync();
                     }
                     tas!(b"meld") => eprintln!("meld"),
                     tas!(b"pack") => eprintln!("pack"),

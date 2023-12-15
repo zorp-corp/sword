@@ -23,6 +23,7 @@ use std::result;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Instant;
+use crate::persist::PMA;
 
 crate::gdb!();
 

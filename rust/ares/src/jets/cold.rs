@@ -3,7 +3,7 @@ use crate::mem::{NockStack, Preserve};
 use crate::unifying_equality::unifying_equality;
 use crate::noun;
 use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
-use crate::persist::{Persist, PMA};
+use crate::persist::{Persist, pma_contains};
 use std::mem::size_of;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
@@ -35,7 +35,7 @@ struct BatteriesMem {
 }
 
 impl Persist for Batteries {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
         let mut bytes = 0;
         let mut batteries = *self;
 
@@ -43,24 +43,24 @@ impl Persist for Batteries {
             if batteries.0.is_null() {
                 break;
             }
-            if pma.contains(batteries.0, 1) {
+            if pma_contains(batteries.0, 1) {
                 break;
             }
             bytes += size_of::<BatteriesMem>();
-            bytes += (*batteries.0).battery.space_needed(stack, pma);
-            bytes += (*batteries.0).parent_axis.space_needed(stack, pma);
+            bytes += (*batteries.0).battery.space_needed(stack);
+            bytes += (*batteries.0).parent_axis.space_needed(stack);
             batteries = (*batteries.0).parent_batteries;
         }
         bytes
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
         let mut dest = self;
         loop {
             if (*dest).0.is_null() {
                 break;
             }
-            if pma.contains((*dest).0, 1) {
+            if pma_contains((*dest).0, 1) {
                 break;
             }
 
@@ -70,10 +70,10 @@ impl Persist for Batteries {
 
             (*batteries_mem_ptr)
                 .battery
-                .copy_to_buffer(stack, pma, buffer);
+                .copy_to_buffer(stack, buffer);
             (*batteries_mem_ptr)
                 .parent_axis
-                .copy_to_buffer(stack, pma, buffer);
+                .copy_to_buffer(stack, buffer);
 
             (*dest).0 = batteries_mem_ptr;
             dest = &mut (*(*dest).0).parent_batteries;
@@ -202,32 +202,32 @@ struct BatteriesListMem {
 }
 
 impl Persist for BatteriesList {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
         let mut bytes = 0;
         let mut list = *self;
         loop {
             if list.0.is_null() {
                 break;
             }
-            if pma.contains(list.0, 1) {
+            if pma_contains(list.0, 1) {
                 break;
             }
             bytes += size_of::<BatteriesListMem>();
-            bytes += (*list.0).batteries.space_needed(stack, pma);
+            bytes += (*list.0).batteries.space_needed(stack);
 
             list = (*list.0).next;
         }
         bytes
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
         let mut dest = self;
 
         loop {
             if (*dest).0.is_null() {
                 break;
             }
-            if pma.contains((*dest).0, 1) {
+            if pma_contains((*dest).0, 1) {
                 break;
             }
 
@@ -236,7 +236,7 @@ impl Persist for BatteriesList {
             *buffer = list_mem_ptr.add(1) as *mut u8;
             (*dest).0 = list_mem_ptr;
 
-            (*(*dest).0).batteries.copy_to_buffer(stack, pma, buffer);
+            (*(*dest).0).batteries.copy_to_buffer(stack, buffer);
             dest = &mut (*(*dest).0).next;
         }
     }
@@ -323,7 +323,7 @@ struct NounListMem {
 }
 
 impl Persist for NounList {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
         let mut bytes: usize = 0;
         let mut list = *self;
 
@@ -331,26 +331,26 @@ impl Persist for NounList {
             if list.0.is_null() {
                 break;
             }
-            if pma.contains(list.0, 1) {
+            if pma_contains(list.0, 1) {
                 break;
             }
 
             bytes += size_of::<NounListMem>();
-            bytes += (*list.0).element.space_needed(stack, pma);
+            bytes += (*list.0).element.space_needed(stack);
 
             list = (*list.0).next;
         }
         bytes
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
         let mut dest = self;
 
         loop {
             if (*dest).0.is_null() {
                 break;
             }
-            if pma.contains((*dest).0, 1) {
+            if pma_contains((*dest).0, 1) {
                 break;
             }
 
@@ -359,7 +359,7 @@ impl Persist for NounList {
             *buffer = noun_list_mem_ptr.add(1) as *mut u8;
 
             (*dest).0 = noun_list_mem_ptr;
-            (*(*dest).0).element.copy_to_buffer(stack, pma, buffer);
+            (*(*dest).0).element.copy_to_buffer(stack, buffer);
 
             dest = &mut (*(*dest).0).next;
         }
@@ -452,20 +452,20 @@ struct ColdMem {
 }
 
 impl Persist for Cold {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack, pma: &PMA) -> usize {
-        if pma.contains(self.0, 1) {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+        if pma_contains(self.0, 1) {
             return 0;
         }
 
         let mut bytes = size_of::<ColdMem>();
-        bytes += (*(*self).0).battery_to_paths.space_needed(stack, pma);
-        bytes += (*(*self).0).root_to_paths.space_needed(stack, pma);
-        bytes += (*(*self).0).path_to_batteries.space_needed(stack, pma);
+        bytes += (*(*self).0).battery_to_paths.space_needed(stack);
+        bytes += (*(*self).0).root_to_paths.space_needed(stack);
+        bytes += (*(*self).0).path_to_batteries.space_needed(stack);
         bytes
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, pma: &PMA, buffer: &mut *mut u8) {
-        if pma.contains(self.0, 1) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+        if pma_contains(self.0, 1) {
             return;
         }
 
@@ -477,13 +477,13 @@ impl Persist for Cold {
 
         (*(*self).0)
             .battery_to_paths
-            .copy_to_buffer(stack, pma, buffer);
+            .copy_to_buffer(stack, buffer);
         (*(*self).0)
             .root_to_paths
-            .copy_to_buffer(stack, pma, buffer);
+            .copy_to_buffer(stack, buffer);
         (*(*self).0)
             .path_to_batteries
-            .copy_to_buffer(stack, pma, buffer);
+            .copy_to_buffer(stack, buffer);
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
