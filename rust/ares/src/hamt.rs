@@ -719,18 +719,31 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
 
                 let stem_ptr: *mut Stem<T> = &mut (*next_entry_ptr).stem;
                 let stem_size = (*stem_ptr).size();
+                
+                if pma_contains((*stem_ptr).buffer, stem_size) {
+                    continue;
+                }
+
                 let stem_buffer_ptr = *buffer as *mut Entry<T>;
 
                 copy_nonoverlapping((*stem_ptr).buffer, stem_buffer_ptr, stem_size);
                 *buffer = stem_buffer_ptr.add(stem_size) as *mut u8;
 
                 (*stem_ptr).buffer = stem_buffer_ptr;
-
                 traversal[depth + 1] = *stem_ptr;
                 depth += 1;
             } else {
                 // Leaf case
                 let leaf_ptr: *mut Leaf<T> = &mut (*next_entry_ptr).leaf;
+
+                if (*leaf_ptr).len == 0 {
+                    continue;
+                }
+
+                if pma_contains((*leaf_ptr).buffer, (*leaf_ptr).len) {
+                    continue;
+                }
+
                 let leaf_buffer_ptr = *buffer as *mut (Noun, T);
 
                 copy_nonoverlapping((*leaf_ptr).buffer, leaf_buffer_ptr, (*leaf_ptr).len);
