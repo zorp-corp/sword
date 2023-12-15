@@ -1,13 +1,13 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
+use crate::unifying_equality::unifying_equality;
 use crate::hamt::Hamt;
 use crate::jets::cold;
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::warm::Warm;
 use crate::jets::JetErr;
-use crate::mem::unifying_equality;
 use crate::mem::NockStack;
 use crate::mem::Preserve;
 use crate::newt::Newt;
@@ -1304,7 +1304,7 @@ mod hint {
     use crate::jets;
     use crate::jets::cold;
     use crate::jets::nock::util::{mook, LEAF};
-    use crate::mem::unifying_equality;
+    use crate::unifying_equality::unifying_equality;
     use crate::noun::{tape, Atom, Cell, Noun, D, T};
     use crate::serf::TERMINATOR;
     use ares_macros::tas;

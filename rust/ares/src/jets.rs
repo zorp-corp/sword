@@ -307,7 +307,8 @@ pub mod util {
     pub mod test {
         use super::*;
         use crate::hamt::Hamt;
-        use crate::mem::{unifying_equality, NockStack};
+        use crate::mem::NockStack;
+        use crate::unifying_equality::unifying_equality;
         use crate::noun::{Atom, Noun, D, T};
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;

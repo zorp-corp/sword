@@ -1,4 +1,5 @@
-use crate::mem::{unifying_equality, NockStack, Preserve};
+use crate::mem::{NockStack, Preserve};
+use crate::unifying_equality::unifying_equality;
 use crate::mug::mug_u32;
 use crate::noun::Noun;
 use crate::persist::{Persist, PMA};

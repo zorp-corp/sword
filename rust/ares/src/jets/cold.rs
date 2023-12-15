@@ -1,5 +1,6 @@
 use crate::hamt::Hamt;
-use crate::mem::{unifying_equality, NockStack, Preserve};
+use crate::mem::{NockStack, Preserve};
+use crate::unifying_equality::unifying_equality;
 use crate::noun;
 use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
 use crate::persist::{Persist, PMA};
