@@ -11,3 +11,5 @@ edition = "2018"
 bindgen = "0.69.1"
 cc = "1.0"
 
+[features]
+debug_prints = []

@@ -8,7 +8,7 @@ use bindgen::CargoCallbacks;
 fn main() {
     let profile = env::var("PROFILE").unwrap();
     let opt_level = env::var("OPT_LEVEL").unwrap();
-    let define_debug = if profile == "debug" {
+    let define_debug = if env::var("CARGO_FEATURE_DEBUG_PRINTS").is_ok() {
         "-DDEBUG"
     } else {
         "-UDEBUG" 
