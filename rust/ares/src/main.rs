@@ -5,10 +5,13 @@ use std::io;
 
 fn main() -> io::Result<()> {
     //  debug
-    // eprintln!("serf: pid {}", std::process::id());
-    // if unsafe { libc::kill(std::process::id() as i32, libc::SIGSTOP) } != 0 {
-    //     panic!("Could not stop ourselves.");
-    // };
+    #[cfg(feature = "stop_for_debug")]
+    {
+        eprintln!("serf: pid {}", std::process::id());
+        if unsafe { libc::kill(std::process::id() as i32, libc::SIGSTOP) } != 0 {
+            panic!("Could not stop ourselves.");
+        };
+    }
 
     let filename = env::args().nth(1).expect("Must provide input filename");
 
