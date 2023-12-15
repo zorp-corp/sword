@@ -1,9 +1,9 @@
 use crate::hamt::Hamt;
 use crate::mem::{NockStack, Preserve};
-use crate::unifying_equality::unifying_equality;
 use crate::noun;
 use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
-use crate::persist::{Persist, pma_contains};
+use crate::persist::{pma_contains, Persist};
+use crate::unifying_equality::unifying_equality;
 use std::mem::size_of;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
@@ -68,9 +68,7 @@ impl Persist for Batteries {
             copy_nonoverlapping((*dest).0, batteries_mem_ptr, 1);
             *buffer = batteries_mem_ptr.add(1) as *mut u8;
 
-            (*batteries_mem_ptr)
-                .battery
-                .copy_to_buffer(stack, buffer);
+            (*batteries_mem_ptr).battery.copy_to_buffer(stack, buffer);
             (*batteries_mem_ptr)
                 .parent_axis
                 .copy_to_buffer(stack, buffer);
@@ -475,15 +473,9 @@ impl Persist for Cold {
 
         (*self).0 = cold_mem_ptr;
 
-        (*(*self).0)
-            .battery_to_paths
-            .copy_to_buffer(stack, buffer);
-        (*(*self).0)
-            .root_to_paths
-            .copy_to_buffer(stack, buffer);
-        (*(*self).0)
-            .path_to_batteries
-            .copy_to_buffer(stack, buffer);
+        (*(*self).0).battery_to_paths.copy_to_buffer(stack, buffer);
+        (*(*self).0).root_to_paths.copy_to_buffer(stack, buffer);
+        (*(*self).0).path_to_batteries.copy_to_buffer(stack, buffer);
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {

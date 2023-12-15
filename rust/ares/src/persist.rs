@@ -16,13 +16,13 @@ const PMA_FLAGS: ULONG = 0; // ignored for now
 const NOUN_MARKED: u64 = 1 << 63;
 
 /// Handle to a PMA
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 struct PMAState(u64); // this is idiotic but necessary for Rust to let us put this in a oncelock
 
 static PMA: OnceLock<PMAState> = OnceLock::new();
 
 fn get_pma_state() -> Option<*mut BT_state> {
-    PMA.get().map(|r| { r.0 as *mut BT_state })
+    PMA.get().map(|r| r.0 as *mut BT_state)
 }
 
 fn pma_state_err() -> std::io::Error {
@@ -39,7 +39,9 @@ pub fn pma_open(path: PathBuf) -> Result<(), std::io::Error> {
         bt_state_new(&mut state);
         let err = bt_state_open(state, path_cstring.as_ptr(), PMA_FLAGS, PMA_MODE);
         if err == 0 {
-            PMA.set(PMAState(state as u64)).or_else(|state| { Err(state.0 as *mut BT_state) }).expect("PMA state already initialized to:");
+            PMA.set(PMAState(state as u64))
+                .or_else(|state| Err(state.0 as *mut BT_state))
+                .expect("PMA state already initialized to:");
             assert!(get_pma_state().is_some());
             Ok(())
         } else {
@@ -97,7 +99,6 @@ pub unsafe fn pma_dirty<T>(ptr: *mut T, count: usize) {
     let e = bt_dirty(get_pma_state().unwrap(), lo, hi);
     assert!(e == 0);
 }
-
 
 /**
  * This trait defines operations for copying a structure into the PMA.

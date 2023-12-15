@@ -1,4 +1,3 @@
-use crate::persist::pma_meta_set;
 use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
@@ -12,7 +11,8 @@ use crate::mem::Preserve;
 use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
-use crate::persist::{Persist, pma_open, pma_meta_get, pma_sync};
+use crate::persist::pma_meta_set;
+use crate::persist::{pma_meta_get, pma_open, pma_sync, Persist};
 use crate::trace::*;
 use ares_macros::tas;
 use signal_hook;
@@ -389,7 +389,6 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         };
 
         clear_interrupt();
-
     }
 
     Ok(())

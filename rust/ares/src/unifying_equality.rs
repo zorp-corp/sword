@@ -1,9 +1,9 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
-use crate::mem::{NockStack, FRAME, STACK, ALLOC};
-use crate::persist::{pma_contains, pma_dirty};
+use crate::mem::{NockStack, ALLOC, FRAME, STACK};
 use crate::noun::Noun;
+use crate::persist::{pma_contains, pma_dirty};
 use either::Either::*;
 use libc::{c_void, memcmp};
 
@@ -22,7 +22,6 @@ macro_rules! assert_no_junior_pointers {
 macro_rules! assert_no_junior_pointers {
     ( $x:expr, $y:expr ) => {};
 }
-
 
 pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
     /* This version of unifying equality is not like that of vere.
@@ -247,4 +246,3 @@ fn lower_pointer_first(a: *const u64, b: *const u64) -> (*const u64, *const u64)
         (b, a)
     }
 }
-

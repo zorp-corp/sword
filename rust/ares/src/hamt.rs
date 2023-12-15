@@ -1,8 +1,8 @@
 use crate::mem::{NockStack, Preserve};
-use crate::unifying_equality::unifying_equality;
 use crate::mug::mug_u32;
 use crate::noun::Noun;
-use crate::persist::{Persist, pma_contains};
+use crate::persist::{pma_contains, Persist};
+use crate::unifying_equality::unifying_equality;
 use either::Either::{self, *};
 use std::mem::size_of;
 use std::ptr::{copy_nonoverlapping, null, null_mut};
@@ -719,7 +719,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
 
                 let stem_ptr: *mut Stem<T> = &mut (*next_entry_ptr).stem;
                 let stem_size = (*stem_ptr).size();
-                
+
                 if pma_contains((*stem_ptr).buffer, stem_size) {
                     continue;
                 }

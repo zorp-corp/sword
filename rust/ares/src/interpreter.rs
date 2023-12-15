@@ -1,7 +1,6 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
-use crate::unifying_equality::unifying_equality;
 use crate::hamt::Hamt;
 use crate::jets::cold;
 use crate::jets::cold::Cold;
@@ -15,6 +14,7 @@ use crate::noun;
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
 use crate::serf::TERMINATOR;
 use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
+use crate::unifying_equality::unifying_equality;
 use ares_macros::tas;
 use assert_no_alloc::assert_no_alloc;
 use bitvec::prelude::{BitSlice, Lsb0};
@@ -1304,9 +1304,9 @@ mod hint {
     use crate::jets;
     use crate::jets::cold;
     use crate::jets::nock::util::{mook, LEAF};
-    use crate::unifying_equality::unifying_equality;
     use crate::noun::{tape, Atom, Cell, Noun, D, T};
     use crate::serf::TERMINATOR;
+    use crate::unifying_equality::unifying_equality;
     use ares_macros::tas;
     use std::sync::atomic::Ordering;
     use std::sync::Arc;
