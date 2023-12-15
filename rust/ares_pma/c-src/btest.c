@@ -161,6 +161,11 @@ int main(int argc, char *argv[])
   /* resync the state */
   bt_sync(state3);
 
+  bt_state_close(state3);
+
+  bt_state_new(&state3);
+
+  assert(SUCC(bt_state_open(state3, "./pmatest3", 0, 0644)));
   /* TODO: close and reopen state. validate ephemeral structures */
 
   return 0;

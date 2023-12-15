@@ -2117,27 +2117,27 @@ _bt_state_restore_maps(BT_state *state)
 }
 
 static int
-_bt_state_meta_which(BT_state *state, int *which)
+_bt_state_meta_which(BT_state *state)
 {
   BT_meta *m1 = state->meta_pages[0];
   BT_meta *m2 = state->meta_pages[1];
-  *which = -1;
+  int which = -1;
 
   if (m1->chk == 0) {
     /* first is dirty */
-    *which = 1;
+    which = 1;
   }
   else if (m2->chk == 0) {
     /* second is dirty */
-    *which = 0;
+    which = 0;
   }
   else if (m1->txnid > m2->txnid) {
     /* first is most recent */
-    *which = 0;
+    which = 0;
   }
   else if (m1->txnid < m2->txnid) {
     /* second is most recent */
-    *which = 1;
+    which = 1;
   }
   else {
     /* invalid state */
@@ -2145,86 +2145,30 @@ _bt_state_meta_which(BT_state *state, int *which)
   }
 
   /* checksum the metapage found and abort if checksum doesn't match */
-  BT_meta *meta = state->meta_pages[*which];
+  BT_meta *meta = state->meta_pages[which];
   uint32_t chk = nonzero_crc_32(meta, BT_META_LEN);
   if (chk != meta->chk) {
     abort();
   }
 
-  return BT_SUCC;
-}
-
-static int
-_bt_state_read_header(BT_state *state)
-{
-  BT_meta *m1, *m2;
-  int which = 0;
-  int rc = 1;
-  m1 = state->meta_pages[0];
-  m2 = state->meta_pages[1];
-
-  TRACE();
-
-  /* validate magic */
-  if (m1->magic != BT_MAGIC) {
-    DPRINTF("metapage 0x%pX inconsistent magic: 0x%" PRIX32, m1, m1->magic);
-    return EINVAL;
-  }
-  if (m2->magic != BT_MAGIC) {
-    DPRINTF("metapage 0x%pX inconsistent magic: 0x%" PRIX32, m2, m2->magic);
-    return EINVAL;
-  }
-
-  /* validate flags */
-  if (m1->flags & BP_META != BP_META) {
-    DPRINTF("metapage 0x%pX missing meta page flag", m1);
-    return EINVAL;
-  }
-  if (m2->flags & BP_META != BP_META) {
-    DPRINTF("metapage 0x%pX missing meta page flag", m2);
-    return EINVAL;
-  }
-
-  /* validate binary version */
-  if (m1->version != BT_VERSION) {
-    DPRINTF("version mismatch on metapage: 0x%pX, metapage version: %" PRIu32 ", binary version %u",
-            m1, m1->version, BT_VERSION);
-    return EINVAL;
-  }
-
-  /* validate binary version */
-  if (m2->version != BT_VERSION) {
-    DPRINTF("version mismatch on metapage: 0x%pX, metapage version: %" PRIu32 ", binary version %u",
-            m2, m2->version, BT_VERSION);
-    return EINVAL;
-  }
-
-  if (!SUCC(rc = _bt_state_meta_which(state, &which)))
-    return rc;
-
+  /* set which in state */
   state->which = which;
 
   return BT_SUCC;
 }
 
-#if 0
 static int
 _bt_state_read_header(BT_state *state)
 {
-  /* TODO: actually read the header and copy the data to meta when we implement
-     persistence */
-  BT_page metas[2];
-  int rc, len, which;
   BT_meta *m1, *m2;
-
-  /* pma already exists, parse metadata file */
+  int rc = 1;
+  BYTE metas[BT_PAGESIZE*2] = {0};
   m1 = state->meta_pages[0];
   m2 = state->meta_pages[1];
 
-  /* ;;: TODO, need to store last page in use by pma in both metadata pages. choose the frontier after _bt_state_meta_which and store it in state */
   TRACE();
 
-  if ((len = pread(state->data_fd, metas, BT_PAGESIZE*2, 0))
+  if (pread(state->data_fd, metas, BT_PAGESIZE*2, 0)
       != BT_PAGESIZE*2) {
     /* new pma */
     return ENOENT;
@@ -2264,14 +2208,11 @@ _bt_state_read_header(BT_state *state)
     return EINVAL;
   }
 
-  if (!SUCC(rc = _bt_state_meta_which(state, &which)))
+  if (!SUCC(rc = _bt_state_meta_which(state)))
     return rc;
-
-  state->which = which;
 
   return BT_SUCC;
 }
-#endif
 
 static int
 _bt_state_meta_new(BT_state *state)
@@ -2352,6 +2293,9 @@ _bt_state_load(BT_state *state)
                     state->data_fd,
                     0);
 
+  p = (BT_page *)state->map;
+  state->meta_pages[0] = METADATA(p);
+  state->meta_pages[1] = METADATA(p + 1);
 
   if (!SUCC(rc = _bt_state_read_header(state))) {
     if (rc != ENOENT) return rc;
@@ -2378,10 +2322,6 @@ _bt_state_load(BT_state *state)
     DPRINTF("mmap: failed to map at addr %p, errno: %s", nullspace_addr, strerror(errno));
     abort();
   }
-
-  p = (BT_page *)state->map;
-  state->meta_pages[0] = METADATA(p);
-  state->meta_pages[1] = METADATA(p + 1);
 
   /* new db, so populate metadata */
   if (new) {
@@ -2637,6 +2577,7 @@ bt_state_new(BT_state **state)
   BT_state *s = calloc(1, sizeof *s);
   s->data_fd = -1;
   s->fixaddr = BT_MAPADDR;
+  s->which = -1;
   *state = s;
   return BT_SUCC;
 }
