@@ -787,7 +787,7 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
   /* special case: freed chunk precedes but is not contiguous with head */
   if (hi < head->va) {
     BT_mlistnode *new = calloc(1, sizeof *new);
-    new->sz = (hib - lob);
+    new->sz = B2PAGES(hib - lob);
     new->va = lob;
     new->next = head;
     state->mlist = new;
@@ -802,19 +802,19 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
     /* freed chunk immediately precedes head */
     if (hib == vob) {
       head->va = lo;
-      head->sz += (hib - lob);
+      head->sz += B2PAGES(hib - lob);
       return;
     }
     /* freed chunk immediately follows termination of head */
     if (vob + siz == lo) {
-      head->sz += (hib - lob);
+      head->sz += B2PAGES(hib - lob);
       return;
     }
     /* freed chunk between head and next but not contiguous */
     if (lob > vob + siz
         && hib < nob) {
       BT_mlistnode *new = calloc(1, sizeof *new);
-      new->sz = (hib - lob);
+      new->sz = B2PAGES(hib - lob);
       new->va = lob;
       new->next = head->next;
       head->next = new;
@@ -824,7 +824,7 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
   }
   /* freelist completely searched. Chunk must be at tail and not contiguous */
   BT_mlistnode *new = calloc(1, sizeof *new);
-  new->sz = (hib - lob);
+  new->sz = B2PAGES(hib - lob);
   new->va = lob;
   new->next = head->next;
   head->next = new;
@@ -1475,7 +1475,6 @@ _mlist_new(BT_state *state)
   head->next = 0;
   head->sz = len;
   head->va = off2addr(lo);
-
   state->mlist = head;
 
   return BT_SUCC;
