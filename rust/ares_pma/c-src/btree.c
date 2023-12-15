@@ -2313,6 +2313,17 @@ _bt_state_load(BT_state *state)
     abort();
   }
 
+  BYTE *nullspace_addr = BT_MAPADDR + (BT_META_SECTION_WIDTH + BLK_BASE_LEN0);
+  size_t nullspace_len = BT_ADDRSIZE - (BT_META_SECTION_WIDTH + BLK_BASE_LEN0);
+  if (nullspace_addr != mmap(nullspace_addr,
+                             nullspace_len,
+                             BT_PROT_FREE,
+                             BT_FLAG_FREE,
+                             0, 0)) {
+    DPRINTF("mmap: failed to map at addr %p, errno: %s", nullspace_addr, strerror(errno));
+    abort();
+  }
+
   p = (BT_page *)state->map;
   state->meta_pages[0] = METADATA(p);
   state->meta_pages[1] = METADATA(p + 1);
