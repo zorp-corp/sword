@@ -10,7 +10,7 @@ fn main() -> io::Result<()> {
     //     panic!("Could not stop ourselves.");
     // };
 
-    eprintln!("starting ares");
+    eprintln!("ares: starting ares");
     let filename = env::args().nth(1).expect("Must provide input filename");
 
     if filename == "see gdb! definition in lib.rs about this" {

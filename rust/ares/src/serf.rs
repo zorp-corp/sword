@@ -219,6 +219,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     let mut context = Context::new(&snap_path, trace_info, constant_hot_state);
     context.ripe();
 
+    eprintln!("ares: reading next newt");
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {
         // Reset the local cache and scry handler stack
@@ -226,6 +227,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         context.nock_context.scry_stack = D(0);
 
         let tag = slot(writ, 2)?.as_direct().unwrap();
+        eprintln!("ares: got newt: {:?}", tag.data());
         match tag.data() {
             tas!(b"live") => {
                 let inner = slot(writ, 6)?.as_direct().unwrap();
@@ -249,12 +251,14 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
                 context.peek_done(res);
             }
             tas!(b"play") => {
+                eprintln!("ares: got %play");
                 let lit = slot(writ, 7)?;
                 if context.epoch == 0 && context.event_num == 0 {
                     // apply lifecycle to first batch
                     eprintln!("ares: got %play life event");
                     play_life(&mut context, lit);
                 } else {
+                    eprintln!("ares: get %play list");
                     play_list(&mut context, lit);
                 };
             }
