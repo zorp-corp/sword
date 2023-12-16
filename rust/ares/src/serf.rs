@@ -102,7 +102,10 @@ impl Context {
     //
 
     pub fn next(&mut self) -> Option<Noun> {
-        self.nock_context.newt.next(&mut self.nock_context.stack)
+        eprintln!("ares: calling newt.next");
+        let res = self.nock_context.newt.next(&mut self.nock_context.stack);
+        eprintln!("ares: newt.next done");
+        res
     }
 
     pub fn ripe(&mut self) {
@@ -222,6 +225,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     eprintln!("ares: reading next newt");
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {
+        eprintln!("ares: got next nout from newt");
         // Reset the local cache and scry handler stack
         context.nock_context.cache = Hamt::<Noun>::new();
         context.nock_context.scry_stack = D(0);
