@@ -132,6 +132,7 @@ impl Newt {
             ],
         );
         let ripe = T(stack, &[D(tas!(b"ripe")), version, D(eve), D(mug)]);
+        eprintln!("ares: writing %ripe");
         self.write_noun(stack, ripe);
     }
 
@@ -236,6 +237,7 @@ impl Newt {
     /** Fetch next message. */
     pub fn next(&mut self, stack: &mut NockStack) -> Option<Noun> {
         let mut header: Vec<u8> = vec![0; 5];
+        eprintln!("ares: reading header");
         if let Err(err) = self.input.read_exact(&mut header) {
             if err.kind() == std::io::ErrorKind::UnexpectedEof {
                 return None;
@@ -243,11 +245,13 @@ impl Newt {
                 panic!("Error reading header: {}", err);
             }
         }
+        eprintln!("ares: finished reading header");
 
         let byte_len = u32::from_le_bytes([header[1], header[2], header[3], header[4]]) as usize;
 
         let atom = unsafe {
             let (mut atom, dest) = IndirectAtom::new_raw_mut_bytes(stack, byte_len);
+            eprintln!("ares: trying to read {:?} bytes", byte_len);
             if let Err(err) = self.input.read_exact(dest) {
                 if err.kind() == std::io::ErrorKind::UnexpectedEof {
                     return None;
