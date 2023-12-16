@@ -1982,7 +1982,7 @@ _flist_read(BT_state *state)
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
   uint8_t maxdepth = meta->depth;
-  BT_flistnode *head = _flist_read2(state, root, maxdepth, 0);
+  BT_flistnode *head = _flist_read2(state, root, maxdepth, 1);
   /* ;;: infinite loop with proper starting depth of 1. -- fix that! */
   /* BT_flistnode *head = _flist_read2(state, root, maxdepth, 1); */
 
