@@ -265,7 +265,10 @@ impl Newt {
                     eprintln!("Ok reading {:?} bytes", n);
                 }
             }
-            atom.normalize_as_atom()
+            eprintln!("normalizing atom");
+            let a = atom.normalize_as_atom();
+            eprintln!("normalized atom");
+            a
         };
 
         Some(cue(stack, atom))
