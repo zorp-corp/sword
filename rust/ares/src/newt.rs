@@ -252,11 +252,17 @@ impl Newt {
         let atom = unsafe {
             let (mut atom, dest) = IndirectAtom::new_raw_mut_bytes(stack, byte_len);
             eprintln!("ares: trying to read {:?} bytes", byte_len);
-            if let Err(err) = self.input.read_exact(dest) {
-                if err.kind() == std::io::ErrorKind::UnexpectedEof {
-                    return None;
-                } else {
-                    panic!("Error reading body: {}", err);
+            match self.input.read_exact(dest) {
+                Err(err) => {
+                    eprintln!("ares: error reading bytes");
+                    if err.kind() == std::io::ErrorKind::UnexpectedEof {
+                        return None;
+                    } else {
+                        panic!("Error reading body: {}", err);
+                    }
+                }
+                Ok(n) => {
+                    eprintln!("Ok reading {:?} bytes", n);
                 }
             }
             atom.normalize_as_atom()
