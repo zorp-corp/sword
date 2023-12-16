@@ -40,10 +40,10 @@ name = "ares"
 path = "src/main.rs"
 
 [profile.dev]
-opt-level = 3
+opt-level = 0
 
 [profile.dev.package."*"]
-opt-level = 3
+opt-level = 0
 
 # run with e.g. 'cargo build --features check_forwarding,check_acyclic'
 [features]
