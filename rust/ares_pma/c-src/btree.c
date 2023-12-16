@@ -2344,6 +2344,9 @@ _bt_state_load(BT_state *state)
     assert(SUCC(_flist_new(state)));
   }
   else {
+    /* restore data memory maps */
+    _bt_state_restore_maps(state);
+
     /* restore ephemeral freelists */
     assert(SUCC(_nlist_read(state)));
     assert(SUCC(_mlist_read(state)));
@@ -2353,9 +2356,6 @@ _bt_state_load(BT_state *state)
       return errno;
 
     state->file_size = stat.st_size;
-
-    /* restore data memory maps */
-    _bt_state_restore_maps(state);
   }
 
   return BT_SUCC;
