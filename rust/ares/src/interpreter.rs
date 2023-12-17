@@ -908,10 +908,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     },
                                 },
                                 Err(error) => match error {
-                                    Error::Deterministic(trace) | Error::ScryCrashed(trace) => {
+                                    Error::Deterministic(_, trace) | Error::ScryCrashed(trace) => {
                                         break Err(Error::ScryCrashed(trace));
                                     }
-                                    Error::NonDeterministic(_) => {
+                                    Error::NonDeterministic(_, _) => {
                                         break Err(error);
                                     }
                                     Error::ScryBlocked(_) => {
