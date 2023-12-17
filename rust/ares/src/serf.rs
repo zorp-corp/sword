@@ -222,15 +222,18 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
             tas!(b"live") => {
                 let inner = slot(writ, 6)?.as_direct().unwrap();
                 match inner.data() {
-                    tas!(b"cram") => eprintln!("cram"),
-                    tas!(b"exit") => eprintln!("exit"),
+                    tas!(b"cram") => eprintln!("\r %cram: not implemented"),
+                    tas!(b"exit") => {
+                        eprintln!("\r %exit");
+                        std::process::exit(0);
+                    }
                     tas!(b"save") => {
                         // XX what is eve for?
-                        eprintln!("save");
+                        eprintln!("\r %save");
                         context.sync();
                     }
-                    tas!(b"meld") => eprintln!("meld"),
-                    tas!(b"pack") => eprintln!("pack"),
+                    tas!(b"meld") => eprintln!("\r %meld: not implemented"),
+                    tas!(b"pack") => eprintln!("\r %pack: not implemented"),
                     _ => eprintln!("unknown live"),
                 }
                 context.live();
