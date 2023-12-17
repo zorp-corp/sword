@@ -59,6 +59,7 @@ use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts_mut;
+use sha3::{Digest, Sha3_256};
 
 crate::gdb!();
 
@@ -271,9 +272,15 @@ impl Newt {
             a
         };
 
-        eprintln!("ares: cueing");
         let b = atom.as_bytes();
-        eprintln!("ares: atom = {:x?}", &b[..64]);
+
+        //eprintln!("ares: atom = {:x?}", &b[..64]);
+        let mut hasher = Sha3_256::new();
+        hasher.update(b);
+        let result = hasher.finalize();
+        eprintln!("ares: hash(atom) = {:x?}", result);
+
+        eprintln!("ares: cueing");
         let c = cue(stack, atom);
         eprintln!("ares: finished cue");
         Some(c)
