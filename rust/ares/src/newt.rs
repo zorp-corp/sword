@@ -55,11 +55,11 @@ use crate::noun::{IndirectAtom, Noun, D, T};
 use crate::serialization::{cue, jam};
 use ares_macros::tas;
 use either::Either;
+use sha3::{Digest, Sha3_256};
 use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts_mut;
-use sha3::{Digest, Sha3_256};
 
 crate::gdb!();
 
