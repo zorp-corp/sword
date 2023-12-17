@@ -272,6 +272,8 @@ impl Newt {
         };
 
         eprintln!("ares: cueing");
+        let b = atom.as_bytes();
+        eprintln!("ares: atom = {:x?}", &b[..64]);
         let c = cue(stack, atom);
         eprintln!("ares: finished cue");
         Some(c)
