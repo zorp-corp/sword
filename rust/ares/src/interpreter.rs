@@ -957,7 +957,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                 };
             }
         })
-        .unwrap_or(Err(Error::NonDeterministic(Mote::Meme, D(0))))
+        .unwrap_or_else(|_e| Err(Error::NonDeterministic(Mote::Meme, D(0))))
     });
 
     match nock {
