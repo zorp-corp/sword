@@ -1,0 +1,20 @@
+[package]
+name = "ares-crypto"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+assert_no_alloc = "1.1.2"
+# use this when debugging requires allocation (e.g. eprintln)
+# assert_no_alloc = {version="1.1.2", features=["warn_debug"]}
+aes-siv = { version = "0.7.0", features = ["heapless"], default-features = false }
+ed25519-dalek = { version = "2.1.0", features = ["pkcs8", "rand_core"], default-features = false }
+ed25519 = { version = "2.2.3" }
+rand = { version = "0.8.5", features = ["getrandom", "std_rng"], default-features = false }
+
+[features]
+default = ["aes_siv", "ed25519"]
+aes_siv = []
+ed25519 = []
