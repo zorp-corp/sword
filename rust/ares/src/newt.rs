@@ -282,7 +282,7 @@ impl Newt {
 
         eprintln!("ares: cueing");
         let c = cue(stack, atom);
-        eprintln!("ares: finished cue");
+        eprintln!("ares: cue finished");
         Some(c)
     }
 }
