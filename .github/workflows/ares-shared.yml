@@ -75,7 +75,7 @@ jobs:
       # Build Ares
       - name: Build
         run: |
-          nix develop --command bash -c "cargo build --release --verbose --features check_all"
+          nix develop --command bash -c "cargo build --release --verbose"
 
       # Run tests
       - name: Test
