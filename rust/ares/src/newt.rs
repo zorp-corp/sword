@@ -272,13 +272,13 @@ impl Newt {
             a
         };
 
-        let b = atom.as_bytes();
+        //let b = atom.as_bytes();
 
         //eprintln!("ares: atom = {:x?}", &b[..64]);
-        let mut hasher = Sha3_256::new();
-        hasher.update(b);
-        let result = hasher.finalize();
-        eprintln!("ares: hash(atom) = {:x?}", result);
+        //let mut hasher = Sha3_256::new();
+        //hasher.update(b);
+        //let result = hasher.finalize();
+        //eprintln!("ares: hash(atom) = {:x?}", result);
 
         eprintln!("ares: cueing");
         let c = cue(stack, atom);
