@@ -400,6 +400,13 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
     //
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     let nock = assert_no_alloc(|| unsafe {
+        // An alternative approach would be to wrap slam() in serf in a catch closure. However,
+        // nesting catch blocks is convenient because the interpreter code will then pop frames
+        // down, preserving as much of the mean stack as possible and reusing the existing code
+        // paths for resetting the cold state, warm state, and cache.
+        //
+        // Otherwise, we would need to duplicate state reset logic in the serf, and we would run
+        // into the same problems Vere has with preserving the mean stack on OOM.
         hw_exception::catch(|| {
             let mut subject = x_subject;
             let mut res: Noun = D(0);
