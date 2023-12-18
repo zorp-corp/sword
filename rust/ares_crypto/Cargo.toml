@@ -12,11 +12,15 @@ assert_no_alloc = "1.1.2"
 aes-siv = { version = "0.7.0", features = ["heapless"], default-features = false }
 ed25519-dalek = { version = "2.1.0", features = ["pkcs8", "rand_core"], default-features = false }
 ed25519 = { version = "2.2.3" }
-rand = { version = "0.8.5", features = ["getrandom", "std_rng"], default-features = false }
+rand = { version = "0.8.5", features = ["std_rng"], default-features = false }
 urcrypt-sys = { version = "0.1.1", optional = true }
+sha2 = "0.10.8"
+ibig = "0.3.6"
+x25519-dalek = "2.0.0"
 
 [features]
-default = ["aes_siv", "ed25519"]
+# XX turn off test_vs_urcrypt after development
+default = ["aes_siv", "ed25519", "test_vs_urcrypt"]
 aes_siv = []
 ed25519 = []
 test_vs_urcrypt = ["urcrypt-sys"]
