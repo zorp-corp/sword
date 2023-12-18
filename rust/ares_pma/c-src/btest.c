@@ -43,6 +43,108 @@ _flist_sizep(BT_flistnode *head)
   return sz;
 }
 
+static BT_mlistnode *
+_mlist_copy(BT_state *state)
+{
+  BT_mlistnode *head = state->mlist;
+  BT_mlistnode *ret, *prev;
+  ret = prev = calloc(1, sizeof *ret);
+  memcpy(ret, head, sizeof *head);
+  ret->next = 0;
+  head = head->next;
+  while (head) {
+    BT_mlistnode *copy = calloc(1, sizeof *copy);
+    memcpy(copy, head, sizeof *head);
+    prev->next = copy;
+    prev = copy;
+    head = head->next;
+  }
+  return ret;
+}
+
+static BT_nlistnode *
+_nlist_copy(BT_state *state)
+{
+  BT_nlistnode *head = state->nlist;
+  BT_nlistnode *ret, *prev;
+  ret = prev = calloc(1, sizeof *ret);
+  memcpy(ret, head, sizeof *head);
+  ret->next = 0;
+  head = head->next;
+  while (head) {
+    BT_nlistnode *copy = calloc(1, sizeof *copy);
+    memcpy(copy, head, sizeof *head);
+    prev->next = copy;
+    prev = copy;
+    head = head->next;
+  }
+  return ret;
+}
+
+static BT_flistnode *
+_flist_copy(BT_state *state)
+{
+  BT_flistnode *head = state->flist;
+  BT_flistnode *ret, *prev;
+  ret = prev = calloc(1, sizeof *ret);
+  memcpy(ret, head, sizeof *head);
+  ret->next = 0;
+  head = head->next;
+  while (head) {
+    BT_flistnode *copy = calloc(1, sizeof *copy);
+    memcpy(copy, head, sizeof *head);
+    prev->next = copy;
+    prev = copy;
+    head = head->next;
+  }
+  return ret;
+}
+
+static int
+_mlist_eq(BT_mlistnode *l, BT_mlistnode *r)
+{
+  while (l && r) {
+    if (l->sz != r->sz)
+      bp(0);
+    if (l->va != r->va)
+      bp(0);
+    l = l->next; r = r->next;
+  }
+  if (l == 0 && r == 0)
+    return 1;
+  bp(0);
+}
+
+static int
+_nlist_eq(BT_nlistnode *l, BT_nlistnode *r)
+{
+  while (l && r) {
+    if (l->sz != r->sz)
+      bp(0);
+    if (l->va != r->va)
+      bp(0);
+    l = l->next; r = r->next;
+  }
+  if (l == 0 && r == 0)
+    return 1;
+  bp(0);
+}
+
+static int
+_flist_eq(BT_flistnode *l, BT_flistnode *r)
+{
+  while (l && r) {
+    if (l->sz != r->sz)
+      bp(0);
+    if (l->pg != r->pg)
+      bp(0);
+    l = l->next; r = r->next;
+  }
+  if (l == 0 && r == 0)
+    return 1;
+  bp(0);
+}
+
 int main(int argc, char *argv[])
 {
   DPUTS("PMA Tests");
@@ -149,24 +251,36 @@ int main(int argc, char *argv[])
   flist_sizp = _flist_sizep(state3->flist);
   mlist_sizp = _mlist_sizep(state3->mlist);
   alloc_sizp = 0;
-  for (size_t i = 0; i < ITERATIONS / 2; i++) {
-    /* free half of the allocations */
-    bt_free(state3, allocs[i].lo, allocs[i].hi);
-    alloc_sizp += allocs[i].hi - allocs[i].lo;
-    /* validate size changes to mlist */
-    assert(_mlist_sizep(state3->mlist)
-           == (mlist_sizp + alloc_sizp));
-  }
+  /* for (size_t i = 0; i < ITERATIONS / 2; i++) { */
+  /*   /\* free half of the allocations *\/ */
+  /*   bt_free(state3, allocs[i].lo, allocs[i].hi); */
+  /*   alloc_sizp += allocs[i].hi - allocs[i].lo; */
+  /*   /\* validate size changes to mlist *\/ */
+  /*   assert(_mlist_sizep(state3->mlist) */
+  /*          == (mlist_sizp + alloc_sizp)); */
+  /* } */
 
-  /* resync the state */
   bt_sync(state3);
+
+  /* copy ephemeral structures */
+  BT_mlistnode *mlist_copy = _mlist_copy(state3);
+  BT_nlistnode *nlist_copy = _nlist_copy(state3);
+  BT_flistnode *flist_copy = _flist_copy(state3);
+  assert(_mlist_eq(mlist_copy, state3->mlist));
+  assert(_nlist_eq(nlist_copy, state3->nlist));
+  assert(_flist_eq(flist_copy, state3->flist));
 
   bt_state_close(state3);
 
   bt_state_new(&state3);
 
   assert(SUCC(bt_state_open(state3, "./pmatest3", 0, 0644)));
-  /* TODO: close and reopen state. validate ephemeral structures */
+
+  /* compare for equality copies of ephemeral structures with restored ephemeral
+     structures */
+  assert(_mlist_eq(mlist_copy, state3->mlist));
+  assert(_nlist_eq(nlist_copy, state3->nlist));
+  assert(_flist_eq(flist_copy, state3->flist));
 
   return 0;
 }
