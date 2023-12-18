@@ -30,3 +30,9 @@ pub fn ac_ed_shar(public: &[u8; 32], seed: &[u8; 32], out: *mut u8) -> Result<()
     }
     Ok(())
 }
+
+#[cfg(test)]
+#[cfg(feature = "test_vs_urcrypt")]
+mod ucrypt_test {
+    // tests comparing urcrypt and ares_crypto output for ed25519 functions go here
+}

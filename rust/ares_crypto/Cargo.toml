@@ -13,8 +13,10 @@ aes-siv = { version = "0.7.0", features = ["heapless"], default-features = false
 ed25519-dalek = { version = "2.1.0", features = ["pkcs8", "rand_core"], default-features = false }
 ed25519 = { version = "2.2.3" }
 rand = { version = "0.8.5", features = ["getrandom", "std_rng"], default-features = false }
+urcrypt-sys = { version = "0.1.1", optional = true }
 
 [features]
 default = ["aes_siv", "ed25519"]
 aes_siv = []
 ed25519 = []
+test_vs_urcrypt = ["urcrypt-sys"]
