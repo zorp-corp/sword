@@ -25,12 +25,15 @@ pub fn ac_ed_shar(public: &[u8; 32], seed: &[u8; 32], out: &mut [u8; 32]) {
     }
 }
 
+/// Sign a message with the given seed and write the resulting signature to the
+/// given output slice.
 pub fn ac_ed_sign(msg: &[u8], seed: &[u8; 32], out: &mut [u8; 64]) {
     let signing_key = SigningKey::from_bytes(seed);
     let signature = signing_key.sign(msg);
     *out = signature.to_bytes();
 }
 
+/// Verify a signature of the given message with the given public key.
 pub fn ac_ed_veri(msg: &[u8], public: &[u8; 32], signature: &[u8; 64]) -> bool {
     if let Ok(verifying_key) = VerifyingKey::from_bytes(public) {
         verifying_key
