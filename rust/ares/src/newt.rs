@@ -55,7 +55,7 @@ use crate::noun::{IndirectAtom, Noun, D, T};
 use crate::serialization::{cue, jam};
 use ares_macros::tas;
 use either::Either;
-use sha3::{Digest, Sha3_256};
+//use sha3::{Digest, Sha3_256};
 use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
 use std::ptr::copy_nonoverlapping;
