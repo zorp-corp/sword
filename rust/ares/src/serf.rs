@@ -313,13 +313,20 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
 }
 
 fn goof(context: &mut Context, mote: Mote, traces: Noun) -> Noun {
-    // XX: probably needs to be wrapped in hw_exception::catch
-    let trace = zing(&mut context.nock_context.stack, traces).unwrap();
-    let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
-    let tang = mook(&mut context.nock_context, tone, false)
-        .expect("serf: goof: +mook crashed on bail")
-        .tail();
-    T(&mut context.nock_context.stack, &[D(mote as u64), tang])
+    let nock_context: *mut interpreter::Context = &mut context.nock_context;
+    let stack: *mut NockStack = &mut context.nock_context.stack;
+
+    hw_exception::catch(|| unsafe {
+        // XX: probably needs to be wrapped in hw_exception::catch
+        let trace = zing(&mut (*stack), traces).unwrap();
+        let tone = Cell::new(&mut (*stack), D(2), trace);
+        let tang = mook(&mut (*nock_context), tone, false)
+            // XX: need to handle this case for real
+            .expect("serf: goof: +mook crashed on bail")
+            .tail();
+        T(&mut (*stack), &[D(mote as u64), tang])
+    })
+    .unwrap_or_else(|_e| unsafe { T(&mut (*stack), &[D(Mote::Meme as u64), D(0)]) })
 }
 
 /** Run slam; process stack trace to tang if error.
