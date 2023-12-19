@@ -53,6 +53,7 @@ dependencies = [
 name = "ares_crypto"
 version = "0.1.0"
 dependencies = [
+ "aes",
  "aes-siv",
  "assert_no_alloc",
  "curve25519-dalek",
