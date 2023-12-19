@@ -73,15 +73,13 @@ pub mod util {
             let mut dest = &mut res as *mut Noun;
 
             while !list.raw_equals(D(0)) {
-                let pair = list.as_cell().expect("outer");
+                let pair = list.as_cell()?;
                 let mut sublist = pair.head();
                 list = pair.tail();
 
                 while !sublist.raw_equals(D(0)) {
-                    if sublist.is_atom() {
-                        panic!("zing: sublist is atom: {:?}", sublist);
-                    };
-                    let it = sublist.as_cell().expect("inner");
+                    if sublist.is_atom()?;
+                    let it = sublist.as_cell()?;
                     let i = it.head();
                     sublist = it.tail();
 
