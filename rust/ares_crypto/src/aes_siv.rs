@@ -1,21 +1,17 @@
 use aes_siv::{
-    aead::{generic_array::GenericArray, heapless::Vec, AeadInPlace, Buffer, KeyInit},
-    Aes256SivAead, Aes128SivAead,
-    Error, // Or `Aes256SivAead`
-    Nonce, siv::KeySize,
+    aead::{heapless::Vec, AeadInPlace, KeyInit},
+    Aes128SivAead, Error, Nonce
 };
 
 pub fn _ac_aes_siv_en(
     key: &mut [u8],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &[u8; 16],
+    iv: &mut [u8; 16],
     out: &mut [u8],
 ) -> Result<(), Error> {
     let cipher = Aes128SivAead::new_from_slice(key).unwrap();
-    let nonce = Nonce::from_slice(b"any unique nonce");
-    let mut buffer = Vec::<u8, 1024>::new();
-    buffer.extend_from_slice(message).unwrap();
+    let nonce = Nonce::default();
     let mut ad: Vec<u8, 1024> = Vec::new();
     for i in 0..data.len() {
         for j in 0..data[i].len() {
@@ -23,90 +19,96 @@ pub fn _ac_aes_siv_en(
         }
     }
     let ad_bytes = ad.as_slice();
-    cipher.encrypt_in_place_detached(nonce, ad_bytes, &mut buffer)?;
-    out.copy_from_slice(&buffer);
+    let iv_array = cipher.encrypt_in_place_detached(&nonce, ad_bytes, message)?;
+    iv.copy_from_slice(iv_array.as_slice());
+    out.copy_from_slice(message);
     Ok(())
 }
 
-pub fn _ac_aes_siv_de(
-    key: &mut [u8],
-    message: &mut [u8],
-    data: &mut [&mut [u8]],
-    iv: &[u8; 16],
-    out: &mut [u8],
-) {
-    todo!();
-}
+// pub fn _ac_aes_siv_de(
+//     key: &mut [u8],
+//     message: &mut [u8],
+//     data: &mut [&mut [u8]],
+//     iv: &[u8; 16],
+//     out: &mut [u8],
+// ) {
+//     todo!();
+// }
 
 pub fn ac_aes_siva_en(
     key: &mut [u8; 32],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &[u8; 16],
+    iv: &mut [u8; 16],
     out: &mut [u8],
 ) {
-    _ac_aes_siv_en(key, message, data, iv, out);
+    _ac_aes_siv_en(key, message, data, iv, out).unwrap();
 }
 
-pub fn ac_aes_siva_de(
-    key: &mut [u8; 32],
-    message: &mut [u8],
-    data: &mut [&mut [u8]],
-    iv: &[u8; 16],
-    out: &mut [u8],
-) {
-    todo!();
-}
+// pub fn ac_aes_siva_de(
+//     key: &mut [u8; 32],
+//     message: &mut [u8],
+//     data: &mut [&mut [u8]],
+//     iv: &[u8; 16],
+//     out: &mut [u8],
+// ) {
+//     todo!();
+// }
 
-pub fn ac_aes_sivb_en(
-    key: &mut [u8; 48],
-    message: &mut [u8],
-    data: &mut [&mut [u8]],
-    iv: &[u8; 16],
-    out: &mut [u8],
-) {
-    _ac_aes_siv_en(key, message, data, iv, out);
-}
+// pub fn ac_aes_sivb_en(
+//     key: &mut [u8; 48],
+//     message: &mut [u8],
+//     data: &mut [&mut [u8]],
+//     iv: &[u8; 16],
+//     out: &mut [u8],
+// ) {
+//     _ac_aes_siv_en(key, message, data, iv, out);
+// }
 
-pub fn ac_aes_sivb_de(
-    key: &mut [u8; 48],
-    message: &mut [u8],
-    data: &mut [&mut [u8]],
-    iv: &[u8; 16],
-    out: &mut [u8],
-) {
-    todo!();
-}
+// pub fn ac_aes_sivb_de(
+//     key: &mut [u8; 48],
+//     message: &mut [u8],
+//     data: &mut [&mut [u8]],
+//     iv: &[u8; 16],
+//     out: &mut [u8],
+// ) {
+//     todo!();
+// }
 
-pub fn ac_aes_sivc_en(
-    key: &mut [u8; 64],
-    message: &mut [u8],
-    data: &mut [&mut [u8]],
-    iv: &[u8; 16],
-    out: &mut [u8],
-) {
-    _ac_aes_siv_en(key, message, data, iv, out);
-}
+// pub fn ac_aes_sivc_en(
+//     key: &mut [u8; 64],
+//     message: &mut [u8],
+//     data: &mut [&mut [u8]],
+//     iv: &[u8; 16],
+//     out: &mut [u8],
+// ) {
+//     _ac_aes_siv_en(key, message, data, iv, out);
+// }
 
-pub fn ac_aes_sivc_de(
-    key: &mut [u8; 64],
-    message: &mut [u8],
-    data: &mut [&mut [u8]],
-    iv: &[u8; 16],
-    out: &mut [u8],
-) {
-}
+// pub fn ac_aes_sivc_de(
+//     key: &mut [u8; 64],
+//     message: &mut [u8],
+//     data: &mut [&mut [u8]],
+//     iv: &[u8; 16],
+//     out: &mut [u8],
+// ) {
+//     todo!();
+// }
 
 #[cfg(test)]
 #[cfg(feature = "test_vs_urcrypt")]
 mod urcrypt_tests {
     use super::{
-        ac_aes_siva_de, ac_aes_siva_en, ac_aes_sivb_de, ac_aes_sivb_en, ac_aes_sivc_de,
-        ac_aes_sivc_en,
+        ac_aes_siva_en,
+        // ac_aes_siva_de, ac_aes_siva_en, ac_aes_sivb_de, ac_aes_sivb_en, ac_aes_sivc_de,
+        // ac_aes_sivc_en,
     };
     use urcrypt_sys::{
-        urcrypt_aes_siv_data, urcrypt_aes_siva_de, urcrypt_aes_siva_en, urcrypt_aes_sivb_de,
-        urcrypt_aes_sivb_en, urcrypt_aes_sivc_de, urcrypt_aes_sivc_en,
+        urcrypt_aes_siv_data,
+        // urcrypt_aes_siva_de,
+        urcrypt_aes_siva_en,
+        // urcrypt_aes_sivb_de,
+        // urcrypt_aes_sivb_en, urcrypt_aes_sivc_de, urcrypt_aes_sivc_en,
     };
 
     #[test]
@@ -143,7 +145,7 @@ mod urcrypt_tests {
 
         let mut ac_data: [&mut [u8]; 2] = [&mut [42; 32], &mut [43; 32]];
         let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_siva_en(&mut key, &mut message, &mut ac_data, &iv, &mut ac_out);
+        ac_aes_siva_en(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out);
 
         assert_eq!(ac_out, uc_out);
     }

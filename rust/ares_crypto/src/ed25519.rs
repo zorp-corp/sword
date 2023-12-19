@@ -48,7 +48,7 @@ pub fn ac_ed_veri(msg: &[u8], public: &[u8; 32], signature: &[u8; 64]) -> bool {
 mod tests {
     use ibig::ubig;
 
-    use super::{ac_ed_puck, ac_ed_shar, ac_ed_sign, ac_ed_veri};
+    use super::{ac_ed_puck, ac_ed_sign, ac_ed_veri};
 
     #[test]
     fn test_ed_puck() {
