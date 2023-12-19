@@ -101,6 +101,8 @@ addr2off(void *p)
 /* convert a pointer into a 32-bit page offset */
 {
   uintptr_t pu = (uintptr_t)p;
+  assert(pu >= (uintptr_t)BT_MAPADDR);
+  pu -= (uintptr_t)BT_MAPADDR;
   assert((pu & ((1 << BT_PAGEBITS) - 1)) == 0); /* p must be page-aligned */
   return (vaof_t)(pu >> BT_PAGEBITS);
 }
@@ -633,7 +635,7 @@ _bt_find2(BT_state *state,
 static void
 _bt_root_new(BT_meta *meta, BT_page *root)
 {
-  /* The first usable address in the PMA is just beyond the first node stripe */
+  /* The first usable address in the PMA is just beyond the btree segment */
   root->datk[0].va = B2PAGES(BLK_BASE_LEN_TOTAL);
   root->datk[0].fo = 0;
   root->datk[1].va = UINT32_MAX;
@@ -1706,7 +1708,7 @@ _nlist_new(BT_state *state)
 
   /* the size of a new node freelist is just the first stripe length */
   head->lo = &((BT_page *)state->map)[BT_NUMMETAS];
-  head->hi = head->lo + BLK_BASE_LEN0;
+  head->hi = head->lo + B2PAGES(BLK_BASE_LEN0);
   head->next = 0;
 
   state->nlist = head;
@@ -2749,7 +2751,7 @@ bt_malloc(BT_state *state, size_t pages)
 
     if (sz_p >= pages) {
       ret = (*n)->lo;
-      BT_page *hi = (BT_page *)ret + pages;
+      BT_page *hi = ((BT_page *)ret) + pages;
       _mlist_record_alloc(state, ret, hi);
       break;
     }
