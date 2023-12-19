@@ -126,7 +126,7 @@ off2addr(vaof_t off)
 #define BT_PROT_CLEAN (PROT_READ)
 #define BT_FLAG_CLEAN (MAP_FIXED | MAP_SHARED)
 #define BT_PROT_FREE  (PROT_NONE)
-#define BT_FLAG_FREE  (MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE)
+#define BT_FLAG_FREE  (MAP_ANONYMOUS | MAP_SHARED | MAP_FIXED | MAP_NORESERVE)
 #define BT_PROT_DIRTY (PROT_READ | PROT_WRITE)
 #define BT_FLAG_DIRTY (MAP_FIXED | MAP_SHARED)
 
@@ -250,13 +250,23 @@ static_assert(BT_DAT_MAXBYTES % sizeof(BT_dat) == 0);
    additional information
 */
 #define BLK_BASE_LEN0 (MBYTES(2) - BT_META_SECTION_WIDTH)
-#define BLK_BASE_LEN1 (BLK_BASE_LEN0 * 4)
+#define BLK_BASE_LEN1 (MBYTES(8))
 #define BLK_BASE_LEN2 (BLK_BASE_LEN1 * 4)
 #define BLK_BASE_LEN3 (BLK_BASE_LEN2 * 4)
 #define BLK_BASE_LEN4 (BLK_BASE_LEN3 * 4)
 #define BLK_BASE_LEN5 (BLK_BASE_LEN4 * 4)
 #define BLK_BASE_LEN6 (BLK_BASE_LEN5 * 4)
 #define BLK_BASE_LEN7 (BLK_BASE_LEN6 * 4)
+#define BLK_BASE_LEN_TOTAL (                            \
+                             BT_META_SECTION_WIDTH +    \
+                             BLK_BASE_LEN0 +            \
+                             BLK_BASE_LEN1 +            \
+                             BLK_BASE_LEN2 +            \
+                             BLK_BASE_LEN3 +            \
+                             BLK_BASE_LEN4 +            \
+                             BLK_BASE_LEN5 +            \
+                             BLK_BASE_LEN6 +            \
+                             BLK_BASE_LEN7)
 typedef struct BT_meta BT_meta;
 struct BT_meta {
 #define BT_NUMROOTS 32
@@ -288,22 +298,24 @@ static_assert(sizeof(BT_meta) <= BT_DAT_MAXBYTES);
 
 typedef struct BT_mlistnode BT_mlistnode;
 struct BT_mlistnode {
-  void *va;                     /* virtual address */
-  size_t sz;                    /* size in pages */
+  /* ;;: lo and hi might as well by (BT_page *) because we don't have any reason
+       to have finer granularity */
+  BYTE *lo;                     /* low virtual address */
+  BYTE *hi;                     /* high virtual address */
   BT_mlistnode *next;           /* next freelist node */
 };
 
 typedef struct BT_nlistnode BT_nlistnode;
 struct BT_nlistnode {
-  BT_page *va;                  /* virtual address */
-  size_t sz;                    /* size in pages */
+  BT_page *lo;                  /* low virtual address */
+  BT_page *hi;                  /* high virtual address */
   BT_nlistnode *next;           /* next freelist node */
 };
 
 typedef struct BT_flistnode BT_flistnode;
 struct BT_flistnode {
-  pgno_t pg;                    /* pgno - an offset in the persistent file */
-  size_t sz;                    /* size in pages */
+  pgno_t lo;                    /* low pgno in persistent file */
+  pgno_t hi;                    /* high pgno in persistent file */
   BT_flistnode *next;           /* next freelist node */
 };
 
@@ -399,26 +411,26 @@ _bt_nalloc(BT_state *state)
   BT_page *ret = 0;
 
   for (; *n; n = &(*n)->next) {
-    /* ;;: this assert is temporary. When partition striping is
-         implemented. Rather than assert, conditionally check if we're at the
-         end of the current stripe. If so, allocate a new region and append that
-         to the freelist. */
-    size_t width = (BYTE *)state->nlist->va - state->map;
-    /* ;;: asserting 2M for now since partition striping is unimplemented */
-    assert(width < MBYTES(2));
+    size_t sz_p = (*n)->hi - (*n)->lo;
     /* perfect fit */
-    if ((*n)->sz == 1) {
-      ret = (*n)->va;
+    if (sz_p == 1) {
+      ret = (*n)->lo;
+      BT_nlistnode *prev = *n;
       *n = (*n)->next;
+      free(prev);
       break;
     }
     /* larger than necessary: shrink the node */
-    if ((*n)->sz > 1) {
-      ret = (*n)->va;
-      (*n)->sz -= 1;
-      (*n)->va = (*n)->va + 1;
+    if (sz_p > 1) {
+      ret = (*n)->lo;
+      (*n)->lo += 1;
       break;
     }
+  }
+
+  if (ret == 0) {
+    DPUTS("nlist out of mem!");
+    abort();
   }
 
   /* make node writable */
@@ -511,7 +523,7 @@ static void
 _bt_root_new(BT_meta *meta, BT_page *root)
 {
   /* The first usable address in the PMA is just beyond the first node stripe */
-  root->datk[0].va = meta->blk_base[0] + BLK_BASE_LEN0;
+  root->datk[0].va = B2PAGES(BLK_BASE_LEN_TOTAL);
   root->datk[0].fo = 0;
   root->datk[1].va = UINT32_MAX;
   root->datk[1].fo = 0;
@@ -777,108 +789,118 @@ _bt_delco_1pass(BT_state *state, vaof_t lo, vaof_t hi)
 
 static void
 _mlist_insert(BT_state *state, void *lo, void *hi)
-{                /* ;;: this logic could be simplified with indirect pointers */
-  BT_mlistnode *head = state->mlist;
+{
+  BT_mlistnode **dst = &state->mlist;
+  BT_mlistnode **prev_dst = 0;
   BYTE *lob = lo;
   BYTE *hib = hi;
 
-  assert(head);
+  while(*dst) {
+    if (hib == (*dst)->lo) {
+      (*dst)->lo = lob;
+      /* check if we can coalesce with left neighbor */
+      if (prev_dst != 0) {
+        bp(0);  /* ;;: note, this case should not hit. keeping for debugging. */
+        /* dst equals &(*prev_dst)->next */
+        assert(*prev_dst != 0);
+        if ((*prev_dst)->hi == lob) {
+          (*prev_dst)->hi = (*dst)->hi;
+          (*prev_dst)->next = (*dst)->next;
+          free(*dst);
+        }
+      }
+      return;
+    }
+    if (lob == (*dst)->hi) {
+      (*dst)->hi = hi;
+      /* check if we can coalesce with right neighbor */
+      if ((*dst)->next != 0) {
+        if (hib == (*dst)->next->lo) {
+          (*dst)->hi = (*dst)->next->hi;
+          BT_mlistnode *dst_next = (*dst)->next;
+          (*dst)->next = (*dst)->next->next;
+          free(dst_next);
+        }
+      }
+      return;
+    }
+    if (hib > (*dst)->lo) {
+      assert(lob > (*dst)->hi);
+      assert(hib > (*dst)->hi);
+      prev_dst = dst;
+      dst = &(*dst)->next;
+      continue;
+    }
 
-  /* special case: freed chunk precedes but is not contiguous with head */
-  if (hi < head->va) {
+    /* otherwise, insert discontinuous node */
     BT_mlistnode *new = calloc(1, sizeof *new);
-    new->sz = B2PAGES(hib - lob);
-    new->va = lob;
-    new->next = head;
-    state->mlist = new;
+    new->lo = lob;
+    new->hi = hib;
+    new->next = *dst;
+    *dst = new;
     return;
   }
 
-  while (head) {
-    BYTE   *vob = head->va;
-    size_t  siz = head->sz;
-    BYTE   *nob = head->next ? head->next->va : 0;
-
-    /* freed chunk immediately precedes head */
-    if (hib == vob) {
-      head->va = lo;
-      head->sz += B2PAGES(hib - lob);
-      return;
-    }
-    /* freed chunk immediately follows termination of head */
-    if (vob + siz == lo) {
-      head->sz += B2PAGES(hib - lob);
-      return;
-    }
-    /* freed chunk between head and next but not contiguous */
-    if (lob > vob + siz
-        && hib < nob) {
-      BT_mlistnode *new = calloc(1, sizeof *new);
-      new->sz = B2PAGES(hib - lob);
-      new->va = lob;
-      new->next = head->next;
-      head->next = new;
-      return;
-    }
-    head = head->next;
-  }
-  /* freelist completely searched. Chunk must be at tail and not contiguous */
+  /* found end of list */
   BT_mlistnode *new = calloc(1, sizeof *new);
-  new->sz = B2PAGES(hib - lob);
-  new->va = lob;
-  new->next = head->next;
-  head->next = new;
+  new->lo = lob;
+  new->hi = hib;
+  new->next = 0;
+  (*dst) = new;
 }
 
 static void
-_pending_nlist_insert(BT_state *state, pgno_t nodepg)
+_nlist_insert(BT_state *state, BT_nlistnode **dst, pgno_t nodepg)
 {
-  /* ;;: todo: need to account for a null head */
-  BT_nlistnode *head = state->pending_nlist;
-  BT_page *va = _node_get(state, nodepg);
+  BT_nlistnode **prev_dst = 0;
+  BT_page *lo = _node_get(state, nodepg);
+  BT_page *hi = lo+1;
 
-  /* freelist may be empty. create head */
-  if (head == 0) {
-    state->pending_nlist = calloc(1, sizeof *state->pending_nlist);
-    state->pending_nlist->sz = 1;
-    state->pending_nlist->va = va;
+  while(*dst) {
+    if (hi == (*dst)->lo) {
+      (*dst)->lo = lo;
+      /* check if we can coalesce with left neighbor */
+      if (prev_dst != 0) {
+        bp(0);  /* ;;: note, this case should not hit. keeping for debugging. */
+        /* dst equals &(*prev_dst)->next */
+        assert(*prev_dst != 0);
+        if ((*prev_dst)->hi == lo) {
+          (*prev_dst)->hi = (*dst)->hi;
+          (*prev_dst)->next = (*dst)->next;
+          free(*dst);
+        }
+      }
+      return;
+    }
+    if (lo == (*dst)->hi) {
+      (*dst)->hi = hi;
+      /* check if we can coalesce with right neighbor */
+      if ((*dst)->next != 0) {
+        if (hi == (*dst)->next->lo) {
+          (*dst)->hi = (*dst)->next->hi;
+          BT_nlistnode *dst_next = (*dst)->next;
+          (*dst)->next = (*dst)->next->next;
+          free(dst_next);
+        }
+      }
+      return;
+    }
+    if (hi > (*dst)->lo) {
+      assert(lo > (*dst)->hi);
+      assert(hi > (*dst)->hi);
+      prev_dst = dst;
+      dst = &(*dst)->next;
+      continue;
+    }
+
+    /* otherwise, insert discontinuous node */
+    BT_nlistnode *new = calloc(1, sizeof *new);
+    new->lo = lo;
+    new->hi = hi;
+    new->next = *dst;
+    *dst = new;
     return;
   }
-
-  if (!head->next) {
-    if (head->va < va)
-      goto append;
-    /* otherwise prepend and update mlist head reference */
-    BT_nlistnode *new = calloc(1, sizeof *new);
-    new->sz = 1;
-    new->va = va;
-    new->next = head;
-    state->nlist = new;
-  }
-
-  /* we don't need to account for a freelist node's size because we aren't
-     coalescing the pending freelists */
-  while (head) {
-    BT_page *nva = head->next ? head->next->va : (void*)-1;
-    if (nva > va)
-      break;
-    head = head->next;
-  }
-
- append:
-  /* head->next is either null or has a higher address than va */
-  BT_nlistnode *new = calloc(1, sizeof *new);
-  new->sz = 1;
-  new->va = va;
-  new->next = head->next;
-  head->next = new;
-}
-
-static BT_nlistnode *
-_nlist_find(BT_nlistnode *head, BT_page *va)
-/* find a node  */
-{
-
 }
 
 static void
@@ -893,36 +915,33 @@ _pending_nlist_merge(BT_state *state)
       return;
     }
 
+    /* ;;: TODO: you still need to coalesce neighbor nodes in dst if we widen
+         them */
+
     /* check if src node should be merged with dst  **************************/
-    BT_page *dst_va      = (*dst_head)->va;
-    size_t   dst_sz      = (*dst_head)->sz;
-    BT_page *src_va      = (*src_head)->va;
-    /* NB: while we don't currently coalesce the pending nlist, it's not that
-       hard to account for if we did, so might as well generalize the merge
-       algorithm */
-    size_t   src_sz      = (*src_head)->sz;
-    BT_page *dst_next_va = *dst_head ? (*dst_head)->next->va : 0;
+    BT_page *dst_nlo = (*dst_head)->next ? (*dst_head)->next->lo : 0;
 
     /* source node immediately follows dst node's termination */
-    if (dst_va + dst_sz == src_va) {
-      (*dst_head)->sz += src_sz; /* widen dst node */
+    if ((*dst_head)->hi == (*src_head)->lo) {
+      /* expand dst node */
+      (*dst_head)->hi = (*src_head)->hi;
       /* advance src node and free previous */
       BT_nlistnode *prev = *src_head;
       src_head = &(*src_head)->next;
       free(prev);
     }
     /* source node's termination immediately precedes dst node */
-    else if (dst_next_va == src_va + src_sz) {
-      (*dst_head)->va = src_va;  /* pull va back */
-      (*dst_head)->sz += src_sz; /* widen node */
+    else if ((*src_head)->hi == (*dst_head)->lo) {
+      /* expand dst node */
+      (*src_head)->lo = (*dst_head)->lo;
       /* advance src node and free previous */
       BT_nlistnode *prev = *src_head;
       src_head = &(*src_head)->next;
       free(prev);
     }
-    /* src node lies between but isn't contiguous with dst */
-    else if (src_va > dst_va + dst_sz
-             && src_va + src_sz < dst_next_va) {
+    /* src node is discontiguously between dst head and next */
+    else if ((*src_head)->lo > (*dst_head)->hi
+             && (*src_head)->hi < dst_nlo) {
       /* link src node in */
       (*src_head)->next = (*dst_head)->next;
       (*dst_head)->next = *src_head;
@@ -939,53 +958,54 @@ _pending_nlist_merge(BT_state *state)
 }
 
 static void
-_pending_flist_insert(BT_state *state, pgno_t pg, size_t sz)
-{ /* ;;: again, this logic could probably be simplified with an indirect pointer */
-  BT_flistnode *head = state->pending_flist;
+_flist_insert(BT_flistnode **dst, pgno_t lo, pgno_t hi)
+{
+  BT_flistnode **prev_dst = 0;
 
-  /* freelist may be empty. create head */
-  if (head == 0) {
-    state->pending_flist = calloc(1, sizeof *state->pending_flist);
-    state->pending_flist->pg = pg;
-    state->pending_flist->sz = sz;
-    return;
-  }
-
-  while (head->next) {
-    /* next node starts at pg higher than this freechunk's termination */
-    if (head->next->pg >= pg + sz) {
-      break;
+  while(*dst) {
+    if (hi == (*dst)->lo) {
+      (*dst)->lo = lo;
+      /* check if we can coalesce with left neighbor */
+      if (prev_dst != 0) {
+        bp(0);  /* ;;: note, this case should not hit. keeping for debugging. */
+        /* dst equals &(*prev_dst)->next */
+        assert(*prev_dst != 0);
+        if ((*prev_dst)->hi == lo) {
+          (*prev_dst)->hi = (*dst)->hi;
+          (*prev_dst)->next = (*dst)->next;
+          free(*dst);
+        }
+      }
+      return;
     }
-    head = head->next;
-  }
+    if (lo == (*dst)->hi) {
+      (*dst)->hi = hi;
+      /* check if we can coalesce with right neighbor */
+      if ((*dst)->next != 0) {
+        if (hi == (*dst)->next->lo) {
+          (*dst)->hi = (*dst)->next->hi;
+          BT_flistnode *dst_next = (*dst)->next;
+          (*dst)->next = (*dst)->next->next;
+          free(dst_next);
+        }
+      }
+      return;
+    }
+    if (hi > (*dst)->lo) {
+      assert(lo > (*dst)->hi);
+      assert(hi > (*dst)->hi);
+      prev_dst = dst;
+      dst = &(*dst)->next;
+      continue;
+    }
 
-  /* if freed chunk follows head, expand head */
-  if (head->pg + head->sz == pg) {
-    head->sz += sz;
+    /* otherwise, insert discontinuous node */
+    BT_flistnode *new = calloc(1, sizeof *new);
+    new->lo = lo;
+    new->hi = hi;
+    new->next = *dst;
+    *dst = new;
     return;
-  }
-
-  /* if the freed chunk precedes next, expand next and pull pg back */
-  if (head->next->pg == pg + sz) {
-    head->next->pg = pg;
-    head->next->sz += sz;
-    return;
-  }
-
-  /* otherwise, insert a new node either preceding or following head */
-  BT_flistnode *new = calloc(1, sizeof *new);
-  new->pg = pg;
-  new->sz = sz;
-
-  if (head->pg < pg + sz) {
-    /* should only happen if head is the first node in the freelist */
-    assert(head == state->pending_flist);
-    new->next = head;
-    state->pending_flist = new;
-  }
-  else {
-    new->next = head->next;
-    head->next = new;
   }
 }
 
@@ -1001,33 +1021,33 @@ _pending_flist_merge(BT_state *state)
       return;
     }
 
+    /* ;;: TODO: you still need to coalesce neighbor nodes in dst if we widen
+         them */
+
     /* check if src node should be merged with dst  **************************/
-    pgno_t dst_pg = (*dst_head)->pg;
-    size_t dst_sz = (*dst_head)->sz;
-    pgno_t src_pg = (*src_head)->pg;
-    size_t src_sz = (*src_head)->sz;
-    pgno_t dst_next_pg = *dst_head ? (*dst_head)->next->pg : 0;
+    pgno_t dst_nlo = (*dst_head)->next ? (*dst_head)->next->lo : 0;
 
     /* source node immediately follows dst node's termination */
-    if (dst_pg + dst_sz == src_pg) {
-      (*dst_head)->sz += src_sz;     /* widen dst node */
+    if ((*dst_head)->hi == (*src_head)->lo) {
+      /* expand dst node */
+      (*dst_head)->hi = (*src_head)->hi;
       /* advance src node and free previous */
       BT_flistnode *prev = *src_head;
       src_head = &(*src_head)->next;
       free(prev);
     }
     /* source node's termination immediately precedes dst node */
-    else if (src_pg + src_sz == dst_pg) {
-      (*dst_head)->pg = src_pg;  /* pull page back */
-      (*dst_head)->sz += src_sz; /* widen node */
+    else if ((*src_head)->hi == (*dst_head)->lo) {
+      /* expand dst node */
+      (*src_head)->lo = (*dst_head)->lo;
       /* advance src node and free previous */
       BT_flistnode *prev = *src_head;
       src_head = &(*src_head)->next;
       free(prev);
     }
-    /* src node lies between but isn't contiguous with dst */
-    else if (dst_next_pg > src_pg + src_sz
-             && dst_pg + dst_sz < src_pg) {
+    /* src node is discontiguously between dst head and next */
+    else if ((*src_head)->lo > (*dst_head)->hi
+             && (*src_head)->hi < dst_nlo) {
       /* link src node in */
       (*src_head)->next = (*dst_head)->next;
       (*dst_head)->next = *src_head;
@@ -1046,30 +1066,40 @@ _pending_flist_merge(BT_state *state)
 
 /* ;;: todo move shit around */
 static void
-_bt_delco_droptree2(BT_state *state, pgno_t nodepg, uint8_t depth, uint8_t maxdepth)
+_bt_delco_droptree2(BT_state *state, pgno_t nodepg,
+                    uint8_t depth, uint8_t maxdepth, int isdirty)
 {
+  int ischilddirty = 0;
+
   /* branch */
   if (depth != maxdepth) {
     BT_page *node = _node_get(state, nodepg);
-    for (size_t i = 0; i < BT_DAT_MAXKEYS; i++) {
+   for (size_t i = 0; i < BT_DAT_MAXKEYS; i++) {
       BT_kv entry = node->datk[i];
       if (entry.fo == 0)
         break;                  /* done */
-      _bt_delco_droptree2(state, entry.fo, depth+1, maxdepth);
+      ischilddirty = _bt_ischilddirty(node, i);
+      _bt_delco_droptree2(state, entry.fo, depth+1, maxdepth, ischilddirty);
     }
   }
 
-  _pending_nlist_insert(state, nodepg);
+  /* branch and leaf */
+  if (isdirty) {
+    _nlist_insert(state, &state->nlist, nodepg);
+  }
+  else {
+    _nlist_insert(state, &state->pending_nlist, nodepg);
+  }
 }
 
 static void
-_bt_delco_droptree(BT_state *state, pgno_t nodepg, uint8_t depth)
+_bt_delco_droptree(BT_state *state, pgno_t nodepg, uint8_t depth, int isdirty)
 {
   /* completely drop a tree. Assume that all leaves under the tree are free
      (pgno = 0) */
   assert(nodepg >= 2);
   BT_meta *meta = state->meta_pages[state->which];
-  return _bt_delco_droptree2(state, nodepg, depth, meta->depth);
+  return _bt_delco_droptree2(state, nodepg, depth, meta->depth, isdirty);
 }
 
 static void
@@ -1099,7 +1129,8 @@ _bt_delco_trim_rsubtree_lhs2(BT_state *state, vaof_t lo, vaof_t hi,
       pgno_t childpg = node->datk[i].fo;
       if (childpg == 0)
         break;
-      _bt_delco_droptree(state, childpg, depth+1);
+      int ischilddirty = _bt_ischilddirty(node, i);
+      _bt_delco_droptree(state, childpg, depth+1, ischilddirty);
     }
   }
 
@@ -1160,7 +1191,8 @@ _bt_delco_trim_lsubtree_rhs2(BT_state *state, vaof_t lo, vaof_t hi,
       pgno_t childpg = node->datk[i].fo;
       if (childpg == 0)
         break;
-      _bt_delco_droptree(state, childpg, depth+1);
+      int ischilddirty = _bt_ischilddirty(node, i);
+      _bt_delco_droptree(state, childpg, depth+1, ischilddirty);
     }
   }
 
@@ -1275,7 +1307,8 @@ _bt_delco(BT_state *state, vaof_t lo, vaof_t hi,
     /* drop all trees between the two subtrees */
     for (size_t i = loidx+1; i < hiidx; i++) {
       pgno_t childpg = node->datk[i].fo;
-      _bt_delco_droptree(state, childpg, depth);
+      int ischilddirty = _bt_ischilddirty(node, i);
+      _bt_delco_droptree(state, childpg, depth+1, ischilddirty);
     }
 
     /* move buffer */
@@ -1458,28 +1491,25 @@ _bt_delete(BT_state *state, vaof_t lo, vaof_t hi)
 static int
 _mlist_new(BT_state *state)
 {
-  /* implemented separate from _mlist_read since _mlist_read uses lo va == 0 to
-     stop parsing node's data. This, however, is a valid starting condition when
-     freshly creating the btree */
-
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
-  assert(root->datk[0].fo == 0);
+  /* assert(root->datk[0].fo == 0); */
+  size_t N = _bt_numkeys(root);
 
   vaof_t lo = root->datk[0].va;
-  vaof_t hi = root->datk[1].va;
-  size_t len = hi - lo;
+  vaof_t hi = root->datk[N-1].va;
 
   BT_mlistnode *head = calloc(1, sizeof *head);
 
   head->next = 0;
-  head->sz = len;
-  head->va = off2addr(lo);
+  head->lo = off2addr(lo);
+  head->hi = off2addr(hi);
   state->mlist = head;
 
   return BT_SUCC;
 }
 
+#if 0
 static int
 _flist_grow(BT_state *state, BT_flistnode *space)
 /* growing the flist consists of expanding the backing persistent file, pushing
@@ -1500,7 +1530,7 @@ _flist_grow(BT_state *state, BT_flistnode *space)
   for (; tail->next; tail = tail->next)
     ;
 
-  pgno_t lastpgfree = tail->pg + tail->sz;
+  pgno_t lastpgfree = tail->hi;
 
   /* ;;: TODO, make sure you are certain of this logic. Further, add assertions
        regarding relative positions of state->file_size, state->frontier, and
@@ -1517,7 +1547,7 @@ _flist_grow(BT_state *state, BT_flistnode *space)
   /* if the frontier (last pg in use) is less than the last page free, we should
      coalesce the new node with the tail. */
   if (state->frontier <= lastpgfree) {
-    tail->sz += PMA_GROW_SIZE;
+    tail->hi += PMA_GROW_SIZE;  /* ;;: THIS IS INCORRECT */
   }
   /* otherwise, a new node needs to be allocated */
   else {
@@ -1525,7 +1555,7 @@ _flist_grow(BT_state *state, BT_flistnode *space)
     /* since the frontier exceeds the last pg free, new freespace should
        naturally be allocated at the frontier */
     new->pg = state->frontier;
-    new->sz = PMA_GROW_SIZE;
+    new->hi = PMA_GROW_SIZE;
     tail->next = new;
   }
 
@@ -1534,6 +1564,7 @@ _flist_grow(BT_state *state, BT_flistnode *space)
 
   return BT_SUCC;
 }
+#endif
 
 static int
 _flist_new(BT_state *state)
@@ -1541,17 +1572,17 @@ _flist_new(BT_state *state)
 {
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
-  assert(root->datk[0].fo == 0);
+  /* assert(root->datk[0].fo == 0); */
+  size_t N = _bt_numkeys(root);
 
   vaof_t lo = root->datk[0].va;
-  vaof_t hi = root->datk[1].va;
+  vaof_t hi = root->datk[N-1].va;
   size_t len = hi - lo;
 
   BT_flistnode *head = calloc(1, sizeof *head);
-
   head->next = 0;
-  head->sz = len;
-  head->pg = FLIST_PG_START;
+  head->lo = FLIST_PG_START;
+  head->hi = FLIST_PG_START + len;
   state->flist = head;
 
   return BT_SUCC;
@@ -1559,14 +1590,13 @@ _flist_new(BT_state *state)
 
 static int
 _nlist_new(BT_state *state)
-#define NLIST_PG_START 2        /* the third page */
 {
   BT_meta *meta = state->meta_pages[state->which];
   BT_nlistnode *head = calloc(1, sizeof *head);
 
   /* the size of a new node freelist is just the first stripe length */
-  head->sz = BLK_BASE_LEN0;
-  head->va = &((BT_page *)state->map)[BT_NUMMETAS];
+  head->lo = &((BT_page *)state->map)[BT_NUMMETAS];
+  head->hi = head->lo + BLK_BASE_LEN0;
   head->next = 0;
 
   state->nlist = head;
@@ -1588,6 +1618,7 @@ _nlist_delete(BT_state *state)
   return BT_SUCC;
 }
 
+#if 0
 static BT_nlistnode *
 _nlist_read_prev(BT_nlistnode *head, BT_nlistnode *curr)
 {
@@ -1818,6 +1849,7 @@ _mlist_read(BT_state *state)
   state->mlist = head;
   return BT_SUCC;
 }
+#endif
 
 static int
 _mlist_delete(BT_state *state)
@@ -1833,103 +1865,11 @@ _mlist_delete(BT_state *state)
   return BT_SUCC;
 }
 
-static void
-_flist_split(BT_flistnode *head, BT_flistnode **left, BT_flistnode **right)
-/* split flist starting at head into two lists, left and right at the midpoint
-   of head */
-{
-  assert(head != 0);
-  BT_flistnode *slow, *fast;
-  slow = head; fast = head->next;
-
-  while (fast) {
-    fast = fast->next;
-    if (fast) {
-      slow = slow->next;
-      fast = fast->next;
-    }
-  }
-
-  *left = head;
-  *right = slow->next;
-  slow->next = 0;
-}
-
-static BT_flistnode *
-_flist_merge2(BT_flistnode *l, BT_flistnode *r)
-/* returns the furthest node in l that has a pg less than the first node in r */
-{
-  assert(l);
-  assert(r);
-
-  BT_flistnode *curr, *prev;
-  prev = l;
-  curr = l->next;
-
-  while (curr) {
-    if (curr->pg < r->pg) {
-      prev = curr;
-      curr = curr->next;
-    }
-  }
-
-  if (prev->pg < r->pg)
-    return prev;
-
-  return 0;
-}
-
-static BT_flistnode *
-_flist_merge(BT_flistnode *l, BT_flistnode *r)
-/* merge two sorted flists, l and r and return the sorted result */
-{
-  BT_flistnode *head;
-
-  if (!l) return r;
-  if (!r) return l;
-
-  while (l && r) {
-    if (l->next == 0) {
-      l->next = r;
-      break;
-    }
-    if (r->next == 0) {
-      break;
-    }
-
-    BT_flistnode *ll = _flist_merge2(l, r);
-    BT_flistnode *rnext = r->next;
-    /* insert head of r into appropriate spot in l */
-    r->next = ll->next;
-    ll->next = r;
-    /* adjust l and r heads */
-    l = ll->next;
-    r = rnext;
-  }
-
-  return head;
-}
-
-BT_flistnode *
-_flist_mergesort(BT_flistnode *head)
-{
-  if (head == 0 || head->next == 0)
-    return head;
-
-  BT_flistnode *l, *r;
-  _flist_split(head, &l, &r);
-
-  /* ;;: todo, make it non-recursive. Though, shouldn't matter as much here
-       since O(log n). merge already non-recursive */
-  _flist_mergesort(l);
-  _flist_mergesort(r);
-
-  return _flist_merge(l, r);
-}
-
+#if 0
 BT_flistnode *
 _flist_read2(BT_state *state, BT_page *node, uint8_t maxdepth, uint8_t depth)
 {
+  size_t N = _bt_numkeys(node);
   /* leaf */
   if (depth == maxdepth) {
     BT_flistnode *head, *prev;
@@ -1938,7 +1878,7 @@ _flist_read2(BT_state *state, BT_page *node, uint8_t maxdepth, uint8_t depth)
     /* ;;: fixme the head won't get populated in this logic */
     size_t i = 0;
     BT_kv *kv = &node->datk[i];
-    while (i < BT_DAT_MAXKEYS - 1) {
+    while (i < N-1) {
       /* Just blindly append nodes since they aren't guaranteed sorted */
       BT_flistnode *new = calloc(1, sizeof *new);
       vaof_t hi = node->datk[i+1].va;
@@ -1952,6 +1892,15 @@ _flist_read2(BT_state *state, BT_page *node, uint8_t maxdepth, uint8_t depth)
 
       kv = &node->datk[++i];
     }
+    for (size_t i = 0; i < N-1; i++) {
+      vaof_t hi = node->datk[i+1].va;
+      vaof_t lo = node->datk[i].va;
+      size_t len = hi - lo;
+      pgno_t fo = node->datk[i].fo;
+      /* not free */
+      if (fo != 0)
+        continue;
+    }
     return head;
   }
 
@@ -1959,7 +1908,7 @@ _flist_read2(BT_state *state, BT_page *node, uint8_t maxdepth, uint8_t depth)
   size_t i = 0;
   BT_flistnode *head, *prev;
   head = prev = 0;
-  for (; i < BT_DAT_MAXKEYS; ++i) {
+  for (; i < N; ++i) {
     BT_kv kv = node->datk[i];
     if (kv.fo == BT_NOPAGE)
       continue;
@@ -2010,6 +1959,7 @@ _flist_read(BT_state *state)
   state->flist = head;
   return BT_SUCC;
 }
+#endif
 
 static int
 _flist_delete(BT_state *state)
@@ -2094,7 +2044,7 @@ _bt_state_restore_maps2(BT_state *state, BT_page *node,
     return;
   }
 
-  /* branch - bfs all subtrees */
+  /* branch - dfs all subtrees */
   for (size_t i = 0; i < N-1; i++) {
     /* ;;: assuming node stripes when partition striping is implemented will be
          1:1 mapped to disk for simplicity. If that is not the case, they should
@@ -2275,6 +2225,39 @@ _bt_state_meta_new(BT_state *state)
   return BT_SUCC;
 }
 
+static void
+_mlist_record_alloc(BT_state *state, BYTE *lo, BYTE *hi)
+/* record an allocation in the mlist */
+{
+
+}
+
+static void
+_freelist_restore2(BT_state *state, BT_page *node,
+                   uint8_t depth, uint8_t maxdepth)
+{
+  size_t N = _bt_numkeys(node);
+
+  /* leaf */
+  if (depth == maxdepth) {
+
+  }
+  /* branch */
+
+}
+
+static void
+_freelist_restore(BT_state *state)
+/* restores the mlist, nlist, and mlist */
+{
+  BT_meta *meta = state->meta_pages[state->which];
+  BT_page *root = _node_get(state, meta->root);
+  assert(SUCC(_nlist_new(state)));
+  assert(SUCC(_mlist_new(state)));
+  assert(SUCC(_flist_new(state)));
+  _freelist_restore2(state, root, 1, meta->depth);
+}
+
 static int
 _bt_state_load(BT_state *state)
 {
@@ -2313,7 +2296,7 @@ _bt_state_load(BT_state *state)
   }
 
   BYTE *nullspace_addr = BT_MAPADDR + (BT_META_SECTION_WIDTH + BLK_BASE_LEN0);
-  size_t nullspace_len = BT_ADDRSIZE - (BT_META_SECTION_WIDTH + BLK_BASE_LEN0);
+  size_t nullspace_len = BLK_BASE_LEN_TOTAL - (BT_META_SECTION_WIDTH + BLK_BASE_LEN0);
   if (nullspace_addr != mmap(nullspace_addr,
                              nullspace_len,
                              BT_PROT_FREE,
@@ -2348,9 +2331,7 @@ _bt_state_load(BT_state *state)
     _bt_state_restore_maps(state);
 
     /* restore ephemeral freelists */
-    assert(SUCC(_nlist_read(state)));
-    assert(SUCC(_mlist_read(state)));
-    assert(SUCC(_flist_read(state)));
+    _freelist_restore(state);
 
     if (fstat(state->data_fd, &stat) != 0)
       return errno;
@@ -2375,26 +2356,27 @@ _bt_falloc(BT_state *state, size_t pages)
   pgno_t ret = 0;
 
   /* first fit */
-  /* ;;: is there any reason to use a different allocation strategy for disk? */
   for (; *n; n = &(*n)->next) {
+    size_t sz_p = (*n)->hi - (*n)->lo;
     /* perfect fit */
-    if ((*n)->sz == pages) {
-      pgno_t ret;
-      ret = (*n)->pg;
+    if (sz_p == pages) {
+      pgno_t ret = (*n)->lo;
+      BT_flistnode *prev = *n;
       *n = (*n)->next;
+      free(prev);
       return ret;
     }
     /* larger than necessary: shrink the node */
-    if ((*n)->sz > pages) {
+    if (sz_p > pages) {
       pgno_t ret;
-      ret = (*n)->pg;
-      (*n)->sz -= pages;
-      (*n)->pg = (*n)->pg + pages;
+      ret = (*n)->lo;
+      (*n)->lo += pages;
       return ret;
     }
   }
 
-  return 0;
+  DPUTS("flist out of mem!");
+  abort();
 }
 
 static int
@@ -2642,17 +2624,20 @@ bt_malloc(BT_state *state, size_t pages)
   void *ret = 0;
   /* first fit */
   for (; *n; n = &(*n)->next) {
+    size_t sz_p = addr2off((*n)->hi) - addr2off((*n)->lo);
+
     /* perfect fit */
-    if ((*n)->sz == pages) {
-      ret = (*n)->va;
+    if (sz_p == pages) {
+      ret = (*n)->lo;
+      BT_mlistnode *prev = *n;
       *n = (*n)->next;
+      free(prev);
       break;
     }
     /* larger than necessary: shrink the node */
-    if ((*n)->sz > pages) {
-      ret = (*n)->va;
-      (*n)->sz -= pages;
-      (*n)->va = (BT_page *)(*n)->va + pages;
+    if (sz_p > pages) {
+      ret = (*n)->lo;
+      (*n)->lo = (void *)((BT_page *)(*n)->lo + pages);
       break;
     }
   // XX return early if nothing suitable found in freelist
@@ -2684,10 +2669,36 @@ bt_malloc(BT_state *state, size_t pages)
 void
 bt_free(BT_state *state, void *lo, void *hi)
 {
+  BT_meta *meta = state->meta_pages[state->which];
+  BT_page *root = _node_get(state, meta->root);
   vaof_t looff = addr2off(lo);
   vaof_t hioff = addr2off(hi);
+  pgno_t lopg, hipg;
+  BT_findpath path = {0};
+
+  if (!SUCC(_bt_find(state, &path, looff, hioff))) {
+    DPRINTF("Failed to find range: (%p, %p)", lo, hi);
+    abort();
+  }
+
+  /* insert null into btree */
   _bt_insert(state, looff, hioff, 0);
+  /* insert freed range into mlist */
   _mlist_insert(state, lo, hi);
+  /* insert freed range into flist */
+  BT_page *leaf = path.path[path.depth];
+  size_t childidx = path.idx[path.depth];
+  int isdirty = _bt_ischilddirty(leaf, childidx);
+  BT_kv kv = leaf->datk[childidx];
+  vaof_t offset = looff - kv.va;
+  lopg = kv.fo + offset;
+  hipg = lopg + (looff - hioff);
+  if (isdirty) {
+    _flist_insert(&state->flist, lopg, hipg);
+  }
+  else {
+    _flist_insert(&state->pending_flist, lopg, hipg);
+  }
 
   /* ;;: is this correct? Shouldn't this actually happen when we merge the
        pending_mlist on sync? */
@@ -2872,7 +2883,7 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
 
   _bt_insert(state, lo, hi, newpg);
 
-  _pending_flist_insert(state, pg, len);
+  _flist_insert(&state->pending_flist, pg, pg + len);
 
   return newpg;
 }
@@ -2945,20 +2956,21 @@ bt_next_alloc(BT_state *state, void *p, void **lo, void **hi)
    it falls in. */
 {
   BT_mlistnode *head = state->mlist;
+  BYTE *pb = p;
   while (head) {
     /* at last free block, different logic applies */
     if (head->next == 0)
       goto end;
 
     /* p is in a free range, return the allocated hole after it */
-    if (head->va <= p
-        && head->va + head->sz > p) {
+    if (head->lo <= pb
+        && head->hi > pb) {
       goto found;
     }
 
     /* p is alloced, return this hole */
-    if (head->next->va > p
-        && head->va + head->sz <= p) {
+    if (head->next->lo > pb
+        && head->hi <= pb) {
       goto found;
     }
 
@@ -2970,21 +2982,21 @@ bt_next_alloc(BT_state *state, void *p, void **lo, void **hi)
 
  found:
   /* the alloced space begins at the end of the free block */
-  *lo = head->va + head->sz;
+  *lo = head->hi;
   /* ... and ends at the start of the next free block */
-  *hi = head->next->va;
+  *hi = head->next->lo;
   return BT_SUCC;
 
  end:
-  void *pma_end = (void *)((uintptr_t)BT_MAPADDR + BT_ADDRSIZE);
-  assert(head->va + head->sz <= pma_end);
+  BYTE *pma_end = (void *)((uintptr_t)BT_MAPADDR + BT_ADDRSIZE);
+  assert(head->hi <= pma_end);
   /* no alloced region between tail of freelist and end of pma memory space */
-  if (head->va + head->sz == pma_end)
+  if (head->hi == pma_end)
     return 1;
 
   /* otherwise, return the alloced region between the tail of the freelist and
      the end of the memory arena */
-  *lo = head->va + head->sz;
+  *lo = head->hi;
   *hi = pma_end;
   return BT_SUCC;
 }

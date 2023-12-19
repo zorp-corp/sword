@@ -25,7 +25,8 @@ _mlist_sizep(BT_mlistnode *head)
 {
   size_t sz = 0;
   while (head) {
-    sz += head->sz;
+    size_t sz_p = addr2off(head->hi) - addr2off(head->lo);
+    sz += sz_p;
     head = head->next;
   }
   return sz;
@@ -37,7 +38,8 @@ _flist_sizep(BT_flistnode *head)
 {
   size_t sz = 0;
   while (head) {
-    sz += head->sz;
+    size_t sz_p = head->hi - head->lo;
+    sz += sz_p;
     head = head->next;
   }
   return sz;
@@ -104,9 +106,9 @@ static int
 _mlist_eq(BT_mlistnode *l, BT_mlistnode *r)
 {
   while (l && r) {
-    if (l->sz != r->sz)
+    if (l->lo != r->lo)
       bp(0);
-    if (l->va != r->va)
+    if (l->hi != r->hi)
       bp(0);
     l = l->next; r = r->next;
   }
@@ -119,9 +121,9 @@ static int
 _nlist_eq(BT_nlistnode *l, BT_nlistnode *r)
 {
   while (l && r) {
-    if (l->sz != r->sz)
+    if (l->lo != r->lo)
       bp(0);
-    if (l->va != r->va)
+    if (l->hi != r->hi)
       bp(0);
     l = l->next; r = r->next;
   }
@@ -134,9 +136,9 @@ static int
 _flist_eq(BT_flistnode *l, BT_flistnode *r)
 {
   while (l && r) {
-    if (l->sz != r->sz)
+    if (l->lo != r->lo)
       bp(0);
-    if (l->pg != r->pg)
+    if (l->hi != r->hi)
       bp(0);
     l = l->next; r = r->next;
   }
@@ -161,7 +163,7 @@ int main(int argc, char *argv[])
     return errno;
   assert(SUCC(bt_state_open(state1, "./pmatest1", 0, 0644)));
 
-#define LOWEST_ADDR 0x200000;
+#define LOWEST_ADDR 0x2aaa80;
   vaof_t lo = LOWEST_ADDR;
   vaof_t hi = 0xDEADBEEF;
   pgno_t pg = 1;                /* dummy value */
@@ -251,14 +253,14 @@ int main(int argc, char *argv[])
   flist_sizp = _flist_sizep(state3->flist);
   mlist_sizp = _mlist_sizep(state3->mlist);
   alloc_sizp = 0;
-  /* for (size_t i = 0; i < ITERATIONS / 2; i++) { */
-  /*   /\* free half of the allocations *\/ */
-  /*   bt_free(state3, allocs[i].lo, allocs[i].hi); */
-  /*   alloc_sizp += allocs[i].hi - allocs[i].lo; */
-  /*   /\* validate size changes to mlist *\/ */
-  /*   assert(_mlist_sizep(state3->mlist) */
-  /*          == (mlist_sizp + alloc_sizp)); */
-  /* } */
+  for (size_t i = 0; i < ITERATIONS / 2; i++) {
+    /* free half of the allocations */
+    bt_free(state3, allocs[i].lo, allocs[i].hi);
+    alloc_sizp += allocs[i].hi - allocs[i].lo;
+    /* validate size changes to mlist */
+    assert(_mlist_sizep(state3->mlist)
+           == (mlist_sizp + alloc_sizp));
+  }
 
   bt_sync(state3);
 
