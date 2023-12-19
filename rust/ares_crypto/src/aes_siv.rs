@@ -1,10 +1,16 @@
-use core::panic;
-
 use aes::Aes192;
 use aes_siv::aead::{generic_array::GenericArray, KeyInit};
 use aes_siv::siv::{Aes128Siv, Aes256Siv, CmacSiv};
 
 type Aes192Siv = CmacSiv<Aes192>;
+
+#[derive(Debug)]
+pub enum Error {
+    InvalidKeyLength,
+    InvalidOutputLength,
+    InvalidHeadersLength,
+    UnauthenticCipher,
+}
 
 pub fn _ac_aes_siv_en(
     key: &mut [u8],
@@ -12,26 +18,44 @@ pub fn _ac_aes_siv_en(
     data: &mut [&mut [u8]],
     iv: &mut [u8; 16],
     out: &mut [u8],
-) {
+) -> Result<(), Error> {
     let iv_tag;
     if key.len() == 32 {
-        let mut cipher = Aes128Siv::new_from_slice(&key).unwrap();
-        iv_tag = cipher.encrypt_in_place_detached(data, message).unwrap();
-        out.copy_from_slice(message);
+        if let Ok(mut cipher) = Aes128Siv::new_from_slice(&key) {
+            match cipher.encrypt_in_place_detached(data, message) {
+                Ok(tag) => iv_tag = tag,
+                Err(_) => return Err(Error::InvalidOutputLength),
+            }
+        } else {
+            return Err(Error::InvalidKeyLength);
+        }
     } else if key.len() == 48 {
-        let mut cipher = Aes192Siv::new_from_slice(&key).unwrap();
-        iv_tag = cipher.encrypt_in_place_detached(data, message).unwrap();
+        if let Ok(mut cipher) = Aes192Siv::new_from_slice(&key) {
+            match cipher.encrypt_in_place_detached(data, message) {
+                Ok(tag) => iv_tag = tag,
+                Err(_) => return Err(Error::InvalidOutputLength),
+            }
+        } else {
+            return Err(Error::InvalidKeyLength);
+        }
     } else if key.len() == 64 {
-        let mut cipher = Aes256Siv::new_from_slice(&key).unwrap();
-        iv_tag = cipher.encrypt_in_place_detached(data, message).unwrap();
+        if let Ok(mut cipher) = Aes256Siv::new_from_slice(&key) {
+            match cipher.encrypt_in_place_detached(data, message) {
+                Ok(tag) => iv_tag = tag,
+                Err(_) => return Err(Error::InvalidOutputLength),
+            }
+        } else {
+            return Err(Error::InvalidKeyLength);
+        }
     } else {
-        panic!("Invalid key length");
+        return Err(Error::InvalidKeyLength);
     }
     let mut iv_slice = iv_tag.as_slice().to_owned();
     iv_slice.reverse();
     iv.copy_from_slice(&iv_slice);
     message.reverse();
     out.copy_from_slice(message);
+    Ok(())
 }
 
 pub fn _ac_aes_siv_de(
@@ -40,28 +64,40 @@ pub fn _ac_aes_siv_de(
     data: &mut [&mut [u8]],
     iv: &mut [u8; 16],
     out: &mut [u8],
-) {
+) -> Result<(), Error> {
     let iv_array = GenericArray::from_slice(iv);
     if key.len() == 32 {
-        let mut cipher = Aes128Siv::new_from_slice(&key).unwrap();
-        cipher
-            .decrypt_in_place_detached(data, message, iv_array)
-            .unwrap();
-        out.copy_from_slice(message);
+        if let Ok(mut cipher) = Aes128Siv::new_from_slice(&key) {
+            match cipher.decrypt_in_place_detached(data, message, iv_array) {
+                Ok(_) => (),
+                Err(_) => return Err(Error::UnauthenticCipher),
+            }
+        } else {
+            return Err(Error::InvalidKeyLength);
+        }
     } else if key.len() == 48 {
-        let mut cipher = Aes192Siv::new_from_slice(&key).unwrap();
-        cipher
-            .decrypt_in_place_detached(data, message, iv_array)
-            .unwrap();
+        if let Ok(mut cipher) = Aes192Siv::new_from_slice(&key) {
+            match cipher.decrypt_in_place_detached(data, message, iv_array) {
+                Ok(_) => (),
+                Err(_) => return Err(Error::UnauthenticCipher),
+            }
+        } else {
+            return Err(Error::InvalidKeyLength);
+        }
     } else if key.len() == 64 {
-        let mut cipher = Aes256Siv::new_from_slice(&key).unwrap();
-        cipher
-            .decrypt_in_place_detached(data, message, iv_array)
-            .unwrap();
+        if let Ok(mut cipher) = Aes256Siv::new_from_slice(&key) {
+            match cipher.decrypt_in_place_detached(data, message, iv_array) {
+                Ok(_) => (),
+                Err(_) => return Err(Error::UnauthenticCipher),
+            }
+        } else {
+            return Err(Error::InvalidKeyLength);
+        }
     } else {
-        panic!("Invalid key length");
+        return Err(Error::InvalidKeyLength);
     }
     out.copy_from_slice(message);
+    Ok(())
 }
 
 pub fn ac_aes_siva_en(
@@ -70,8 +106,8 @@ pub fn ac_aes_siva_en(
     data: &mut [&mut [u8]],
     iv: &mut [u8; 16],
     out: &mut [u8],
-) {
-    _ac_aes_siv_en(key, message, data, iv, out);
+) -> Result<(), Error> {
+    _ac_aes_siv_en(key, message, data, iv, out)
 }
 
 pub fn ac_aes_siva_de(
@@ -80,8 +116,8 @@ pub fn ac_aes_siva_de(
     data: &mut [&mut [u8]],
     iv: &mut [u8; 16],
     out: &mut [u8],
-) {
-    _ac_aes_siv_de(key, message, data, iv, out);
+) -> Result<(), Error> {
+    _ac_aes_siv_de(key, message, data, iv, out)
 }
 
 pub fn ac_aes_sivb_en(
@@ -90,8 +126,8 @@ pub fn ac_aes_sivb_en(
     data: &mut [&mut [u8]],
     iv: &mut [u8; 16],
     out: &mut [u8],
-) {
-    _ac_aes_siv_en(key, message, data, iv, out);
+) -> Result<(), Error> {
+    _ac_aes_siv_en(key, message, data, iv, out)
 }
 
 pub fn ac_aes_sivb_de(
@@ -100,8 +136,8 @@ pub fn ac_aes_sivb_de(
     data: &mut [&mut [u8]],
     iv: &mut [u8; 16],
     out: &mut [u8],
-) {
-    _ac_aes_siv_de(key, message, data, iv, out);
+) -> Result<(), Error> {
+    _ac_aes_siv_de(key, message, data, iv, out)
 }
 
 pub fn ac_aes_sivc_en(
@@ -110,8 +146,8 @@ pub fn ac_aes_sivc_en(
     data: &mut [&mut [u8]],
     iv: &mut [u8; 16],
     out: &mut [u8],
-) {
-    _ac_aes_siv_en(key, message, data, iv, out);
+) -> Result<(), Error> {
+    _ac_aes_siv_en(key, message, data, iv, out)
 }
 
 pub fn ac_aes_sivc_de(
@@ -120,8 +156,8 @@ pub fn ac_aes_sivc_de(
     data: &mut [&mut [u8]],
     iv: &mut [u8; 16],
     out: &mut [u8],
-) {
-    _ac_aes_siv_de(key, message, data, iv, out);
+) -> Result<(), Error> {
+    _ac_aes_siv_de(key, message, data, iv, out)
 }
 
 #[cfg(test)]
@@ -175,7 +211,7 @@ mod urcrypt_tests {
 
         let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
         let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_siva_de(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out);
+        ac_aes_siva_de(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
 
         assert_eq!(ac_out, uc_out);
     }
@@ -214,7 +250,7 @@ mod urcrypt_tests {
 
         let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
         let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_siva_en(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out);
+        ac_aes_siva_en(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
 
         assert_eq!(ac_out, uc_out);
     }
@@ -253,7 +289,7 @@ mod urcrypt_tests {
 
         let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
         let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_sivb_en(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out);
+        ac_aes_sivb_en(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
 
         assert_eq!(ac_out, uc_out);
     }
@@ -297,7 +333,7 @@ mod urcrypt_tests {
 
         let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
         let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_sivb_de(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out);
+        ac_aes_sivb_de(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
 
         assert_eq!(ac_out, uc_out);
     }
@@ -336,7 +372,7 @@ mod urcrypt_tests {
 
         let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
         let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_sivc_en(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out);
+        ac_aes_sivc_en(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
 
         assert_eq!(ac_out, uc_out);
     }
@@ -380,7 +416,7 @@ mod urcrypt_tests {
 
         let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
         let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_sivc_de(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out);
+        ac_aes_sivc_de(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
 
         assert_eq!(ac_out, uc_out);
     }
