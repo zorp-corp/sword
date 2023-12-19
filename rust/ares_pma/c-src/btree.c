@@ -102,7 +102,6 @@ addr2off(void *p)
 {
   uintptr_t pu = (uintptr_t)p;
   assert((pu & ((1 << BT_PAGEBITS) - 1)) == 0); /* p must be page-aligned */
-  uintptr_t off = pu - (uintptr_t)BT_MAPADDR;
   return (vaof_t)(pu >> BT_PAGEBITS);
 }
 
@@ -148,7 +147,7 @@ off2addr(vaof_t off)
   FO2PA: file offset to page
   get a reference to a BT_page from a file offset
 
-  /* ;;: can simplify:
+  ;;: can simplify:
 
   ((BT_page*)state->map)[fo]
 */
@@ -178,7 +177,6 @@ struct BT_pageheader {
 /*
   btree key/value data format
 
-/*
   BT_dat is used to provide a view of the data section in a BT_page where data is
   stored like:
         va  fo  va  fo
@@ -353,7 +351,7 @@ struct BT_state {
 //// ===========================================================================
 ////                            btree internal routines
 
-static void _bt_printnode(BT_page *node); /* ;;: tmp */
+static void _bt_printnode(BT_page *node) __attribute__((unused)); /* ;;: tmp */
 static int
 _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
               BT_page *parent, size_t childidx); /* ;;: tmp */
@@ -456,7 +454,7 @@ static void *
 _bt_bsearch(BT_page *page, vaof_t va)
 {
   /* ;;: todo: actually bsearch rather than linear */
-  for (BT_kv *kv = &page->datk[0]; kv <= BT_dat_maxva(page); kv++) {
+  for (BT_kv *kv = &page->datk[0]; kv <= (BT_kv *)BT_dat_maxva(page); kv++) {
     if (kv->va == va)
       return kv;
   }
@@ -753,7 +751,6 @@ _bt_delco_1pass_0(BT_state *state, vaof_t lo, vaof_t hi,
   /* node->datk[loidx] - node->datk[hiidx] are the bounds on which to perform
      the dfs */
   for (i = loidx; i < hiidx; i++) {
-    vaof_t llo = node->datk[i].va;
     pgno_t pg = node->datk[i].fo;
 
     /* if at the leaf level, terminate with failure if pg is not free */
@@ -1099,7 +1096,7 @@ _bt_delco_droptree(BT_state *state, pgno_t nodepg, uint8_t depth, int isdirty)
      (pgno = 0) */
   assert(nodepg >= 2);
   BT_meta *meta = state->meta_pages[state->which];
-  return _bt_delco_droptree2(state, nodepg, depth, meta->depth, isdirty);
+  _bt_delco_droptree2(state, nodepg, depth, meta->depth, isdirty);
 }
 
 static void
@@ -1152,7 +1149,7 @@ _bt_delco_trim_rsubtree_lhs2(BT_state *state, vaof_t lo, vaof_t hi,
     return;
   /* otherwise, recur on subtree */
   pgno_t rsubtree = node->datk[hiidx].fo;
-  return _bt_delco_trim_rsubtree_lhs2(state, lo, hi, rsubtree, depth+1, maxdepth);
+  _bt_delco_trim_rsubtree_lhs2(state, lo, hi, rsubtree, depth+1, maxdepth);
 }
 
 static void
@@ -1160,7 +1157,7 @@ _bt_delco_trim_rsubtree_lhs(BT_state *state, vaof_t lo, vaof_t hi,
                             pgno_t nodepg, uint8_t depth)
 {
   BT_meta *meta = state->meta_pages[state->which];
-  return _bt_delco_trim_rsubtree_lhs2(state, lo, hi, nodepg, depth, meta->depth);
+  _bt_delco_trim_rsubtree_lhs2(state, lo, hi, nodepg, depth, meta->depth);
 }
 
 static void
@@ -1211,7 +1208,7 @@ _bt_delco_trim_lsubtree_rhs2(BT_state *state, vaof_t lo, vaof_t hi,
     return;
   /* otherwise, recur on the left subtree */
   pgno_t lsubtree = node->datk[loidx].fo;
-  return _bt_delco_trim_lsubtree_rhs2(state, lo, hi, lsubtree, depth+1, maxdepth);
+  _bt_delco_trim_lsubtree_rhs2(state, lo, hi, lsubtree, depth+1, maxdepth);
 }
 
 static void
@@ -1219,7 +1216,7 @@ _bt_delco_trim_lsubtree_rhs(BT_state *state, vaof_t lo, vaof_t hi,
                             pgno_t nodepg, uint8_t depth)
 {
   BT_meta *meta = state->meta_pages[state->which];
-  return _bt_delco_trim_lsubtree_rhs2(state, lo, hi, nodepg, depth, meta->depth);
+  _bt_delco_trim_lsubtree_rhs2(state, lo, hi, nodepg, depth, meta->depth);
 }
 
 static void
@@ -1399,7 +1396,6 @@ _bt_insert(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo)
 /* handles CoWing/splitting of the root page since it's special cased. Then
    passes the child matching hi/lo to _bt_insert2 */
 {
-  int rc;
 
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
@@ -1591,7 +1587,6 @@ _flist_new(BT_state *state)
 static int
 _nlist_new(BT_state *state)
 {
-  BT_meta *meta = state->meta_pages[state->which];
   BT_nlistnode *head = calloc(1, sizeof *head);
 
   /* the size of a new node freelist is just the first stripe length */
@@ -2051,7 +2046,7 @@ _bt_state_restore_maps2(BT_state *state, BT_page *node,
          be handled here. */
     pgno_t pg = node->datk[i].fo;
     BT_page *child = _node_get(state, pg);
-    return _bt_state_restore_maps2(state, child, depth+1, maxdepth);
+    _bt_state_restore_maps2(state, child, depth+1, maxdepth);
   }
 }
 
@@ -2135,11 +2130,11 @@ _bt_state_read_header(BT_state *state)
   }
 
   /* validate flags */
-  if (m1->flags & BP_META != BP_META) {
+  if ((m1->flags & BP_META) != BP_META) {
     DPRINTF("metapage 0x%pX missing meta page flag", m1);
     return EINVAL;
   }
-  if (m2->flags & BP_META != BP_META) {
+  if ((m2->flags & BP_META) != BP_META) {
     DPRINTF("metapage 0x%pX missing meta page flag", m2);
     return EINVAL;
   }
@@ -2170,7 +2165,6 @@ _bt_state_meta_new(BT_state *state)
 {
   BT_page *p1, *p2, *root;
   BT_meta meta = {0};
-  int rc, pagesize;
 
   TRACE();
 
@@ -2186,8 +2180,6 @@ _bt_state_meta_new(BT_state *state)
 
   root = _bt_nalloc(state);
   _bt_root_new(&meta, root);
-
-  pagesize = sizeof *p1;
 
   /* initialize meta struct */
   meta.magic = BT_MAGIC;
@@ -2360,7 +2352,7 @@ _bt_falloc(BT_state *state, size_t pages)
     size_t sz_p = (*n)->hi - (*n)->lo;
     /* perfect fit */
     if (sz_p == pages) {
-      pgno_t ret = (*n)->lo;
+      ret = (*n)->lo;
       BT_flistnode *prev = *n;
       *n = (*n)->next;
       free(prev);
@@ -2368,7 +2360,6 @@ _bt_falloc(BT_state *state, size_t pages)
     }
     /* larger than necessary: shrink the node */
     if (sz_p > pages) {
-      pgno_t ret;
       ret = (*n)->lo;
       (*n)->lo += pages;
       return ret;
@@ -2396,11 +2387,10 @@ _bt_sync_leaf(BT_state *state, BT_page *node)
 {
   /* msync all of a leaf's data that is dirty. The caller is expected to sync
      the node itself and mark it as clean in the parent. */
-  pgno_t pg;
   size_t i = 0;
   size_t N = _bt_numkeys(node);
 
-  for (size_t i = 0; i < N-1; i++) {
+  for (i = 0; i < N-1; i++) {
     if (!_bt_ischilddirty(node, i))
       continue;                 /* not dirty. nothing to do */
 
@@ -2524,7 +2514,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
     BT_page *child = _node_get(state, node->datk[i].fo);
 
     /* recursively sync the child's data */
-    if (rc = _bt_sync(state, child, depth+1, maxdepth))
+    if ((rc = _bt_sync(state, child, depth+1, maxdepth)))
       return rc;
 
     /* sync the child node */
@@ -2669,8 +2659,6 @@ bt_malloc(BT_state *state, size_t pages)
 void
 bt_free(BT_state *state, void *lo, void *hi)
 {
-  BT_meta *meta = state->meta_pages[state->which];
-  BT_page *root = _node_get(state, meta->root);
   vaof_t looff = addr2off(lo);
   vaof_t hioff = addr2off(hi);
   pgno_t lopg, hipg;
@@ -2725,7 +2713,7 @@ bt_sync(BT_state *state)
   BT_page *root = _node_get(state, meta->root);
   int rc = 0;
 
-  if (rc = _bt_sync(state, root, 1, meta->depth))
+  if ((rc = _bt_sync(state, root, 1, meta->depth)))
     return rc;
 
   /* merge the pending freelists */
@@ -2745,7 +2733,7 @@ bt_sync(BT_state *state)
   }
 
   /* then sync the metapage */
-  if (rc = _bt_sync_meta(state))
+  if ((rc = _bt_sync_meta(state)))
     return rc;
 
   return BT_SUCC;
@@ -2866,7 +2854,7 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
 
   /* write call puts data in the unified buffer cache without having to map
      virtual memory */
-  if (pwrite(state->data_fd, loaddr, bytelen, offset) != bytelen)
+  if (pwrite(state->data_fd, loaddr, bytelen, offset) != (ssize_t)bytelen)
     abort();
 
   /* maps new file offset with same data back into memory */
@@ -2935,6 +2923,7 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
     /* iteratively recurse on all entries */
     _bt_dirty(state, lo, hi, childpg, depth+1, maxdepth);
   }
+  return BT_SUCC;
 }
 
 int
@@ -2957,6 +2946,7 @@ bt_next_alloc(BT_state *state, void *p, void **lo, void **hi)
 {
   BT_mlistnode *head = state->mlist;
   BYTE *pb = p;
+  BYTE* pma_end;
   while (head) {
     /* at last free block, different logic applies */
     if (head->next == 0)
@@ -2988,7 +2978,7 @@ bt_next_alloc(BT_state *state, void *p, void **lo, void **hi)
   return BT_SUCC;
 
  end:
-  BYTE *pma_end = (void *)((uintptr_t)BT_MAPADDR + BT_ADDRSIZE);
+  pma_end = (void *)((uintptr_t)BT_MAPADDR + BT_ADDRSIZE);
   assert(head->hi <= pma_end);
   /* no alloced region between tail of freelist and end of pma memory space */
   if (head->hi == pma_end)
@@ -3062,7 +3052,7 @@ _sham_sync(BT_state *state)
 static void
 _bt_printnode(BT_page *node)
 {
-  fprintf(stderr, "node: %p\n", node);
+  fprintf(stderr, "node: %p\n", (void*)node);
   fprintf(stderr, "data: \n");
   for (size_t i = 0; i < BT_DAT_MAXKEYS; ++i) {
     if (i && node->datk[i].va == 0)
