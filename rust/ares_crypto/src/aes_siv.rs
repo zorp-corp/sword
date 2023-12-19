@@ -1,6 +1,7 @@
 use aes_siv::{
-    aead::{heapless::Vec, AeadInPlace, KeyInit},
-    Aes128SivAead, Error, Nonce
+    aead::KeyInit,
+    siv::Aes128Siv,
+    Error
 };
 
 pub fn _ac_aes_siv_en(
@@ -10,17 +11,12 @@ pub fn _ac_aes_siv_en(
     iv: &mut [u8; 16],
     out: &mut [u8],
 ) -> Result<(), Error> {
-    let cipher = Aes128SivAead::new_from_slice(key).unwrap();
-    let nonce = Nonce::default();
-    let mut ad: Vec<u8, 1024> = Vec::new();
-    for i in 0..data.len() {
-        for j in 0..data[i].len() {
-            ad.push(data[i][j]).unwrap();
-        }
-    }
-    let ad_bytes = ad.as_slice();
-    let iv_array = cipher.encrypt_in_place_detached(&nonce, ad_bytes, message)?;
-    iv.copy_from_slice(iv_array.as_slice());
+    let mut cipher = Aes128Siv::new_from_slice(&key).unwrap();
+    let iv_tag = cipher.encrypt_in_place_detached(data, message)?;
+    let mut iv_slice = iv_tag.as_slice().to_owned();
+    iv_slice.reverse();
+    iv.copy_from_slice(&iv_slice);
+    message.reverse();
     out.copy_from_slice(message);
     Ok(())
 }
