@@ -369,12 +369,11 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
 }
 
 /** Interpret nock */
-pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Result {
+pub fn interpret(context_r: &mut Context, subject: Noun, formula: Noun) -> Result {
     let terminator = Arc::clone(&TERMINATOR);
-    let orig_subject = x_subject; // for debugging
-    let snapshot = x_context.save();
-    let virtual_frame: *const u64 = x_context.stack.get_frame_pointer();
-    let context: *mut Context = x_context;
+    let snapshot = context_r.save();
+    let virtual_frame: *const u64 = context_r.stack.get_frame_pointer();
+    let context: *mut Context = context_r;
 
     // Setup stack for Nock computation
     unsafe {
@@ -407,8 +406,11 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
         //
         // Otherwise, we would need to duplicate state reset logic in the serf, and we would run
         // into the same problems Vere has with preserving the mean stack on OOM.
+        //
+        // context must be a pointer, since some objects cannot be transferred to the closure
+        // because it must be UnwindSafe
         hw_exception::catch(|| {
-            let mut subject = x_subject;
+            let mut sub = subject;
             let mut res: Noun = D(0);
 
             push_formula(&mut (*context).stack, formula, true)?;
@@ -420,8 +422,8 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         write_trace(&mut *context);
 
                         let stack = &mut (*context).stack;
-                        debug_assertions(stack, orig_subject);
                         debug_assertions(stack, subject);
+                        debug_assertions(stack, sub);
                         debug_assertions(stack, res);
 
                         stack.preserve(&mut (*context).cache);
@@ -430,7 +432,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         stack.preserve(&mut res);
                         stack.frame_pop();
 
-                        debug_assertions(stack, orig_subject);
+                        debug_assertions(stack, subject);
                         debug_assertions(stack, res);
 
                         break Ok(res);
@@ -439,8 +441,8 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         write_trace(&mut *context);
 
                         let stack = &mut (*context).stack;
-                        debug_assertions(stack, orig_subject);
                         debug_assertions(stack, subject);
+                        debug_assertions(stack, sub);
                         debug_assertions(stack, res);
 
                         stack.preserve(&mut (*context).cache);
@@ -449,7 +451,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         stack.preserve(&mut res);
                         stack.frame_pop();
 
-                        debug_assertions(stack, orig_subject);
+                        debug_assertions(stack, subject);
                         debug_assertions(stack, res);
                     }
                     NockWork::WorkCons(mut cons) => match cons.todo {
@@ -471,7 +473,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         }
                     },
                     NockWork::Work0(zero) => {
-                        if let Ok(noun) = subject.slot_atom(zero.axis) {
+                        if let Ok(noun) = sub.slot_atom(zero.axis) {
                             res = noun;
                             (*context).stack.pop::<NockWork>();
                         } else {
@@ -504,15 +506,15 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                                 let stack = &mut (*context).stack;
                                 if vale.tail {
                                     stack.pop::<NockWork>();
-                                    subject = vale.subject;
+                                    sub = vale.subject;
                                     push_formula(stack, res, true)?;
                                 } else {
                                     vale.todo = Todo2::RestoreSubject;
-                                    std::mem::swap(&mut vale.subject, &mut subject);
+                                    std::mem::swap(&mut vale.subject, &mut sub);
                                     *stack.top() = NockWork::Work2(vale);
 
-                                    debug_assertions(stack, orig_subject);
                                     debug_assertions(stack, subject);
+                                    debug_assertions(stack, sub);
                                     debug_assertions(stack, res);
 
                                     mean_frame_push(stack, 0);
@@ -523,11 +525,11 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                             Todo2::RestoreSubject => {
                                 let stack = &mut (*context).stack;
 
-                                subject = vale.subject;
+                                sub = vale.subject;
                                 stack.pop::<NockWork>();
 
-                                debug_assertions(stack, orig_subject);
                                 debug_assertions(stack, subject);
+                                debug_assertions(stack, sub);
                                 debug_assertions(stack, res);
                             }
                         }
@@ -616,18 +618,18 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                             let stack = &mut (*context).stack;
                             if pose.tail {
                                 stack.pop::<NockWork>();
-                                subject = res;
+                                sub = res;
                                 push_formula(stack, pose.formula, true)?;
                             } else {
                                 pose.todo = Todo7::RestoreSubject;
-                                pose.subject = subject;
+                                pose.subject = sub;
                                 *stack.top() = NockWork::Work7(pose);
-                                subject = res;
+                                sub = res;
                                 push_formula(stack, pose.formula, false)?;
                             }
                         }
                         Todo7::RestoreSubject => {
-                            subject = pose.subject;
+                            sub = pose.subject;
                             (*context).stack.pop::<NockWork>();
                         }
                     },
@@ -640,19 +642,19 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         Todo8::ComputeResult => {
                             let stack = &mut (*context).stack;
                             if pins.tail {
-                                subject = T(stack, &[res, subject]);
+                                sub = T(stack, &[res, sub]);
                                 stack.pop::<NockWork>();
                                 push_formula(stack, pins.formula, true)?;
                             } else {
                                 pins.todo = Todo8::RestoreSubject;
-                                pins.pin = subject;
+                                pins.pin = sub;
                                 *stack.top() = NockWork::Work8(pins);
-                                subject = T(stack, &[res, subject]);
+                                sub = T(stack, &[res, sub]);
                                 push_formula(stack, pins.formula, false)?;
                             }
                         }
                         Todo8::RestoreSubject => {
-                            subject = pins.pin;
+                            sub = pins.pin;
                             (*context).stack.pop::<NockWork>();
                         }
                     },
@@ -704,18 +706,18 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                                             };
                                         };
 
-                                        subject = res;
+                                        sub = res;
                                         push_formula(stack, formula, true)?;
                                     } else {
                                         kale.todo = Todo9::RestoreSubject;
-                                        kale.core = subject;
+                                        kale.core = sub;
                                         *stack.top() = NockWork::Work9(kale);
 
-                                        debug_assertions(stack, orig_subject);
                                         debug_assertions(stack, subject);
+                                        debug_assertions(stack, sub);
                                         debug_assertions(stack, res);
 
-                                        subject = res;
+                                        sub = res;
                                         mean_frame_push(stack, 0);
                                         *stack.push() = NockWork::Ret;
                                         push_formula(stack, formula, true)?;
@@ -739,11 +741,11 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                             Todo9::RestoreSubject => {
                                 let stack = &mut (*context).stack;
 
-                                subject = kale.core;
+                                sub = kale.core;
                                 stack.pop::<NockWork>();
 
-                                debug_assertions(stack, orig_subject);
                                 debug_assertions(stack, subject);
+                                debug_assertions(stack, sub);
                                 debug_assertions(stack, res);
                             }
                         }
@@ -776,7 +778,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         Todo11D::ComputeHint => {
                             if let Some(ret) = hint::match_pre_hint(
                                 &mut *context,
-                                subject,
+                                sub,
                                 dint.tag,
                                 dint.hint,
                                 dint.body,
@@ -799,7 +801,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         Todo11D::ComputeResult => {
                             if let Some(ret) = hint::match_pre_nock(
                                 &mut *context,
-                                subject,
+                                sub,
                                 dint.tag,
                                 Some((dint.hint, res)),
                                 dint.body,
@@ -827,7 +829,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         Todo11D::Done => {
                             if let Some(found) = hint::match_post_nock(
                                 &mut *context,
-                                subject,
+                                sub,
                                 dint.tag,
                                 Some(dint.hint),
                                 dint.body,
@@ -842,7 +844,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         Todo11S::ComputeResult => {
                             if let Some(ret) = hint::match_pre_nock(
                                 &mut *context,
-                                subject,
+                                sub,
                                 sint.tag,
                                 None,
                                 sint.body,
@@ -869,7 +871,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
                         Todo11S::Done => {
                             if let Some(found) = hint::match_post_nock(
                                 &mut *context,
-                                subject,
+                                sub,
                                 sint.tag,
                                 None,
                                 sint.body,
@@ -969,7 +971,7 @@ pub fn interpret(x_context: &mut Context, x_subject: Noun, formula: Noun) -> Res
 
     match nock {
         Ok(res) => Ok(res),
-        Err(err) => Err(exit(x_context, &snapshot, virtual_frame, err)),
+        Err(err) => Err(exit(context_r, &snapshot, virtual_frame, err)),
     }
 }
 
