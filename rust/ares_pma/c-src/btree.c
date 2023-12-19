@@ -398,6 +398,126 @@ _fo_get(BT_state *state, BT_page *node)
   return BY2FO(vaddr - start);
 }
 
+static void
+_mlist_record_alloc(BT_state *state, void *lo, void *hi)
+{
+  BT_mlistnode **head = &state->mlist;
+  BYTE *lob = lo;
+  BYTE *hib = hi;
+  while (*head) {
+    /* found chunk */
+    if ((*head)->lo <= lob && (*head)->hi >= hib)
+      break;
+    assert((*head)->next);
+    head = &(*head)->next;
+  }
+
+  if (hib < (*head)->hi) {
+    if (lob > (*head)->lo) {
+      BT_mlistnode *left = *head;
+      BT_mlistnode *right = calloc(1, sizeof *right);
+      right->hi = left->hi;
+      right->lo = hib;
+      right->next = left->next;
+      left->hi = lob;
+      left->next = right;
+    }
+    else {
+      /* lob equal */
+      (*head)->lo = hib;
+    }
+  }
+  else if (lob > (*head)->lo) {
+    /* hib equal */
+    (*head)->hi = lob;
+  }
+  else {
+    /* equals */
+    BT_mlistnode *next = (*head)->next;
+    free(*head);
+    *head = next;
+  }
+}
+
+static void
+_nlist_record_alloc(BT_state *state, BT_page *lo)
+{
+  BT_nlistnode **head = &state->nlist;
+  BT_page *hi = lo + 1;
+  while (*head) {
+    /* found chunk */
+    if ((*head)->lo <= lo && (*head)->hi >= hi)
+      break;
+    assert((*head)->next);
+    head = &(*head)->next;
+  }
+
+  if (hi < (*head)->hi) {
+    if (lo > (*head)->lo) {
+      BT_nlistnode *left = *head;
+      BT_nlistnode *right = calloc(1, sizeof *right);
+      right->hi = left->hi;
+      right->lo = hi;
+      right->next = left->next;
+      left->hi = lo;
+      left->next = right;
+    }
+    else {
+      /* lo equal */
+      (*head)->lo = hi;
+    }
+  }
+  else if (lo > (*head)->lo) {
+    /* hi equal */
+    (*head)->hi = lo;
+  }
+  else {
+    /* equals */
+    BT_nlistnode *next = (*head)->next;
+    free(*head);
+    *head = next;
+  }
+}
+
+static void
+_flist_record_alloc(BT_state *state, pgno_t lo, pgno_t hi)
+{
+  BT_flistnode **head = &state->flist;
+  while (*head) {
+    /* found chunk */
+    if ((*head)->lo <= lo && (*head)->hi >= hi)
+      break;
+    assert((*head)->next);
+    head = &(*head)->next;
+  }
+
+  if (hi < (*head)->hi) {
+    if (lo > (*head)->lo) {
+      BT_flistnode *left = *head;
+      BT_flistnode *right = calloc(1, sizeof *right);
+      right->hi = left->hi;
+      right->lo = hi;
+      right->next = left->next;
+      left->hi = lo;
+      left->next = right;
+    }
+    else {
+      /* lo equal */
+      (*head)->lo = hi;
+    }
+  }
+  else if (lo > (*head)->lo) {
+    /* hi equal */
+    (*head)->hi = lo;
+  }
+  else {
+    /* equals */
+    BT_flistnode *next = (*head)->next;
+    free(*head);
+    *head = next;
+  }
+}
+
 static BT_page *
 _bt_nalloc(BT_state *state)
 /* allocate a node in the node freelist */
@@ -410,25 +530,18 @@ _bt_nalloc(BT_state *state)
 
   for (; *n; n = &(*n)->next) {
     size_t sz_p = (*n)->hi - (*n)->lo;
-    /* perfect fit */
-    if (sz_p == 1) {
+
+    /* ;;: refactor? this is ridiculous */
+    if (sz_p >= 1) {
       ret = (*n)->lo;
-      BT_nlistnode *prev = *n;
-      *n = (*n)->next;
-      free(prev);
-      break;
-    }
-    /* larger than necessary: shrink the node */
-    if (sz_p > 1) {
-      ret = (*n)->lo;
-      (*n)->lo += 1;
+      _nlist_record_alloc(state, ret);
       break;
     }
   }
 
   if (ret == 0) {
     DPUTS("nlist out of mem!");
-    abort();
+    return 0;
   }
 
   /* make node writable */
@@ -687,7 +800,9 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
     vaof_t oldfo = parent->datk[childidx].fo;
     parent->datk[childidx].fo = fo;
     parent->datk[childidx+1].va = hi;
-    parent->datk[childidx+1].fo = oldfo + (hi - llo);
+    parent->datk[childidx+1].fo = (oldfo == 0)
+      ? 0
+      : oldfo + (hi - llo);
   }
   else if (hhi == hi) {
     _bt_datshift(parent, childidx + 1, 1);
@@ -2218,13 +2333,6 @@ _bt_state_meta_new(BT_state *state)
 }
 
 static void
-_mlist_record_alloc(BT_state *state, BYTE *lo, BYTE *hi)
-/* record an allocation in the mlist */
-{
-
-}
-
-static void
 _freelist_restore2(BT_state *state, BT_page *node,
                    uint8_t depth, uint8_t maxdepth)
 {
@@ -2232,10 +2340,34 @@ _freelist_restore2(BT_state *state, BT_page *node,
 
   /* leaf */
   if (depth == maxdepth) {
-
+    for (size_t i = 0; i < N-1; i++) {
+      /* if allocated */
+      if (node->datk[i].fo != 0) {
+        /* record allocated memory range */
+        BT_page *lo = off2addr(node->datk[i].va);
+        BT_page *hi = off2addr(node->datk[i+1].va);
+        _mlist_record_alloc(state, lo, hi);
+        /* record allocated file range */
+        ssize_t siz_p = hi - lo;
+        assert(siz_p > 0);
+        assert(siz_p < UINT32_MAX);
+        pgno_t lofo = node->datk[i].fo;
+        pgno_t hifo = lofo + (pgno_t)siz_p;
+        _flist_record_alloc(state, lofo, hifo);
+      }
+    }
+    return;
   }
   /* branch */
-
+  for (size_t i = 0; i < N-1; i++) {
+    pgno_t fo = node->datk[i].fo;
+    if (fo != 0) {
+      /* record allocated node */
+      BT_page *child = _node_get(state, fo);
+      _nlist_record_alloc(state, child);
+      _freelist_restore2(state, child, depth+1, maxdepth);
+    }
+  }
 }
 
 static void
@@ -2247,6 +2379,8 @@ _freelist_restore(BT_state *state)
   assert(SUCC(_nlist_new(state)));
   assert(SUCC(_mlist_new(state)));
   assert(SUCC(_flist_new(state)));
+  /* first record root's allocation */
+  _nlist_record_alloc(state, root);
   _freelist_restore2(state, root, 1, meta->depth);
 }
 
@@ -2350,24 +2484,21 @@ _bt_falloc(BT_state *state, size_t pages)
   /* first fit */
   for (; *n; n = &(*n)->next) {
     size_t sz_p = (*n)->hi - (*n)->lo;
-    /* perfect fit */
-    if (sz_p == pages) {
+
+    if (sz_p >= pages) {
       ret = (*n)->lo;
-      BT_flistnode *prev = *n;
-      *n = (*n)->next;
-      free(prev);
-      return ret;
-    }
-    /* larger than necessary: shrink the node */
-    if (sz_p > pages) {
-      ret = (*n)->lo;
-      (*n)->lo += pages;
-      return ret;
+      pgno_t hi = ret + pages;
+      _flist_record_alloc(state, ret, hi);
+      break;
     }
   }
 
-  DPUTS("flist out of mem!");
-  abort();
+  if (ret == 0) {
+    DPUTS("flist out of mem!");
+    return UINT32_MAX;
+  }
+
+  return ret;
 }
 
 static int
@@ -2616,21 +2747,17 @@ bt_malloc(BT_state *state, size_t pages)
   for (; *n; n = &(*n)->next) {
     size_t sz_p = addr2off((*n)->hi) - addr2off((*n)->lo);
 
-    /* perfect fit */
-    if (sz_p == pages) {
+    if (sz_p >= pages) {
       ret = (*n)->lo;
-      BT_mlistnode *prev = *n;
-      *n = (*n)->next;
-      free(prev);
+      BT_page *hi = (BT_page *)ret + pages;
+      _mlist_record_alloc(state, ret, hi);
       break;
     }
-    /* larger than necessary: shrink the node */
-    if (sz_p > pages) {
-      ret = (*n)->lo;
-      (*n)->lo = (void *)((BT_page *)(*n)->lo + pages);
-      break;
-    }
-  // XX return early if nothing suitable found in freelist
+    // XX return early if nothing suitable found in freelist
+  }
+  if (ret == 0) {
+    DPUTS("mlist out of mem!");
+    return 0;
   }
 
   pgno_t pgno = _bt_falloc(state, pages);
