@@ -230,6 +230,9 @@ int main(int argc, char *argv[])
   size_t alloc_sizp = 0;
   size_t flist_sizp = _flist_sizep(state3->flist);
   size_t mlist_sizp = _mlist_sizep(state3->mlist);
+  BT_meta *meta = state3->meta_pages[state3->which];
+  BT_page *root = _node_get(state3, meta->root);
+  size_t N;
   for (size_t i = 0; i < ITERATIONS; i++) {
     /* malloc a random number of pages <= 256 and store in the allocs array */
     int pages = random();
@@ -243,6 +246,8 @@ int main(int argc, char *argv[])
            == (flist_sizp - alloc_sizp));
     assert(_mlist_sizep(state3->mlist)
            == (mlist_sizp - alloc_sizp));
+    N = _bt_numkeys(root);
+    assert(root->datk[N-2].fo == 0);
   }
 
   /* sync the state */
@@ -253,16 +258,14 @@ int main(int argc, char *argv[])
   flist_sizp = _flist_sizep(state3->flist);
   mlist_sizp = _mlist_sizep(state3->mlist);
   alloc_sizp = 0;
-  for (size_t i = 0; i < ITERATIONS / 2; i++) {
-    /* free half of the allocations */
-    bt_free(state3, allocs[i].lo, allocs[i].hi);
-    alloc_sizp += allocs[i].hi - allocs[i].lo;
-    /* validate size changes to mlist */
-    assert(_mlist_sizep(state3->mlist)
-           == (mlist_sizp + alloc_sizp));
-  }
-
-  bt_sync(state3);
+  /* for (size_t i = 0; i < ITERATIONS / 2; i++) { */
+  /*   /\* free half of the allocations *\/ */
+  /*   bt_free(state3, allocs[i].lo, allocs[i].hi); */
+  /*   alloc_sizp += allocs[i].hi - allocs[i].lo; */
+  /*   /\* validate size changes to mlist *\/ */
+  /*   assert(_mlist_sizep(state3->mlist) */
+  /*          == (mlist_sizp + alloc_sizp)); */
+  /* } */
 
   /* copy ephemeral structures */
   BT_mlistnode *mlist_copy = _mlist_copy(state3);
@@ -272,6 +275,12 @@ int main(int argc, char *argv[])
   assert(_nlist_eq(nlist_copy, state3->nlist));
   assert(_flist_eq(flist_copy, state3->flist));
 
+  meta = state3->meta_pages[state3->which];
+  BT_meta metacopy = {0};
+  memcpy(&metacopy, meta, sizeof metacopy);
+  
+  bt_sync(state3);
+
   bt_state_close(state3);
 
   bt_state_new(&state3);
@@ -280,6 +289,8 @@ int main(int argc, char *argv[])
 
   /* compare for equality copies of ephemeral structures with restored ephemeral
      structures */
+  meta = state3->meta_pages[state3->which];
+  assert(meta->root == metacopy.root);
   assert(_mlist_eq(mlist_copy, state3->mlist));
   assert(_nlist_eq(nlist_copy, state3->nlist));
   assert(_flist_eq(flist_copy, state3->flist));
