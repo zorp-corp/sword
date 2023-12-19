@@ -1,14 +1,12 @@
 /** Parsing jets
  */
 use crate::interpreter::Context;
-use crate::jets::math::util::{gte, lte};
+use crate::jets::math::util::{gte_b, lte_b, lth};
 use crate::jets::util::{kick, slam, slot};
 use crate::jets::Result;
 use crate::mem::NockStack;
 use crate::noun::{Noun, D, T, YES};
 use either::{Left, Right};
-
-use super::math::util::lth;
 
 crate::gdb!();
 
@@ -423,8 +421,8 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                     let iq_tub_atom = iq_tub.as_atom()?;
                     let hpn_hel_atom = hpn_hel.as_atom()?;
                     let tpn_hel_atom = tpn_hel.as_atom()?;
-                    bit = gte(&mut context.stack, iq_tub_atom, hpn_hel_atom)
-                        && lte(&mut context.stack, iq_tub_atom, tpn_hel_atom);
+                    bit = gte_b(&mut context.stack, iq_tub_atom, hpn_hel_atom)
+                        && lte_b(&mut context.stack, iq_tub_atom, tpn_hel_atom);
                 }
             }
 
