@@ -268,19 +268,13 @@ pub mod util {
     /// Greater than
     pub fn gth(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            if a.data() > b.data() {
-                true
-            } else {
-                false
-            }
+            a.data() > b.data()
         } else if a.bit_size() > b.bit_size() {
             true
         } else if a.bit_size() < b.bit_size() {
             false
-        } else if a.as_ubig(stack) > b.as_ubig(stack) {
-            true
         } else {
-            false
+            a.as_ubig(stack) > b.as_ubig(stack)
         }
     }
 
@@ -306,38 +300,26 @@ pub mod util {
     /// Less than or equal to
     pub fn lte(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            if a.data() <= b.data() {
-                true
-            } else {
-                false
-            }
+            a.data() <= b.data()
         } else if a.bit_size() < b.bit_size() {
             true
         } else if a.bit_size() > b.bit_size() {
             false
-        } else if a.as_ubig(stack) <= b.as_ubig(stack) {
-            true
         } else {
-            false
+            a.as_ubig(stack) <= b.as_ubig(stack)
         }
     }
 
     /// Greater than or equal to
     pub fn gte(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            if a.data() >= b.data() {
-                true
-            } else {
-                false
-            }
+            a.data() >= b.data()
         } else if a.bit_size() > b.bit_size() {
             true
         } else if a.bit_size() < b.bit_size() {
             false
-        } else if a.as_ubig(stack) >= b.as_ubig(stack) {
-            true
         } else {
-            false
+            a.as_ubig(stack) >= b.as_ubig(stack)
         }
     }
 

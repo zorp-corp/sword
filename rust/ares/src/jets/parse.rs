@@ -1,12 +1,12 @@
 /** Parsing jets
  */
-use either::{Left, Right};
 use crate::interpreter::Context;
 use crate::jets::math::util::{gte, lte};
 use crate::jets::util::{kick, slam, slot};
 use crate::jets::Result;
 use crate::mem::NockStack;
 use crate::noun::{Noun, D, T, YES};
+use either::{Left, Right};
 
 use super::math::util::lth;
 
@@ -233,8 +233,7 @@ pub fn jet_plug(context: &mut Context, subject: Noun) -> Result {
 
     if unsafe { q_vex.raw_equals(D(0)) } {
         Ok(vex)
-    }
-    else {
+    } else {
         let uq_vex = q_vex.as_cell()?.tail().as_cell()?;
         let puq_vex = uq_vex.head();
         let quq_vex = uq_vex.tail();
@@ -370,26 +369,18 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
 
 fn stew_wor(stack: &mut NockStack, ort: Noun, wan: Noun) -> Result {
     match ort.as_either_atom_cell() {
-        Left(ort_atom) => {
-            match wan.as_either_atom_cell() {
-                Left(wan_atom) => {
-                    Ok(lth(stack, ort_atom, wan_atom))
-                }
-                Right(wan_cell) => {
-                    Ok(lth(stack, ort_atom, wan_cell.head().as_atom()?))
-                }
-            }
-        }
-        Right(ort_cell) => {
-            match wan.as_either_atom_cell() {
-                Left(wan_atom) => {
-                    Ok(lth(stack, ort_cell.tail().as_atom()?, wan_atom))
-                }
-                Right(wan_cell) => {
-                    Ok(lth(stack, ort_cell.tail().as_atom()?, wan_cell.head().as_atom()?))
-                }
-            }
-        }
+        Left(ort_atom) => match wan.as_either_atom_cell() {
+            Left(wan_atom) => Ok(lth(stack, ort_atom, wan_atom)),
+            Right(wan_cell) => Ok(lth(stack, ort_atom, wan_cell.head().as_atom()?)),
+        },
+        Right(ort_cell) => match wan.as_either_atom_cell() {
+            Left(wan_atom) => Ok(lth(stack, ort_cell.tail().as_atom()?, wan_atom)),
+            Right(wan_cell) => Ok(lth(
+                stack,
+                ort_cell.tail().as_atom()?,
+                wan_cell.head().as_atom()?,
+            )),
+        },
     }
 }
 
@@ -402,50 +393,47 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
     let q_tub = tub.as_cell()?.tail();
     if unsafe { q_tub.raw_equals(D(0)) } {
         return util::fail(context, p_tub);
-    } else {
-        let iq_tub = q_tub.as_cell()?.head();
-        if !iq_tub.as_atom()?.is_direct() {
+    }
+
+    let iq_tub = q_tub.as_cell()?.head();
+    if !iq_tub.as_atom()?.is_direct() {
+        return util::fail(context, p_tub);
+    }
+
+    loop {
+        if unsafe { hel.raw_equals(D(0)) } {
             return util::fail(context, p_tub);
         } else {
-            loop {
-                if unsafe { hel.raw_equals(D(0)) } {
+            let n_hel = slot(hel, 2)?;
+            let l_hel = slot(hel, 6)?;
+            let r_hel = slot(hel, 7)?;
+            let pn_hel = n_hel.as_cell()?.head();
+            let qn_hel = n_hel.as_cell()?.tail();
+            let bit;
+
+            if !pn_hel.is_cell() {
+                bit = iq_tub.as_direct()?.data() == pn_hel.as_direct()?.data();
+            } else {
+                let hpn_hel = pn_hel.as_cell()?.head();
+                let tpn_hel = pn_hel.as_cell()?.tail();
+
+                if !hpn_hel.as_atom()?.is_direct() || !tpn_hel.as_atom()?.is_direct() {
                     return util::fail(context, p_tub);
                 } else {
-                    let n_hel = slot(hel, 2)?;
-                    let l_hel = slot(hel, 6)?;
-                    let r_hel = slot(hel, 7)?;
-                    let pn_hel = n_hel.as_cell()?.head();
-                    let qn_hel = n_hel.as_cell()?.tail();
-                    let bit;
-
-                    if !pn_hel.is_cell() {
-                        bit = iq_tub.as_direct()?.data() == pn_hel.as_direct()?.data();
-                    } else {
-                        let hpn_hel = pn_hel.as_cell()?.head();
-                        let tpn_hel = pn_hel.as_cell()?.tail();
-
-                        if !hpn_hel.as_atom()?.is_direct() || !tpn_hel.as_atom()?.is_direct() {
-                            return util::fail(context, p_tub);
-                        } else {
-                            let iq_tub_atom = iq_tub.as_atom()?;
-                            let hpn_hel_atom = hpn_hel.as_atom()?;
-                            let tpn_hel_atom = tpn_hel.as_atom()?;
-                            bit = gte(&mut context.stack, iq_tub_atom, hpn_hel_atom) && lte(&mut context.stack, iq_tub_atom, tpn_hel_atom);
-                        }
-                    }
-
-                    if bit {
-                        return slam(context, qn_hel, tub);
-                    } else {
-                        if unsafe { stew_wor(&mut context.stack, iq_tub, pn_hel)?.raw_equals(YES) } {
-                            if unsafe { l_hel.raw_equals(D(0)) } {
-                            }
-                            hel = l_hel;
-                        } else {
-                            hel = r_hel;
-                        }
-                    }
+                    let iq_tub_atom = iq_tub.as_atom()?;
+                    let hpn_hel_atom = hpn_hel.as_atom()?;
+                    let tpn_hel_atom = tpn_hel.as_atom()?;
+                    bit = gte(&mut context.stack, iq_tub_atom, hpn_hel_atom)
+                        && lte(&mut context.stack, iq_tub_atom, tpn_hel_atom);
                 }
+            }
+
+            if bit {
+                return slam(context, qn_hel, tub);
+            } else if unsafe { stew_wor(&mut context.stack, iq_tub, pn_hel)?.raw_equals(YES) } {
+                hel = l_hel;
+            } else {
+                hel = r_hel;
             }
         }
     }
@@ -460,9 +448,8 @@ pub fn jet_shim(context: &mut Context, subject: Noun) -> Result {
     let q_tub = tub.as_cell()?.tail();
 
     if unsafe { q_tub.raw_equals(D(0)) } {
-        return util::fail(context, p_tub);
-    }
-    else {
+        util::fail(context, p_tub)
+    } else {
         let p_zep = zep.as_cell()?.head();
         let q_zep = zep.as_cell()?.tail();
         let iq_tub = q_tub.as_cell()?.head();
@@ -472,10 +459,9 @@ pub fn jet_shim(context: &mut Context, subject: Noun) -> Result {
         let iq_tub_dat = iq_tub.as_direct()?.data();
 
         if (iq_tub_dat >= p_zep_dat) && (iq_tub_dat <= q_zep_dat) {
-            return util::next(context, tub);
-        }
-        else {
-            return util::fail(context, p_tub);
+            util::next(context, tub)
+        } else {
+            util::fail(context, p_tub)
         }
     }
 }

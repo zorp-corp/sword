@@ -1,4 +1,5 @@
 use crate::hamt::Hamt;
+use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
 use crate::jets::cold::Cold;
 use crate::jets::hot::{Hot, HotEntry};
@@ -10,7 +11,6 @@ use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
 use crate::trace::*;
-use crate::interpreter;
 use ares_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;
