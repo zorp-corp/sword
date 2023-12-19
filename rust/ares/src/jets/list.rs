@@ -78,7 +78,6 @@ pub mod util {
                 list = pair.tail();
 
                 while !sublist.raw_equals(D(0)) {
-                    if sublist.is_atom()?;
                     let it = sublist.as_cell()?;
                     let i = it.head();
                     sublist = it.tail();
