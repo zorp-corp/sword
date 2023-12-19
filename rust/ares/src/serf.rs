@@ -10,8 +10,6 @@ use crate::mem::NockStack;
 use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
-use crate::snapshot::double_jam::DoubleJam;
-use crate::snapshot::Snapshot;
 use crate::trace::*;
 use ares_macros::tas;
 use hw_exception;
@@ -19,7 +17,7 @@ use signal_hook;
 use signal_hook::consts::SIGINT;
 use std::fs::create_dir_all;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -32,7 +30,6 @@ const FLAG_TRACE: u32 = 1 << 8;
 struct Context {
     epoch: u64,
     event_num: u64,
-    snapshot: DoubleJam,
     arvo: Noun,
     mug: u32,
     nock_context: interpreter::Context,
@@ -40,19 +37,17 @@ struct Context {
 
 impl Context {
     pub fn new(
-        snap_path: &PathBuf,
+        _snap_path: &Path,
         trace_info: Option<TraceInfo>,
         constant_hot_state: &[HotEntry],
     ) -> Self {
         // TODO: switch to Pma when ready
-        // let snap = &mut snapshot::pma::Pma::new(snap_path);
-        let mut snapshot = DoubleJam::new(snap_path);
         let mut stack = NockStack::new(512 << 10 << 10, 0);
 
         let cold = Cold::new(&mut stack);
         let hot = Hot::init(&mut stack, constant_hot_state);
 
-        let (epoch, event_num, arvo) = snapshot.load(&mut stack).unwrap_or((0, 0, D(0)));
+        let (epoch, event_num, arvo) = (0, 0, D(0));
         let mug = mug_u32(&mut stack, arvo);
 
         let nock_context = interpreter::Context {
@@ -69,7 +64,6 @@ impl Context {
         Context {
             epoch,
             event_num,
-            snapshot,
             arvo,
             mug,
             nock_context,
@@ -84,8 +78,6 @@ impl Context {
         //  XX: assert event numbers are continuous
         self.arvo = new_arvo;
         self.event_num = new_event_num;
-        self.snapshot
-            .save(&mut self.nock_context.stack, &mut self.arvo);
         self.mug = mug_u32(&mut self.nock_context.stack, self.arvo);
     }
 
@@ -94,8 +86,8 @@ impl Context {
     //
 
     pub fn sync(&mut self) {
-        self.snapshot
-            .sync(&mut self.nock_context.stack, self.epoch, self.event_num);
+        // TODO actually sync
+        eprintln!("serf: TODO sync");
     }
 
     //
@@ -230,22 +222,24 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         // Reset the local cache and scry handler stack
         context.nock_context.cache = Hamt::<Noun>::new();
         context.nock_context.scry_stack = D(0);
-        context.nock_context.stack.frame_push(0);
 
         let tag = slot(writ, 2)?.as_direct().unwrap();
         match tag.data() {
             tas!(b"live") => {
                 let inner = slot(writ, 6)?.as_direct().unwrap();
                 match inner.data() {
-                    tas!(b"cram") => eprintln!("cram"),
-                    tas!(b"exit") => eprintln!("exit"),
+                    tas!(b"cram") => eprintln!("\r %cram: not implemented"),
+                    tas!(b"exit") => {
+                        eprintln!("\r %exit");
+                        std::process::exit(0);
+                    }
                     tas!(b"save") => {
                         // XX what is eve for?
-                        eprintln!("save");
+                        eprintln!("\r %save");
                         context.sync();
                     }
-                    tas!(b"meld") => eprintln!("meld"),
-                    tas!(b"pack") => eprintln!("pack"),
+                    tas!(b"meld") => eprintln!("\r %meld: not implemented"),
+                    tas!(b"pack") => eprintln!("\r %pack: not implemented"),
                     _ => eprintln!("unknown live"),
                 }
                 context.live();
@@ -275,13 +269,15 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         clear_interrupt();
 
         // Persist data that should survive between events
-        //  XX: Such data should go in the PMA once that's available
+        //  XX: Such data should go in the PMA once that's available, except
+        //  the warm and hot state which should survive between events but not interpreter runs
         unsafe {
             let stack = &mut context.nock_context.stack;
             stack.preserve(&mut context.arvo);
             stack.preserve(&mut context.nock_context.cold);
             stack.preserve(&mut context.nock_context.warm);
-            stack.frame_pop();
+            stack.preserve(&mut context.nock_context.hot);
+            stack.flip_top_frame(0);
         }
     }
 

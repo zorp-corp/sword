@@ -317,6 +317,7 @@ impl<T: Copy + Preserve> Hamt<T> {
                 let chunk = mug & 0x1F; // 5 bits
                 mug >>= 5;
                 match stem.entry(chunk) {
+                    // No entry found at mug chunk index; add Leaf to current Stem
                     None => {
                         let new_leaf_buffer = stack.struct_alloc(1);
                         *new_leaf_buffer = (*n, t);
@@ -341,6 +342,7 @@ impl<T: Copy + Preserve> Hamt<T> {
                         };
                         break Hamt(stem_ret);
                     }
+                    // Stem found at mug chunk index; insert into found Stem
                     Some((Left(next_stem), idx)) => {
                         let new_buffer = stack.struct_alloc(stem.size());
                         copy_nonoverlapping(stem.buffer, new_buffer, stem.size());
@@ -354,7 +356,9 @@ impl<T: Copy + Preserve> Hamt<T> {
                         depth += 1;
                         continue;
                     }
+                    // Leaf found at mug chunk index
                     Some((Right(leaf), idx)) => {
+                        // Override existing value for key, if one exists
                         for (ldx, pair) in leaf.to_mut_slice().iter_mut().enumerate() {
                             if unifying_equality(stack, n, &mut pair.0) {
                                 let new_leaf_buffer = stack.struct_alloc(leaf.len);
@@ -376,6 +380,8 @@ impl<T: Copy + Preserve> Hamt<T> {
                                 break 'insert Hamt(stem_ret);
                             }
                         }
+                        // No existing pair in this Leaf matches the key, and we've maxxed out the
+                        // Hamt depth; add the the key-value pair to the list of pairs for this Leaf
                         if depth >= 5 {
                             let new_leaf_buffer = stack.struct_alloc(leaf.len + 1);
                             copy_nonoverlapping(leaf.buffer, new_leaf_buffer, leaf.len);
@@ -394,15 +400,19 @@ impl<T: Copy + Preserve> Hamt<T> {
                                 buffer: new_buffer,
                             };
                             break 'insert Hamt(stem_ret);
+                        // No existing pair in this Leaf matches the key, but we haven't maxxed out
+                        // the Hamt depth yet. If we haven't hit the depth limit yet, we shouldn't
+                        // be making a linked list of pairs. Turn the Leaf into a Stem and insert
+                        // the new pair into the new Stem (also insert the pair in the existing
+                        // Leaf, too).
                         } else {
-                            // if we haven't hit depth limit yet we shouldn't be chaining
-                            // we'll make a fake node pointing to the old leaf and "insert into" that
+                            // Make a fake node pointing to the old leaf and "insert into it" the
                             // next time around
                             assert!(leaf.len == 1);
                             let fake_buffer = stack.struct_alloc(1);
                             *fake_buffer = Entry { leaf };
-                            // get the mug chunk for the noun at *the next level* so
-                            // we can build a fake stem for it
+                            // Get the mug chunk for the Noun at the *next* level so that we can
+                            // build a fake stem for it
                             let fake_mug = mug_u32(stack, (*leaf.buffer).0);
                             let fake_chunk = (fake_mug >> ((depth + 1) * 5)) & 0x1F;
                             let next_stem = Stem {
