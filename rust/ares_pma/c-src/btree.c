@@ -358,6 +358,9 @@ static int
 _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
               BT_page *parent, size_t childidx); /* ;;: tmp */
 
+static int _bt_flip_meta(BT_state *);
+
+
 #define BT_MAXDEPTH 4           /* ;;: todo derive it */
 typedef struct BT_findpath BT_findpath;
 struct BT_findpath {
@@ -2461,6 +2464,11 @@ _bt_state_load(BT_state *state)
     /* restore ephemeral freelists */
     _freelist_restore(state);
 
+    /* Dirty the metapage and root page */
+    assert(SUCC(_bt_flip_meta(state)));
+
+    /* Set the file length */
+    // XX make sure the flist is updated with this!
     if (fstat(state->data_fd, &stat) != 0)
       return errno;
 
@@ -2569,9 +2577,8 @@ _bt_sync_meta(BT_state *state)
    the which */
 {
   BT_meta *meta = state->meta_pages[state->which];
-  BT_meta *newmeta;
   uint32_t chk;
-  int newwhich;
+  int rc;
 
   /* increment the txnid */
   meta->txnid += 1;
@@ -2587,6 +2594,23 @@ _bt_sync_meta(BT_state *state)
     DPRINTF("msync of metapage: %p failed with %s", meta, strerror(errno));
     abort();
   }
+
+  // ensure we have a new dirty metapage and root node
+   /* finally, make old metapage clean */
+  rc =  _bt_flip_meta(state);
+
+  if (mprotect(LO_ALIGN_PAGE(meta), sizeof(BT_page), BT_PROT_CLEAN) != 0) {
+    DPRINTF("mprotect of old metapage failed with %s", strerror(errno));
+    abort();
+  }
+
+ return rc;
+}
+
+static int _bt_flip_meta(BT_state *state) {
+  BT_meta *meta = state->meta_pages[state->which];
+  BT_meta *newmeta;
+  int newwhich;
 
   /* zero the new metapage's checksum */
   newwhich = state->which ? 0 : 1;
@@ -2615,12 +2639,6 @@ _bt_sync_meta(BT_state *state)
 
   /* switch the metapage we're referring to */
   state->which = newwhich;
-
-  /* finally, make old metapage clean */
-  if (mprotect(LO_ALIGN_PAGE(meta), sizeof(BT_page), BT_PROT_CLEAN) != 0) {
-    DPRINTF("mprotect of old metapage failed with %s", strerror(errno));
-    abort();
-  }
 
   return BT_SUCC;
 }
@@ -2677,7 +2695,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
 int
 bt_state_new(BT_state **state)
 {
-  TRACE();
+  // TRACE();
 
   BT_state *s = calloc(1, sizeof *s);
   s->data_fd = -1;
@@ -3026,9 +3044,9 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
   }
   assert(loidx != 0);
 
-  /* find hiidx of range */
-  for (size_t i = loidx; i < N; i++) {
-    vaof_t hhi = node->datk[i+1].va;
+  /* find hiidx (exclusive) of range */
+  for (size_t i = loidx+1; i < N; i++) {
+    vaof_t hhi = node->datk[i].va;
     if (hhi >= hi) {
       hiidx = i;
       break;
@@ -3037,20 +3055,22 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
   assert(hiidx != 0);
 
   /* found a range in node that contains (lo-hi). May span multiple entries */
-  for (size_t i = loidx; i < hiidx; i++) {
     /* leaf: base case. cow the data */
-    if (depth == maxdepth) {
+  if (depth == maxdepth) {
+    for (size_t i = loidx; i < hiidx; i++) {
       vaof_t llo = node->datk[i].va;
       vaof_t hhi = MIN(node->datk[i+1].va, hi);
       pgno_t pg = node->datk[i].fo;
       pgno_t newpg = _bt_data_cow(state, llo, hhi, pg);
       _bt_insert(state, llo, hhi, newpg);
+    } 
+  } else {
+    for (size_t i = loidx; i < hiidx; i++) {
+      /* branch: recursive case */
+      pgno_t childpg = node->datk[i].fo;
+      /* iteratively recurse on all entries */
+      _bt_dirty(state, lo, hi, childpg, depth+1, maxdepth);
     }
-
-    /* branch: recursive case */
-    pgno_t childpg = node->datk[i].fo;
-    /* iteratively recurse on all entries */
-    _bt_dirty(state, lo, hi, childpg, depth+1, maxdepth);
   }
   return BT_SUCC;
 }

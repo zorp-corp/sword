@@ -149,6 +149,7 @@ _flist_eq(BT_flistnode *l, BT_flistnode *r)
 
 int main(int argc, char *argv[])
 {
+  DPRINTF("PMA Max Storage: %lld", ((uint64_t)UINT32_MAX * BT_PAGESIZE) - BLK_BASE_LEN_TOTAL);
   DPUTS("PMA Tests");
 
   BT_state *state1;
@@ -279,8 +280,6 @@ int main(int argc, char *argv[])
   BT_meta metacopy = {0};
   memcpy(&metacopy, meta, sizeof metacopy);
   
-  bt_sync(state3);
-
   bt_state_close(state3);
 
   bt_state_new(&state3);
