@@ -557,8 +557,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                         typemap: next_stem.typemap,
                                         buffer: dest_buffer,
                                     };
-                                    *stem.buffer.add(idx) =
-                                        Entry { stem: new_stem };
+                                    *stem.buffer.add(idx) = Entry { stem: new_stem };
                                     assert!(traversal_depth <= 5); // will increment
                                     traversal_stack[traversal_depth - 1] =
                                         Some((stem, position + 1));
@@ -583,8 +582,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                         pair.0.preserve(stack);
                                         pair.1.preserve(stack);
                                     }
-                                    *stem.buffer.add(idx) =
-                                        Entry { leaf: new_leaf };
+                                    *stem.buffer.add(idx) = Entry { leaf: new_leaf };
                                 }
                                 position += 1;
                                 continue 'preserve_stem;

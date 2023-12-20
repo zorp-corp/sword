@@ -38,7 +38,8 @@ pub fn pma_open(path: PathBuf) -> Result<(), std::io::Error> {
         bt_state_new(&mut state);
         let err = bt_state_open(state, path_cstring.as_ptr(), PMA_FLAGS, PMA_MODE);
         if err == 0 {
-            PMA.set(PMAState(state as u64)).map_err(|state| state.0 as *mut BT_state)
+            PMA.set(PMAState(state as u64))
+                .map_err(|state| state.0 as *mut BT_state)
                 .expect("PMA state already initialized to:");
             assert!(get_pma_state().is_some());
             Ok(())
