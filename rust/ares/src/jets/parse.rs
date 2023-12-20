@@ -507,8 +507,8 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
 // +$  edge  [p=hair q=(unit [p=* q=nail])]
 #[derive(Copy, Clone)]
 struct StirPair {
-    pub har: Noun,  // p.edge
-    pub res: Noun,  // p.u.q.edge
+    pub har: Noun, // p.edge
+    pub res: Noun, // p.u.q.edge
 }
 
 pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
