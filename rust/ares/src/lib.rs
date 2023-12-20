@@ -12,8 +12,10 @@ pub mod newt;
 pub mod noun;
 pub mod serf;
 //pub mod bytecode;
+pub mod persist;
 pub mod serialization;
 pub mod trace;
+pub mod unifying_equality;
 
 /** Introduce useful functions for debugging
  *

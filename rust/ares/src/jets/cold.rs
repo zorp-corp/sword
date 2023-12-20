@@ -1,7 +1,10 @@
 use crate::hamt::Hamt;
-use crate::mem::{unifying_equality, NockStack, Preserve};
+use crate::mem::{NockStack, Preserve};
 use crate::noun;
 use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
+use crate::persist::{pma_contains, Persist};
+use crate::unifying_equality::unifying_equality;
+use std::mem::size_of;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
 
@@ -29,6 +32,59 @@ struct BatteriesMem {
     battery: Noun,
     parent_axis: Atom,
     parent_batteries: Batteries,
+}
+
+impl Persist for Batteries {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+        let mut bytes = 0;
+        let mut batteries = *self;
+
+        loop {
+            if batteries.0.is_null() {
+                break;
+            }
+            if pma_contains(batteries.0, 1) {
+                break;
+            }
+            bytes += size_of::<BatteriesMem>();
+            bytes += (*batteries.0).battery.space_needed(stack);
+            bytes += (*batteries.0).parent_axis.space_needed(stack);
+            batteries = (*batteries.0).parent_batteries;
+        }
+        bytes
+    }
+
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+        let mut dest = self;
+        loop {
+            if dest.0.is_null() {
+                break;
+            }
+            if pma_contains(dest.0, 1) {
+                break;
+            }
+
+            let batteries_mem_ptr = *buffer as *mut BatteriesMem;
+            copy_nonoverlapping(dest.0, batteries_mem_ptr, 1);
+            *buffer = batteries_mem_ptr.add(1) as *mut u8;
+
+            (*batteries_mem_ptr).battery.copy_to_buffer(stack, buffer);
+            (*batteries_mem_ptr)
+                .parent_axis
+                .copy_to_buffer(stack, buffer);
+
+            dest.0 = batteries_mem_ptr;
+            dest = &mut (*dest.0).parent_batteries;
+        }
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        Batteries(meta_handle as *mut BatteriesMem)
+    }
 }
 
 impl Preserve for Batteries {
@@ -143,6 +199,55 @@ struct BatteriesListMem {
     next: BatteriesList,
 }
 
+impl Persist for BatteriesList {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+        let mut bytes = 0;
+        let mut list = *self;
+        loop {
+            if list.0.is_null() {
+                break;
+            }
+            if pma_contains(list.0, 1) {
+                break;
+            }
+            bytes += size_of::<BatteriesListMem>();
+            bytes += (*list.0).batteries.space_needed(stack);
+
+            list = (*list.0).next;
+        }
+        bytes
+    }
+
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+        let mut dest = self;
+
+        loop {
+            if dest.0.is_null() {
+                break;
+            }
+            if pma_contains(dest.0, 1) {
+                break;
+            }
+
+            let list_mem_ptr = *buffer as *mut BatteriesListMem;
+            copy_nonoverlapping(dest.0, list_mem_ptr, 1);
+            *buffer = list_mem_ptr.add(1) as *mut u8;
+            dest.0 = list_mem_ptr;
+
+            (*dest.0).batteries.copy_to_buffer(stack, buffer);
+            dest = &mut (*dest.0).next;
+        }
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        BatteriesList(meta_handle as *mut BatteriesListMem)
+    }
+}
+
 impl Preserve for BatteriesList {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         if self.0.is_null() {
@@ -213,6 +318,58 @@ const NOUN_LIST_NIL: NounList = NounList(null_mut());
 struct NounListMem {
     element: Noun,
     next: NounList,
+}
+
+impl Persist for NounList {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+        let mut bytes: usize = 0;
+        let mut list = *self;
+
+        loop {
+            if list.0.is_null() {
+                break;
+            }
+            if pma_contains(list.0, 1) {
+                break;
+            }
+
+            bytes += size_of::<NounListMem>();
+            bytes += (*list.0).element.space_needed(stack);
+
+            list = (*list.0).next;
+        }
+        bytes
+    }
+
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+        let mut dest = self;
+
+        loop {
+            if dest.0.is_null() {
+                break;
+            }
+            if pma_contains(dest.0, 1) {
+                break;
+            }
+
+            let noun_list_mem_ptr = *buffer as *mut NounListMem;
+            copy_nonoverlapping(dest.0, noun_list_mem_ptr, 1);
+            *buffer = noun_list_mem_ptr.add(1) as *mut u8;
+
+            dest.0 = noun_list_mem_ptr;
+            (*dest.0).element.copy_to_buffer(stack, buffer);
+
+            dest = &mut (*dest.0).next;
+        }
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        NounList(meta_handle as *mut NounListMem)
+    }
 }
 
 impl Preserve for NounList {
@@ -292,6 +449,44 @@ struct ColdMem {
     path_to_batteries: Hamt<BatteriesList>,
 }
 
+impl Persist for Cold {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+        if pma_contains(self.0, 1) {
+            return 0;
+        }
+
+        let mut bytes = size_of::<ColdMem>();
+        bytes += (*self.0).battery_to_paths.space_needed(stack);
+        bytes += (*self.0).root_to_paths.space_needed(stack);
+        bytes += (*self.0).path_to_batteries.space_needed(stack);
+        bytes
+    }
+
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+        if pma_contains(self.0, 1) {
+            return;
+        }
+
+        let cold_mem_ptr = *buffer as *mut ColdMem;
+        copy_nonoverlapping(self.0, cold_mem_ptr, 1);
+        *buffer = cold_mem_ptr.add(1) as *mut u8;
+
+        self.0 = cold_mem_ptr;
+
+        (*self.0).battery_to_paths.copy_to_buffer(stack, buffer);
+        (*self.0).root_to_paths.copy_to_buffer(stack, buffer);
+        (*self.0).path_to_batteries.copy_to_buffer(stack, buffer);
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0 as u64
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        Cold(meta_handle as *mut ColdMem)
+    }
+}
+
 impl Preserve for Cold {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         stack.assert_struct_is_in(self.0, 1);
@@ -319,9 +514,9 @@ impl Cold {
     }
 
     pub fn new(stack: &mut NockStack) -> Self {
-        let battery_to_paths = Hamt::new();
-        let root_to_paths = Hamt::new();
-        let path_to_batteries = Hamt::new();
+        let battery_to_paths = Hamt::new(stack);
+        let root_to_paths = Hamt::new(stack);
+        let path_to_batteries = Hamt::new(stack);
         unsafe {
             let cold_mem_ptr: *mut ColdMem = stack.struct_alloc(1);
             *cold_mem_ptr = ColdMem {
