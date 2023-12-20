@@ -14,7 +14,7 @@ pub fn ac_ed_puck(seed: &mut [u8; 32], out: &mut [u8; 32]) {
 /// to the given output slice.
 pub fn ac_ed_shar(public: &[u8; 32], seed: &[u8; 32], out: &mut [u8; 32]) {
     let self_key = SigningKey::from_bytes(seed);
-    let self_secret = StaticSecret::from(self_key.to_bytes());
+    let self_secret = StaticSecret::from(self_key.to_scalar_bytes());
 
     if let Ok(compressed_ed_pt) = CompressedEdwardsY::from_slice(public) {
         if let Some(ed_pt) = compressed_ed_pt.decompress() {

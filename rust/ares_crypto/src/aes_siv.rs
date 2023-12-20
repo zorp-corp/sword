@@ -9,7 +9,7 @@ pub enum Error {
     InvalidKeyLength,
     InvalidOutputLength,
     InvalidHeadersLength,
-    UnauthenticCipher,
+    CipherNotAuthentic,
 }
 
 pub fn _ac_aes_siv_en(
@@ -70,7 +70,7 @@ pub fn _ac_aes_siv_de(
         if let Ok(mut cipher) = Aes128Siv::new_from_slice(&key) {
             match cipher.decrypt_in_place_detached(data, message, iv_array) {
                 Ok(_) => (),
-                Err(_) => return Err(Error::UnauthenticCipher),
+                Err(_) => return Err(Error::CipherNotAuthentic),
             }
         } else {
             return Err(Error::InvalidKeyLength);
@@ -79,7 +79,7 @@ pub fn _ac_aes_siv_de(
         if let Ok(mut cipher) = Aes192Siv::new_from_slice(&key) {
             match cipher.decrypt_in_place_detached(data, message, iv_array) {
                 Ok(_) => (),
-                Err(_) => return Err(Error::UnauthenticCipher),
+                Err(_) => return Err(Error::CipherNotAuthentic),
             }
         } else {
             return Err(Error::InvalidKeyLength);
@@ -88,7 +88,7 @@ pub fn _ac_aes_siv_de(
         if let Ok(mut cipher) = Aes256Siv::new_from_slice(&key) {
             match cipher.decrypt_in_place_detached(data, message, iv_array) {
                 Ok(_) => (),
-                Err(_) => return Err(Error::UnauthenticCipher),
+                Err(_) => return Err(Error::CipherNotAuthentic),
             }
         } else {
             return Err(Error::InvalidKeyLength);
