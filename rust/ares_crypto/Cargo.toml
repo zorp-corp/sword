@@ -9,20 +9,25 @@ edition = "2021"
 assert_no_alloc = "1.1.2"
 # use this when debugging requires allocation (e.g. eprintln)
 # assert_no_alloc = {version="1.1.2", features=["warn_debug"]}
-aes-siv = { version = "0.7.0", features = ["heapless"], default-features = false }
-curve25519-dalek = "4.1.1"
-ed25519-dalek = { version = "2.1.0", features = ["digest", "pkcs8", "rand_core"], default-features = false }
-ed25519 = { version = "2.2.3" }
 ibig = "0.3.6"
-rand = { version = "0.8.5", features = ["std_rng"], default-features = false }
-sha2 = "0.10.8"
+
+# optional features
+curve25519-dalek = {version = "4.1.1", optional = true }
+ed25519-dalek = { version = "2.1.0", features = ["digest", "pkcs8", "rand_core"], default-features = false, optional = true }
+x25519-dalek = { version = "2.0.0", features = ["static_secrets"], default-features = false, optional = true}
+
+aes = { version = "0.8.3", optional = true }
+aes-siv = { version = "0.7.0", features = ["heapless"], default-features = false, optional = true }
+
+sha1 = { version = "0.10.6", optional = true }
+sha2 = { version = "0.10.8", optional = true }
+
 urcrypt-sys = { version = "0.1.1", optional = true }
-x25519-dalek = { version = "2.0.0", features = ["static_secrets"], default-features = false }
-aes = "0.8.3"
 
 [features]
 # XX turn off test_vs_urcrypt after development
-default = ["aes_siv", "ed25519", "test_vs_urcrypt"]
-aes_siv = []
-ed25519 = []
+default = ["aes_siv", "ed25519", "sha", "test_vs_urcrypt"]
+aes_siv = ["aes", "aes-siv"]
+ed25519 = ["curve25519-dalek", "ed25519-dalek", "x25519-dalek"]
+sha = ["sha1", "sha2"]
 test_vs_urcrypt = ["urcrypt-sys"]
