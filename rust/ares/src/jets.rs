@@ -307,8 +307,9 @@ pub mod util {
     pub mod test {
         use super::*;
         use crate::hamt::Hamt;
-        use crate::mem::{unifying_equality, NockStack};
+        use crate::mem::NockStack;
         use crate::noun::{Atom, Noun, D, T};
+        use crate::unifying_equality::unifying_equality;
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
 
@@ -316,9 +317,9 @@ pub mod util {
             let mut stack = NockStack::new(8 << 10 << 10, 0);
             let newt = Newt::new_mock();
             let cold = Cold::new(&mut stack);
-            let warm = Warm::new();
+            let warm = Warm::new(&mut stack);
             let hot = Hot::init(&mut stack, URBIT_HOT_STATE);
-            let cache = Hamt::<Noun>::new();
+            let cache = Hamt::<Noun>::new(&mut stack);
 
             Context {
                 stack,
