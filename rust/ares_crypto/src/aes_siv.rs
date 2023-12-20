@@ -1,7 +1,7 @@
-use aes::Aes192;
 use aes_siv::aead::{generic_array::GenericArray, KeyInit};
 use aes_siv::siv::{Aes128Siv, Aes256Siv, CmacSiv};
 
+use aes::Aes192;
 type Aes192Siv = CmacSiv<Aes192>;
 
 #[derive(Debug)]
@@ -16,7 +16,8 @@ pub fn _ac_aes_siv_en(
     key: &mut [u8],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &mut [u8; 16],
+    // iv: &mut [u8; 16],
+    iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
     let iv_tag;
@@ -62,7 +63,8 @@ pub fn _ac_aes_siv_de(
     key: &mut [u8],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &mut [u8; 16],
+    // iv: &mut [u8; 16],
+    iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
     let iv_array = GenericArray::from_slice(iv);
@@ -101,60 +103,72 @@ pub fn _ac_aes_siv_de(
 }
 
 pub fn ac_aes_siva_en(
-    key: &mut [u8; 32],
+    // key: &mut [u8; 32],
+    key: &mut [u8],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &mut [u8; 16],
+    // iv: &mut [u8; 16],
+    iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
     _ac_aes_siv_en(key, message, data, iv, out)
 }
 
 pub fn ac_aes_siva_de(
-    key: &mut [u8; 32],
+    // key: &mut [u8; 32],
+    key: &mut [u8],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &mut [u8; 16],
+    // iv: &mut [u8; 16],
+    iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
     _ac_aes_siv_de(key, message, data, iv, out)
 }
 
 pub fn ac_aes_sivb_en(
-    key: &mut [u8; 48],
+    // key: &mut [u8; 48],
+    key: &mut [u8],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &mut [u8; 16],
+    // iv: &mut [u8; 16],
+    iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
     _ac_aes_siv_en(key, message, data, iv, out)
 }
 
 pub fn ac_aes_sivb_de(
-    key: &mut [u8; 48],
+    // key: &mut [u8; 48],
+    key: &mut [u8],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &mut [u8; 16],
+    // iv: &mut [u8; 16],
+    iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
     _ac_aes_siv_de(key, message, data, iv, out)
 }
 
 pub fn ac_aes_sivc_en(
-    key: &mut [u8; 64],
+    // key: &mut [u8; 64],
+    key: &mut [u8],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &mut [u8; 16],
+    // iv: &mut [u8; 16],
+    iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
     _ac_aes_siv_en(key, message, data, iv, out)
 }
 
 pub fn ac_aes_sivc_de(
-    key: &mut [u8; 64],
+    // key: &mut [u8; 64],
+    key: &mut [u8],
     message: &mut [u8],
     data: &mut [&mut [u8]],
-    iv: &mut [u8; 16],
+    // iv: &mut [u8; 16],
+    iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
     _ac_aes_siv_de(key, message, data, iv, out)
