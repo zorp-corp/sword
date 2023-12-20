@@ -3031,7 +3031,7 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
 {
   BT_page *node = _node_get(state, nodepg);
   size_t N = _bt_numkeys(node);
-  size_t loidx = 0;
+  size_t loidx = BT_DAT_MAXKEYS; // 0 is a valid loidx!
   size_t hiidx = 0;
 
   /* find loidx of range */
@@ -3042,7 +3042,7 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
       break;
     }
   }
-  assert(loidx != 0);
+  assert(loidx < BT_DAT_MAXKEYS);
 
   /* find hiidx (exclusive) of range */
   for (size_t i = loidx+1; i < N; i++) {
