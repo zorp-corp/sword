@@ -976,11 +976,9 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
 }
 
 static void
-_nlist_insert(BT_state *state, BT_nlistnode **dst, pgno_t nodepg)
+_nlist_insert2(BT_state *state, BT_nlistnode **dst, BT_page *lo, BT_page *hi)
 {
   BT_nlistnode **prev_dst = 0;
-  BT_page *lo = _node_get(state, nodepg);
-  BT_page *hi = lo+1;
 
   while(*dst) {
     if (hi == (*dst)->lo) {
@@ -1030,57 +1028,24 @@ _nlist_insert(BT_state *state, BT_nlistnode **dst, pgno_t nodepg)
 }
 
 static void
+_nlist_insert(BT_state *state, BT_nlistnode **dst, pgno_t nodepg)
+{
+  BT_page *lo = _node_get(state, nodepg);
+  BT_page *hi = _node_get(state, nodepg+1);
+  _nlist_insert2(state, dst, lo, hi);
+}
+
+static void
 _pending_nlist_merge(BT_state *state)
 {
-  BT_nlistnode **src_head = &state->pending_nlist;
-  BT_nlistnode **dst_head = &state->nlist;
-
-  while (*dst_head) {
-    /* src cleared. done */
-    if (!*src_head) {
-      return;
-    }
-
-    /* ;;: TODO: you still need to coalesce neighbor nodes in dst if we widen
-         them */
-
-    /* check if src node should be merged with dst  **************************/
-    BT_page *dst_nlo = (*dst_head)->next ? (*dst_head)->next->lo : 0;
-
-    /* source node immediately follows dst node's termination */
-    if ((*dst_head)->hi == (*src_head)->lo) {
-      /* expand dst node */
-      (*dst_head)->hi = (*src_head)->hi;
-      /* advance src node and free previous */
-      BT_nlistnode *prev = *src_head;
-      src_head = &(*src_head)->next;
-      free(prev);
-    }
-    /* source node's termination immediately precedes dst node */
-    else if ((*src_head)->hi == (*dst_head)->lo) {
-      /* expand dst node */
-      (*src_head)->lo = (*dst_head)->lo;
-      /* advance src node and free previous */
-      BT_nlistnode *prev = *src_head;
-      src_head = &(*src_head)->next;
-      free(prev);
-    }
-    /* src node is discontiguously between dst head and next */
-    else if ((*src_head)->lo > (*dst_head)->hi
-             && (*src_head)->hi < dst_nlo) {
-      /* link src node in */
-      (*src_head)->next = (*dst_head)->next;
-      (*dst_head)->next = *src_head;
-      /* and advance src node */
-      src_head = &(*src_head)->next;
-    }
-    /* otherwise, advance dst node */
-    else {
-      dst_head = &(*dst_head)->next;
-    }
+  BT_nlistnode *src_head = state->pending_nlist;
+  BT_nlistnode *prev = 0;
+  while (src_head) {
+    _nlist_insert2(state, &state->nlist, src_head->lo, src_head->hi);
+    prev = src_head;
+    src_head = src_head->next;
+    free(prev);
   }
-  /* merge what remains of src if anything */
-  *dst_head = *src_head;
 }
 
 static void
@@ -1138,55 +1103,14 @@ _flist_insert(BT_flistnode **dst, pgno_t lo, pgno_t hi)
 static void
 _pending_flist_merge(BT_state *state)
 {
-  BT_flistnode **src_head = &state->pending_flist;
-  BT_flistnode **dst_head = &state->flist;
-
-  while (*dst_head) {
-    /* src cleared. done */
-    if (!*src_head) {
-      return;
-    }
-
-    /* ;;: TODO: you still need to coalesce neighbor nodes in dst if we widen
-         them */
-
-    /* check if src node should be merged with dst  **************************/
-    pgno_t dst_nlo = (*dst_head)->next ? (*dst_head)->next->lo : 0;
-
-    /* source node immediately follows dst node's termination */
-    if ((*dst_head)->hi == (*src_head)->lo) {
-      /* expand dst node */
-      (*dst_head)->hi = (*src_head)->hi;
-      /* advance src node and free previous */
-      BT_flistnode *prev = *src_head;
-      src_head = &(*src_head)->next;
-      free(prev);
-    }
-    /* source node's termination immediately precedes dst node */
-    else if ((*src_head)->hi == (*dst_head)->lo) {
-      /* expand dst node */
-      (*src_head)->lo = (*dst_head)->lo;
-      /* advance src node and free previous */
-      BT_flistnode *prev = *src_head;
-      src_head = &(*src_head)->next;
-      free(prev);
-    }
-    /* src node is discontiguously between dst head and next */
-    else if ((*src_head)->lo > (*dst_head)->hi
-             && (*src_head)->hi < dst_nlo) {
-      /* link src node in */
-      (*src_head)->next = (*dst_head)->next;
-      (*dst_head)->next = *src_head;
-      /* and advance src node */
-      src_head = &(*src_head)->next;
-    }
-    /* otherwise, advance dst node */
-    else {
-      dst_head = &(*dst_head)->next;
-    }
+  BT_flistnode *src_head = state->pending_flist;
+  BT_flistnode *prev = 0;
+  while (src_head) {
+    _flist_insert(&state->flist, src_head->lo, src_head->hi);
+    prev = src_head;
+    src_head = src_head->next;
+    free(prev);
   }
-  /* merge what remains of src if anything */
-  *dst_head = *src_head;
 }
 
 
