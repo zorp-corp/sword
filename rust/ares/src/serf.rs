@@ -7,7 +7,6 @@ use crate::jets::list::util::{lent, zing};
 use crate::jets::nock::util::mook;
 use crate::jets::warm::Warm;
 use crate::mem::NockStack;
-use crate::mem::Preserve;
 use crate::mug::*;
 use crate::newt::Newt;
 use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
@@ -160,8 +159,8 @@ impl Context {
             }
         };
 
-        let mut hot = Hot::init(&mut stack, constant_hot_state);
-        let warm = Warm::init(&mut stack, &mut cold, &mut hot);
+        let hot = Hot::init(&mut stack, constant_hot_state);
+        let warm = Warm::init(&mut stack, &mut cold, &hot);
         let mug = mug_u32(&mut stack, arvo);
 
         let nock_context = interpreter::Context {

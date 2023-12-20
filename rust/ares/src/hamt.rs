@@ -5,7 +5,7 @@ use crate::persist::{pma_contains, Persist};
 use crate::unifying_equality::unifying_equality;
 use either::Either::{self, *};
 use std::mem::size_of;
-use std::ptr::{copy_nonoverlapping, null, null_mut};
+use std::ptr::{copy_nonoverlapping, null_mut};
 use std::slice;
 
 type MutStemEntry<T> = Either<*mut MutStem<T>, Leaf<T>>;
@@ -557,7 +557,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                         typemap: next_stem.typemap,
                                         buffer: dest_buffer,
                                     };
-                                    *(stem.buffer.add(idx) as *mut Entry<T>) =
+                                    *stem.buffer.add(idx) =
                                         Entry { stem: new_stem };
                                     assert!(traversal_depth <= 5); // will increment
                                     traversal_stack[traversal_depth - 1] =
@@ -583,7 +583,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                         pair.0.preserve(stack);
                                         pair.1.preserve(stack);
                                     }
-                                    *(stem.buffer.add(idx) as *mut Entry<T>) =
+                                    *stem.buffer.add(idx) =
                                         Entry { leaf: new_leaf };
                                 }
                                 position += 1;
@@ -615,7 +615,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             typemap: 0,
             buffer: null_mut(),
         }; 6];
-        traversal[0] = (*self.0);
+        traversal[0] = *self.0;
 
         loop {
             assert!(depth < 6);
@@ -630,8 +630,8 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             let next_chunk = traversal[depth].bitmap.trailing_zeros();
             let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
             let next_entry = *traversal[depth].buffer;
-            traversal[depth].bitmap = traversal[depth].bitmap >> (next_chunk + 1);
-            traversal[depth].typemap = traversal[depth].typemap >> (next_chunk + 1);
+            traversal[depth].bitmap >>= next_chunk + 1;
+            traversal[depth].typemap >>= next_chunk + 1;
             traversal[depth].buffer = traversal[depth].buffer.add(1);
 
             if next_type {
@@ -676,7 +676,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
         let stem_ptr = *buffer as *mut Stem<T>;
         copy_nonoverlapping(self.0, stem_ptr, 1);
         *buffer = stem_ptr.add(1) as *mut u8;
-        (*self).0 = stem_ptr;
+        self.0 = stem_ptr;
 
         let stem_buffer_size = (*stem_ptr).size();
         if pma_contains((*stem_ptr).buffer, stem_buffer_size) {
@@ -709,8 +709,8 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
             let next_entry_ptr = traversal[depth].buffer;
 
-            traversal[depth].bitmap = traversal[depth].bitmap >> (next_chunk + 1);
-            traversal[depth].typemap = traversal[depth].typemap >> (next_chunk + 1);
+            traversal[depth].bitmap >>= next_chunk + 1;
+            traversal[depth].typemap >>= next_chunk + 1;
             traversal[depth].buffer = traversal[depth].buffer.add(1);
 
             if next_type {

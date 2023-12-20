@@ -5,7 +5,6 @@ use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
 use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
-use libc::{c_void, memcmp};
 use memmap::MmapMut;
 use std::alloc::Layout;
 use std::mem;

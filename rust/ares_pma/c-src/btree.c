@@ -158,7 +158,7 @@ off2addr(vaof_t off)
 
 /* NMEMB: number of members in array, a */
 #define NMEMB(a)                                \
-  (sizeof(a[0]) / sizeof(a))
+  (sizeof(a) / sizeof(a[0]))
 
 #define offsetof(st, m) \
     __builtin_offsetof(st, m)
@@ -236,8 +236,8 @@ struct BT_page {
   BT_pageheader head;                    /* header */
   union {                                /* data section */
     BT_dat      datd[BT_DAT_MAXENTRIES]; /* union view */
-    BT_kv       datk[0];                 /* struct view */
-    BYTE        datc[0];                 /* byte-level view */
+    BT_kv       datk[BT_DAT_MAXKEYS];    /* struct view */
+    BYTE        datc[BT_DAT_MAXBYTES];   /* byte-level view */
   };
 };
 static_assert(sizeof(BT_page) == BT_PAGESIZE);
@@ -567,6 +567,9 @@ _node_cow(BT_state *state, BT_page *node, pgno_t *pgno)
   return BT_SUCC;
 }
 
+static void *
+_bt_bsearch(BT_page *page, vaof_t va) __attribute((unused));
+
 /* binary search a page's data section for a va. Returns a pointer to the found BT_dat */
 static void *
 _bt_bsearch(BT_page *page, vaof_t va)
@@ -654,6 +657,9 @@ _bt_find(BT_state *state, BT_findpath *path, vaof_t lo, vaof_t hi)
   uint8_t maxdepth = meta->depth;
   return _bt_find2(state, root, path, maxdepth, lo, hi);
 }
+
+static int
+_bt_findpath_is_root(BT_findpath *path) __attribute((unused));
 
 static int
 _bt_findpath_is_root(BT_findpath *path)
@@ -769,6 +775,9 @@ _bt_split_child(BT_state *state, BT_page *parent, size_t i, pgno_t *newchild)
 
   return BT_SUCC;
 }
+
+static int
+_bt_rebalance(BT_state *state, BT_page *node) __attribute((unused));
 
 static int
 _bt_rebalance(BT_state *state, BT_page *node)
@@ -1595,6 +1604,9 @@ struct BT_ppage {
   BT_page *node;
   BT_page *parent;
 };
+
+static int
+_bt_delete(BT_state *state, vaof_t lo, vaof_t hi) __attribute((unused));
 
 static int
 _bt_delete(BT_state *state, vaof_t lo, vaof_t hi)
@@ -2512,6 +2524,9 @@ _bt_falloc(BT_state *state, size_t pages)
 }
 
 static int
+_bt_sync_hasdirtypage(BT_state *state, BT_page *node) __attribute((unused));
+
+static int
 _bt_sync_hasdirtypage(BT_state *state, BT_page *node)
 /* ;;: could be more efficiently replaced by a gcc vectorized builtin */
 {
@@ -3187,6 +3202,9 @@ _sham_sync2(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
     _sham_sync2(state, child, depth+1, maxdepth);
   }
 }
+
+static void
+_sham_sync(BT_state *state) __attribute((unused));
 
 static void
 _sham_sync(BT_state *state)

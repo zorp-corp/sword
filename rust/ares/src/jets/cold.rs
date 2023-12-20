@@ -57,15 +57,15 @@ impl Persist for Batteries {
     unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
         let mut dest = self;
         loop {
-            if (*dest).0.is_null() {
+            if dest.0.is_null() {
                 break;
             }
-            if pma_contains((*dest).0, 1) {
+            if pma_contains(dest.0, 1) {
                 break;
             }
 
             let batteries_mem_ptr = *buffer as *mut BatteriesMem;
-            copy_nonoverlapping((*dest).0, batteries_mem_ptr, 1);
+            copy_nonoverlapping(dest.0, batteries_mem_ptr, 1);
             *buffer = batteries_mem_ptr.add(1) as *mut u8;
 
             (*batteries_mem_ptr).battery.copy_to_buffer(stack, buffer);
@@ -73,8 +73,8 @@ impl Persist for Batteries {
                 .parent_axis
                 .copy_to_buffer(stack, buffer);
 
-            (*dest).0 = batteries_mem_ptr;
-            dest = &mut (*(*dest).0).parent_batteries;
+            dest.0 = batteries_mem_ptr;
+            dest = &mut (*dest.0).parent_batteries;
         }
     }
 
@@ -222,20 +222,20 @@ impl Persist for BatteriesList {
         let mut dest = self;
 
         loop {
-            if (*dest).0.is_null() {
+            if dest.0.is_null() {
                 break;
             }
-            if pma_contains((*dest).0, 1) {
+            if pma_contains(dest.0, 1) {
                 break;
             }
 
             let list_mem_ptr = *buffer as *mut BatteriesListMem;
-            copy_nonoverlapping((*dest).0, list_mem_ptr, 1);
+            copy_nonoverlapping(dest.0, list_mem_ptr, 1);
             *buffer = list_mem_ptr.add(1) as *mut u8;
-            (*dest).0 = list_mem_ptr;
+            dest.0 = list_mem_ptr;
 
-            (*(*dest).0).batteries.copy_to_buffer(stack, buffer);
-            dest = &mut (*(*dest).0).next;
+            (*dest.0).batteries.copy_to_buffer(stack, buffer);
+            dest = &mut (*dest.0).next;
         }
     }
 
@@ -345,21 +345,21 @@ impl Persist for NounList {
         let mut dest = self;
 
         loop {
-            if (*dest).0.is_null() {
+            if dest.0.is_null() {
                 break;
             }
-            if pma_contains((*dest).0, 1) {
+            if pma_contains(dest.0, 1) {
                 break;
             }
 
             let noun_list_mem_ptr = *buffer as *mut NounListMem;
-            copy_nonoverlapping((*dest).0, noun_list_mem_ptr, 1);
+            copy_nonoverlapping(dest.0, noun_list_mem_ptr, 1);
             *buffer = noun_list_mem_ptr.add(1) as *mut u8;
 
-            (*dest).0 = noun_list_mem_ptr;
-            (*(*dest).0).element.copy_to_buffer(stack, buffer);
+            dest.0 = noun_list_mem_ptr;
+            (*dest.0).element.copy_to_buffer(stack, buffer);
 
-            dest = &mut (*(*dest).0).next;
+            dest = &mut (*dest.0).next;
         }
     }
 
@@ -456,9 +456,9 @@ impl Persist for Cold {
         }
 
         let mut bytes = size_of::<ColdMem>();
-        bytes += (*(*self).0).battery_to_paths.space_needed(stack);
-        bytes += (*(*self).0).root_to_paths.space_needed(stack);
-        bytes += (*(*self).0).path_to_batteries.space_needed(stack);
+        bytes += (*self.0).battery_to_paths.space_needed(stack);
+        bytes += (*self.0).root_to_paths.space_needed(stack);
+        bytes += (*self.0).path_to_batteries.space_needed(stack);
         bytes
     }
 
@@ -471,11 +471,11 @@ impl Persist for Cold {
         copy_nonoverlapping(self.0, cold_mem_ptr, 1);
         *buffer = cold_mem_ptr.add(1) as *mut u8;
 
-        (*self).0 = cold_mem_ptr;
+        self.0 = cold_mem_ptr;
 
-        (*(*self).0).battery_to_paths.copy_to_buffer(stack, buffer);
-        (*(*self).0).root_to_paths.copy_to_buffer(stack, buffer);
-        (*(*self).0).path_to_batteries.copy_to_buffer(stack, buffer);
+        (*self.0).battery_to_paths.copy_to_buffer(stack, buffer);
+        (*self.0).root_to_paths.copy_to_buffer(stack, buffer);
+        (*self.0).path_to_batteries.copy_to_buffer(stack, buffer);
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {

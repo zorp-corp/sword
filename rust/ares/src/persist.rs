@@ -1,4 +1,3 @@
-use crate::jets::cold::Cold;
 use crate::mem::NockStack;
 use crate::noun::{Allocated, Atom, Cell, CellMemory, IndirectAtom, Noun};
 use ares_pma::*;
@@ -39,8 +38,7 @@ pub fn pma_open(path: PathBuf) -> Result<(), std::io::Error> {
         bt_state_new(&mut state);
         let err = bt_state_open(state, path_cstring.as_ptr(), PMA_FLAGS, PMA_MODE);
         if err == 0 {
-            PMA.set(PMAState(state as u64))
-                .or_else(|state| Err(state.0 as *mut BT_state))
+            PMA.set(PMAState(state as u64)).map_err(|state| state.0 as *mut BT_state)
                 .expect("PMA state already initialized to:");
             assert!(get_pma_state().is_some());
             Ok(())
@@ -162,19 +160,17 @@ unsafe fn unmark(a: Allocated) {
 }
 
 impl Persist for Atom {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+    unsafe fn space_needed(&mut self, _stack: &mut NockStack) -> usize {
         if let Ok(indirect) = self.as_indirect() {
             let count = indirect.raw_size();
-            if !pma_contains(indirect.to_raw_pointer(), count) {
-                if !mark(indirect.as_allocated()) {
-                    return count * size_of::<u64>();
-                }
+            if !pma_contains(indirect.to_raw_pointer(), count) && !mark(indirect.as_allocated()) {
+                return count * size_of::<u64>();
             }
         }
         0
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, _stack: &mut NockStack, buffer: &mut *mut u8) {
         if let Ok(mut indirect) = self.as_indirect() {
             let count = indirect.raw_size();
             if !pma_contains(indirect.to_raw_pointer(), count) {
@@ -219,12 +215,10 @@ impl Persist for Noun {
                     space += atom.space_needed(stack);
                 }
                 Right(cell) => {
-                    if !pma_contains(cell.to_raw_pointer(), 1) {
-                        if !mark(cell.as_allocated()) {
-                            space += size_of::<CellMemory>();
-                            (*stack.push::<Noun>()) = cell.tail();
-                            (*stack.push::<Noun>()) = cell.head();
-                        }
+                    if !pma_contains(cell.to_raw_pointer(), 1) && !mark(cell.as_allocated()) {
+                        space += size_of::<CellMemory>();
+                        (*stack.push::<Noun>()) = cell.tail();
+                        (*stack.push::<Noun>()) = cell.head();
                     }
                 }
             }
@@ -236,7 +230,7 @@ impl Persist for Noun {
     unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
         let mut buffer_u64 = (*buffer) as *mut u64;
         stack.frame_push(0);
-        *(stack.push::<*mut Noun>()) = (self as *mut Noun);
+        *(stack.push::<*mut Noun>()) = self as *mut Noun;
 
         loop {
             if stack.stack_is_empty() {
@@ -247,7 +241,7 @@ impl Persist for Noun {
             stack.pop::<*mut Noun>();
 
             match (*dest).as_either_direct_allocated() {
-                Left(direct) => {}
+                Left(_direct) => {}
                 Right(allocated) => {
                     if let Some(a) = allocated.forwarding_pointer() {
                         *dest = a.as_noun();
