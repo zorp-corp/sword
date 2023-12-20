@@ -50,6 +50,7 @@ opt-level = 3
 
 # run with e.g. 'cargo build --features check_forwarding,check_acyclic'
 [features]
+# FOR DEBUGGING MEMORY ISSUES ONLY
 check_all = [ "check_acyclic", "check_forwarding", "check_junior" ]
 check_acyclic = []
 check_forwarding = []

@@ -214,8 +214,6 @@ impl Context {
     /// [event_update] and invocation of this function
     pub unsafe fn preserve_event_update_leftovers(&mut self) {
         let stack = &mut self.nock_context.stack;
-        stack.preserve(&mut self.arvo);
-        stack.preserve(&mut self.nock_context.cold);
         stack.preserve(&mut self.nock_context.warm);
         stack.preserve(&mut self.nock_context.hot);
         stack.flip_top_frame(0);
@@ -354,14 +352,17 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
             tas!(b"live") => {
                 let inner = slot(writ, 6)?.as_direct().unwrap();
                 match inner.data() {
-                    tas!(b"cram") => eprintln!("cram"),
-                    tas!(b"exit") => eprintln!("exit"),
+                    tas!(b"cram") => eprintln!("\r %cram: not implemented"),
+                    tas!(b"exit") => {
+                        eprintln!("\r %exit");
+                        std::process::exit(0);
+                    }
                     tas!(b"save") => {
                         // XX what is eve for?
                         pma_sync();
                     }
-                    tas!(b"meld") => eprintln!("meld"),
-                    tas!(b"pack") => eprintln!("pack"),
+                    tas!(b"meld") => eprintln!("\r %meld: not implemented"),
+                    tas!(b"pack") => eprintln!("\r %pack: not implemented"),
                     _ => eprintln!("unknown live"),
                 }
                 context.live();
@@ -503,6 +504,7 @@ fn play_list(context: &mut Context, mut lit: Noun) {
     let mut eve = context.event_num;
     while let Ok(cell) = lit.as_cell() {
         let ovo = cell.head();
+        lit = cell.tail();
         let trace_name = if context.nock_context.trace_info.is_some() {
             Some(format!("play [{}]", eve))
         } else {
@@ -519,6 +521,7 @@ fn play_list(context: &mut Context, mut lit: Noun) {
 
                 unsafe {
                     context.event_update(eve, arvo);
+                    context.nock_context.stack.preserve(&mut lit);
                     context.preserve_event_update_leftovers();
                 }
             }
@@ -526,7 +529,6 @@ fn play_list(context: &mut Context, mut lit: Noun) {
                 return context.play_bail(goof);
             }
         }
-        lit = cell.tail();
     }
     context.play_done();
 }
