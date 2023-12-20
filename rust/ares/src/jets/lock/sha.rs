@@ -4,6 +4,7 @@ use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
 use crate::noun::{IndirectAtom, Noun, D};
 use urcrypt_sys::*;
+use ares_crypto::sha::{ac_sha1, ac_shal, ac_shas, ac_shay};
 
 crate::gdb!();
 
@@ -11,22 +12,21 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
     let sal = slot(sam, 2)?.as_atom()?;
-    let ruz = slot(sam, 3)?.as_atom()?;
+    let mut ruz = slot(sam, 3)?.as_atom()?;
 
     let sal_bytes = &(sal.as_bytes())[0..met(3, sal)]; // drop trailing zeros
-    let (mut _salt_ida, salt) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
+    let (mut _salt_ida, mut salt) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
     salt.copy_from_slice(sal_bytes);
 
-    let message = &(ruz.as_bytes())[0..met(3, ruz)]; // drop trailing zeros
+    let msg_len = met(3, ruz);
+    let mut message = &mut (ruz.as_mut_bytes())[0..msg_len]; // drop trailing zeros
 
     unsafe {
-        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_shas(
-            salt.as_mut_ptr(),
-            salt.len(),
-            message.as_ptr(),
-            message.len(),
-            out.as_mut_ptr(),
+        let (mut out_ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        ac_shas(
+            &mut message,
+            &mut salt,
+            &mut out,
         );
         Ok(out_ida.normalize_as_atom().as_noun())
     }
@@ -35,12 +35,12 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
 pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
-    let msg = sam.as_atom()?;
+    let mut msg = sam.as_atom()?;
     let len = met(3, msg);
 
     unsafe {
-        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_shay(msg.as_bytes().as_ptr(), len, out.as_mut_ptr());
+        let (mut ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        ac_shay(&mut (msg.as_mut_bytes())[0..len], &mut out);
         Ok(ida.normalize_as_atom().as_noun())
     }
 }
@@ -49,18 +49,18 @@ pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
     let wid = slot(sam, 2)?.as_atom()?;
-    let dat = slot(sam, 3)?.as_atom()?;
+    let mut dat = slot(sam, 3)?.as_atom()?;
 
     let width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
         Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
 
-    let message = dat.as_bytes();
+    let message = &mut (dat.as_mut_bytes())[0..width];
 
     unsafe {
-        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_shay(message.as_ptr(), width, out.as_mut_ptr());
+        let (mut out_ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        ac_shay(message, &mut out);
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
@@ -69,18 +69,18 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
     let wid = slot(sam, 2)?.as_atom()?;
-    let dat = slot(sam, 3)?.as_atom()?;
+    let mut dat = slot(sam, 3)?.as_atom()?;
 
     let width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
         Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
 
-    let message = &(dat.as_bytes())[0..met(3, dat)]; // drop trailing zeros
+    let message = &mut (dat.as_mut_bytes())[0..width]; // drop trailing zeros
 
     unsafe {
-        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        urcrypt_shal(message.as_ptr(), width, out.as_mut_ptr());
+        let (mut ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        ac_shal(message, &mut out);
         Ok(ida.normalize_as_atom().as_noun())
     }
 }
@@ -97,12 +97,12 @@ pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
     };
 
     unsafe {
-        let msg_bytes = dat.as_bytes();
-        let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
+        let msg_bytes = &(dat.as_bytes())[0..width];
+        let (mut _msg_ida, mut msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
         msg.copy_from_slice(msg_bytes);
 
-        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
-        urcrypt_sha1(msg.as_mut_ptr(), width, out.as_mut_ptr());
+        let (mut out_ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
+        ac_sha1(&mut msg, &mut out);
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }

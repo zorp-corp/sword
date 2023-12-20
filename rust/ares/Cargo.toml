@@ -11,6 +11,7 @@ edition = "2018"
 
 # Please keep these alphabetized
 [dependencies]
+ares_crypto = { path = "../ares_crypto" }
 ares_macros = { path = "../ares_macros" }
 # assert_no_alloc = "1.1.2"
 # use this when debugging requires allocation (e.g. eprintln)

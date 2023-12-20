@@ -2,7 +2,7 @@ use sha1::{Digest, Sha1};
 use sha2::{Sha256, Sha512};
 
 /// Hashes a message using SHA-1.
-pub fn ac_sha1(message: &mut [u8], out: &mut [u8; 20]) {
+pub fn ac_sha1(message: &mut [u8], out: &mut [u8]) {
     message.reverse();
     let mut hasher = Sha1::new();
     hasher.update(message);
@@ -12,7 +12,7 @@ pub fn ac_sha1(message: &mut [u8], out: &mut [u8; 20]) {
 }
 
 /// Hashes a message using SHA-256.
-pub fn ac_shay(message: &mut [u8], out: &mut [u8; 32]) {
+pub fn ac_shay(message: &mut [u8], out: &mut [u8]) {
     let mut hasher = Sha256::new();
     hasher.update(message);
     let result = hasher.finalize();
@@ -20,7 +20,7 @@ pub fn ac_shay(message: &mut [u8], out: &mut [u8; 32]) {
 }
 
 /// Hashes a message using SHA-512.
-pub fn ac_shal(message: &mut [u8], out: &mut [u8; 64]) {
+pub fn ac_shal(message: &mut [u8], out: &mut [u8]) {
     let mut hasher = Sha512::new();
     hasher.update(message);
     let result = hasher.finalize();
@@ -28,7 +28,7 @@ pub fn ac_shal(message: &mut [u8], out: &mut [u8; 64]) {
 }
 
 /// Hashes a message and salt using SHA-256.
-pub fn ac_shas(message: &mut [u8], salt: &mut [u8], out: &mut [u8; 32]) {
+pub fn ac_shas(message: &mut [u8], salt: &mut [u8], out: &mut [u8]) {
     let mut mid: [u8; 32] = [0; 32];
     ac_shay(message, &mut mid);
 
