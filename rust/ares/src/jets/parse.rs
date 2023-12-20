@@ -1,9 +1,9 @@
 /** Parsing jets
  */
-use crate::interpreter::Context;
+use crate::interpreter::{Context, Error};
 use crate::jets::math::util::{gte_b, lte_b, lth};
 use crate::jets::util::{kick, slam, slot};
-use crate::jets::Result;
+use crate::jets::{JetErr, Result};
 use crate::mem::NockStack;
 use crate::noun::{Noun, D, T, YES};
 use either::{Left, Right};
@@ -69,26 +69,6 @@ pub fn jet_bend(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_cold(context: &mut Context, subject: Noun) -> Result {
-    let tub = slot(subject, 6)?;
-    let van = slot(subject, 7)?;
-    let cus = slot(van, 12)?;
-    let sef = slot(van, 13)?;
-
-    let vex = slam(context, sef, tub)?.as_cell()?;
-    let p_vex = vex.head();
-    let q_vex = vex.tail();
-
-    if unsafe { q_vex.raw_equals(D(0)) } {
-        Ok(vex.as_noun())
-    } else {
-        let uq_vex = q_vex.as_cell()?.tail().as_cell()?;
-        let quq_vex = uq_vex.tail();
-
-        Ok(T(&mut context.stack, &[p_vex, D(0), cus, quq_vex]))
-    }
-}
-
 pub fn jet_comp(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let vex = slot(sam, 2)?.as_cell()?;
@@ -123,28 +103,6 @@ pub fn jet_comp(context: &mut Context, subject: Noun) -> Result {
         let arg = T(&mut context.stack, &[puq_vex, puq_yit]);
         let vux = slam(context, raq, arg)?;
         Ok(T(&mut context.stack, &[yur, D(0), vux, quq_yit]))
-    }
-}
-
-pub fn jet_cook(context: &mut Context, subject: Noun) -> Result {
-    let tub = slot(subject, 6)?;
-    let van = slot(subject, 7)?;
-    let poq = slot(van, 12)?;
-    let sef = slot(van, 13)?;
-
-    let vex = slam(context, sef, tub)?.as_cell()?;
-    let p_vex = vex.head();
-    let q_vex = vex.tail();
-
-    if unsafe { q_vex.raw_equals(D(0)) } {
-        Ok(vex.as_noun())
-    } else {
-        let uq_vex = q_vex.as_cell()?.tail().as_cell()?;
-        let puq_vex = uq_vex.head();
-        let quq_vex = uq_vex.tail();
-
-        let wag = slam(context, poq, puq_vex)?;
-        Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex]))
     }
 }
 
@@ -223,14 +181,13 @@ pub fn jet_pfix(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub fn jet_plug(context: &mut Context, subject: Noun) -> Result {
-    let vex = slot(subject, 12)?;
+    let vex = slot(subject, 12)?.as_cell()?;
     let sab = slot(subject, 13)?;
-
-    let p_vex = vex.as_cell()?.head();
-    let q_vex = vex.as_cell()?.tail();
+    let p_vex = vex.head();
+    let q_vex = vex.tail();
 
     if unsafe { q_vex.raw_equals(D(0)) } {
-        Ok(vex)
+        Ok(vex.as_noun())
     } else {
         let uq_vex = q_vex.as_cell()?.tail().as_cell()?;
         let puq_vex = uq_vex.head();
@@ -303,170 +260,52 @@ pub fn jet_sfix(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-// +$  edge  [p=hair q=(unit [p=* q=nail])]
-#[derive(Copy, Clone)]
-struct StirPair {
-    pub har: Noun,
-    pub res: Noun,
-}
-
-pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
-    unsafe {
-        context.with_stack_frame(0, |context| {
-            let mut tub = slot(subject, 6)?;
-            let van = slot(subject, 7)?;
-            let rud = slot(van, 12)?;
-            let raq = slot(van, 26)?;
-            let fel = slot(van, 27)?;
-
-            // initial accumulator (deconstructed)
-            let mut p_wag: Noun;
-            let mut puq_wag: Noun;
-            let quq_wag: Noun;
-
-            // push incremental, succesful [fel] parse results onto stack
-            {
-                let vex = slam(context, fel, tub)?.as_cell()?;
-                let mut p_vex = vex.head();
-                let mut q_vex = vex.tail();
-                while !q_vex.raw_equals(D(0)) {
-                    let puq_vex = slot(q_vex, 6)?;
-                    let quq_vex = slot(q_vex, 7)?;
-
-                    *(context.stack.push::<StirPair>()) = StirPair {
-                        har: p_vex,
-                        res: puq_vex,
-                    };
-
-                    tub = quq_vex;
-
-                    let vex = slam(context, fel, tub)?.as_cell()?;
-                    p_vex = vex.head();
-                    q_vex = vex.tail();
-                }
-
-                p_wag = p_vex;
-                puq_wag = rud;
-                quq_wag = tub;
-            }
-
-            // unwind the stack, folding parse results into [wag] by way of [raq]
-            while !context.stack.stack_is_empty() {
-                let par_u = *(context.stack.top::<StirPair>());
-                p_wag = util::last(par_u.har, p_wag)?;
-                let sam = T(&mut context.stack, &[par_u.res, puq_wag]);
-                puq_wag = slam(context, raq, sam)?;
-                context.stack.pop::<StirPair>();
-            }
-
-            let res = T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]);
-            Ok(res)
-        })
-    }
-}
-
-fn stew_wor(stack: &mut NockStack, ort: Noun, wan: Noun) -> Result {
-    match ort.as_either_atom_cell() {
-        Left(ort_atom) => match wan.as_either_atom_cell() {
-            Left(wan_atom) => Ok(lth(stack, ort_atom, wan_atom)),
-            Right(wan_cell) => Ok(lth(stack, ort_atom, wan_cell.head().as_atom()?)),
-        },
-        Right(ort_cell) => match wan.as_either_atom_cell() {
-            Left(wan_atom) => Ok(lth(stack, ort_cell.tail().as_atom()?, wan_atom)),
-            Right(wan_cell) => Ok(lth(
-                stack,
-                ort_cell.tail().as_atom()?,
-                wan_cell.head().as_atom()?,
-            )),
-        },
-    }
-}
-
-pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
-    let tub = slot(subject, 6)?;
-    let con = slot(subject, 7)?;
-    let mut hel = slot(con, 2)?;
-
-    let p_tub = tub.as_cell()?.head();
-    let q_tub = tub.as_cell()?.tail();
-    if unsafe { q_tub.raw_equals(D(0)) } {
-        return util::fail(context, p_tub);
-    }
-
-    let iq_tub = q_tub.as_cell()?.head();
-    if !iq_tub.as_atom()?.is_direct() {
-        return util::fail(context, p_tub);
-    }
-
-    loop {
-        if unsafe { hel.raw_equals(D(0)) } {
-            return util::fail(context, p_tub);
-        } else {
-            let n_hel = slot(hel, 2)?;
-            let l_hel = slot(hel, 6)?;
-            let r_hel = slot(hel, 7)?;
-            let pn_hel = n_hel.as_cell()?.head();
-            let qn_hel = n_hel.as_cell()?.tail();
-            let bit;
-
-            if !pn_hel.is_cell() {
-                bit = iq_tub.as_direct()?.data() == pn_hel.as_direct()?.data();
-            } else {
-                let hpn_hel = pn_hel.as_cell()?.head();
-                let tpn_hel = pn_hel.as_cell()?.tail();
-
-                if !hpn_hel.as_atom()?.is_direct() || !tpn_hel.as_atom()?.is_direct() {
-                    return util::fail(context, p_tub);
-                } else {
-                    let iq_tub_atom = iq_tub.as_atom()?;
-                    let hpn_hel_atom = hpn_hel.as_atom()?;
-                    let tpn_hel_atom = tpn_hel.as_atom()?;
-                    bit = gte_b(&mut context.stack, iq_tub_atom, hpn_hel_atom)
-                        && lte_b(&mut context.stack, iq_tub_atom, tpn_hel_atom);
-                }
-            }
-
-            if bit {
-                return slam(context, qn_hel, tub);
-            } else if unsafe { stew_wor(&mut context.stack, iq_tub, pn_hel)?.raw_equals(YES) } {
-                hel = l_hel;
-            } else {
-                hel = r_hel;
-            }
-        }
-    }
-}
-
-pub fn jet_shim(context: &mut Context, subject: Noun) -> Result {
-    let tub = slot(subject, 6)?;
-    let van = slot(subject, 7)?;
-    let zep = slot(van, 6)?;
-
-    let p_tub = tub.as_cell()?.head();
-    let q_tub = tub.as_cell()?.tail();
-
-    if unsafe { q_tub.raw_equals(D(0)) } {
-        util::fail(context, p_tub)
-    } else {
-        let p_zep = zep.as_cell()?.head();
-        let q_zep = zep.as_cell()?.tail();
-        let iq_tub = q_tub.as_cell()?.head();
-
-        let p_zep_dat = p_zep.as_direct()?.data();
-        let q_zep_dat = q_zep.as_direct()?.data();
-        let iq_tub_dat = iq_tub.as_direct()?.data();
-
-        if (iq_tub_dat >= p_zep_dat) && (iq_tub_dat <= q_zep_dat) {
-            util::next(context, tub)
-        } else {
-            util::fail(context, p_tub)
-        }
-    }
-}
-
 //
 //  Rule Builders
 //
+
+
+pub fn jet_cold(context: &mut Context, subject: Noun) -> Result {
+    let tub = slot(subject, 6)?;
+    let van = slot(subject, 7)?;
+    let cus = slot(van, 12)?;
+    let sef = slot(van, 13)?;
+
+    let vex = slam(context, sef, tub)?.as_cell()?;
+    let p_vex = vex.head();
+    let q_vex = vex.tail();
+
+    if unsafe { q_vex.raw_equals(D(0)) } {
+        Ok(vex.as_noun())
+    } else {
+        let quq_vex = q_vex.as_cell()?.tail().as_cell()?.tail();
+
+        Ok(T(&mut context.stack, &[p_vex, D(0), cus, quq_vex]))
+    }
+}
+
+pub fn jet_cook(context: &mut Context, subject: Noun) -> Result {
+    let tub = slot(subject, 6)?;
+    let van = slot(subject, 7)?;
+    let poq = slot(van, 12)?;
+    let sef = slot(van, 13)?;
+
+    let vex = slam(context, sef, tub)?.as_cell()?;
+    let p_vex = vex.head();
+    let q_vex = vex.tail();
+
+    if unsafe { q_vex.raw_equals(D(0)) } {
+        Ok(vex.as_noun())
+    } else {
+        let uq_vex = q_vex.as_cell()?.tail().as_cell()?;
+        let puq_vex = uq_vex.head();
+        let quq_vex = uq_vex.tail();
+
+        let wag = slam(context, poq, puq_vex)?;
+        Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex]))
+    }
+}
+
 
 pub fn jet_easy(context: &mut Context, subject: Noun) -> Result {
     let tub = slot(subject, 6)?;
@@ -546,6 +385,35 @@ pub fn jet_mask(context: &mut Context, subject: Noun) -> Result {
     util::fail(context, p_tub)
 }
 
+pub fn jet_shim(context: &mut Context, subject: Noun) -> Result {
+    let tub = slot(subject, 6)?.as_cell()?;
+    let van = slot(subject, 7)?;
+    let zep = slot(van, 6)?.as_cell()?;
+
+    let p_tub = tub.head();
+    let q_tub = tub.tail();
+
+    if unsafe { q_tub.raw_equals(D(0)) } {
+        util::fail(context, p_tub)
+    } else {
+        let p_zep = zep.head();
+        let q_zep = zep.tail();
+        let iq_tub = q_tub.as_cell()?.head();
+
+        if let (Some(p_zep_d), Some(q_zep_d), Some(iq_tub_d)) =
+            (p_zep.direct(), q_zep.direct(), iq_tub.direct())
+        {
+            if (iq_tub_d.data() >= p_zep_d.data()) && (iq_tub_d.data() <= q_zep_d.data()) {
+                util::next(context, tub.as_noun())
+            } else {
+                util::fail(context, p_tub)
+            }
+        } else {
+            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
+        }
+    }
+}
+
 pub fn jet_stag(context: &mut Context, subject: Noun) -> Result {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
@@ -565,6 +433,140 @@ pub fn jet_stag(context: &mut Context, subject: Noun) -> Result {
 
         let wag = T(&mut context.stack, &[gob, puq_vex]);
         Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex]))
+    }
+}
+
+fn stew_wor(stack: &mut NockStack, ort: Noun, wan: Noun) -> Result {
+    match ort.as_either_atom_cell() {
+        Left(ort_atom) => match wan.as_either_atom_cell() {
+            Left(wan_atom) => Ok(lth(stack, ort_atom, wan_atom)),
+            Right(wan_cell) => Ok(lth(stack, ort_atom, wan_cell.head().as_atom()?)),
+        },
+        Right(ort_cell) => match wan.as_either_atom_cell() {
+            Left(wan_atom) => Ok(lth(stack, ort_cell.tail().as_atom()?, wan_atom)),
+            Right(wan_cell) => Ok(lth(
+                stack,
+                ort_cell.tail().as_atom()?,
+                wan_cell.head().as_atom()?,
+            )),
+        },
+    }
+}
+
+pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
+    let tub = slot(subject, 6)?;
+    let con = slot(subject, 7)?;
+    let mut hel = slot(con, 2)?;
+
+    let p_tub = tub.as_cell()?.head();
+    let q_tub = tub.as_cell()?.tail();
+    if unsafe { q_tub.raw_equals(D(0)) } {
+        return util::fail(context, p_tub);
+    }
+
+    let iq_tub = q_tub.as_cell()?.head();
+    if !iq_tub.as_atom()?.is_direct() {
+        return util::fail(context, p_tub);
+    }
+
+    loop {
+        if unsafe { hel.raw_equals(D(0)) } {
+            return util::fail(context, p_tub);
+        } else {
+            let n_hel = slot(hel, 2)?;
+            let l_hel = slot(hel, 6)?;
+            let r_hel = slot(hel, 7)?;
+            let pn_hel = n_hel.as_cell()?.head();
+            let qn_hel = n_hel.as_cell()?.tail();
+            let bit;
+
+            if !pn_hel.is_cell() {
+                bit = iq_tub.as_direct()?.data() == pn_hel.as_direct()?.data();
+            } else {
+                let hpn_hel = pn_hel.as_cell()?.head();
+                let tpn_hel = pn_hel.as_cell()?.tail();
+
+                if !hpn_hel.as_atom()?.is_direct() || !tpn_hel.as_atom()?.is_direct() {
+                    return util::fail(context, p_tub);
+                } else {
+                    let iq_tub_atom = iq_tub.as_atom()?;
+                    let hpn_hel_atom = hpn_hel.as_atom()?;
+                    let tpn_hel_atom = tpn_hel.as_atom()?;
+                    bit = gte_b(&mut context.stack, iq_tub_atom, hpn_hel_atom)
+                        && lte_b(&mut context.stack, iq_tub_atom, tpn_hel_atom);
+                }
+            }
+
+            if bit {
+                return slam(context, qn_hel, tub);
+            } else if unsafe { stew_wor(&mut context.stack, iq_tub, pn_hel)?.raw_equals(YES) } {
+                hel = l_hel;
+            } else {
+                hel = r_hel;
+            }
+        }
+    }
+}
+
+// +$  edge  [p=hair q=(unit [p=* q=nail])]
+#[derive(Copy, Clone)]
+struct StirPair {
+    pub har: Noun,
+    pub res: Noun,
+}
+
+pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
+    unsafe {
+        context.with_stack_frame(0, |context| {
+            let mut tub = slot(subject, 6)?;
+            let van = slot(subject, 7)?;
+            let rud = slot(van, 12)?;
+            let raq = slot(van, 26)?;
+            let fel = slot(van, 27)?;
+
+            // initial accumulator (deconstructed)
+            let mut p_wag: Noun;
+            let mut puq_wag: Noun;
+            let quq_wag: Noun;
+
+            // push incremental, succesful [fel] parse results onto stack
+            {
+                let vex = slam(context, fel, tub)?.as_cell()?;
+                let mut p_vex = vex.head();
+                let mut q_vex = vex.tail();
+                while !q_vex.raw_equals(D(0)) {
+                    let puq_vex = slot(q_vex, 6)?;
+                    let quq_vex = slot(q_vex, 7)?;
+
+                    *(context.stack.push::<StirPair>()) = StirPair {
+                        har: p_vex,
+                        res: puq_vex,
+                    };
+
+                    tub = quq_vex;
+
+                    let vex = slam(context, fel, tub)?.as_cell()?;
+                    p_vex = vex.head();
+                    q_vex = vex.tail();
+                }
+
+                p_wag = p_vex;
+                puq_wag = rud;
+                quq_wag = tub;
+            }
+
+            // unwind the stack, folding parse results into [wag] by way of [raq]
+            while !context.stack.stack_is_empty() {
+                let par_u = *(context.stack.top::<StirPair>());
+                p_wag = util::last(par_u.har, p_wag)?;
+                let sam = T(&mut context.stack, &[par_u.res, puq_wag]);
+                puq_wag = slam(context, raq, sam)?;
+                context.stack.pop::<StirPair>();
+            }
+
+            let res = T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]);
+            Ok(res)
+        })
     }
 }
 

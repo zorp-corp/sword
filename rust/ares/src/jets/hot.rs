@@ -310,39 +310,11 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
             Left(b"two"),
             Left(b"tri"),
             Left(b"qua"),
-            Left(b"cold"),
-            Left(b"fun"),
-        ],
-        1,
-        jet_cold,
-    ),
-    //
-    (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
             Left(b"comp"),
             Left(b"fun"),
         ],
         1,
         jet_comp,
-    ),
-    //
-    (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"cook"),
-            Left(b"fun"),
-        ],
-        1,
-        jet_cook,
     ),
     //
     (
@@ -409,6 +381,34 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
         ],
         1,
         jet_sfix,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"cold"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_cold,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"cook"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_cook,
     ),
     //
     (
@@ -502,11 +502,11 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
             Left(b"two"),
             Left(b"tri"),
             Left(b"qua"),
-            Left(b"stir"),
+            Left(b"stew"),
             Left(b"fun"),
         ],
         1,
-        jet_stir,
+        jet_stew,
     ),
     //
     (
@@ -516,11 +516,11 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
             Left(b"two"),
             Left(b"tri"),
             Left(b"qua"),
-            Left(b"stew"),
+            Left(b"stir"),
             Left(b"fun"),
         ],
         1,
-        jet_stew,
+        jet_stir,
     ),
     //
     (
