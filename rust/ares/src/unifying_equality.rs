@@ -125,8 +125,14 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                     {
                         let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
                         if x_as_ptr == junior {
+                            if pma_contains(x, 1) {
+                                pma_dirty(x, 1);
+                            }
                             *x = *y;
                         } else {
+                            if pma_contains(y, 1) {
+                                pma_dirty(y, 1);
+                            }
                             *y = *x;
                         }
                         stack.pop::<(*mut Noun, *mut Noun)>();
