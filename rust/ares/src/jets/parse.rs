@@ -1,11 +1,10 @@
 /** Parsing jets
  */
 use crate::interpreter::{Context, Error};
-use crate::jets::math::util::{gte_b, lte_b, lth};
+use crate::jets::math::util::{gte_b, lte_b, lth_b};
 use crate::jets::util::{kick, slam, slot};
 use crate::jets::{JetErr, Result};
-use crate::mem::NockStack;
-use crate::noun::{Noun, D, T, YES};
+use crate::noun::{Noun, D, T};
 use either::{Left, Right};
 
 crate::gdb!();
@@ -264,7 +263,6 @@ pub fn jet_sfix(context: &mut Context, subject: Noun) -> Result {
 //  Rule Builders
 //
 
-
 pub fn jet_cold(context: &mut Context, subject: Noun) -> Result {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
@@ -305,7 +303,6 @@ pub fn jet_cook(context: &mut Context, subject: Noun) -> Result {
         Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex]))
     }
 }
-
 
 pub fn jet_easy(context: &mut Context, subject: Noun) -> Result {
     let tub = slot(subject, 6)?;
@@ -436,73 +433,72 @@ pub fn jet_stag(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-fn stew_wor(stack: &mut NockStack, ort: Noun, wan: Noun) -> Result {
-    match ort.as_either_atom_cell() {
-        Left(ort_atom) => match wan.as_either_atom_cell() {
-            Left(wan_atom) => Ok(lth(stack, ort_atom, wan_atom)),
-            Right(wan_cell) => Ok(lth(stack, ort_atom, wan_cell.head().as_atom()?)),
-        },
-        Right(ort_cell) => match wan.as_either_atom_cell() {
-            Left(wan_atom) => Ok(lth(stack, ort_cell.tail().as_atom()?, wan_atom)),
-            Right(wan_cell) => Ok(lth(
-                stack,
-                ort_cell.tail().as_atom()?,
-                wan_cell.head().as_atom()?,
-            )),
-        },
-    }
-}
-
 pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
-    let tub = slot(subject, 6)?;
+    let tub = slot(subject, 6)?.as_cell()?;
     let con = slot(subject, 7)?;
     let mut hel = slot(con, 2)?;
 
-    let p_tub = tub.as_cell()?.head();
-    let q_tub = tub.as_cell()?.tail();
+    let p_tub = tub.head();
+    let q_tub = tub.tail();
     if unsafe { q_tub.raw_equals(D(0)) } {
         return util::fail(context, p_tub);
     }
 
-    let iq_tub = q_tub.as_cell()?.head();
-    if !iq_tub.as_atom()?.is_direct() {
-        return util::fail(context, p_tub);
+    let iq_tub = q_tub.as_cell()?.head().as_atom()?;
+    if !iq_tub.is_direct() {
+        // Character cannot be encoded using 8 bytes = computibilty error
+        return Err(JetErr::Fail(Error::NonDeterministic(D(0))));
     }
 
     loop {
         if unsafe { hel.raw_equals(D(0)) } {
             return util::fail(context, p_tub);
         } else {
-            let n_hel = slot(hel, 2)?;
+            let n_hel = slot(hel, 2)?.as_cell()?;
             let l_hel = slot(hel, 6)?;
             let r_hel = slot(hel, 7)?;
-            let pn_hel = n_hel.as_cell()?.head();
-            let qn_hel = n_hel.as_cell()?.tail();
-            let bit;
+            let pn_hel = n_hel.head();
+            let qn_hel = n_hel.tail();
 
-            if !pn_hel.is_cell() {
-                bit = iq_tub.as_direct()?.data() == pn_hel.as_direct()?.data();
-            } else {
-                let hpn_hel = pn_hel.as_cell()?.head();
-                let tpn_hel = pn_hel.as_cell()?.tail();
+            let bit = match pn_hel.as_either_atom_cell() {
+                Left(atom) => match atom.as_either() {
+                    Left(direct) => iq_tub.as_direct()?.data() == direct.data(),
+                    Right(_) => {
+                        // Character cannot be encoded using 8 bytes = computibilty error
+                        return Err(JetErr::Fail(Error::NonDeterministic(D(0))));
+                    }
+                },
+                Right(cell) => {
+                    let hpn_hel = cell.head().as_atom()?;
+                    let tpn_hel = cell.tail().as_atom()?;
 
-                if !hpn_hel.as_atom()?.is_direct() || !tpn_hel.as_atom()?.is_direct() {
-                    return util::fail(context, p_tub);
-                } else {
-                    let iq_tub_atom = iq_tub.as_atom()?;
-                    let hpn_hel_atom = hpn_hel.as_atom()?;
-                    let tpn_hel_atom = tpn_hel.as_atom()?;
-                    bit = gte_b(&mut context.stack, iq_tub_atom, hpn_hel_atom)
-                        && lte_b(&mut context.stack, iq_tub_atom, tpn_hel_atom);
+                    match (hpn_hel.as_either(), tpn_hel.as_either()) {
+                        (Left(_), Left(_)) => {
+                            gte_b(&mut context.stack, iq_tub, hpn_hel)
+                                && lte_b(&mut context.stack, iq_tub, tpn_hel)
+                        }
+                        _ => {
+                            // XX: Fixes jet mismatch in Vere
+                            // Character cannot be encoded using 8 bytes = computibilty error
+                            return Err(JetErr::Fail(Error::NonDeterministic(D(0))));
+                        }
+                    }
                 }
-            }
+            };
 
             if bit {
-                return slam(context, qn_hel, tub);
-            } else if unsafe { stew_wor(&mut context.stack, iq_tub, pn_hel)?.raw_equals(YES) } {
-                hel = l_hel;
+                return slam(context, qn_hel, tub.as_noun());
             } else {
-                hel = r_hel;
+                let wor = match pn_hel.as_either_atom_cell() {
+                    Left(atom) => atom,
+                    Right(cell) => cell.head().as_atom()?,
+                };
+
+                if lth_b(&mut context.stack, iq_tub, wor) {
+                    hel = l_hel;
+                } else {
+                    hel = r_hel;
+                }
             }
         }
     }
