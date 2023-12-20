@@ -3,7 +3,6 @@ use crate::jets::bits::util::met;
 use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
 use crate::noun::{IndirectAtom, Noun, D};
-use urcrypt_sys::*;
 use ares_crypto::sha::{ac_sha1, ac_shal, ac_shas, ac_shay};
 
 crate::gdb!();
@@ -15,7 +14,8 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
     let mut ruz = slot(sam, 3)?.as_atom()?;
 
     let sal_bytes = &(sal.as_bytes())[0..met(3, sal)]; // drop trailing zeros
-    let (mut _salt_ida, mut salt) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
+    let (mut _salt_ida, mut salt) =
+        unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
     salt.copy_from_slice(sal_bytes);
 
     let msg_len = met(3, ruz);
@@ -23,11 +23,7 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
 
     unsafe {
         let (mut out_ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        ac_shas(
-            &mut message,
-            &mut salt,
-            &mut out,
-        );
+        ac_shas(&mut message, &mut salt, &mut out);
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
