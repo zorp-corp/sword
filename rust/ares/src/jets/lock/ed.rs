@@ -2,6 +2,7 @@ use crate::interpreter::{Context, Error};
 use crate::jets::bits::util::met;
 use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
+use crate::mem::NockStack;
 use crate::noun::{IndirectAtom, Noun, D, NO, YES};
 use ares_crypto::ed25519::{ac_ed_puck, ac_ed_shar, ac_ed_sign, ac_ed_veri};
 
@@ -19,10 +20,8 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
         let mut sed_bytes = &mut [0u8; 32];
         sed_bytes.copy_from_slice(&(sed.as_bytes())[0..32]);
 
-        let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        let tmp = &mut [0u8; 32];
-        ac_ed_puck(&mut sed_bytes, tmp);
-        pub_key.copy_from_slice(tmp);
+        let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack);
+        ac_ed_puck(&mut sed_bytes, pub_key);
 
         Ok(pub_ida.normalize_as_atom().as_noun())
     }
@@ -53,10 +52,8 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
         public[0..pub_bytes.len()].copy_from_slice(pub_bytes);
         secret[0..pub_bytes.len()].copy_from_slice(sec_bytes);
 
-        let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        let tmp = &mut [0u8; 32];
-        ac_ed_shar(public, secret, tmp);
-        shar.copy_from_slice(tmp);
+        let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack);
+        ac_ed_shar(public, secret, shar);
 
         Ok(shar_ida.normalize_as_atom().as_noun())
     }
@@ -78,11 +75,9 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
         let msg_len = met(3, msg);
         let message = &mut (msg.as_mut_bytes())[0..msg_len]; // drop trailing zeros
 
-        let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        let tmp = &mut [0u8; 64];
-        ac_ed_sign(message, seed, tmp);
-        tmp.reverse();
-        sig.copy_from_slice(tmp);
+        let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytearray::<64, NockStack>(stack);
+        ac_ed_sign(message, seed, sig);
+        sig.reverse();
 
         Ok(sig_ida.normalize_as_atom().as_noun())
     }
