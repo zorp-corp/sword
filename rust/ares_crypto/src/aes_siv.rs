@@ -121,8 +121,8 @@ pub fn ac_aes_siv_de<const N: usize> (
 #[cfg(test)]
 #[cfg(feature = "test_vs_urcrypt")]
 mod urcrypt_tests {
-    use aes_siv::{siv::Aes128Siv, KeyInit, aead::rand_core::CryptoRngCore};
-    use rand::{rngs::OsRng, Rng};
+    use aes_siv::aead::rand_core::CryptoRngCore;
+    use rand::rngs::OsRng;
     use super::{ac_aes_siv_de, ac_aes_siv_en};
     use urcrypt_sys::{
         urcrypt_aes_siv_data, urcrypt_aes_siva_de, urcrypt_aes_siva_en, urcrypt_aes_sivb_de,
