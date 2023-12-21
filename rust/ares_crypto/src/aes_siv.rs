@@ -22,8 +22,8 @@ pub fn ac_aes_siv_en<const N: usize>(
 ) -> Result<(), Error> {
     key.reverse();
     message.reverse();
-    for i in 0..data.len() {
-        data[i].reverse();
+    for item in data.iter_mut() {
+        item.reverse();
     }
 
     let iv_tag;
@@ -77,8 +77,8 @@ pub fn ac_aes_siv_de<const N: usize>(
     key.reverse();
     message.reverse();
     iv.reverse();
-    for i in 0..data.len() {
-        data[i].reverse();
+    for item in data.iter_mut() {
+        item.reverse();
     }
 
     let iv_array = GenericArray::from_slice(iv);
@@ -148,10 +148,10 @@ mod urcrypt_tests {
         }];
         let mut uc_out = [0u8; 56];
 
-        let mut ac_key = uc_key.clone();
-        let mut ac_message = uc_message.clone();
+        let mut ac_key = uc_key;
+        let mut ac_message = uc_message;
         let mut ac_iv = [0u8; 16];
-        let mut ac_bytes = uc_bytes.clone();
+        let mut ac_bytes = uc_bytes;
         let ac_data: &mut [&mut [u8]] = &mut [&mut ac_bytes];
         let mut ac_out = [0u8; 56];
 
@@ -196,10 +196,10 @@ mod urcrypt_tests {
         }];
         let mut uc_out = [0u8; 56];
 
-        let mut ac_key = uc_key.clone();
-        let mut ac_message = uc_message.clone();
+        let mut ac_key = uc_key;
+        let mut ac_message = uc_message;
         let mut ac_iv = [0u8; 16];
-        let mut ac_bytes = uc_bytes.clone();
+        let mut ac_bytes = uc_bytes;
         let ac_data: &mut [&mut [u8]] = &mut [&mut ac_bytes];
         let mut ac_out = [0u8; 56];
 
@@ -244,10 +244,10 @@ mod urcrypt_tests {
         }];
         let mut uc_out = [0u8; 56];
 
-        let mut ac_key = uc_key.clone();
-        let mut ac_message = uc_message.clone();
+        let mut ac_key = uc_key;
+        let mut ac_message = uc_message;
         let mut ac_iv = [0u8; 16];
-        let mut ac_bytes = uc_bytes.clone();
+        let mut ac_bytes = uc_bytes;
         let ac_data: &mut [&mut [u8]] = &mut [&mut ac_bytes];
         let mut ac_out = [0u8; 56];
 
