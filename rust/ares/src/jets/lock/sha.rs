@@ -14,8 +14,7 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
     let mut ruz = slot(sam, 3)?.as_atom()?;
 
     let sal_bytes = &(sal.as_bytes())[0..met(3, sal)]; // drop trailing zeros
-    let (mut _salt_ida, salt) =
-        unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
+    let (mut _salt_ida, salt) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
     salt.copy_from_slice(sal_bytes);
 
     let msg_len = met(3, ruz);
