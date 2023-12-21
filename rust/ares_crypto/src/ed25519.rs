@@ -120,6 +120,9 @@ mod tests {
 
 #[cfg(test)]
 #[cfg(feature = "test_vs_urcrypt")]
+/// Compare the results of the ares_crypto functions with the corresponding
+/// urcrypt functions. To run, use `cargo test --features test_vs_urcrypt`
+/// from the `ares/rust/ares_crypto` directory.
 mod urcrypt_tests {
     use super::{ac_ed_puck, ac_ed_shar, ac_ed_sign, ac_ed_veri};
     use ibig::ubig;

@@ -37,8 +37,7 @@ pub fn ac_shas(message: &mut [u8], salt: &mut [u8], out: &mut [u8]) {
             salt[i] ^= mid[i];
         }
         ac_shay(salt, out);
-    }
-    else {
+    } else {
         for i in 0..salt.len() {
             mid[i] ^= salt[i];
         }
@@ -48,6 +47,9 @@ pub fn ac_shas(message: &mut [u8], salt: &mut [u8], out: &mut [u8]) {
 
 #[cfg(test)]
 #[cfg(feature = "test_vs_urcrypt")]
+/// Compare the results of the ares_crypto functions with the corresponding
+/// urcrypt functions. To run, use `cargo test --features test_vs_urcrypt`
+/// from the `ares/rust/ares_crypto` directory.
 mod urcrypt_tests {
     use super::{ac_sha1, ac_shal, ac_shas, ac_shay};
     use urcrypt_sys::{urcrypt_sha1, urcrypt_shal, urcrypt_shas, urcrypt_shay};
