@@ -14,16 +14,16 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
     let mut ruz = slot(sam, 3)?.as_atom()?;
 
     let sal_bytes = &(sal.as_bytes())[0..met(3, sal)]; // drop trailing zeros
-    let (mut _salt_ida, mut salt) =
+    let (mut _salt_ida, salt) =
         unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
     salt.copy_from_slice(sal_bytes);
 
     let msg_len = met(3, ruz);
-    let mut message = &mut (ruz.as_mut_bytes())[0..msg_len]; // drop trailing zeros
+    let message = &mut (ruz.as_mut_bytes())[0..msg_len]; // drop trailing zeros
 
     unsafe {
-        let (mut out_ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        ac_shas(&mut message, &mut salt, &mut out);
+        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        ac_shas(message, salt, out);
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
@@ -35,8 +35,8 @@ pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
     let len = met(3, msg);
 
     unsafe {
-        let (mut ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        ac_shay(&mut (msg.as_mut_bytes())[0..len], &mut out);
+        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        ac_shay(&mut (msg.as_mut_bytes())[0..len], out);
         Ok(ida.normalize_as_atom().as_noun())
     }
 }
@@ -55,8 +55,8 @@ pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
     let message = &mut (dat.as_mut_bytes())[0..width];
 
     unsafe {
-        let (mut out_ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        ac_shay(message, &mut out);
+        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        ac_shay(message, out);
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
@@ -76,8 +76,8 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
     let message = &mut (dat.as_mut_bytes())[0..msg_len]; // drop trailing zeros
 
     unsafe {
-        let (mut ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        ac_shal(message, &mut out);
+        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        ac_shal(message, out);
         Ok(ida.normalize_as_atom().as_noun())
     }
 }
@@ -95,11 +95,11 @@ pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
 
     unsafe {
         let msg_bytes = &(dat.as_bytes())[0..width];
-        let (mut _msg_ida, mut msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
+        let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
         msg.copy_from_slice(msg_bytes);
 
-        let (mut out_ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
-        ac_sha1(&mut msg, &mut out);
+        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
+        ac_sha1(msg, out);
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }

@@ -17,11 +17,11 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
     }
 
     unsafe {
-        let mut sed_bytes = &mut [0u8; 32];
+        let sed_bytes = &mut [0u8; 32];
         sed_bytes.copy_from_slice(&(sed.as_bytes())[0..32]);
 
         let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack);
-        ac_ed_puck(&mut sed_bytes, pub_key);
+        ac_ed_puck(sed_bytes, pub_key);
 
         Ok(pub_ida.normalize_as_atom().as_noun())
     }
