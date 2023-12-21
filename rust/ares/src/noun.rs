@@ -441,6 +441,15 @@ impl IndirectAtom {
         (noun, from_raw_parts_mut(ptr as *mut u8, size))
     }
 
+    /// Create an indirect atom backed by a fixed-size array
+    pub unsafe fn new_raw_mut_bytearray<'a, const N: usize, A: NounAllocator>(
+        allocator: &mut A,
+    ) -> (Self, &'a mut [u8; N]) {
+        let word_size = (std::mem::size_of::<[u8; N]>() + 7) << 3;
+        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size);
+        (noun, &mut *(ptr as *mut [u8; N]))
+    }
+
     /** Size of an indirect atom in 64-bit words */
     pub fn size(&self) -> usize {
         unsafe { *(self.to_raw_pointer().add(1)) as usize }
