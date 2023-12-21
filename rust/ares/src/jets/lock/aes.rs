@@ -167,8 +167,8 @@ mod util {
                 let (mut atom, buffer) = IndirectAtom::new_raw_mut_bytes(stack, bytes.len());
                 buffer[0..len].copy_from_slice(&(bytes[0..len]));
 
+                item.length = bytes.len();
                 item.bytes = atom.data_pointer_mut() as *mut u8;
-                item.length = len;
 
                 ads = cell.tail();
             }
@@ -190,7 +190,6 @@ mod util {
                 ac_siv_data.as_mut_ptr() as *mut &mut [u8],
                 ac_siv_data.len(),
             );
-            eprintln!("siv_data: {:?}", siv_data);
 
             let txt_len = met(3, txt);
             let txt_bytes = &mut (txt.as_mut_bytes()[0..txt_len]);
@@ -244,12 +243,8 @@ mod util {
                 Ok(direct) => direct.data() as usize,
                 Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
             };
-            // let (_, txt_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
-            // txt_bytes[0..txt_len].copy_from_slice(&(txt.as_bytes()[0..txt_len]));
             let txt_bytes = &mut (txt.as_mut_bytes()[0..txt_len]);
 
-            // let (_iv_ida, iv_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 16);
-            // iv_bytes[0..16].copy_from_slice(&(iv.as_bytes()[0..16]));
             let iv_bytes = &mut (iv.as_mut_bytes()[0..16]);
 
             let ac_siv_data = _allocate_ads(stack, ads)?;

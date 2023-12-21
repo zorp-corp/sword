@@ -77,7 +77,6 @@ dependencies = [
  "num-traits",
  "signal-hook",
  "static_assertions",
- "urcrypt-sys",
 ]
 
 [[package]]

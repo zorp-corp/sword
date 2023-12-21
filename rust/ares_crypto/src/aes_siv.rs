@@ -20,6 +20,12 @@ pub fn _ac_aes_siv_en(
     iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
+    key.reverse();
+    message.reverse();
+    for i in 0..data.len() {
+        data[i].reverse();
+    }
+
     let iv_tag;
     if key.len() == 32 {
         if let Ok(mut cipher) = Aes128Siv::new_from_slice(&key) {
@@ -55,7 +61,7 @@ pub fn _ac_aes_siv_en(
     iv_slice.reverse();
     iv.copy_from_slice(&iv_slice);
     message.reverse();
-    out.copy_from_slice(message);
+    out[0..message.len()].copy_from_slice(message);
     Ok(())
 }
 
@@ -67,6 +73,13 @@ pub fn _ac_aes_siv_de(
     iv: &mut [u8],
     out: &mut [u8],
 ) -> Result<(), Error> {
+    key.reverse();
+    message.reverse();
+    iv.reverse();
+    for i in 0..data.len() {
+        data[i].reverse();
+    }
+
     let iv_array = GenericArray::from_slice(iv);
     if key.len() == 32 {
         if let Ok(mut cipher) = Aes128Siv::new_from_slice(&key) {
@@ -98,6 +111,7 @@ pub fn _ac_aes_siv_de(
     } else {
         return Err(Error::InvalidKeyLength);
     }
+    message.reverse();
     out.copy_from_slice(message);
     Ok(())
 }
@@ -188,83 +202,44 @@ mod urcrypt_tests {
 
     #[test]
     fn test_aes_siva_de() {
-        let mut key: [u8; 32] = [42; 32];
-        let mut message: [u8; 32] = [
-            61, 88, 88, 36, 83, 232, 120, 45, 27, 159, 15, 145, 140, 231, 114, 229, 61, 243, 54,
-            183, 156, 53, 217, 103, 88, 36, 53, 37, 165, 240, 92, 133,
-        ];
-        let mut iv: [u8; 16] = [
-            16, 90, 129, 170, 175, 145, 229, 78, 107, 253, 192, 138, 136, 52, 159, 219,
-        ];
-
-        let mut uc_bytes = [42; 32];
-        let mut uc_bytes_two = [43; 32];
-        let mut uc_out: [u8; 32] = [0; 32];
-        let mut uc_data: [urcrypt_aes_siv_data; 2] = [
-            urcrypt_aes_siv_data {
-                bytes: uc_bytes.as_mut_ptr(),
-                length: uc_bytes.len(),
-            },
-            urcrypt_aes_siv_data {
-                bytes: uc_bytes_two.as_mut_ptr(),
-                length: uc_bytes_two.len(),
-            },
-        ];
-
-        unsafe {
-            urcrypt_aes_siva_de(
-                message.as_mut_ptr(),
-                message.len(),
-                uc_data.as_mut_ptr(),
-                uc_data.len(),
-                key.as_mut_ptr(),
-                iv.as_mut_ptr(),
-                uc_out.as_mut_ptr(),
-            )
-        };
-
-        let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
-        let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_siva_de(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
-
-        assert_eq!(ac_out, uc_out);
+        todo!();
     }
 
     #[test]
     fn test_aes_siva_en() {
-        let mut key: [u8; 32] = [42; 32];
-        let mut message: [u8; 32] = [42; 32];
-        let mut iv: [u8; 16] = [42; 16];
+        // https://datatracker.ietf.org/doc/html/rfc5297#section-4
+        let mut uc_key: [u8; 32] = [255, 254, 253, 252, 251, 250, 249, 248, 247, 246, 245, 244, 243, 242, 241, 240, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255];
+        let mut uc_message: [u8; 14] = [238, 221, 204, 187, 170, 153, 136, 119, 102, 85, 68, 51, 34, 17];
+        let mut uc_iv = [0u8; 16];
 
-        let mut uc_bytes = [42; 32];
-        let mut uc_bytes_two = [43; 32];
+        let mut uc_bytes = [39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16];
         let mut uc_out: [u8; 32] = [0; 32];
-        let mut uc_data: [urcrypt_aes_siv_data; 2] = [
+        let mut uc_data: [urcrypt_aes_siv_data; 1] = [
             urcrypt_aes_siv_data {
                 bytes: uc_bytes.as_mut_ptr(),
                 length: uc_bytes.len(),
-            },
-            urcrypt_aes_siv_data {
-                bytes: uc_bytes_two.as_mut_ptr(),
-                length: uc_bytes_two.len(),
             },
         ];
 
         unsafe {
             urcrypt_aes_siva_en(
-                message.as_mut_ptr(),
-                message.len(),
+                uc_message.as_mut_ptr(),
+                uc_message.len(),
                 uc_data.as_mut_ptr(),
                 uc_data.len(),
-                key.as_mut_ptr(),
-                iv.as_mut_ptr(),
+                uc_key.as_mut_ptr(),
+                uc_iv.as_mut_ptr(),
                 uc_out.as_mut_ptr(),
             )
         };
 
-        let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
+        let mut ac_key: [u8; 32] = [255, 254, 253, 252, 251, 250, 249, 248, 247, 246, 245, 244, 243, 242, 241, 240, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255];
+        let mut ac_message: [u8; 14] = [238, 221, 204, 187, 170, 153, 136, 119, 102, 85, 68, 51, 34, 17];
+        let mut ac_iv = [0u8; 16];
+
+        let ac_data: &mut[&mut [u8]] = &mut[&mut [39, 38, 37, 36, 35, 34, 33, 32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16]];
         let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_siva_en(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
+        ac_aes_siva_en(&mut ac_key, &mut ac_message, ac_data, &mut ac_iv, &mut ac_out).unwrap();
 
         assert_eq!(ac_out, uc_out);
     }
@@ -310,46 +285,7 @@ mod urcrypt_tests {
 
     #[test]
     fn test_aes_sivb_de() {
-        let mut key: [u8; 48] = [42; 48];
-        let mut message: [u8; 32] = [
-            20, 249, 192, 238, 22, 92, 186, 62, 26, 194, 51, 61, 88, 148, 89, 208, 114, 24, 67, 99,
-            35, 241, 247, 133, 64, 18, 144, 54, 126, 121, 100, 145,
-        ];
-        let mut iv: [u8; 16] = [
-            9, 146, 75, 192, 45, 169, 211, 188, 36, 212, 236, 80, 49, 197, 78, 141,
-        ];
-
-        let mut uc_bytes = [42; 32];
-        let mut uc_bytes_two = [43; 32];
-        let mut uc_out: [u8; 32] = [0; 32];
-        let mut uc_data: [urcrypt_aes_siv_data; 2] = [
-            urcrypt_aes_siv_data {
-                bytes: uc_bytes.as_mut_ptr(),
-                length: uc_bytes.len(),
-            },
-            urcrypt_aes_siv_data {
-                bytes: uc_bytes_two.as_mut_ptr(),
-                length: uc_bytes_two.len(),
-            },
-        ];
-
-        unsafe {
-            urcrypt_aes_sivb_de(
-                message.as_mut_ptr(),
-                message.len(),
-                uc_data.as_mut_ptr(),
-                uc_data.len(),
-                key.as_mut_ptr(),
-                iv.as_mut_ptr(),
-                uc_out.as_mut_ptr(),
-            )
-        };
-
-        let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
-        let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_sivb_de(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
-
-        assert_eq!(ac_out, uc_out);
+        todo!();
     }
 
     #[test]
@@ -393,45 +329,6 @@ mod urcrypt_tests {
 
     #[test]
     fn test_aes_sivc_de() {
-        let mut key: [u8; 64] = [42; 64];
-        let mut message: [u8; 32] = [
-            213, 96, 61, 200, 217, 8, 33, 147, 58, 213, 99, 8, 221, 23, 89, 206, 164, 237, 59, 231,
-            235, 50, 93, 122, 50, 202, 78, 248, 218, 41, 170, 175,
-        ];
-        let mut iv: [u8; 16] = [
-            105, 123, 123, 122, 45, 244, 179, 136, 167, 164, 134, 30, 97, 14, 241, 223,
-        ];
-
-        let mut uc_bytes = [42; 32];
-        let mut uc_bytes_two = [43; 32];
-        let mut uc_out: [u8; 32] = [0; 32];
-        let mut uc_data: [urcrypt_aes_siv_data; 2] = [
-            urcrypt_aes_siv_data {
-                bytes: uc_bytes.as_mut_ptr(),
-                length: uc_bytes.len(),
-            },
-            urcrypt_aes_siv_data {
-                bytes: uc_bytes_two.as_mut_ptr(),
-                length: uc_bytes_two.len(),
-            },
-        ];
-
-        unsafe {
-            urcrypt_aes_sivc_de(
-                message.as_mut_ptr(),
-                message.len(),
-                uc_data.as_mut_ptr(),
-                uc_data.len(),
-                key.as_mut_ptr(),
-                iv.as_mut_ptr(),
-                uc_out.as_mut_ptr(),
-            )
-        };
-
-        let mut ac_data: [&mut [u8]; 2] = [&mut uc_bytes, &mut uc_bytes_two];
-        let mut ac_out: [u8; 32] = [0; 32];
-        ac_aes_sivc_de(&mut key, &mut message, &mut ac_data, &mut iv, &mut ac_out).unwrap();
-
-        assert_eq!(ac_out, uc_out);
+        todo!();
     }
 }

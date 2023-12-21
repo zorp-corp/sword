@@ -72,7 +72,8 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
         Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
 
-    let message = &mut (dat.as_mut_bytes())[0..width]; // drop trailing zeros
+    let msg_len = met(3, dat);
+    let message = &mut (dat.as_mut_bytes())[0..msg_len]; // drop trailing zeros
 
     unsafe {
         let (mut ida, mut out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
