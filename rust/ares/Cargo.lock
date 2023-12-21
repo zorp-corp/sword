@@ -60,6 +60,7 @@ version = "0.1.0"
 dependencies = [
  "ares_crypto",
  "ares_macros",
+ "ares_pma",
  "assert_no_alloc",
  "autotools",
  "bitvec",
@@ -104,6 +105,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ares_pma"
+version = "0.1.0"
+dependencies = [
+ "bindgen 0.69.1",
+ "cc",
+]
+
+[[package]]
 name = "assert_no_alloc"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -140,6 +149,29 @@ name = "bindgen"
 version = "0.68.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "726e4313eb6ec35d2730258ad4e15b547ee75d6afaa1361a922e78e59b7d8078"
+dependencies = [
+ "bitflags 2.4.1",
+ "cexpr",
+ "clang-sys",
+ "lazy_static",
+ "lazycell",
+ "log",
+ "peeking_take_while",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash",
+ "shlex",
+ "syn 2.0.39",
+ "which",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.69.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ffcebc3849946a7170a05992aac39da343a90676ab392c51a4280981d6379c2"
 dependencies = [
  "bitflags 2.4.1",
  "cexpr",
@@ -1105,7 +1137,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ced751f95a527a3458eb67c75e4ae7093d41585edaa7565f5769101502473019"
 dependencies = [
- "bindgen",
+ "bindgen 0.68.1",
  "pkg-config",
 ]
 
