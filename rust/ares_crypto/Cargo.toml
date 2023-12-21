@@ -24,6 +24,8 @@ aes-siv = { version = "0.7.0", default-features = false, optional = true }
 sha1 = { version = "0.10.6", default-features = false, optional = true }
 sha2 = { version = "0.10.8", default-features = false, optional = true }
 
+# test_vs_urcrypt
+rand = { version = "0.8.4", default-features = false, features = ["getrandom"], optional = true }
 urcrypt-sys = { version = "0.1.1", optional = true }
 
 [features]
@@ -32,4 +34,4 @@ default = ["aes_siv", "ed25519", "sha", "test_vs_urcrypt"]
 aes_siv = ["aes", "aes-siv"]
 ed25519 = ["curve25519-dalek", "ed25519-dalek", "x25519-dalek"]
 sha = ["sha1", "sha2"]
-test_vs_urcrypt = ["urcrypt-sys"]
+test_vs_urcrypt = ["urcrypt-sys", "rand"]

@@ -3,9 +3,6 @@ use crate::jets::bits::util::met;
 use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
 use crate::noun::Noun;
-use ares_crypto::aes_siv::{
-    ac_aes_siva_de, ac_aes_siva_en, ac_aes_sivb_de, ac_aes_sivb_en, ac_aes_sivc_de, ac_aes_sivc_en,
-};
 
 crate::gdb!();
 
@@ -26,7 +23,7 @@ pub fn jet_siva_en(context: &mut Context, subject: Noun) -> Result {
         let key_bytes = &mut [0u8; 32];
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_en(stack, key_bytes, ads, txt, ac_aes_siva_en)
+        util::_siv_en::<32>(stack, key_bytes, ads, txt)
     }
 }
 
@@ -44,7 +41,7 @@ pub fn jet_siva_de(context: &mut Context, subject: Noun) -> Result {
         let key_bytes = &mut [0u8; 32];
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_de(stack, key_bytes, ads, iv, len, txt, ac_aes_siva_de)
+        util::_siv_de::<32>(stack, key_bytes, ads, iv, len, txt)
     }
 }
 
@@ -60,7 +57,7 @@ pub fn jet_sivb_en(context: &mut Context, subject: Noun) -> Result {
         let key_bytes = &mut [0u8; 48];
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_en(stack, key_bytes, ads, txt, ac_aes_sivb_en)
+        util::_siv_en::<48>(stack, key_bytes, ads, txt)
     }
 }
 
@@ -78,7 +75,7 @@ pub fn jet_sivb_de(context: &mut Context, subject: Noun) -> Result {
         let key_bytes = &mut [0u8; 48];
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_de(stack, key_bytes, ads, iv, len, txt, ac_aes_sivb_de)
+        util::_siv_de::<48>(stack, key_bytes, ads, iv, len, txt)
     }
 }
 
@@ -94,7 +91,7 @@ pub fn jet_sivc_en(context: &mut Context, subject: Noun) -> Result {
         let key_bytes = &mut [0u8; 64];
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_en(stack, key_bytes, ads, txt, ac_aes_sivc_en)
+        util::_siv_en::<64>(stack, key_bytes, ads, txt)
     }
 }
 
@@ -112,7 +109,7 @@ pub fn jet_sivc_de(context: &mut Context, subject: Noun) -> Result {
         let key_bytes = &mut [0u8; 64];
         key_bytes[0..key.as_bytes().len()].copy_from_slice(key.as_bytes());
 
-        util::_siv_de(stack, key_bytes, ads, iv, len, txt, ac_aes_sivc_de)
+        util::_siv_de::<64>(stack, key_bytes, ads, iv, len, txt)
     }
 }
 
@@ -123,22 +120,14 @@ mod util {
     use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
     use crate::noun::{Atom, IndirectAtom, Noun, D, T};
+    use ares_crypto::aes_siv::{ac_aes_siv_de, ac_aes_siv_en};
     use std::result;
-    use ares_crypto::aes_siv;
 
     /// Associated data for AES-SIV functions.
     struct AcAesSivData {
         bytes: *mut u8,
         length: usize,
     }
-
-    type AcAesSiv = fn(
-        key: &mut [u8],
-        message: &mut [u8],
-        data: &mut [&mut [u8]],
-        iv: &mut [u8],
-        out: &mut [u8],
-    ) -> result::Result<(), aes_siv::Error>;
 
     /// Allocates a noun list as an array of AesSivData structs on the NockStack
     /// for use as associated data in AES-SIV functions.
@@ -177,12 +166,11 @@ mod util {
         Ok(siv_data)
     }
 
-    pub fn _siv_en(
+    pub fn _siv_en<const N: usize>(
         stack: &mut NockStack,
-        key: &mut [u8],
+        key: &mut [u8; N],
         ads: Noun,
         mut txt: Atom,
-        fun: AcAesSiv,
     ) -> Result {
         unsafe {
             let ac_siv_data = _allocate_ads(stack, ads)?;
@@ -194,28 +182,16 @@ mod util {
             let txt_len = met(3, txt);
             let txt_bytes = &mut (txt.as_mut_bytes()[0..txt_len]);
 
-            let (mut iv, iv_bytes) = IndirectAtom::new_raw_mut_bytes(stack, 16);
+            let (mut iv, iv_bytes) = IndirectAtom::new_raw_mut_bytearray::<16, NockStack>(stack);
 
             match txt_len {
                 0 => {
-                    fun(
-                        key,
-                        txt_bytes,
-                        siv_data,
-                        iv_bytes,
-                        &mut [0u8; 0],
-                    ).unwrap();
+                    ac_aes_siv_en::<N>(key, txt_bytes, siv_data, iv_bytes, &mut [0u8; 0]).unwrap();
                     Ok(T(stack, &[iv.normalize_as_atom().as_noun(), D(0), D(0)]))
                 }
                 _ => {
                     let (mut out_atom, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
-                    fun(
-                        key,
-                        txt_bytes,
-                        siv_data,
-                        iv_bytes,
-                        out_bytes
-                    ).unwrap();
+                    ac_aes_siv_en::<N>(key, txt_bytes, siv_data, iv_bytes, out_bytes).unwrap();
                     Ok(T(
                         stack,
                         &[
@@ -229,14 +205,13 @@ mod util {
         }
     }
 
-    pub fn _siv_de(
+    pub fn _siv_de<const N: usize>(
         stack: &mut NockStack,
-        key: &mut [u8],
+        key: &mut [u8; N],
         ads: Noun,
         mut iv: Atom,
         len: Atom,
         mut txt: Atom,
-        fun: AcAesSiv
     ) -> Result {
         unsafe {
             let txt_len = match len.as_direct() {
@@ -245,7 +220,8 @@ mod util {
             };
             let txt_bytes = &mut (txt.as_mut_bytes()[0..txt_len]);
 
-            let iv_bytes = &mut (iv.as_mut_bytes()[0..16]);
+            let iv_bytes = &mut [0u8; 16];
+            iv_bytes.copy_from_slice(&iv.as_mut_bytes()[0..16]);
 
             let ac_siv_data = _allocate_ads(stack, ads)?;
             let siv_data: &mut [&mut [u8]] = std::slice::from_raw_parts_mut(
@@ -254,13 +230,7 @@ mod util {
             );
 
             let (mut out_atom, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
-            fun(
-                key,
-                txt_bytes,
-                siv_data,
-                iv_bytes,
-                out_bytes
-            ).unwrap();
+            ac_aes_siv_de::<N>(key, txt_bytes, siv_data, iv_bytes, out_bytes).unwrap();
             Ok(T(stack, &[D(0), out_atom.normalize_as_atom().as_noun()]))
         }
     }

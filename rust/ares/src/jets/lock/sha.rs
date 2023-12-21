@@ -67,7 +67,7 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
     let wid = slot(sam, 2)?.as_atom()?;
     let mut dat = slot(sam, 3)?.as_atom()?;
 
-    let width = match wid.as_direct() {
+    let _width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
         Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
