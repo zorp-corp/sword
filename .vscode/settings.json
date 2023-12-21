@@ -1,6 +1,0 @@
-{
-  "rust-analyzer.linkedProjects": [
-    "./rust/ares/Cargo.toml",
-    "./rust/ares_crypto/Cargo.toml"
-  ],
-}
