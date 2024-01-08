@@ -12,13 +12,14 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sed = slot(subject, 6)?.as_atom()?;
 
-    if met(3, sed) > 32 {
+    let sed_len = met(3, sed);
+    if sed_len > 32 {
         return Err(JetErr::Fail(Error::Deterministic(D(0))));
     }
 
     unsafe {
         let sed_bytes = &mut [0u8; 32];
-        sed_bytes.copy_from_slice(&(sed.as_bytes())[0..32]);
+        sed_bytes[0..sed_len].copy_from_slice(&(sed.as_bytes())[0..sed_len]);
 
         let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack);
         ac_ed_puck(sed_bytes, pub_key);
@@ -66,20 +67,26 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
 
     unsafe {
         let sed_bytes = sed.as_bytes();
-        if sed_bytes.len() > 32 {
+        let sed_len = sed_bytes.len();
+        if sed_len > 32 {
             return Err(JetErr::Fail(Error::Deterministic(D(0))));
         };
         let seed = &mut [0u8; 32];
-        seed[0..sed_bytes.len()].copy_from_slice(sed_bytes);
-
-        let msg_len = met(3, msg);
-        let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
-        message.copy_from_slice(&msg.as_bytes()[0..msg_len]);
+        seed[0..sed_len].copy_from_slice(sed_bytes);
 
         let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytearray::<64, NockStack>(stack);
-        ac_ed_sign(message, seed, sig);
-        sig.reverse();
 
+        let msg_len = met(3, msg);
+        if msg_len > 0 {
+            let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
+            message.copy_from_slice(&msg.as_bytes()[0..msg_len]);
+            ac_ed_sign(message, seed, sig);
+        }
+        else {
+            ac_ed_sign(&[0u8; 0], seed, sig);
+        }
+
+        sig.reverse();
         Ok(sig_ida.normalize_as_atom().as_noun())
     }
 }
@@ -127,6 +134,16 @@ mod tests {
 
         let sam = A(
             &mut c.stack,
+            &ubig!(_0x0),
+        );
+        let ret = A(
+            &mut c.stack,
+            &ubig!(_0x29da598ba148c03aa643e21d77153265730d6f2ad0a8a3622da4b6cebc276a3b),
+        );
+        assert_jet(c, jet_puck, sam, ret);
+
+        let sam = A(
+            &mut c.stack,
             &ubig!(_0x607fae1c03ac3b701969327b69c54944c42cec92f44a84ba605afdef9db1619d),
         );
         let ret = A(
@@ -139,6 +156,13 @@ mod tests {
     #[test]
     fn test_shar() {
         let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(0), D(0)]);
+        let ret = A(
+            &mut c.stack,
+            &ubig!(_0x0),
+        );
+        assert_jet(c, jet_shar, sam, ret);
 
         let sam = T(&mut c.stack, &[D(234), D(234)]);
         let ret = A(
@@ -159,6 +183,10 @@ mod tests {
         let c = &mut init_context();
 
         unsafe {
+            let sam = T(&mut c.stack, &[D(0), D(0)]);
+            let ret = A(&mut c.stack, &ubig!(_0x8f895b3cafe2c9506039d0e2a66382568004674fe8d237785092e40d6aaf483e4fc60168705f31f101596138ce21aa357c0d32a064f423dc3ee4aa3abf53f803));
+            assert_jet(c, jet_sign, sam, ret);
+
             let message = D(0x72);
 
             let sed_ubig =
@@ -196,6 +224,9 @@ mod tests {
         let c = &mut init_context();
 
         unsafe {
+            let sam = T(&mut c.stack, &[D(0), D(0), D(0)]);
+            assert_jet(c, jet_veri, sam, NO);
+
             let sig_ubig = ubig!(_0x92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00);
             let sig_bytes = sig_ubig.to_be_bytes();
             let signature =
