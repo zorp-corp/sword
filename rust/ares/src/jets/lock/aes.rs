@@ -183,6 +183,8 @@ mod util {
 
             let (mut iv, iv_bytes) = IndirectAtom::new_raw_mut_bytearray::<16, NockStack>(stack);
 
+            // We match on length here and elsewhere where a similar pattern is followed
+            // to avoid panicking when a zero length is passed to IndirectAtom::new_raw_mut_bytes.
             match txt_len {
                 0 => {
                     ac_aes_siv_en::<N>(key, &mut [], siv_data, iv_bytes, &mut [0u8; 0]).unwrap();
