@@ -170,7 +170,7 @@ mod util {
         stack: &mut NockStack,
         key: &mut [u8; N],
         ads: Noun,
-        mut txt: Atom,
+        txt: Atom,
     ) -> Result {
         unsafe {
             let ac_siv_data = _allocate_ads(stack, ads)?;
@@ -180,16 +180,17 @@ mod util {
             );
 
             let txt_len = met(3, txt);
-            let txt_bytes = &mut (txt.as_mut_bytes()[0..txt_len]);
 
             let (mut iv, iv_bytes) = IndirectAtom::new_raw_mut_bytearray::<16, NockStack>(stack);
 
             match txt_len {
                 0 => {
-                    ac_aes_siv_en::<N>(key, txt_bytes, siv_data, iv_bytes, &mut [0u8; 0]).unwrap();
+                    ac_aes_siv_en::<N>(key, &mut [], siv_data, iv_bytes, &mut [0u8; 0]).unwrap();
                     Ok(T(stack, &[iv.normalize_as_atom().as_noun(), D(0), D(0)]))
                 }
                 _ => {
+                    let (_txt_ida, txt_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
+                    txt_bytes.copy_from_slice(&txt.as_bytes()[0..txt_len]);
                     let (mut out_atom, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
                     ac_aes_siv_en::<N>(key, txt_bytes, siv_data, iv_bytes, out_bytes).unwrap();
                     Ok(T(
@@ -209,19 +210,20 @@ mod util {
         stack: &mut NockStack,
         key: &mut [u8; N],
         ads: Noun,
-        mut iv: Atom,
+        iv: Atom,
         len: Atom,
-        mut txt: Atom,
+        txt: Atom,
     ) -> Result {
         unsafe {
             let txt_len = match len.as_direct() {
                 Ok(direct) => direct.data() as usize,
                 Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
             };
-            let txt_bytes = &mut (txt.as_mut_bytes()[0..txt_len]);
+            let (_txt_ida, txt_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
+            txt_bytes.copy_from_slice(&txt.as_bytes()[0..txt_len]);
 
             let iv_bytes = &mut [0u8; 16];
-            iv_bytes.copy_from_slice(&iv.as_mut_bytes()[0..16]);
+            iv_bytes.copy_from_slice(&iv.as_bytes()[0..16]);
 
             let ac_siv_data = _allocate_ads(stack, ads)?;
             let siv_data: &mut [&mut [u8]] = std::slice::from_raw_parts_mut(

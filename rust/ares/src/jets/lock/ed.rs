@@ -61,7 +61,7 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
 
 pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
-    let mut msg = slot(subject, 12)?.as_atom()?;
+    let msg = slot(subject, 12)?.as_atom()?;
     let sed = slot(subject, 13)?.as_atom()?;
 
     unsafe {
@@ -73,7 +73,8 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
         seed[0..sed_bytes.len()].copy_from_slice(sed_bytes);
 
         let msg_len = met(3, msg);
-        let message = &mut (msg.as_mut_bytes())[0..msg_len]; // drop trailing zeros
+        let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
+        message.copy_from_slice(&msg.as_bytes()[0..msg_len]);
 
         let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytearray::<64, NockStack>(stack);
         ac_ed_sign(message, seed, sig);

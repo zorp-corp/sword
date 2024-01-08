@@ -249,11 +249,6 @@ impl DirectAtom {
         let bytes: &[u8; 8] = unsafe { std::mem::transmute(&self.0) };
         &bytes[..]
     }
-
-    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
-        let bytes: &mut [u8; 8] = unsafe { std::mem::transmute(&mut self.0) };
-        &mut bytes[..]
-    }
 }
 
 impl fmt::Display for DirectAtom {
@@ -821,14 +816,6 @@ impl Atom {
             unsafe { self.direct.as_bytes() }
         } else {
             unsafe { self.indirect.as_bytes() }
-        }
-    }
-
-    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
-        if self.is_direct() {
-            unsafe { self.direct.as_mut_bytes() }
-        } else {
-            unsafe { self.indirect.as_mut_bytes() }
         }
     }
 
