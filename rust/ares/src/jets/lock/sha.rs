@@ -17,15 +17,22 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
     let (mut _salt_ida, salt) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
     salt.copy_from_slice(sal_bytes);
 
-    let msg_len = met(3, ruz);
-    let (mut _msg_ida, message) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, msg_len) };
-    message.copy_from_slice(&ruz.as_bytes()[0..msg_len]);
-
     unsafe {
         let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        ac_shas(message, salt, out);
+
+        let msg_len = met(3, ruz);
+        if msg_len > 0 {
+            let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
+            message.copy_from_slice(&ruz.as_bytes()[0..msg_len]);
+            ac_shas(message, salt, out);
+        }
+        else {
+            ac_shas(&mut [], salt, out);
+        }
+
         Ok(out_ida.normalize_as_atom().as_noun())
     }
+
 }
 
 pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
@@ -35,10 +42,17 @@ pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
     let len = met(3, msg);
 
     unsafe {
-        let (mut _msg_ida, msg_copy) = IndirectAtom::new_raw_mut_bytes(stack, len);
-        msg_copy.copy_from_slice(&msg.as_bytes()[0..len]);
         let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        ac_shay(&mut (msg_copy)[0..len], out);
+
+        if len > 0 {
+            let (mut _msg_ida, msg_copy) = IndirectAtom::new_raw_mut_bytes(stack, len);
+            msg_copy.copy_from_slice(&msg.as_bytes()[0..len]);
+            ac_shay(&mut (msg_copy)[0..len], out);
+        }
+        else {
+            ac_shay(&mut [], out);
+        }
+
         Ok(ida.normalize_as_atom().as_noun())
     }
 }
@@ -129,6 +143,14 @@ mod tests {
     fn test_shas() {
         let c = &mut init_context();
 
+        let sam = T(&mut c.stack, &[D(1), D(0)]);
+        assert_jet_ubig(
+            c,
+            jet_shas,
+            sam,
+            ubig!(_0x4abac214e1e95fe0c60df79d09cbd05454a4cb958683e02318aa147f2a5e6d60),
+        );
+
         let sam = T(&mut c.stack, &[D(1), D(1)]);
         assert_jet_ubig(
             c,
@@ -165,6 +187,13 @@ mod tests {
     #[test]
     fn test_shax() {
         let c = &mut init_context();
+
+        assert_jet_ubig(
+            c,
+            jet_shax,
+            D(0), // ''
+            ubig!(_0x55b852781b9995a44c939b64e441ae2724b96f99c8f4fb9a141cfc9842c4b0e3),
+        );
 
         assert_jet_ubig(
             c,
@@ -206,6 +235,13 @@ mod tests {
     #[test]
     fn test_shay() {
         let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(0), D(0)]);
+        let ret = A(
+            &mut c.stack,
+            &ubig!(_0x55b852781b9995a44c939b64e441ae2724b96f99c8f4fb9a141cfc9842c4b0e3),
+        );
+        assert_jet(c, jet_shay, sam, ret);
 
         let sam = T(&mut c.stack, &[D(1), D(0)]);
         let ret = A(
@@ -263,6 +299,14 @@ mod tests {
     #[test]
     fn test_shal() {
         let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(0), D(0)]);
+        assert_jet_ubig(
+            c,
+            jet_shal,
+            sam,
+            ubig!(_0x3eda27f97a3238a5817a4147bd31b9632fec7e87d21883ffb0f2855d3cd1d047cee96cd321a9f483dc15570b05e420d607806dd6502854f1bdb8ef7e35e183cf)
+        );
 
         let sam = T(&mut c.stack, &[D(1), D(1)]);
         assert_jet_ubig(
