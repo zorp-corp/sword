@@ -219,8 +219,6 @@ mod util {
                 Ok(direct) => direct.data() as usize,
                 Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
             };
-            let (_txt_ida, txt_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
-            txt_bytes.copy_from_slice(&txt.as_bytes()[0..txt_len]);
 
             let iv_bytes = &mut [0u8; 16];
             iv_bytes.copy_from_slice(&iv.as_bytes()[0..16]);
@@ -232,7 +230,18 @@ mod util {
             );
 
             let (mut out_atom, out_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
-            ac_aes_siv_de::<N>(key, txt_bytes, siv_data, iv_bytes, out_bytes).unwrap();
+
+            match txt_len {
+                0 => {
+                    ac_aes_siv_de::<N>(key, &mut [], siv_data, iv_bytes, &mut [0u8; 0]).unwrap();
+                }
+                _ => {
+                    let (_txt_ida, txt_bytes) = IndirectAtom::new_raw_mut_bytes(stack, txt_len);
+                    txt_bytes.copy_from_slice(&txt.as_bytes()[0..txt_len]);
+                    ac_aes_siv_de::<N>(key, txt_bytes, siv_data, iv_bytes, out_bytes).unwrap();
+                }
+            }
+
             Ok(T(stack, &[D(0), out_atom.normalize_as_atom().as_noun()]))
         }
     }
@@ -323,6 +332,22 @@ mod tests {
     pub fn test_sivb_en() {
         let c = &mut init_context();
 
+        /*
+        > (~(en sivb:aes:crypto [key=0x0 vec=~]) txt=0x0)
+        [p=0x8fb.4085.a9b9.3662.ab44.f911.e47e.9ccd q=0 r=0x0]
+         */
+        fn sample(_s: &mut NockStack) -> Noun {
+            D(0)
+        }
+        fn context(s: &mut NockStack) -> Noun {
+            let sample = T(s, &[D(0), D(0)]);
+            T(s, &[D(0), sample, D(0)])
+        }
+
+        let siv = A(&mut c.stack, &ubig!(0x8fb4085a9b93662ab44f911e47e9ccd));
+        let res = T(&mut c.stack, &[siv, D(0), D(0x0)]);
+        assert_jet_in_door(c, jet_sivb_en, &[sample], &[context], res);
+
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
          */
@@ -349,6 +374,22 @@ mod tests {
     #[test]
     pub fn test_sivc_en() {
         let c = &mut init_context();
+
+        /*
+        > (~(en sivc:aes:crypto [key=0x0 vec=~]) txt=0x0)
+        [p=0x2c6a.abc5.bb25.1140.e221.d70b.fb31.c519 q=0 r=0x0]
+         */
+        fn sample(_s: &mut NockStack) -> Noun {
+            D(0)
+        }
+        fn context(s: &mut NockStack) -> Noun {
+            let sample = T(s, &[D(0), D(0)]);
+            T(s, &[D(0), sample, D(0)])
+        }
+
+        let siv = A(&mut c.stack, &ubig!(0x2c6aabc5bb251140e221d70bfb31c519));
+        let res = T(&mut c.stack, &[siv, D(0), D(0x0)]);
+        assert_jet_in_door(c, jet_sivc_en, &[sample], &[context], res);
 
         /* RFC 5297
          * https://datatracker.ietf.org/doc/html/rfc5297#appendix-A
