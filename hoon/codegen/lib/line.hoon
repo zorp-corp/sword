@@ -1,3 +1,4 @@
+!:
 =*  sack  +3
 =*  moan  moan.sack
 =*  cole  cole.sack
@@ -155,7 +156,7 @@
       ?-  -.goal
           %done
         =^  last  gen  rain
-        =^  loch  gen  (emit %loch ~ %don last)
+        =^  loch  gen  (emit %loch ~ ~ %don last)
         $(goal [%next [%this last] loch])
       ::
           %pick
@@ -175,12 +176,12 @@
       ?-  -.goal
           %done
         =^  last  gen  rain
-        =^  dear  gen  (emit %dear ~ %don last)
+        =^  dear  gen  (emit %dear ~ ~ %don last)
         $(goal [%next [%this last] dear])
       ::
           %pick
         =^  cove  gen  rain
-        =^  cozy  gen  (emit %cozy ~ %brn cove [zero once]:goal)
+        =^  cozy  gen  (emit %cozy ~ ~ %brn cove [zero once]:goal)
         $(goal [%next [%this cove] cozy])
       ::
          %next
@@ -192,7 +193,7 @@
       ?-  -.goal
           %done
         =^  last  gen  rain
-        =^  rime  gen  (emit %rime [%imm moan.nomm last]~ %don last)
+        =^  rime  gen  (emit %rime ~ [%imm moan.nomm last]~ %don last)
         [[%next [%none ~] rime] gen]
       ::
           %pick
@@ -210,7 +211,7 @@
         %two
       ?:  ?=(%pick -.goal)
         =^  flip  gen  rain
-        =^  bird  gen  (emit %bird ~ %brn flip [zero once]:goal)
+        =^  bird  gen  (emit %bird ~ ~ %brn flip [zero once]:goal)
         $(goal [%next [%this flip] bird])
       =/  bull  (~(get by ices) rail.nomm)
       ?~  bull
@@ -218,7 +219,7 @@
             %done
           =^  s  gen  rain
           =^  f  gen  rain
-          =^  tide  gen  (emit %tide ~ %lnt s f)
+          =^  tide  gen  (emit %tide ~ ~ %lnt s f)
           =^  corn  gen  $(nomm corn.nomm, fax (peg fax 7), goal [%next [%this f] tide])
           =^  cost  gen  $(nomm cost.nomm, fax (peg fax 6), goal [%next [%this s] then.corn])
           (copy then.cost what.cost what.corn)
@@ -227,7 +228,7 @@
           =^  [post=bile salt=@uvre]  gen  (kerf %post goal)
           =^  s  gen  rain
           =^  f  gen  rain
-          =^  dine  gen  (emit %dine ~ %lnk s f salt post)
+          =^  dine  gen  (emit %dine ~ ~ %lnk s f salt post)
           =^  corn  gen  $(nomm corn.nomm, fax (peg fax 7), goal [%next [%this f] dine])
           =^  cost  gen  $(nomm cost.nomm, fax (peg fax 6), goal [%next [%this s] then.corn])
           (copy then.cost what.cost what.corn)
@@ -239,11 +240,11 @@
           %done
         =^  [dire=bile seed=need]  gen
           ?~  hope
-            =^  dike  gen  (emit %dike ~ %jmp u.bull b v)
+            =^  dike  gen  (emit %dike ~ ~ %jmp u.bull b v)
             =?  redo.gen  r  [dike redo.gen]
             [[dike n] gen]
           =^  s  gen  rain
-          =^  dial  gen  (emit %dial ~ %jmf u.bull b v s u.hope)
+          =^  dial  gen  (emit %dial ~ ~ %jmf u.bull b v s u.hope)
           =?  redo.gen  r  [dial redo.gen]
           =^  nest  gen  (copy dial n [%this s])
           [[then.nest what.nest] gen]
@@ -255,11 +256,11 @@
         =^  [post=bile salt=@uvre]  gen  (kerf %post goal)
         =^  [dire=bile seed=need]  gen
           ?~  hope
-            =^  dine  gen  (emit %dine ~ %cal u.bull b v salt post)
+            =^  dine  gen  (emit %dine ~ ~ %cal u.bull b v salt post)
             =?  redo.gen  r  [dine redo.gen]
             [[dine n] gen]
           =^  s  gen  rain
-          =^  dime  gen  (emit %dime ~ %caf u.bull b v salt post s u.hope)
+          =^  dime  gen  (emit %dime ~ ~ %caf u.bull b v salt post s u.hope)
           =?  redo.gen  r  [dime redo.gen]
           =^  nest  gen  (copy dime n [%this s])
           [[then.nest what.nest] gen]
@@ -274,8 +275,8 @@
         =^  last  gen  rain
         =^  hasp  gen  rain
         =^  barf  gen  rein
-        =^  tear  gen  (emit %tear [%imm 0 last]~ %don last)
-        =^  fear  gen  (emit %fear [%imm 1 hasp]~ %don hasp)
+        =^  tear  gen  (emit %tear ~ [%imm 0 last]~ %don last)
+        =^  fear  gen  (emit %fear ~ [%imm 1 hasp]~ %don hasp)
         $(goal [%pick barf tear fear])
       ::
           %next
@@ -290,7 +291,11 @@
         =^  thin  gen
           %:  emit
               %thin
-              [%phi ~[[tile tare] [file fare]] sass.what.goal]~
+              %:  ~(put by *(map @uvre (map bile @uvre)))
+                  sass.what.goal
+                  (~(gas by *(map bile @uvre)) ~[[tile tare] [file fare]])
+              ==
+              ~
               %hop  then.goal
           ==
         =^  tear  gen  (come tile thin)
@@ -300,7 +305,7 @@
       ::
           %pick
         =^  coat  gen  rain
-        =^  pith  gen  (emit %pith ~ %clq coat [zero once]:goal)
+        =^  pith  gen  (emit %pith ~ ~ %clq coat [zero once]:goal)
         $(nomm pell.nomm, goal [%next [%this coat] pith], fax (peg fax 3))
       ==
     ::
@@ -309,14 +314,14 @@
           %done
         =^  rink  gen  rain
         =^  pink  gen  rain
-        =^  tike  gen  (emit %tike [%inc pink rink]~ %don rink)
+        =^  tike  gen  (emit %tike ~ [%inc pink rink]~ %don rink)
         $(nomm mall.nomm, goal [%next [%this pink] tike], fax (peg fax 3))
       ::
          %pick
         =^  rink  gen  rain
         =^  pink  gen  rain
         =^  pike  gen
-          (emit %pike [%inc pink rink]~ %brn rink [zero once]:goal)
+          (emit %pike ~ [%inc pink rink]~ %brn rink [zero once]:goal)
         $(nomm mall.nomm, goal [%next [%this pink] pike], fax (peg fax 3))
       ::
          %next
@@ -327,7 +332,7 @@
           [sass.what.goal gen]
         =^  pink  gen  rain
         =^  bike  gen
-          (emit %bike [%inc pink rink]~ %hop then.goal)
+          (emit %bike ~ [%inc pink rink]~ %hop then.goal)
         $(nomm mall.nomm, goal [%next [%this pink] bike], fax (peg fax 3))
       ==
     ::
@@ -336,8 +341,8 @@
           %done
         =^  last  gen  rain
         =^  hasp  gen  rain
-        =^  reek  gen  (emit %reek [%imm 0 last]~ %don last)
-        =^  riff  gen  (emit %riff [%imm 1 hasp]~ %don hasp)
+        =^  reek  gen  (emit %reek ~ [%imm 0 last]~ %don last)
+        =^  riff  gen  (emit %riff ~ [%imm 1 hasp]~ %don hasp)
         =^  crap  gen  rein
         $(goal [%pick crap reek riff])
       ::
@@ -353,18 +358,27 @@
         =^  fare  gen  rain
         =/  fill  (vial %fill)
         =^  ward  gen
-          (emit %ward [%phi ~[[till tare] [fill fare]] sass.what.goal]~ %hop then.goal)
+          %:  emit
+              %ward
+              %:  ~(put by *(map @uvre (map bile @uvre)))
+                  sass.what.goal
+                  (~(gas by *(map bile @uvre)) ~[[till tare] [fill fare]])
+              ==
+              ~ 
+              %hop 
+              then.goal
+          ==
         =^  weir  gen  (come till ward) 
         =^  mere  gen  (come fill ward)
-        =^  ware  gen  (emit %ware [%imm 0 tare]~ %hop weir)
-        =^  mare  gen  (emit %mare [%imm 1 fare]~ %hop mere)
+        =^  ware  gen  (emit %ware ~ [%imm 0 tare]~ %hop weir)
+        =^  mare  gen  (emit %mare ~ [%imm 1 fare]~ %hop mere)
         =^  crap  gen  rein
         $(goal [%pick crap ware mare])
       ::
           %pick
         =^  tire  gen  rain
         =^  tear  gen  rain
-        =^  pare  gen  (emit %pare ~ %eqq tire tear [zero once]:goal)
+        =^  pare  gen  (emit %pare ~ ~ %eqq tire tear [zero once]:goal)
         =^  than  gen
           $(nomm that.nomm, goal [%next [%this tear] pare], fax (peg fax 7))
         =^  thin  gen
@@ -406,13 +420,13 @@
       ?-  -.goal
           %done
         =^  last  gen  rain
-        =^  dead  gen  (emit %dead ~ %don last)
+        =^  dead  gen  (emit %dead ~ ~ %don last)
         $(goal [%next [%this last] dead])
       ::
           %pick
         ?.  =(here.nomm 1)  (mine sass.goal zero.goal)
         =^  flip  gen  rain
-        =^  deep  gen  (emit %deep ~ %brn flip [zero once]:goal)
+        =^  deep  gen  (emit %deep ~ ~ %brn flip [zero once]:goal)
         $(goal [%next [%this flip] deep])
       ::
           %next
@@ -430,28 +444,28 @@
         ?-  -.goal
             %done
           =^  last  gen  rain
-          =^  dime  gen  (emit %dime ~ %don last)
+          =^  dime  gen  (emit %dime ~ ~ %don last)
           $(goal [%next [%this last] dime])
         ::
             %pick
-          =^  tome  gen  (emit %tome [%tom ~]~ %hop zero.goal)
-          =^  foam  gen  (emit %foam [%tom ~]~ %hop once.goal)
+          =^  tome  gen  (emit %tome ~ [%tom ~]~ %hop zero.goal)
+          =^  foam  gen  (emit %foam ~ [%tom ~]~ %hop once.goal)
           =^  race  gen
             $(nomm then.nomm, fax (peg fax 7), goal [%pick sass.goal tome foam])
-          =^  tick  gen  (emit %tick [%tim ~]~ %hop then.race)
+          =^  tick  gen  (emit %tick ~ [%tim ~]~ %hop then.race)
           [race(then tick) gen]
         ::
             %next
-          =^  stop  gen  (emit %stop [%tom ~]~ %hop then.goal)
+          =^  stop  gen  (emit %stop ~ [%tom ~]~ %hop then.goal)
           =^  race  gen
             $(nomm then.nomm, fax (peg fax 7), then.goal stop)
-          =^  goes  gen  (emit %goes [%tim ~]~ %hop then.race)
+          =^  goes  gen  (emit %goes ~ [%tim ~]~ %hop then.race)
           [race(then goes) gen]
         ==
       ::
           %meme
         =^  raft  gen  $(nomm then.nomm, fax (peg fax 7))
-        =^  meme  gen  (emit %meme [%mem ~]~ %hop then.raft)
+        =^  meme  gen  (emit %meme ~ [%mem ~]~ %hop then.raft)
         [raft(then meme) gen]
       ==
     ::
@@ -469,7 +483,7 @@
           =^  real  gen  $(nomm then.nomm, fax (peg fax 7))
           =^  rags  gen  (wash then.real)
           =^  dint  gen
-            (emit %dint [%men hint.nomm mane]~ %hop rags)
+            (emit %dint ~ [%men hint.nomm mane]~ %hop rags)
           =^  fake  gen
             $(nomm vice.nomm, fax (peg fax 14), goal [%next [%this mane] dint])
           (copy then.fake what.fake what.real)
@@ -479,13 +493,13 @@
           =^  tosh  gen  (wash zero.goal)
           =.  sick.gen  sick
           =^  bosh  gen  (wash once.goal)
-          =^  tame  gen  (emit %tame [%man ~]~ %hop tosh)
-          =^  fame  gen  (emit %fame [%man ~]~ %hop bosh)
+          =^  tame  gen  (emit %tame ~ [%man ~]~ %hop tosh)
+          =^  fame  gen  (emit %fame ~ [%man ~]~ %hop bosh)
           =^  real  gen
             $(nomm then.nomm, fax (peg fax 7), goal [%pick sass.goal tame fame])
           =^  rags  gen  (wash then.real)
           =^  dint  gen
-            (emit %dint [%men hint.nomm mane]~ %hop rags)
+            (emit %dint ~ [%men hint.nomm mane]~ %hop rags)
           =^  fake  gen
             $(nomm vice.nomm, fax (peg fax 13), goal [%next [%this mane] dint])
           (copy then.fake what.fake what.real)
@@ -496,7 +510,7 @@
             $(nomm then.nomm, fax (peg fax 7), then.goal rugs)
           =^  rags  gen  (wash then.real)
           =^  dint  gen
-            (emit %dint [%men hint.nomm mane]~ %hop rags)
+            (emit %dint ~ [%men hint.nomm mane]~ %hop rags)
           =^  fake  gen
             $(nomm vice.nomm, fax (peg fax 13), goal [%next [%this mane] dint])
           (copy then.fake what.fake what.real)
@@ -507,8 +521,8 @@
         =^  real  gen  $(nomm then.nomm, fax (peg fax 7))
         =^  wave  gen
           ?:  ?=(%live hint.nomm)
-            (emit %live [%hit clue]~ %hop then.real)
-          (emit %slog [%slg clue]~ %hop then.real)
+            (emit %live ~ [%hit clue]~ %hop then.real)
+          (emit %slog ~ [%slg clue]~ %hop then.real)
         =^  fake  gen
           $(nomm vice.nomm, fax (peg fax 13), goal [%next [%this clue] wave])
         (copy then.fake what.fake what.real)
@@ -521,19 +535,19 @@
       ?-  -.goal
           %done
         =^  last  gen  rain
-        =^  deft  gen  (emit %deft ~ %don last)
+        =^  deft  gen  (emit %deft ~ ~ %don last)
         $(goal [%next [%this last] deft])
       ::
           %pick
         =^  flip  gen  rain
-        =^  heft  gen  (emit %heft ~ %brn flip [zero once]:goal)
+        =^  heft  gen  (emit %heft ~ ~ %brn flip [zero once]:goal)
         $(goal [%next [%this flip] heft])
       ::
           %next
         =^  [weft=bile good=@uvre]  gen  (kerf %weft goal)
         =^  home  gen  rain
         =^  path  gen  rain
-        =^  show  gen  (emit %show ~ %spy home path good weft)
+        =^  show  gen  (emit %show ~ ~ %spy home path good weft)
         =^  trot  gen
           $(nomm walk.nomm, fax (peg fax 7), goal [%next [%this path] show])
         =^  paid  gen
@@ -562,9 +576,9 @@
       ?>  ?=(~ b.bend.blob)
       ?>  (~(has by like) a.bend.blob)
       =^  urge  gen  (args a.bend.blob)
-      =^  reed  gen  (emit %reed ~ bend.blob(b b.urge, v v.urge))
+      =^  reed  gen  (emit %reed ~ ~ bend.blob(b b.urge, v v.urge))
       =^  [rush=_bile i=@uvre]  gen  (kerf %rush [%next n.urge reed])
-      (emir bile [%mov i.v.bend.blob i]~ %hop rush)
+      (emir bile ~ [%mov i.v.bend.blob i]~ %hop rush)
     ::
         %caf
       ?>  ?=(^ v.bend.blob)
@@ -572,9 +586,9 @@
       ?>  ?=(~ b.bend.blob)
       ?>  (~(has by like) a.bend.blob)
       =^  urge  gen  (args a.bend.blob)
-      =^  reed  gen  (emit %reed ~ bend.blob(b b.urge, v v.urge))
+      =^  reed  gen  (emit %reed ~ ~ bend.blob(b b.urge, v v.urge))
       =^  [rush=_bile i=@uvre]  gen  (kerf %rush [%next n.urge reed])
-      (emir bile [%mov i.v.bend.blob i]~ %hop rush)
+      (emir bile ~ [%mov i.v.bend.blob i]~ %hop rush)
     ::
         %jmp
       ?>  ?=(^ v.bend.blob)
@@ -582,9 +596,9 @@
       ?>  ?=(~ b.bend.blob)
       ?>  (~(has by like) a.bend.blob)
       =^  urge  gen  (args a.bend.blob)
-      =^  reed  gen  (emit %reed ~ bend.blob(b b.urge, v v.urge))
+      =^  reed  gen  (emit %reed ~ ~ bend.blob(b b.urge, v v.urge))
       =^  [rush=_bile i=@uvre]  gen  (kerf %rush [%next n.urge reed])
-      (emir bile [%mov i.v.bend.blob i]~ %hop rush)
+      (emir bile ~ [%mov i.v.bend.blob i]~ %hop rush)
     ::
         %jmf
       ?>  ?=(^ v.bend.blob)
@@ -592,9 +606,9 @@
       ?>  ?=(~ b.bend.blob)
       ?>  (~(has by like) a.bend.blob)
       =^  urge  gen  (args a.bend.blob)
-      =^  reed  gen  (emit %reed ~ bend.blob(b b.urge, v v.urge))
+      =^  reed  gen  (emit %reed ~ ~ bend.blob(b b.urge, v v.urge))
       =^  [rush=_bile i=@uvre]  gen  (kerf %rush [%next n.urge reed])
-      (emir bile [%mov i.v.bend.blob i]~ %hop rush)
+      (emir bile ~ [%mov i.v.bend.blob i]~ %hop rush)
     ==
   ::   split register to need
   ::
@@ -612,7 +626,7 @@
       [[then.next crap] gen]
     |-  ^-  [[bile @uvre] _gen]
     ?~  tack
-      =^  thin  gen  (emit thus (flop pose) %hop then.next)
+      =^  thin  gen  (emit thus ~ (flop pose) %hop then.next)
       [[thin u.ui] gen]
     =*  need  i.tack 
     ?:  ?=(%both -.need)
@@ -673,7 +687,7 @@
         %this
       =^  l  gen  rain
       =^  r  gen  rain
-      =^  lizz  gen  (emit %lyse [%con l r sass.what.next]~ %hop then.next)
+      =^  lizz  gen  (emit %lyse ~ [%con l r sass.what.next]~ %hop then.next)
       [[lizz [%this l] [%this r]] gen]
     ==
   ::
@@ -708,8 +722,8 @@
     ?~  tack
       ?>  ?=(^ salt)
       ?>  ?=(~ t.salt)
-      =^  loan  gen  (emit %loan (flop lose) %hop then.zero)
-      =^  roan  gen  (emit %roan (flop rose) %hop then.once)
+      =^  loan  gen  (emit %loan ~ (flop lose) %hop then.zero)
+      =^  roan  gen  (emit %roan ~ (flop rose) %hop then.once)
       [[i.salt loan roan] gen]
     ?-  -.i.tack
         %&
@@ -785,7 +799,7 @@
     ?~  tack
       ?>  ?=(^ rack)
       ?>  ?=(~ t.rack)
-      =^  cody  gen  (emit %copy pose %hop then)
+      =^  cody  gen  (emit %copy ~ pose %hop then)
       [[%next i.rack cody] gen]
     ?:  ?=(%& -.i.tack)
       ?>  ?=(^ rack)
@@ -850,7 +864,7 @@
   ::
   ::  like +bomb, but return only the label and not the need
   ++  boom
-    (emit %boom ~ %bom ~)
+    (emit %boom ~ ~ %bom ~)
   ::  
   ::    possibly defer crash
   ::
@@ -865,14 +879,14 @@
     ?:  (~(has in sick.gen) r)
       =.  sick.gen  (~(del in sick.gen) r)
       bomb
-    =^  mile  gen  (emit %mine [%poi r]~ %hop t)
+    =^  mile  gen  (emit %mine ~ [%poi r]~ %hop t)
     [[%next [%none ~] t] gen]
   ++  wash
     |=  =bile
     =/  sick  ~(tap in sick.gen)
     =.  sick.gen  ~
     ?~  sick  [bile gen]
-    (emit %wash [%ipb sick]~ %hop bile)
+    (emit %wash ~ [%ipb sick]~ %hop bile)
   ::  
   ::    create label
   ::
@@ -887,7 +901,12 @@
   ::  useful for evaluating phi instructions in the jump destination
   ++  come
     |=  [f=bile t=bile]
-    [f gen(will (~(put by will.gen) f [~ %hop t]))]
+    :-  f
+    %=  gen
+        will
+      %+  ~(put by will.gen)  f 
+      ^-  blob  [~ ~ %hip f t]
+    ==
   ::
   ::    emit phi node
   ::
@@ -897,14 +916,14 @@
     |=  =next
     =/  tack=(list (each [zp=@uvre op=@uvre] need))  [%| what.next]~
     =|  salt=(list [z=need o=need]) 
-    =|  pose=(list pole)
+    =|  biff=(map @uvre (map bile @uvre))
     =/  zb  (vial %zebu)
     =/  ob  (vial %oboe)
     |-  ^-  [[_next _next] _gen]
     ?~  tack
       ?>  ?=(^ salt)
       ?>  ?=(~ t.salt)
-      =^  fill  gen  (emit %phil pose %hop then.next)
+      =^  fill  gen  (emit %phil biff ~ %hop then.next)
       =^  zeke  gen  (come zb fill)
       =^  oaks  gen  (come ob fill)
       [[[%next z.i.salt zeke] [%next o.i.salt oaks]] gen]
@@ -926,8 +945,9 @@
           %this
         =^  l  gen  rain
         =^  r  gen  rain
+        =/  phi  (~(gas by *(map bile @uvre)) ~[[zb l] [ob r]])
         %=  $
-            pose  [[%phi ~[[zb l] [ob r]] sass.p.i.tack] pose]
+            biff  (~(put by biff) sass.p.i.tack phi)
             tack  t.tack
             salt  [[[%this l] %this r] salt]
         ==
@@ -935,8 +955,9 @@
           %both
         =^  hurl  gen  rein
         =^  barf  gen  rein
+        =/  phi  (~(gas by *(map bile @uvre)) ~[[zb hurl] [ob barf]])
         %=  $
-            pose  [[%pol hurl sass.p.i.tack] [%pol barf sass.p.i.tack] pose]
+            biff  (~(put by biff) sass.p.i.tack phi)
             tack
           :*  [%| left.p.i.tack]
               [%| rite.p.i.tack]
@@ -1093,7 +1114,7 @@
     =/  tree=need  [%none ~]
     |-  ^-  [[need need bile] _gen]
     ?~  tres 
-      =^  tint  gen  (emit %into pose %hop then.next)
+      =^  tint  gen  (emit %into ~ pose %hop then.next)
       [[twig tree tint] gen]
     ?-  lr.i.tres
         %2
@@ -1113,7 +1134,7 @@
     =/  tack=(list [n=* =_need])  [n need]~
     |-  ^-  [_bile _gen]
     ?~  tack
-      (emit %mede todo %hop bile)
+      (emit %mede ~ todo %hop bile)
     ?-  -.need.i.tack
         %none  $(tack t.tack)
         %this  $(todo [[%imm n.i.tack sass.need.i.tack] todo], tack t.tack)
@@ -1185,6 +1206,83 @@
     ::
         todo  t.todo
     ==
+  ::  XX temporary: turn hip/phi into mov so we can run this as-is
+  ::  note that it's not safe to do mov coalescing on the output of this
+  ::  since we may now have multiple %mov's that target one register
+  =/  toil  work
+  |-  ^-  _hill
+  ?^  toil
+    %=  $
+        toil  t.toil
+    ::
+        hill
+      %+  ~(jab by hill)  i.toil
+      |=  =pile
+      =/  queu=(list bile)  ~[long wish]:pile
+      =|  back=(list bile)
+      =|  will=(map bile blob)
+      |-  ^-  _pile
+      ?~  queu
+        ?~  back  pile(will will)
+        $(queu (flop back), back ~)
+      =/  blob  (~(got by will.pile) i.queu)
+      ?-  -.bend.blob
+          %hip
+        =/  movs  
+          %+  turn  ~(tap by biff:(~(got by will.pile) t.bend.blob))
+          |=  [out=@uvre bin=(map bile @uvre)]
+          [%mov (~(got by bin) c.bend.blob) out]
+        %=  $
+            queu  t.queu
+            back  [t.bend.blob back]
+            will
+          %+  ~(put by will)  i.queu
+          [biff.blob (welp body.blob movs) %hop t.bend.blob]
+        ==
+      ::
+          %clq
+        $(queu t.queu, back (weld ~[z o]:bend.blob back), will (~(put by will) i.queu blob))
+      ::
+          %eqq
+        $(queu t.queu, back (weld ~[z o]:bend.blob back), will (~(put by will) i.queu blob))
+      ::
+          %brn 
+        $(queu t.queu, back (weld ~[z o]:bend.blob back), will (~(put by will) i.queu blob))
+      ::
+          %hop
+        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
+      ::
+          %lnk
+        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
+      ::
+          %cal
+        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
+      ::
+          %caf
+        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
+      ::
+          %lnt
+        $(queu t.queu, will (~(put by will) i.queu blob))
+      ::
+          %jmp
+        $(queu t.queu, will (~(put by will) i.queu blob))
+      ::
+          %jmf
+        $(queu t.queu, will (~(put by will) i.queu blob))
+      ::
+          %spy
+        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
+      ::
+          %mer
+        $(queu t.queu, back (weld ~[i m]:bend.blob back), will (~(put by will) i.queu blob))
+      ::
+          %don
+        $(queu t.queu, will (~(put by will) i.queu blob))
+      ::
+          %bom
+        $(queu t.queu, will (~(put by will) i.queu blob))
+      ==
+    ==
   hill
 --
 ::    codegen interface
@@ -1235,312 +1333,6 @@
   =.  hill  wipe
   =/  heck  ~(key by hill) 
   [(~(dif by heck) hole) (~(dif by hole) heck) this]
-::
-::   run nock
-::
-::  interpret nock, generating code for the outer invocation and any
-::  indirect calls encountered. This should be considered the formal
-::  entry point for Ares codegen
-++  wink
-  =*  thus  .
-  |=  [h=heat j=(map @ $-(* (unit))) p=$-(^ (unit (unit))) s=* f=*]
-  =*  wink  .
-  ^-  [tone _this]
-  =/  hull  (peek s f)
-  =?  thus  ?=(~ hull)  this:(poke %comp ~ s f)
-  =?  hull  ?=(~ hull)  (peek s f)
-  ?>  ?=(^ hull)
-  =/  bell  bell.u.hull
-  =*  hill  hall.u.hull
-  =|  from=bile
-  =/  pyre  (~(got by hill) bell)
-  =/  fram=[will=(map bile blob) regs=(map @uvre *) mean=(list [@ta *]) sick=(set @uvre)]
-    [will.pyre (~(put in *(map @uvre *)) sire.pyre s) *(list [@ta *]) *(set @uvre)] 
-  =|  tack=(list [then=bile r=@uvre _fram])
-  =/  bloc  (~(got by will.pyre) wish.pyre)
-  ~%  %wink-loop  wink  ~
-  |^  ^-  [tone _this]
-    :: XX dedent
-    ?^  body.bloc
-      =>  |%
-          :: next instruction
-          ++  go  $(body.bloc t.body.bloc)
-          --
-      =*  x  i.body.bloc
-      ?-  -.i.body.bloc
-          %imm
-        =.  regs.fram  (~(put by regs.fram) d.x n.x)
-        go
-      ::
-          %mov
-        =.  regs.fram  (~(put by regs.fram) d.x (r s.x))
-        go
-      ::
-          %phi
-        |-  ^-  [tone _this]
-        ?^  s.x
-          ?.  =(from -.i.s.x)
-            $(s.x t.s.x)
-          =.  regs.fram  (~(put by regs.fram) d.x (r +.i.s.x))
-          go
-        ~|  %bad-phi  !!
-      ::
-          %inc
-        =/  a  (r s.x)
-        ?@  a
-          =.  regs.fram  (~(put by regs.fram) d.x +(a))
-          go
-        no
-      ::
-          %con
-        =.  regs.fram  (~(put by regs.fram) d.x [(r h.x) (r t.x)])
-        go
-      ::
-          %cop
-        =?  sick.fram  ?=(@ (r s.x))  (~(put in sick.fram) s.x)
-        go
-      ::
-          %lop
-        =?  sick.fram  ?!  ?=(? (r s.x))  (~(put in sick.fram) s.x)
-        go
-      ::
-          %coc
-        ?@  (r s.x)
-          no
-        go
-      ::
-          %hed
-        =/  c  (r s.x)
-        =?  sick.fram  ?=(@ c)  (~(put in sick.fram) s.x)
-        =?  regs.fram  ?=(^ c)  (~(put by regs.fram) d.x -.c) 
-        go
-      ::
-          %hci
-        =/  c  (r s.x)
-        ?@  c
-          no
-        =.  regs.fram  (~(put by regs.fram) d.x -.c)
-        go
-      ::
-          %tal
-        =/  c  (r s.x)
-        =?  sick.fram  ?=(@ c)  (~(put in sick.fram) s.x)
-        =?  regs.fram  ?=(^ c)  (~(put by regs.fram) d.x +.c) 
-        go
-      ::
-          %tci
-        =/  c  (r s.x)
-        ?@  c
-          no
-        =.  regs.fram  (~(put by regs.fram) d.x +.c)
-        go
-      ::
-          %men
-        =.  mean.fram  [[l.x (r s.x)] mean.fram]
-        go
-      ::
-          %man
-        ?>  ?=(^ mean.fram)
-        $(mean.fram t.mean.fram) :: =. here would hit the TMI problem
-      ::
-          %sld
-        ~|  %todo  !!
-      ::
-          %slo
-        ~|  %todo  !!
-      ::
-          %hit
-        go
-      ::
-          %slg
-        ~&  (r s.x)  go
-      ::
-      :: XX need to feed in global cache from outside
-      :: mew and mer influence which code we actually run, which could
-      :: affect whether dynamic calls are made, which could influence
-      :: the state of the codegen core.
-      :: So we do need to handle them properly and not just ignore them
-          %mew
-        ~|  %todo  !!
-      ::
-      ::  side-effect only
-          %tim
-        go
-      ::
-      ::  side-effect only
-          %tom
-        go
-      ::
-      ::  side-effect only
-          %mem
-        go
-      ::
-          %pol
-        =?  sick.fram  (~(has in sick.fram) s.x)  (~(put in sick.fram) d.x)
-        go
-      ::
-          %poi
-        =.  sick.fram  (~(put in sick.fram) d.x)
-        go
-      ::
-          %ipb
-        |-  ^-  [tone _this]
-        ?^  s.x
-          ?:  (~(has in sick.fram) i.s.x)  no
-          $(s.x t.s.x)
-        go
-      ==
-    =*  x  bend.bloc
-    =>  |%
-        :: jump to given bile
-        ++  goto  |=  =bile  ^$(bloc (~(got by will.fram) bile))
-        --
-    ?-  -.bend.bloc
-        %clq
-      ?^  (r s.x)
-        (goto z.x)
-      (goto o.x)
-    ::
-        %eqq
-      ?:  =((r l.x) (r r.x))
-        (goto z.x)
-      (goto o.x)
-    ::
-        %brn
-      =/  b  (r s.x)
-      ?+  b  no 
-        %0  (goto z.x)
-        %1  (goto o.x)
-      ==
-    ::
-        %hop
-      (goto t.x)
-    ::
-        %hip
-      =.  from  c.x
-      (goto t.x)
-    ::
-        %lnk
-      =/  s  (r u.x)
-      =/  f  (r f.x)
-      =/  hull  (peek s f)
-      =?  thus  ?=(~ hull)  this:(poke %comp ~ s f)
-      =?  hull  ?=(~ hull)  (peek s f)
-      ?>  ?=(^ hull)
-      =.  hill  hall.u.hull
-      =/  bell  bell.u.hull
-      =/  pyre  (~(got by hill) bell)
-      =.  tack  [[t.x d.x fram] tack]
-      =.  sick.fram  ~
-      =.  regs.fram  (~(put by *(map @uvre *)) sire.pyre s)
-      =.  will.fram  will.pyre
-      (goto wish.pyre)
-    ::
-        %cal
-      =/  call-sick  (turn b.x ~(has in sick.fram))
-      =/  call-args  (turn v.x r)
-      =/  pyre  (~(got by hill) a.x)
-      =+  (args want.pyre call-sick call-args)
-      =.  tack  [[t.x d.x fram] tack]
-      =.  sick.fram  sick
-      =.  regs.fram  regs
-      =.  will.fram  will.pyre
-      (goto long.pyre)
-    ::
-        %caf  :: XX check hot state rather than not in hill
-      ?.  (~(has by hill) a.x)
-        =/  tore  (mink [(r u.x) form.a.x] p)
-        ?-  -.tore
-            %1  [tore this]
-            %2  no
-            %0
-          =.  regs.fram  (~(put by regs.fram) d.x product.tore)
-          (goto t.x)
-        ==
-      $(bend.bloc [%cal [a b v d t]:x])
-    ::
-        %lnt
-      =/  s  (r u.x)
-      =/  f  (r f.x)
-      =/  hull  (peek s f)
-      =?  thus  ?=(~ hull)  this:(poke %comp ~ s f)
-      =?  hull  ?=(~ hull)  (peek s f)
-      ?>  ?=(^ hull)
-      =.  hill  hall.u.hull
-      =/  bell  bell.u.hull
-      =/  pyre  (~(got by hill) bell)
-      =.  sick.fram  ~
-      =.  regs.fram  (~(put by *(map @uvre *)) sire.pyre s)
-      =.  will.fram  will.pyre
-      (goto wish.pyre)
-    ::
-        %jmf  :: XX check hot state rather than not in hill
-      ?.  (~(has by hill) a.x)
-        =/  tore  (mink [(r u.x) form.a.x] p)
-        ?-  -.tore
-          %1  [tore this]
-          %2  no
-          %0  [tore this]
-        ==
-      $(bend.bloc [%jmp [a b v]:x])
-    ::
-        %jmp
-      =/  call-sick  (turn b.x ~(has in sick.fram))
-      =/  call-args  (turn v.x r)
-      =/  pyre  (~(got by hill) a.x)
-      =+  (args want.pyre call-sick call-args)
-      =.  sick.fram  sick
-      =.  regs.fram  regs
-      =.  will.fram  will.pyre
-      ~_  (~(vals xray will.fram) regs.fram)
-      (goto long.pyre)
-    ::
-        %spy
-      ~|  %todo  !!
-    ::
-    ::  XX we need to pass persistent caches in
-        %mer
-      ~|  %todo  !!
-    ::
-        %don
-      ?^  tack
-        =.  regs.i.tack  (~(put by regs.i.tack) r.i.tack (r s.x))
-        =.  fram  +>.i.tack
-        =/  then  then.i.tack
-        $(bloc (~(got by will.fram) then), tack t.tack)
-      [[%0 (r s.x)] this]
-    ::
-      %bom  no
-    ==
-  ::
-  ::    get register value
-  ++  r  |=(x=@uvre ~_((~(gals xray will.fram) x regs.fram) (~(got by regs.fram) x)))
-  ::
-  ::    crash with the mean stack
-  ++  no  [[%2 mean.fram] this]
-  ::
-  ::    match up call arguments
-  ++  args
-    |=  [=need call-sick=(list ?) call-args=(list *)]
-    =|  [sick=(set @uvre) regs=(map @uvre *)]
-    =/  tack=(list _need)  ~[need]
-    |-  ^-  [sick=(set @uvre) regs=(map @uvre *)]
-    ?~  tack
-      [sick regs]
-    ?-  -.i.tack
-        %both
-      ?>  ?=(^ call-sick)
-      =?  sick  i.call-sick  (~(put in sick) sass.i.tack)
-      $(tack [left.i.tack rite.i.tack t.tack], call-sick t.call-sick)
-    ::
-        %this
-      ?>  ?=(^ call-args)
-      =.  regs  (~(put by regs) sass.i.tack i.call-args)
-      $(tack t.tack, call-args t.call-args)
-    ::
-        %none  $(tack t.tack)
-    ==
-  --
 ::    pretty-printing door
 ++  xray
   |_  will=(map bile blob)
@@ -1578,9 +1370,6 @@
     ::
         %mov
       (pink -.i (near s.i) (near d.i) ~)
-    ::
-        %phi
-      (pink -.i (weld (turn s.i |=([b=bile r=@uvre] [%palm ["" "" "->" ""] (rung b) (near r) ~])) ~[(near d.i)]))
     ::
         %inc
       (pink -.i (near s.i) (near d.i) ~)
@@ -1634,13 +1423,13 @@
       (pink -.i ~)
     ::
         %pol
-      (pink -.i (near s.i) (near d.i) ~)
+      (pink -.i (near p.i) (near q.i) ~)
     ::
         %poi
-      (pink -.i (near d.i) ~)
+      (pink -.i (near p.i) ~)
     ::
         %ipb
-      (pink -.i (turn s.i near))
+      (pink -.i (turn p.i near))
     ::
         %slo
       ~|  %todo  !!

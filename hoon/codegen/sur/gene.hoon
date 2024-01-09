@@ -106,7 +106,6 @@
 +$  pole
   $%  [%imm n=* d=@uvre]
       [%mov s=@uvre d=@uvre]
-      [%phi s=(list [bile @uvre]) d=@uvre]
       [%inc s=@uvre d=@uvre]
       [%con h=@uvre t=@uvre d=@uvre]
       [%cop s=@uvre]
@@ -126,9 +125,9 @@
       [%tim ~]
       [%tom ~]
       [%mem ~]
-      [%pol s=@uvre d=@uvre]
-      [%poi d=@uvre]
-      [%ipb s=(list @uvre)]
+      [%pol p=@uvre q=@uvre]
+      [%poi p=@uvre]
+      [%ipb p=(list @uvre)]
   ==
 ::
 ::    origin description
@@ -201,9 +200,12 @@
   ==
 ::    basic block
 ::
+::  map of phi-arguments, each of which initializes an @uvre from
+::  another @uvre selected by which label we came from (see %hip control
+::  flow instruction)
 ::  zero or more dataflow instructions executed in order, followed by a
 ::  single control-flow instruction
-+$  blob  [body=(list pole) bend=site]
++$  blob  [biff=(map @uvre (map bile @uvre)) body=(list pole) bend=site]
 ::
 ::    compilation unit
 ::
