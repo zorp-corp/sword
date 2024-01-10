@@ -12,8 +12,6 @@ use std::mem::size_of;
 
 use crate::hamt::Hamt;
 use crate::jets::JetErr;
-// XX no, we have a completely different stack layout from the tree-walking interpreter. We can't
-// borrow helper functions from it
 use crate::interpreter::{inc, Context, Error};
 use crate::jets::cold::Cold;
 use crate::jets::util::slot;
@@ -240,8 +238,8 @@ fn cg_interpret_inner(
                 (*(*current_frame).pile.0).wish
             })
             .unwrap();
-        body = slot(blob, 2).expect("codegen nock error");
-        bend = slot(blob, 3).expect("codegen nock error");
+        body = slot(blob, 6).expect("codegen nock error");
+        bend = slot(blob, 7).expect("codegen nock error");
     }
 
     loop {
@@ -1040,20 +1038,27 @@ mod util {
     use super::Pile;
     use super::{new_frame, Hill};
 
+    /// +peek slot in line core is 4
+    const PEEK_AXIS: u64 = 4;
+
+    /// +poke slot in line core is 46
+    const POKE_AXIS: u64 = 46;
+
+    /// +rake slot in line core is 95
+    const RAKE_AXIS: u64 = 95;
+
     pub type NounResult = Result<Noun, Error>;
 
     pub fn peek(context: &mut Context, subject: Noun, formula: Noun) -> Noun {
-        // +peek slot in line core is 4
         let line = context.line.unwrap();
-        let pek = kick(context, line, D(4)).unwrap();
+        let pek = kick(context, line, D(PEEK_AXIS)).unwrap();
         let sam = T(&mut context.stack, &[subject, formula]);
         slam(context, pek, sam).unwrap()
     }
 
     pub fn poke(context: &mut Context, gist: Noun) -> Noun {
-        // +poke slot in line core is 86
         let line = context.line.unwrap();
-        let pok = kick(context, line, D(86)).unwrap();
+        let pok = kick(context, line, D(POKE_AXIS)).unwrap();
         let sam = T(&mut context.stack, &[gist]);
         slam(context, pok, sam).unwrap()
     }
@@ -1198,8 +1203,8 @@ mod util {
             let blob = will
                 .lookup(&mut context.stack, &mut unsafe { (*(pile.0)).long })
                 .unwrap();
-            *body = slot(blob, 2).unwrap();
-            *bend = slot(blob, 3).unwrap();
+            *body = slot(blob, 6).unwrap();
+            *bend = slot(blob, 7).unwrap();
         }
     }
 
@@ -1274,8 +1279,8 @@ mod util {
             let blob = will
                 .lookup(&mut context.stack, &mut (*(pile.0)).long)
                 .unwrap();
-            *body = slot(blob, 2).unwrap();
-            *bend = slot(blob, 3).unwrap();
+            *body = slot(blob, 6).unwrap();
+            *bend = slot(blob, 7).unwrap();
         }
     }
 
@@ -1293,8 +1298,8 @@ mod util {
                 .ok_or(Error::NonDeterministic(D(0)))
                 .unwrap()
         };
-        *body = slot(blob, 2).unwrap();
-        *bend = slot(blob, 3).unwrap();
+        *body = slot(blob, 6).unwrap();
+        *bend = slot(blob, 7).unwrap();
     }
 
     pub fn do_return(
@@ -1322,8 +1327,8 @@ mod util {
             let blob = will
                 .lookup(&mut context.stack, &mut (**frame_ref).cont)
                 .unwrap();
-            *body = slot(blob, 2).unwrap();
-            *bend = slot(blob, 3).unwrap();
+            *body = slot(blob, 6).unwrap();
+            *bend = slot(blob, 7).unwrap();
         }
         None
     }
