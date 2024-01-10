@@ -57,3 +57,10 @@ check_forwarding = []
 check_junior = []
 sham_hints = []
 stop_for_debug = []
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "boz"
+harness = false

@@ -6,6 +6,8 @@ use crate::jets::{JetErr, Result};
 use crate::noun::{IndirectAtom, Noun, D};
 use std::cmp;
 
+use self::util::lsh;
+
 crate::gdb!();
 
 /*
@@ -110,19 +112,8 @@ pub fn jet_end(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
     let a = slot(arg, 3)?.as_atom()?;
-
-    if step == 0 {
-        Ok(D(0))
-    } else if step >= util::met(bloq, a) {
-        Ok(a.as_noun())
-    } else {
-        unsafe {
-            let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(&mut context.stack, bite_to_word(bloq, step)?);
-            chop(bloq, 0, step, 0, new_slice, a.as_bitslice())?;
-            Ok(new_indirect.normalize_as_atom().as_noun())
-        }
-    }
+    let res = util::end(&mut context.stack, bloq, step, a)?;
+    Ok(res.as_noun())
 }
 
 pub fn jet_lsh(context: &mut Context, subject: Noun) -> Result {
@@ -200,25 +191,12 @@ pub fn jet_rev(context: &mut Context, subject: Noun) -> Result {
     }
 
     let boz = boz as usize;
-
     let len = slot(arg, 6)?.as_atom()?.as_direct()?.data();
-
-    let dat = slot(arg, 7)?.as_atom()?;
-
-    let bits = len << boz;
-
-    let src = dat.as_bitslice();
-    let (mut output, dest) =
-        unsafe { IndirectAtom::new_raw_mut_bitslice(&mut context.stack, bits as usize) };
-
-    let len = len as usize;
-    let total_len = len << boz;
-
-    for (start, end) in (0..len).map(|b| (b << boz, (b + 1) << boz)) {
-        dest[start..end].copy_from_bitslice(&src[(total_len - end)..(total_len - start)]);
-    }
-
-    Ok(unsafe { output.normalize_as_atom() }.as_noun())
+    let mut dat = slot(arg, 7)?.as_atom()?;
+    dat = util::end(&mut context.stack, boz, len as usize, dat)?;
+    let dat_swp = util::swp(&mut context.stack, boz, dat);
+    let step = len as usize - util::met(boz, dat);
+    lsh(&mut context.stack, boz, step, dat_swp)
 }
 
 pub fn jet_rip(context: &mut Context, subject: Noun) -> Result {
@@ -303,6 +281,81 @@ pub mod util {
     use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
     use std::cmp;
     use std::result;
+
+    pub fn swp(stack: &mut NockStack, boz: usize, dat: Atom) -> Atom {
+        let len = met(boz, dat);
+        match boz {
+            0 => unsafe {
+                let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, (len + 63) >> 6);
+                dest.copy_from_bitslice(dat.as_bitslice());
+                dest.reverse();
+                atom.normalize_as_atom()
+            },
+            3 => unsafe {
+                let (mut atom, dest) = IndirectAtom::new_raw_mut_bytes(stack, (len + 7) >> 3);
+                dest.copy_from_slice(dat.as_bytes());
+                dest.reverse();
+                atom.normalize_as_atom()
+            },
+            4 => unsafe {
+                let (mut atom, dest) = IndirectAtom::new_raw_mut_bytes(stack, (len + 3) >> 2);
+                let u16_dest = std::slice::from_raw_parts_mut(dest.as_mut_ptr() as *mut u16, len);
+                let u16_dat =
+                    std::slice::from_raw_parts(dat.as_bytes().as_ptr() as *const u16, len);
+                u16_dest.copy_from_slice(u16_dat);
+                u16_dest.reverse();
+                atom.normalize_as_atom()
+            },
+            5 => unsafe {
+                let (mut atom, dest) = IndirectAtom::new_raw_mut_bytes(stack, (len + 1) >> 2);
+                let u32_dest = std::slice::from_raw_parts_mut(dest.as_mut_ptr() as *mut u32, len);
+                let u32_dat =
+                    std::slice::from_raw_parts(dat.as_bytes().as_ptr() as *const u32, len);
+                u32_dest.copy_from_slice(u32_dat);
+                u32_dest.reverse();
+                atom.normalize_as_atom()
+            },
+            6 => unsafe {
+                let (mut atom, dest) = IndirectAtom::new_raw_mut(stack, len);
+                let u64_dest = std::slice::from_raw_parts_mut(dest, len);
+                u64_dest.copy_from_slice(std::slice::from_raw_parts(dat.data_pointer(), len));
+                u64_dest.reverse();
+                atom.normalize_as_atom()
+            },
+            _ => unsafe {
+                let bits = len << boz;
+                let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, bits as usize);
+                let len = len as usize;
+                let total_len = len << boz;
+                for (start, end) in (0..len).map(|b| (b << boz, (b + 1) << boz)) {
+                    dest[start..end].copy_from_bitslice(
+                        &dat.as_bitslice()[(total_len - end)..(total_len - start)],
+                    );
+                }
+                atom.normalize_as_atom()
+            },
+        }
+    }
+
+    pub fn end(
+        stack: &mut NockStack,
+        bloq: usize,
+        step: usize,
+        a: Atom,
+    ) -> result::Result<Atom, JetErr> {
+        if step == 0 {
+            unsafe { Ok(DirectAtom::new_unchecked(0).as_atom()) }
+        } else if step >= met(bloq, a) {
+            Ok(a)
+        } else {
+            unsafe {
+                let (mut new_indirect, new_slice) =
+                    IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, step)?);
+                chop(bloq, 0, step, 0, new_slice, a.as_bitslice())?;
+                Ok(new_indirect.normalize_as_atom())
+            }
+        }
+    }
 
     /// Binary exponent
     pub fn bex(stack: &mut NockStack, arg: usize) -> Atom {
