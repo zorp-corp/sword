@@ -53,6 +53,7 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 /* prints a node before and after a call to _bt_insertdat */
 #define DEBUG_PRINTNODE 0
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define ZERO(s, n) memset((s), 0, (n))
 
 #define S7(A, B, C, D, E, F, G) A##B##C##D##E##F##G
@@ -120,7 +121,8 @@ off2addr(vaof_t off)
 #define BT_NUMMETAS 2                     /* 2 metapages */
 #define BT_META_SECTION_WIDTH (BT_NUMMETAS * BT_PAGESIZE)
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
-#define PMA_GROW_SIZE (BT_PAGESIZE * 1024 * 64)
+#define PMA_GROW_SIZE_p (1024 * 64)
+#define PMA_GROW_SIZE_b (BT_PAGESIZE * PMA_GROW_SIZE_p)
 
 #define BT_NOPAGE 0
 
@@ -329,11 +331,7 @@ struct BT_state {
   void         *fixaddr;
   BYTE         *map;
   BT_meta      *meta_pages[2];  /* double buffered */
-  /* ;;: note, while meta_pages[which]->root stores a pgno, we may want to just
-       store a pointer to root in state in addition to avoid a _node_find on it
-       every time it's referenced */
-  /* BT_page      *root; */
-  off_t         file_size;      /* the size of the pma file in bytes */
+  pgno_t        file_size_p;    /* the size of the pma file in pages */
   pgno_t        frontier;       /* last non-free page in use by pma (exclusive) */
   unsigned int  which;          /* which double-buffered db are we using? */
   BT_nlistnode *nlist;          /* node freelist */
@@ -344,9 +342,19 @@ struct BT_state {
 };
 
 /*
+
   ;;: wrt to frontier: if you need to allocate space for data, push the frontier
      out by that amount allocated. If you're allocating a new stripe, push it to
-     the end of that stripe.
+     the end of that stripe. -- no I don't think you should push it to the end
+     of the stripe. The frontier should track the extent of data IN
+     USE. e.g. only increment it for node allocations and data
+     allocations. Remember, on disk a node may be froward of data though in
+     memory, all nodes are mapped to the beginning of the arena.
+
+     on second thought, given the exponential sizing of node partitions, maybe
+     it's fine to grow the file by that amount? IDK, confirm with ed. --
+     confirmed: just falloc the node partition and grow the file by that amount.
+
 */
 
 
@@ -445,6 +453,15 @@ _mlist_record_alloc(BT_state *state, void *lo, void *hi)
 }
 
 static void
+_nlist_grow(BT_state *state)
+/* grows the nlist by allocating the next sized stripe from the block base
+   array. Handles storing the offset of this stripe in state->blk_base */
+{
+  /* ;;: i believe this will also need to appropriately modify the flist so
+       that we don't store general allocation data in node partitions */
+}
+
+static void
 _nlist_record_alloc(BT_state *state, BT_page *lo)
 {
   BT_nlistnode **head = &state->nlist;
@@ -521,6 +538,10 @@ _flist_record_alloc(BT_state *state, pgno_t lo, pgno_t hi)
     free(*head);
     *head = next;
   }
+
+  /* update frontier */
+  state->frontier = MAX(state->frontier, hi);
+  assert(state->frontier <= state->file_size_p);
 }
 
 static BT_page *
@@ -545,6 +566,7 @@ _bt_nalloc(BT_state *state)
   }
 
   if (ret == 0) {
+    /* ;;: todo: insert a grow call */
     DPUTS("nlist out of mem!");
     return 0;
   }
@@ -1562,6 +1584,7 @@ _mlist_new(BT_state *state)
 }
 
 #if 0
+/* ;;: TODO: redefine this obviously */
 static int
 _flist_grow(BT_state *state, BT_flistnode *space)
 /* growing the flist consists of expanding the backing persistent file, pushing
@@ -1571,7 +1594,7 @@ _flist_grow(BT_state *state, BT_flistnode *space)
   /* ;;: I don't see any reason to grow the backing file non-linearly, but we
        may want to adjust the size of the amount grown based on performance
        testing. */
-  if (-1 == lseek(state->data_fd, state->file_size + PMA_GROW_SIZE, SEEK_SET))
+  if (-1 == lseek(state->data_fd, state->file_size + PMA_GROW_SIZE_b, SEEK_SET))
     return errno;
   if (-1 == write(state->data_fd, "", 1))
     return errno;
@@ -1599,7 +1622,7 @@ _flist_grow(BT_state *state, BT_flistnode *space)
   /* if the frontier (last pg in use) is less than the last page free, we should
      coalesce the new node with the tail. */
   if (state->frontier <= lastpgfree) {
-    tail->hi += PMA_GROW_SIZE;  /* ;;: THIS IS INCORRECT */
+    tail->hi += PMA_GROW_SIZE_b;  /* ;;: THIS IS INCORRECT */
   }
   /* otherwise, a new node needs to be allocated */
   else {
@@ -1607,16 +1630,46 @@ _flist_grow(BT_state *state, BT_flistnode *space)
     /* since the frontier exceeds the last pg free, new freespace should
        naturally be allocated at the frontier */
     new->pg = state->frontier;
-    new->hi = PMA_GROW_SIZE;
+    new->hi = PMA_GROW_SIZE_b;
     tail->next = new;
   }
 
   /* finally, update the file size */
-  state->file_size += PMA_GROW_SIZE;
+  state->file_size += PMA_GROW_SIZE_b;
 
   return BT_SUCC;
 }
 #endif
+
+static void
+_flist_grow(BT_state *state)
+/* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
+   flist */
+{
+  /* grow the backing file */
+  ftruncate(state->data_fd, state->file_size_p + PMA_GROW_SIZE_p);
+
+  /* and add this space to the flist */
+  _flist_insert(&state->flist,
+                state->file_size_p,
+                state->file_size_p + PMA_GROW_SIZE_p);
+
+  /* ;;: this is a bit tricky... */
+  /* ;;: but is this entirely necessary? is this space already mapped as free?
+       It should be safe to do so because we'll raise a sigbus if we attempt to
+       write in space marked as free that extends beyond the EOF */
+
+  /* map the space as free in the mlist */
+  /* if (loaddr != */
+  /*     mmap(loaddr, */
+  /*          bytelen, */
+  /*          BT_PROT_FREE, */
+  /*          BT_FLAG_FREE, */
+  /*          0, 0)) { */
+  /*   DPRINTF("mmap: failed to map at addr %p, errno: %s", loaddr, strerror(errno)); */
+  /*   abort(); */
+  /* } */
+}
 
 static int
 _flist_new(BT_state *state)
@@ -1639,6 +1692,7 @@ _flist_new(BT_state *state)
 
   return BT_SUCC;
 }
+#undef FLIST_PG_START
 
 static int
 _nlist_new(BT_state *state)
@@ -2336,6 +2390,8 @@ _bt_state_load(BT_state *state)
   TRACE();
 
   /* map first node stripe (along with metapages) as read only */
+  /* ;;: todo: after handling the first node stripe which always exists, read
+       the current metapage's blk_base and appropriately mmap each partition */
   state->map = mmap(BT_MAPADDR,
                     BT_META_SECTION_WIDTH + BLK_BASE_LEN0,
                     BT_PROT_CLEAN,
@@ -2350,9 +2406,9 @@ _bt_state_load(BT_state *state)
   if (!SUCC(rc = _bt_state_read_header(state))) {
     if (rc != ENOENT) return rc;
     DPUTS("creating new db");
-    state->file_size = PMA_GROW_SIZE;
+    state->file_size_p = PMA_GROW_SIZE_p;
     new = 1;
-    if(ftruncate(state->data_fd, PMA_GROW_SIZE)) {
+    if (ftruncate(state->data_fd, PMA_GROW_SIZE_b)) {
       return errno;
     }
   }
@@ -2375,14 +2431,6 @@ _bt_state_load(BT_state *state)
 
   /* new db, so populate metadata */
   if (new) {
-    /* ;;: move this logic to _flist_new */
-    if (-1 == lseek(state->data_fd, state->file_size, SEEK_SET))
-      return errno;
-    if (-1 == write(state->data_fd, "", 1))
-      return errno;
-
-    state->file_size = PMA_GROW_SIZE;
-
     assert(SUCC(_nlist_new(state)));
 
     if (!SUCC(rc = _bt_state_meta_new(state))) {
@@ -2408,7 +2456,9 @@ _bt_state_load(BT_state *state)
     if (fstat(state->data_fd, &stat) != 0)
       return errno;
 
-    state->file_size = stat.st_size;
+    /* the file size should be a multiple of our pagesize */
+    assert((stat.st_size % BT_PAGESIZE) == 0);
+    state->file_size_p = stat.st_size / BT_PAGESIZE;
   }
 
   return BT_SUCC;
@@ -2424,6 +2474,7 @@ _bt_falloc(BT_state *state, size_t pages)
 {
   /* walk the persistent file freelist and return a pgno with sufficient
      contiguous space for pages */
+ start:
   BT_flistnode **n = &state->flist;
   pgno_t ret = 0;
 
@@ -2440,8 +2491,16 @@ _bt_falloc(BT_state *state, size_t pages)
   }
 
   if (ret == 0) {
-    DPUTS("flist out of mem!");
-    return UINT32_MAX;
+    /* flist out of mem, grow it */
+    /* ;;: gohere */
+    DPRINTF("flist out of mem, growing current size (pages): 0x%" PRIX32 "to: 0x%" PRIX32,
+          state->file_size_p, state->file_size_p + PMA_GROW_SIZE_p);
+    _flist_grow(state);
+    /* restart the find procedure */
+    /* TODO: obviously there is a minor optimization here in that we allocate
+       MAX(pages,PMA_GROW_SIZE_p) and return the beginning of the newly
+       allocated chunk without restarting the search */
+    goto start;
   }
 
   return ret;
@@ -2639,6 +2698,7 @@ bt_state_new(BT_state **state)
   BT_state *s = calloc(1, sizeof *s);
   s->data_fd = -1;
   s->fixaddr = BT_MAPADDR;
+  s->frontier = BT_NUMMETAS;
   *state = s;
   return BT_SUCC;
 }
@@ -3002,7 +3062,7 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
       pgno_t pg = node->datk[i].fo;
       pgno_t newpg = _bt_data_cow(state, llo, hhi, pg);
       _bt_insert(state, llo, hhi, newpg);
-    } 
+    }
   } else {
     for (size_t i = loidx; i < hiidx; i++) {
       /* branch: recursive case */
@@ -3153,47 +3213,40 @@ _bt_printnode(BT_page *node)
 }
 
 /*
-  _bt_state_restore_maps2
-  if pg 0:
-  mmap MAP_ANONYMOUS | MAP_FIXED | MAP_NO_RESERVE
-  PROT_NONE
 
-  if pg !0:
-  mmap MAP_SHARED | MAP_FIXED
-  PROT_READ
+  File extension and node partition striping plan:
+
+  File extension:
+
+  - whenever we are allocating space on disk, we should compare state->frontier
+    against state->file_size. If the frontier + allocation request amount will
+    exceed file size, the file should be grown with a function call.
+
+  - when reading the pma file, we'll need to set both file_size and frontier
+
+  - file_size can be retrieved with an fstat call
+
+  - the frontier can be found by keeping a global variable that we
+    MAX(frontier,currpg) on ephemeral state restoration. currpg for a node is
+    obvious. currpg for data is (position+len)
+
+  - the frontier should also be MAX()ed in all allocation routines.
+
+  Partition striping:
+
+  - fairly simple? If _bt_nalloc fails to find room in the current nlist,
+    allocate a new node partition and mmap it. Note it's file offset in
+    meta->blk_base
+
+  - the mlist is already appropriately initialized to map at the page following
+    all possible node partitions (0x2aaa80) so that shouldn't need any further
+    adjustment.
 
 
-  ------------------
+  ------------------------------------------------------------------------------
 
-  the three routines that make modification to the data maps are:
+  First, i'm implementing proper file extension. And then partition
+  striping. Implementation of partition striping will ofc require adjustments to
+  file extension.
 
-  bt_malloc:
-
-  MAP_SHARED | MAP_FIXED
-  PROT_READ | PROT_WRITE
-
-  _bt_data_cow:
-
-  MAP_SHARED | MAP_FIXED
-  PROT_READ | PROT_WRITE
-
-  bt_sync:
-
-  (mprotect)
-  PROT_READ
-
-  bt_free:
-
-  MAP_ANONYMOUS | MAP_FIXED | MAP_NO_RESERVE
-  PROT_NONE
-
-  -----------------
-
-  8 linear mappings (striping)
-
-  when we _bt_nalloc, mprotect(PROT_READ | PROT_WRITE)
-
-  when we free a node: mprotect(PROT_NONE)
-
-  additionally, when we sync, all allocated nodes: mprotect(PROT_READ)
-*/
+ */
