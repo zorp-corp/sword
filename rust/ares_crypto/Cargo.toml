@@ -30,7 +30,7 @@ urcrypt-sys = { version = "0.1.1", optional = true }
 
 [features]
 # XX turn off test_vs_urcrypt after development
-default = ["aes_siv", "ed25519", "sha", "test_vs_urcrypt"]
+default = ["aes_siv", "ed25519", "sha"]
 aes_siv = ["aes", "aes-siv"]
 ed25519 = ["curve25519-dalek", "ed25519-dalek", "x25519-dalek"]
 sha = ["sha1", "sha2"]
