@@ -332,7 +332,6 @@ struct BT_state {
   BYTE         *map;
   BT_meta      *meta_pages[2];  /* double buffered */
   pgno_t        file_size_p;    /* the size of the pma file in pages */
-  pgno_t        frontier;       /* last non-free page in use by pma (exclusive) */
   unsigned int  which;          /* which double-buffered db are we using? */
   BT_nlistnode *nlist;          /* node freelist */
   BT_mlistnode *mlist;          /* memory freelist */
@@ -538,10 +537,6 @@ _flist_record_alloc(BT_state *state, pgno_t lo, pgno_t hi)
     free(*head);
     *head = next;
   }
-
-  /* update frontier */
-  state->frontier = MAX(state->frontier, hi);
-  assert(state->frontier <= state->file_size_p);
 }
 
 static BT_page *
@@ -1583,92 +1578,21 @@ _mlist_new(BT_state *state)
   return BT_SUCC;
 }
 
-#if 0
-/* ;;: TODO: redefine this obviously */
-static int
-_flist_grow(BT_state *state, BT_flistnode *space)
-/* growing the flist consists of expanding the backing persistent file, pushing
-   that space onto the disk freelist, and updating the dimension members in
-   BT_state */
-{
-  /* ;;: I don't see any reason to grow the backing file non-linearly, but we
-       may want to adjust the size of the amount grown based on performance
-       testing. */
-  if (-1 == lseek(state->data_fd, state->file_size + PMA_GROW_SIZE_b, SEEK_SET))
-    return errno;
-  if (-1 == write(state->data_fd, "", 1))
-    return errno;
-
-
-  /* find the last node in the disk freelist */
-  BT_flistnode *tail = state->flist;
-  for (; tail->next; tail = tail->next)
-    ;
-
-  pgno_t lastpgfree = tail->hi;
-
-  /* ;;: TODO, make sure you are certain of this logic. Further, add assertions
-       regarding relative positions of state->file_size, state->frontier, and
-       lastpgfree
-
-       we MAY call into this routine even if there is freespace on the end
-       because it's possible that freespace isn't large enough. We may also call
-       into this routine when the frontier exceeds the last free pg because
-       that's just how freelists work. ofc, frontier should never exceed
-       file_size. what other assertions??
-
-  */
-
-  /* if the frontier (last pg in use) is less than the last page free, we should
-     coalesce the new node with the tail. */
-  if (state->frontier <= lastpgfree) {
-    tail->hi += PMA_GROW_SIZE_b;  /* ;;: THIS IS INCORRECT */
-  }
-  /* otherwise, a new node needs to be allocated */
-  else {
-    BT_flistnode *new = calloc(1, sizeof *new);
-    /* since the frontier exceeds the last pg free, new freespace should
-       naturally be allocated at the frontier */
-    new->pg = state->frontier;
-    new->hi = PMA_GROW_SIZE_b;
-    tail->next = new;
-  }
-
-  /* finally, update the file size */
-  state->file_size += PMA_GROW_SIZE_b;
-
-  return BT_SUCC;
-}
-#endif
-
 static void
-_flist_grow(BT_state *state)
+_flist_grow(BT_state *state, size_t pages)
 /* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
    flist */
 {
-  /* grow the backing file */
-  ftruncate(state->data_fd, state->file_size_p + PMA_GROW_SIZE_p);
+  /* grow the backing file by at least PMA_GROW_SIZE_p */
+  pages = MAX(pages, PMA_GROW_SIZE_p);
+  off_t bytes = pages * BT_PAGESIZE;
+  off_t size  = state->file_size_p * BT_PAGESIZE;
+  ftruncate(state->data_fd, size + bytes);
 
   /* and add this space to the flist */
   _flist_insert(&state->flist,
                 state->file_size_p,
-                state->file_size_p + PMA_GROW_SIZE_p);
-
-  /* ;;: this is a bit tricky... */
-  /* ;;: but is this entirely necessary? is this space already mapped as free?
-       It should be safe to do so because we'll raise a sigbus if we attempt to
-       write in space marked as free that extends beyond the EOF */
-
-  /* map the space as free in the mlist */
-  /* if (loaddr != */
-  /*     mmap(loaddr, */
-  /*          bytelen, */
-  /*          BT_PROT_FREE, */
-  /*          BT_FLAG_FREE, */
-  /*          0, 0)) { */
-  /*   DPRINTF("mmap: failed to map at addr %p, errno: %s", loaddr, strerror(errno)); */
-  /*   abort(); */
-  /* } */
+                state->file_size_p + pages);
 }
 
 static int
@@ -2492,14 +2416,11 @@ _bt_falloc(BT_state *state, size_t pages)
 
   if (ret == 0) {
     /* flist out of mem, grow it */
-    /* ;;: gohere */
     DPRINTF("flist out of mem, growing current size (pages): 0x%" PRIX32 "to: 0x%" PRIX32,
           state->file_size_p, state->file_size_p + PMA_GROW_SIZE_p);
-    _flist_grow(state);
+    _flist_grow(state, pages);
     /* restart the find procedure */
-    /* TODO: obviously there is a minor optimization here in that we allocate
-       MAX(pages,PMA_GROW_SIZE_p) and return the beginning of the newly
-       allocated chunk without restarting the search */
+    /* TODO: obv a minor optimization can be made here */
     goto start;
   }
 
@@ -2698,7 +2619,6 @@ bt_state_new(BT_state **state)
   BT_state *s = calloc(1, sizeof *s);
   s->data_fd = -1;
   s->fixaddr = BT_MAPADDR;
-  s->frontier = BT_NUMMETAS;
   *state = s;
   return BT_SUCC;
 }
