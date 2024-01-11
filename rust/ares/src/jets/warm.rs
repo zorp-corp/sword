@@ -86,8 +86,8 @@ impl Iterator for WarmEntry {
 
 impl Warm {
     #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Warm(Hamt::new())
+    pub fn new(stack: &mut NockStack) -> Self {
+        Warm(Hamt::new(stack))
     }
 
     fn insert(
@@ -112,7 +112,7 @@ impl Warm {
     }
 
     pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> Self {
-        let mut warm = Self::new();
+        let mut warm = Self::new(stack);
         for (mut path, axis, jet) in hot
             .into_iter()
             .flat_map(|(n, he)| he.map(move |(a, j)| (n, a, j)))
@@ -126,7 +126,8 @@ impl Warm {
                 if let Ok(mut formula) = unsafe { (*battery).slot_atom(axis) } {
                     warm.insert(stack, &mut formula, path, batteries, jet);
                 } else {
-                    eprintln!("Bad axis {} into formula {:?}", axis, battery);
+                    //  XX: need NockStack allocated string interpolation
+                    // eprintln!("Bad axis {} into formula {:?}", axis, battery);
                     continue;
                 }
             }

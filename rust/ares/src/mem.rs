@@ -2,11 +2,9 @@ use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
-use crate::snapshot::pma::{pma_in_arena, pma_malloc_w};
 use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
-use libc::{c_void, memcmp};
 use memmap::MmapMut;
 use std::alloc::Layout;
 use std::mem;
@@ -51,6 +49,7 @@ pub struct NockStack {
     alloc_pointer: *mut u64,
     /** MMap which must be kept alive as long as this NockStack is */
     memory: MmapMut,
+    /** PMA from which we will copy into the NockStack */
     /** Whether or not pre_copy() has been called on the current stack frame. */
     pc: bool,
 }
@@ -75,7 +74,7 @@ impl NockStack {
         unsafe {
             *frame_pointer.sub(FRAME + 1) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
             *frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
-            *frame_pointer.sub(ALLOC + 1) = ptr::null::<u64>() as u64; // "alloc pointer" from "previous" frame
+            *frame_pointer.sub(ALLOC + 1) = start as u64; // "alloc pointer" from "previous" frame
         };
         NockStack {
             start,
@@ -88,7 +87,43 @@ impl NockStack {
         }
     }
 
-    /** Resets the NockStack. */
+    /** Resets the NockStack but flipping the top-frame polarity and unsetting PC. Sets the alloc
+     * pointer to the "previous" alloc pointer stored in the top frame to keep things "preserved"
+     * from the top frame. This allows us to do a copying GC on the top frame without erroneously
+     * "popping" the top frame.
+     */
+    pub unsafe fn flip_top_frame(&mut self, top_slots: usize) {
+        // Assert that we are at the top
+        assert!((*self.prev_frame_pointer_pointer()).is_null());
+        assert!((*self.prev_stack_pointer_pointer()).is_null());
+        let new_alloc_pointer = *(self.prev_alloc_pointer_pointer());
+
+        if self.is_west() {
+            // new top frame will be east
+            let new_frame_pointer = self.start.add(self.size).sub(RESERVED + top_slots) as *mut u64;
+            *new_frame_pointer.add(FRAME) = ptr::null::<u64>() as u64;
+            *new_frame_pointer.add(STACK) = ptr::null::<u64>() as u64;
+            *new_frame_pointer.add(ALLOC) = self.start.add(self.size) as u64;
+            self.frame_pointer = new_frame_pointer;
+            self.stack_pointer = new_frame_pointer;
+            self.alloc_pointer = new_alloc_pointer;
+            self.pc = false;
+            assert!(!self.is_west());
+        } else {
+            // new top frame will be west
+            let new_frame_pointer = self.start.add(RESERVED + top_slots) as *mut u64;
+            *new_frame_pointer.sub(FRAME + 1) = ptr::null::<u64>() as u64;
+            *new_frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64;
+            *new_frame_pointer.sub(ALLOC + 1) = self.start as u64;
+            self.frame_pointer = new_frame_pointer;
+            self.stack_pointer = new_frame_pointer;
+            self.alloc_pointer = new_alloc_pointer;
+            self.pc = false;
+            assert!(self.is_west());
+        }
+    }
+
+    /** Resets the NockStack. The top frame is west as in the initial creation of the NockStack. */
     pub fn reset(&mut self, top_slots: usize) {
         self.frame_pointer = unsafe { self.start.add(RESERVED + top_slots) } as *mut u64;
         self.stack_pointer = self.frame_pointer;
@@ -97,7 +132,8 @@ impl NockStack {
         unsafe {
             *self.frame_pointer.sub(FRAME + 1) = ptr::null::<u64>() as u64; // "frame pointer" from "previous" frame
             *self.frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
-            *self.frame_pointer.sub(ALLOC + 1) = ptr::null::<u64>() as u64; // "alloc pointer" from "previous" frame
+            *self.frame_pointer.sub(ALLOC + 1) = self.start as u64; // "alloc pointer" from "previous" frame
+            assert!(self.is_west());
         };
     }
 
@@ -112,6 +148,26 @@ impl NockStack {
         } else {
             self.stack_pointer
         }
+    }
+
+    /** Current stack pointer of this NockStack */
+    pub fn get_stack_pointer(&self) -> *const u64 {
+        self.stack_pointer
+    }
+
+    /** Current alloc pointer of this NockStack */
+    pub fn get_alloc_pointer(&self) -> *const u64 {
+        self.alloc_pointer
+    }
+
+    /** Start of the memory range for this NockStack */
+    pub fn get_start(&self) -> *const u64 {
+        self.start
+    }
+
+    /** End of the memory range for this NockStack */
+    pub fn get_size(&self) -> usize {
+        self.size
     }
 
     /** Checks if the current stack frame has West polarity */
@@ -131,7 +187,17 @@ impl NockStack {
         let ptr_u64 = ptr as *const u64;
         let prev = *self.prev_stack_pointer_pointer();
         if self.is_west() {
-            ptr_u64 >= self.alloc_pointer && ptr_u64 < prev
+            // If we are in a top/west frame, the stack pointer will be null, so our allocation
+            // arena was the alloc pointer to the top of the NockStack arena
+            if prev.is_null() {
+                ptr_u64 >= self.alloc_pointer && ptr_u64 < self.start.add(self.size)
+            } else {
+                ptr_u64 >= self.alloc_pointer && ptr_u64 < prev
+            }
+        // If we are in a top/east frame, the stack pointer will be null, so our allocation arena
+        // was the alloc pointer to the bottom of the NockStack arena
+        } else if prev.is_null() {
+            ptr_u64 >= self.start && ptr_u64 < self.alloc_pointer
         } else {
             ptr_u64 >= prev && ptr_u64 < self.alloc_pointer
         }
@@ -189,7 +255,7 @@ impl NockStack {
     }
 
     /** Pointer to where the previous stack pointer is saved in a frame */
-    unsafe fn prev_stack_pointer_pointer(&self) -> *mut *mut u64 {
+    pub unsafe fn prev_stack_pointer_pointer(&self) -> *mut *mut u64 {
         if !self.pc {
             self.slot_pointer(STACK) as *mut *mut u64
         } else {
@@ -534,79 +600,6 @@ impl NockStack {
         }
     }
 
-    pub unsafe fn copy_pma(&mut self, noun: &mut Noun) {
-        // copy_pma() should only be called when there is a single stack
-        // frame; these asserts assure that.
-        assert!(
-            self.is_west()
-                && (*(self.prev_stack_pointer_pointer())).is_null()
-                && (*(self.prev_frame_pointer_pointer())).is_null()
-        );
-        assert!(self.stack_is_empty());
-        let noun_ptr = noun as *mut Noun;
-        *(self.push::<Noun>()) = *noun;
-        *(self.push::<*mut Noun>()) = noun_ptr;
-        loop {
-            if self.stack_is_empty() {
-                break;
-            }
-
-            let next_dest = *(self.top::<*mut Noun>());
-            self.pop::<*mut Noun>();
-            let next_noun = *(self.top::<Noun>());
-            self.pop::<Noun>();
-
-            match next_noun.as_either_direct_allocated() {
-                Either::Left(_direct) => {
-                    *next_dest = next_noun;
-                }
-                Either::Right(allocated) => match allocated.forwarding_pointer() {
-                    Option::Some(new_allocated) => {
-                        *next_dest = new_allocated.as_noun();
-                    }
-                    Option::None => {
-                        if pma_in_arena(allocated.to_raw_pointer()) {
-                            *next_dest = allocated.as_noun();
-                        } else {
-                            match allocated.as_either() {
-                                Either::Left(mut indirect) => {
-                                    let new_indirect_alloc =
-                                        pma_malloc_w(indirect_raw_size(indirect));
-
-                                    copy_nonoverlapping(
-                                        indirect.to_raw_pointer(),
-                                        new_indirect_alloc,
-                                        indirect_raw_size(indirect),
-                                    );
-
-                                    indirect.set_forwarding_pointer(new_indirect_alloc);
-
-                                    *next_dest = IndirectAtom::from_raw_pointer(new_indirect_alloc)
-                                        .as_noun();
-                                }
-                                Either::Right(mut cell) => {
-                                    let new_cell_alloc: *mut CellMemory =
-                                        pma_malloc_w(word_size_of::<CellMemory>());
-
-                                    (*new_cell_alloc).metadata = (*cell.to_raw_pointer()).metadata;
-
-                                    *(self.push::<Noun>()) = cell.tail();
-                                    *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).tail;
-                                    *(self.push::<Noun>()) = cell.head();
-                                    *(self.push::<*mut Noun>()) = &mut (*new_cell_alloc).head;
-
-                                    cell.set_forwarding_pointer(new_cell_alloc);
-
-                                    *next_dest = Cell::from_raw_pointer(new_cell_alloc).as_noun();
-                                }
-                            }
-                        }
-                    }
-                },
-            }
-        }
-    }
-
     pub unsafe fn frame_pop(&mut self) {
         let prev_frame_ptr = *self.prev_frame_pointer_pointer();
         let prev_stack_ptr = *self.prev_stack_pointer_pointer();
@@ -717,10 +710,12 @@ impl NockStack {
      */
     pub unsafe fn with_frame<F, O>(&mut self, num_locals: usize, f: F) -> O
     where
-        F: FnOnce() -> O,
+        F: FnOnce(&mut NockStack) -> O,
+        O: Preserve,
     {
         self.frame_push(num_locals);
-        let ret = f();
+        let mut ret = f(self);
+        ret.preserve(self);
         self.frame_pop();
         ret
     }
@@ -895,240 +890,6 @@ impl NockStack {
     }
 }
 
-#[cfg(feature = "check_junior")]
-#[macro_export]
-macro_rules! assert_no_junior_pointers {
-    ( $x:expr, $y:expr ) => {
-        assert_no_alloc::permit_alloc(|| {
-            assert!($x.no_junior_pointers($y));
-        })
-    };
-}
-
-#[cfg(not(feature = "check_junior"))]
-#[macro_export]
-macro_rules! assert_no_junior_pointers {
-    ( $x:expr, $y:expr ) => {};
-}
-
-pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
-    /* This version of unifying equality is not like that of vere.
-     * Vere does a tree comparison (accelerated by pointer equality and short-circuited by mug
-     * equality) and then unifies the nouns at the top level if they are equal.
-     *
-     * Here we recursively attempt to unify nouns. Pointer-equal nouns are already unified.
-     * Disequal mugs again short-circuit the unification and equality check.
-     *
-     * Since we expect atoms to be normalized, direct and indirect atoms do not unify with each
-     * other. For direct atoms, no unification is possible as there is no pointer involved in their
-     * representation. Equality is simply direct equality on the word representation. Indirect
-     * atoms require equality first of the size and then of the memory buffers' contents.
-     *
-     * Cell equality is tested (after mug and pointer equality) by attempting to unify the heads and tails,
-     * respectively, of cells, and then re-testing. If unification succeeds then the heads and
-     * tails will be pointer-wise equal and the cell itself can be unified. A failed unification of
-     * the head or the tail will already short-circuit the unification/equality test, so we will
-     * not return to re-test the pointer equality.
-     *
-     * When actually mutating references for unification, we must be careful to respect seniority.
-     * A reference to a more junior noun should always be replaced with a reference to a more
-     * senior noun, *never vice versa*, to avoid introducing references from more senior frames
-     * into more junior frames, which would result in incorrect operation of the copier.
-     */
-    assert_acyclic!(*a);
-    assert_acyclic!(*b);
-    assert_no_forwarding_pointers!(*a);
-    assert_no_forwarding_pointers!(*b);
-    assert_no_junior_pointers!(stack, *a);
-    assert_no_junior_pointers!(stack, *b);
-
-    // If the nouns are already word-equal we have nothing to do
-    if (*a).raw_equals(*b) {
-        return true;
-    };
-    // If the nouns have cached mugs which are disequal we have nothing to do
-    if let (Ok(a_alloc), Ok(b_alloc)) = ((*a).as_allocated(), (*b).as_allocated()) {
-        if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug()) {
-            if a_mug != b_mug {
-                return false;
-            };
-        };
-    };
-    stack.frame_push(0);
-    *(stack.push::<(*mut Noun, *mut Noun)>()) = (a, b);
-    loop {
-        if stack.stack_is_empty() {
-            break;
-        };
-        let (x, y): (*mut Noun, *mut Noun) = *(stack.top());
-        if (*x).raw_equals(*y) {
-            stack.pop::<(*mut Noun, *mut Noun)>();
-            continue;
-        };
-        if let (Ok(x_alloc), Ok(y_alloc)) = (
-            // equal direct atoms return true for raw_equals()
-            (*x).as_allocated(),
-            (*y).as_allocated(),
-        ) {
-            if let (Some(x_mug), Some(y_mug)) = (x_alloc.get_cached_mug(), y_alloc.get_cached_mug())
-            {
-                if x_mug != y_mug {
-                    break; // short-circuit, the mugs differ therefore the nouns must differ
-                }
-            };
-            match (x_alloc.as_either(), y_alloc.as_either()) {
-                (Left(x_indirect), Left(y_indirect)) => {
-                    let x_as_ptr = x_indirect.to_raw_pointer();
-                    let y_as_ptr = y_indirect.to_raw_pointer();
-                    if x_indirect.size() == y_indirect.size()
-                        && memcmp(
-                            x_indirect.data_pointer() as *const c_void,
-                            y_indirect.data_pointer() as *const c_void,
-                            x_indirect.size() << 3,
-                        ) == 0
-                    {
-                        let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
-                        if x_as_ptr == junior {
-                            *x = *y;
-                        } else {
-                            *y = *x;
-                        }
-                        stack.pop::<(*mut Noun, *mut Noun)>();
-                        continue;
-                    } else {
-                        break;
-                    }
-                }
-                (Right(x_cell), Right(y_cell)) => {
-                    let x_as_ptr = x_cell.to_raw_pointer() as *const u64;
-                    let y_as_ptr = y_cell.to_raw_pointer() as *const u64;
-                    if x_cell.head().raw_equals(y_cell.head())
-                        && x_cell.tail().raw_equals(y_cell.tail())
-                    {
-                        let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
-                        if x_as_ptr == junior {
-                            *x = *y;
-                        } else {
-                            *y = *x;
-                        }
-                        stack.pop::<(*mut Noun, *mut Noun)>();
-                        continue;
-                    } else {
-                        /* THIS ISN'T AN INFINITE LOOP
-                         * If we discover a disequality in either side, we will
-                         * short-circuit the entire loop and reset the work stack.
-                         *
-                         * If both sides are equal, then we will discover pointer
-                         * equality when we return and unify the cell.
-                         */
-                        *(stack.push::<(*mut Noun, *mut Noun)>()) =
-                            (x_cell.tail_as_mut(), y_cell.tail_as_mut());
-                        *(stack.push::<(*mut Noun, *mut Noun)>()) =
-                            (x_cell.head_as_mut(), y_cell.head_as_mut());
-                        continue;
-                    }
-                }
-                (_, _) => {
-                    break; // cells don't unify with atoms
-                }
-            }
-        } else {
-            break; // direct atom not raw equal, so short circuit
-        }
-    }
-    stack.frame_pop();
-
-    assert_acyclic!(*a);
-    assert_acyclic!(*b);
-    assert_no_forwarding_pointers!(*a);
-    assert_no_forwarding_pointers!(*b);
-    assert_no_junior_pointers!(stack, *a);
-    assert_no_junior_pointers!(stack, *b);
-
-    (*a).raw_equals(*b)
-}
-
-unsafe fn senior_pointer_first(
-    stack: &NockStack,
-    a: *const u64,
-    b: *const u64,
-) -> (*const u64, *const u64) {
-    let mut frame_pointer: *const u64 = stack.frame_pointer;
-    let mut stack_pointer: *const u64 = stack.stack_pointer;
-    let mut alloc_pointer: *const u64 = stack.alloc_pointer;
-    let prev_stack_pointer = *(stack.prev_stack_pointer_pointer());
-
-    let (mut high_pointer, mut low_pointer): (*const u64, *const u64) = if stack.is_west() {
-        (prev_stack_pointer, alloc_pointer)
-    } else {
-        (alloc_pointer, prev_stack_pointer)
-    };
-
-    loop {
-        if low_pointer.is_null() || high_pointer.is_null() {
-            // we found the bottom of the stack; check entirety of the stack
-            low_pointer = stack.start;
-            high_pointer = stack.start.add(stack.size);
-        }
-
-        match (
-            a < high_pointer && a >= low_pointer,
-            b < high_pointer && b >= low_pointer,
-        ) {
-            (true, true) => {
-                // both pointers are in the same frame, pick arbitrarily (lower in mem)
-                break lower_pointer_first(a, b);
-            }
-            (true, false) => break (b, a), // a is in the frame, b is not, so b is senior
-            (false, true) => break (a, b), // b is in the frame, a is not, so a is senior
-            (false, false) => {
-                // chase up the stack
-                #[allow(clippy::comparison_chain)]
-                // test to see if the frame under consideration is a west frame
-                if stack_pointer < alloc_pointer {
-                    stack_pointer = *(frame_pointer.sub(STACK + 1)) as *const u64;
-                    alloc_pointer = *(frame_pointer.sub(ALLOC + 1)) as *const u64;
-                    frame_pointer = *(frame_pointer.sub(FRAME + 1)) as *const u64;
-
-                    // both pointers are in the PMA, pick arbitrarily (lower in mem)
-                    if frame_pointer.is_null() {
-                        break lower_pointer_first(a, b);
-                    };
-
-                    // previous allocation pointer
-                    high_pointer = alloc_pointer;
-                    // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
-                    low_pointer = *(frame_pointer.add(STACK)) as *const u64;
-                } else if stack_pointer > alloc_pointer {
-                    stack_pointer = *(frame_pointer.add(STACK)) as *const u64;
-                    alloc_pointer = *(frame_pointer.add(ALLOC)) as *const u64;
-                    frame_pointer = *(frame_pointer.add(FRAME)) as *const u64;
-
-                    // both pointers are in the PMA, pick arbitrarily (lower in mem)
-                    if frame_pointer.is_null() {
-                        break lower_pointer_first(a, b);
-                    };
-
-                    // previous allocation pointer
-                    low_pointer = alloc_pointer;
-                    // "previous previous" stack pointer. this is the other boundary of the previous allocation arena
-                    high_pointer = *(frame_pointer.sub(STACK + 1)) as *const u64;
-                } else {
-                    panic!("senior_pointer_first: stack_pointer == alloc_pointer");
-                }
-            }
-        }
-    }
-}
-
-fn lower_pointer_first(a: *const u64, b: *const u64) -> (*const u64, *const u64) {
-    if a < b {
-        (a, b)
-    } else {
-        (b, a)
-    }
-}
-
 impl NounAllocator for NockStack {
     unsafe fn alloc_indirect(&mut self, words: usize) -> *mut u64 {
         self.indirect_alloc(words)
@@ -1186,5 +947,21 @@ impl Preserve for Noun {
 impl Stack for NockStack {
     unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64 {
         self.layout_alloc(layout)
+    }
+}
+
+impl<T: Preserve, E: Preserve> Preserve for Result<T, E> {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        match self.as_mut() {
+            Ok(t_ref) => t_ref.preserve(stack),
+            Err(e_ref) => e_ref.preserve(stack),
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        match self.as_ref() {
+            Ok(t_ref) => t_ref.assert_in_stack(stack),
+            Err(e_ref) => e_ref.assert_in_stack(stack),
+        }
     }
 }

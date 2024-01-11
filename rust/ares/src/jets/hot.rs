@@ -1,15 +1,16 @@
 use crate::hamt::Hamt;
 use crate::hamt::HamtIterator;
 use crate::jets::*;
-use crate::mem::unifying_equality;
+use crate::unifying_equality::unifying_equality;
 use crate::mem::Preserve;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, T};
 use ares_macros::tas;
 use either::Either::{self, Left, Right};
 use std::ptr::null_mut;
 
-// const A_50: Either<u64, (u64, u64)> = Right((b"a", 50));
-const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
+/** Root for Hoon %k.139
+ */
+pub const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
 
 // // This is the const state all in one spot as literals
 // #[allow(clippy::complexity)]
@@ -61,8 +62,14 @@ const K_139: Either<&[u8], (u64, u64)> = Right((tas!(b"k"), 139));
 //     (&[A_50, Left(b"mink")], 1, jet_mink),
 // ];
 
+/**
+ * (path, axis in battery, jet function pointer)
+ * see the [Jet] typedef in ares::jets for the proper prototype
+ */
+pub type HotEntry = (&'static [Either<&'static [u8], (u64, u64)>], u64, Jet);
+
 #[allow(clippy::complexity)]
-const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
+pub const URBIT_HOT_STATE: &[HotEntry] = &[
     (&[K_139, Left(b"one"), Left(b"add")], 1, jet_add),
     (&[K_139, Left(b"one"), Left(b"dec")], 1, jet_dec),
     (&[K_139, Left(b"one"), Left(b"div")], 1, jet_div),
@@ -271,6 +278,170 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
         ],
         1,
         jet_sha1,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"last"),
+        ],
+        1,
+        jet_last,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"bend"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_bend,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"comp"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_comp,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"glue"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_glue,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"pfix"),
+        ],
+        1,
+        jet_pfix,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"pose"),
+        ],
+        1,
+        jet_pose,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"sfix"),
+        ],
+        1,
+        jet_sfix,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"easy"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_easy,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"here"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_here,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"just"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_just,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"mask"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_mask,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"stag"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_stag,
     ),
     //
     (
@@ -596,11 +767,11 @@ const TRUE_HOT_STATE: &[(&[Either<&[u8], (u64, u64)>], u64, Jet)] = &[
 ];
 
 #[derive(Copy, Clone)]
-pub struct Hot(Hamt<HotEntry>);
+pub struct Hot(Hamt<HotMemEntry>);
 
 impl IntoIterator for Hot {
-    type Item = (Noun, HotEntry);
-    type IntoIter = HamtIterator<HotEntry>;
+    type Item = (Noun, HotMemEntry);
+    type IntoIter = HamtIterator<HotMemEntry>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -608,12 +779,12 @@ impl IntoIterator for Hot {
 }
 
 impl Hot {
-    pub fn init(stack: &mut NockStack) -> Self {
+    pub fn init(stack: &mut NockStack, constant_hot_state: &[HotEntry]) -> Self {
         stack.frame_push(0); // we can preserve the hamt when we're done thus cleaning intermediate
                              // allocations
-        let mut hamt = Hamt::new();
         unsafe {
-            for (htap, axe, jet) in TRUE_HOT_STATE {
+            let mut hamt = Hamt::new(stack);
+            for (htap, axe, jet) in constant_hot_state {
                 let mut a_path = D(0);
                 for i in *htap {
                     match i {
@@ -638,15 +809,17 @@ impl Hot {
                 let axis = DirectAtom::new_panic(*axe).as_atom();
                 let current_hot_entry = hamt
                     .lookup(stack, &mut a_path)
-                    .unwrap_or(HotEntry(null_mut()));
+                    .unwrap_or(HotMemEntry(null_mut()));
                 let hot_mem_ptr: *mut HotMem = stack.struct_alloc(1);
                 *hot_mem_ptr = HotMem {
                     axis,
                     jet: *jet,
                     next: current_hot_entry,
                 };
-                hamt = hamt.insert(stack, &mut a_path, HotEntry(hot_mem_ptr));
+                hamt = hamt.insert(stack, &mut a_path, HotMemEntry(hot_mem_ptr));
             }
+            stack.preserve(&mut hamt);
+            stack.frame_pop();
             Hot(hamt)
         }
     }
@@ -662,7 +835,7 @@ impl Hot {
     }
 }
 
-impl Iterator for HotEntry {
+impl Iterator for HotMemEntry {
     type Item = (Atom, Jet); // path,axis,jet
     fn next(&mut self) -> Option<Self::Item> {
         if self.0.is_null() {
@@ -677,16 +850,16 @@ impl Iterator for HotEntry {
 }
 
 #[derive(Copy, Clone)]
-pub struct HotEntry(*mut HotMem);
+pub struct HotMemEntry(*mut HotMem);
 
 #[derive(Copy, Clone)]
 struct HotMem {
     axis: Atom, // Axis of jetted formula in *battery*;
     jet: Jet,
-    next: HotEntry,
+    next: HotMemEntry,
 }
 
-impl Preserve for HotEntry {
+impl Preserve for HotMemEntry {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         let mut dest = self as *mut Self;
 
@@ -698,7 +871,7 @@ impl Preserve for HotEntry {
             if (*ptr).next.0.is_null() {
                 break;
             }
-            *dest = HotEntry(ptr);
+            *dest = HotMemEntry(ptr);
             dest = &mut ((*ptr).next)
         }
     }
@@ -714,5 +887,15 @@ impl Preserve for HotEntry {
             (*i.0).axis.as_noun().assert_in_stack(stack);
             i = &(*i.0).next;
         }
+    }
+}
+
+impl Preserve for Hot {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        self.0.preserve(stack);
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        self.0.assert_in_stack(stack);
     }
 }

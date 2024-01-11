@@ -10,29 +10,31 @@ pub mod lock;
 pub mod lute;
 pub mod math;
 pub mod nock;
+pub mod parse;
 pub mod serial;
 pub mod sort;
 pub mod tree;
 
-use crate::interpreter::{interpret, Context, Error};
+use crate::interpreter::{Context, Error};
 use crate::jets::bits::*;
 use crate::jets::cold::Cold;
 use crate::jets::form::*;
 use crate::jets::hash::*;
-use crate::jets::hot::Hot;
+use crate::jets::hot::{Hot, URBIT_HOT_STATE};
 use crate::jets::list::*;
-use crate::jets::lute::*;
-use crate::jets::math::*;
-use crate::jets::nock::*;
-use crate::jets::serial::*;
-use crate::jets::sort::*;
-
 use crate::jets::lock::aes::*;
 use crate::jets::lock::ed::*;
 use crate::jets::lock::sha::*;
+use crate::jets::lute::*;
+use crate::jets::math::*;
+use crate::jets::nock::*;
+use crate::jets::parse::*;
+use crate::jets::serial::*;
+use crate::jets::sort::*;
+
 use crate::jets::tree::*;
 use crate::jets::warm::Warm;
-use crate::mem::NockStack;
+use crate::mem::{NockStack, Preserve};
 use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots, D};
 use ares_macros::tas;
@@ -51,6 +53,22 @@ pub type Jet = fn(&mut Context, Noun) -> Result;
 pub enum JetErr {
     Punt,        // Retry with the raw nock
     Fail(Error), // Error; do not retry
+}
+
+impl Preserve for JetErr {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        match self {
+            JetErr::Punt => {}
+            JetErr::Fail(ref mut err) => err.preserve(stack),
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        match self {
+            JetErr::Punt => {}
+            JetErr::Fail(ref err) => err.assert_in_stack(stack),
+        }
+    }
 }
 
 impl From<Error> for JetErr {
@@ -148,6 +166,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"sivc_de") => Some(jet_sivc_de),
         //
         _ => {
+            //  XX: need NockStack allocated string interpolation
             // eprintln!("Unknown jet: {:?}", jet_name);
             None
         }
@@ -166,6 +185,7 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
+    use crate::interpreter::interpret;
     use crate::noun::{Noun, D, T};
     use bitvec::prelude::{BitSlice, Lsb0};
     use std::result;
@@ -269,22 +289,28 @@ pub mod util {
 
     pub fn kick(context: &mut Context, core: Noun, axis: Noun) -> result::Result<Noun, JetErr> {
         let formula: Noun = T(&mut context.stack, &[D(9), axis, D(0), D(1)]);
-        interpret(context, core, formula).map_err(|err| JetErr::Fail(err))
+        interpret(context, core, formula).map_err(JetErr::Fail)
     }
 
-    pub fn slam(context: &mut Context, gat: Noun, sam: Noun) -> result::Result<Noun, JetErr> {
-        let bat = gat.as_cell()?.head();
-        let pay = T(&mut context.stack, &[sam, slot(gat, 7)?]);
-        let cor = T(&mut context.stack, &[bat, pay]);
-        kick(context, cor, D(2))
+    pub fn slam(context: &mut Context, gate: Noun, sample: Noun) -> result::Result<Noun, JetErr> {
+        let core: Noun = T(
+            &mut context.stack,
+            &[
+                gate.as_cell()?.head(),
+                sample,
+                gate.as_cell()?.tail().as_cell()?.tail(),
+            ],
+        );
+        kick(context, core, D(2))
     }
 
     pub mod test {
         use super::*;
         use crate::codegen::Hill;
         use crate::hamt::Hamt;
-        use crate::mem::{unifying_equality, NockStack};
+        use crate::mem::NockStack;
         use crate::noun::{Atom, Noun, D, T};
+        use crate::unifying_equality::unifying_equality;
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
 
@@ -292,10 +318,10 @@ pub mod util {
             let mut stack = NockStack::new(8 << 10 << 10, 0);
             let newt = Newt::new_mock();
             let cold = Cold::new(&mut stack);
-            let warm = Warm::new();
-            let hot = Hot::init(&mut stack);
-            let cache = Hamt::<Noun>::new();
-            let hill = Hill::new();
+            let warm = Warm::new(&mut stack);
+            let hot = Hot::init(&mut stack, URBIT_HOT_STATE);
+            let cache = Hamt::<Noun>::new(&mut stack);
+            let hill = Hill::new(&mut stack);
 
             Context {
                 stack,
@@ -322,7 +348,11 @@ pub mod util {
         }
 
         pub fn assert_jet(context: &mut Context, jet: Jet, sam: Noun, res: Noun) {
-            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            assert_jet_door(context, jet, sam, D(0), res)
+        }
+
+        pub fn assert_jet_door(context: &mut Context, jet: Jet, sam: Noun, pay: Noun, res: Noun) {
+            let sam = T(&mut context.stack, &[D(0), sam, pay]);
             let jet_res = assert_no_alloc(|| jet(context, sam).unwrap());
             assert_noun_eq(&mut context.stack, jet_res, res);
         }

@@ -31,6 +31,24 @@ const CELL_TAG: u64 = u64::MAX & INDIRECT_MASK;
 /** Tag mask for a cell. */
 const CELL_MASK: u64 = !(u64::MAX >> 3);
 
+/*  A note on forwarding pointers:
+ *
+ *  Forwarding pointers are only used temporarily during copies between NockStack frames and between
+ *  the NockStack and the PMA. Since unifying equality checks can create structural sharing between
+ *  Noun objects, forwarding pointers act as a signal that a Noun has already been copied to the
+ *  "to" space. The old Noun object in the "from" space is given a forwarding pointer so that any
+ *  future refernces to the same structure know that it has already been copied and that they should
+ *  retain the structural sharing relationship by referencing the new copy in the "to" copy space.
+ *
+ *  The Nouns in the "from" space marked with forwarding pointers are dangling pointers after a copy
+ *  operation. No code outside of the copying code checks for forwarding pointers. This invariant
+ *  must be enforced in two ways:
+ *      1. The current frame must be immediately popped after preserving data, when
+ *          copying from a junior NockStack frame to a senior NockStack frame.
+ *      2. All persistent derived state (e.g. Hot state, Warm state) must be preserved
+ *          and the root NockStack frame flipped after saving data to the PMA.
+ */
+
 /** Tag for a forwarding pointer */
 const FORWARDING_TAG: u64 = u64::MAX & CELL_MASK;
 
@@ -423,6 +441,11 @@ impl IndirectAtom {
         unsafe { *(self.to_raw_pointer().add(1)) as usize }
     }
 
+    /** Memory size of an indirect atom (including size + metadata fields) in 64-bit words */
+    pub fn raw_size(&self) -> usize {
+        self.size() + 2
+    }
+
     pub fn bit_size(&self) -> usize {
         unsafe {
             ((self.size() - 1) << 6) + 64
@@ -661,7 +684,7 @@ impl private::RawSlots for Cell {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         let mut noun: Noun = self.as_noun();
         // Panic because all of the logic to guard against this is in Noun::RawSlots, Noun::Slots
-        let mut cursor = axis.last_one().expect("raw_slow somehow by-passed 0 check");
+        let mut cursor = axis.last_one().expect("raw_slot somehow by-passed 0 check");
 
         while cursor != 0 {
             cursor -= 1;
@@ -870,6 +893,21 @@ impl Atom {
         } else {
             *self
         }
+    }
+
+    /** Make an atom from a raw u64
+     *
+     * # Safety
+     *
+     * Note that the [u64] parameter is *not*, in general, the value of the atom!
+     *
+     * In particular, anything with the high bit set will be treated as a tagged pointer.
+     * This method is only to be used to restore an atom from the raw [u64] representation
+     * returned by [Noun::as_raw], and should only be used if we are sure the restored noun is in
+     * fact an atom.
+     */
+    pub unsafe fn from_raw(raw: u64) -> Atom {
+        Atom { raw }
     }
 }
 
@@ -1261,7 +1299,10 @@ pub trait Slots: private::RawSlots {
      * Retrieve component Noun at axis given as Atom, or fail with descriptive error
      */
     fn slot_atom(&self, atom: Atom) -> Result<Noun> {
-        self.raw_slot(atom.as_bitslice())
+        match atom.as_either() {
+            Left(direct) => self.slot(direct.data()),
+            Right(indirect) => self.raw_slot(indirect.as_bitslice()),
+        }
     }
 }
 

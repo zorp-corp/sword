@@ -27,8 +27,8 @@ use self::util::{comp, do_call, do_goto, do_return, do_tail_call, part_peek, pee
 pub struct Hill(crate::hamt::Hamt<Pile>);
 
 impl Hill {
-    pub fn new() -> Hill {
-        Hill(crate::hamt::Hamt::new())
+    pub fn new(stack: &mut NockStack) -> Hill {
+        Hill(crate::hamt::Hamt::new(stack))
     }
 }
 
@@ -1097,7 +1097,7 @@ mod util {
 
     pub fn part_hill(stack: &mut NockStack, hill: Noun) -> Hill {
         let mut kvs = tap(stack, hill).unwrap();
-        let mut hill = Hill::new();
+        let mut hill = Hill::new(stack);
         while !unsafe { kvs.raw_equals(D(0)) } {
             let c = kvs.as_cell().unwrap();
             let kv = c.head();
@@ -1111,7 +1111,7 @@ mod util {
 
     pub fn part_will(stack: &mut NockStack, will: Noun) -> Hamt<Noun> {
         let mut kvs = tap(stack, will).unwrap();
-        let mut hamt = Hamt::new();
+        let mut hamt = Hamt::new(stack);
         while !unsafe { kvs.raw_equals(D(0)) } {
             let c = kvs.as_cell().unwrap();
             let kv = c.head();
