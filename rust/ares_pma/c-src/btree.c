@@ -54,6 +54,7 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 #define DEBUG_PRINTNODE 0
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(x, y) ((x) > (y) ? (y) : (x))
 #define ZERO(s, n) memset((s), 0, (n))
 
 #define S7(A, B, C, D, E, F, G) A##B##C##D##E##F##G
@@ -295,8 +296,6 @@ static_assert(sizeof(BT_meta) <= BT_DAT_MAXBYTES);
 
 /* the length of the metapage up to but excluding the checksum */
 #define BT_META_LEN (offsetof(BT_meta, chk))
-
-#define BT_roots_bytelen (sizeof(BT_meta) - offsetof(BT_meta, roots))
 
 typedef struct BT_mlistnode BT_mlistnode;
 struct BT_mlistnode {
@@ -2250,6 +2249,7 @@ _bt_state_meta_new(BT_state *state)
 
   return BT_SUCC;
 }
+#undef INITIAL_ROOTPG
 
 static void
 _freelist_restore2(BT_state *state, BT_page *node,
@@ -2623,9 +2623,9 @@ bt_state_new(BT_state **state)
   return BT_SUCC;
 }
 
-#define DATANAME "/data.pma"
 int
 bt_state_open(BT_state *state, const char *path, ULONG flags, mode_t mode)
+#define DATANAME "/data.pma"
 {
   int oflags, rc;
   char *dpath;
@@ -2655,6 +2655,7 @@ bt_state_open(BT_state *state, const char *path, ULONG flags, mode_t mode)
   free(dpath);
   return rc;
 }
+#undef DATANAME
 
 int
 bt_state_close(BT_state *state)
@@ -2941,8 +2942,6 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
 
   return newpg;
 }
-
-#define MIN(x, y) ((x) > (y) ? (y) : (x))
 
 static int
 _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
