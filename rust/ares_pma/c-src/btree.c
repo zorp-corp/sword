@@ -122,7 +122,7 @@ off2addr(vaof_t off)
 #define BT_NUMMETAS 2                     /* 2 metapages */
 #define BT_META_SECTION_WIDTH (BT_NUMMETAS * BT_PAGESIZE)
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
-#define PMA_GROW_SIZE_p (1024 * 64)
+#define PMA_GROW_SIZE_p (1024)
 #define PMA_GROW_SIZE_b (BT_PAGESIZE * PMA_GROW_SIZE_p)
 
 #define BT_NOPAGE 0
@@ -331,6 +331,7 @@ struct BT_state {
   BYTE         *map;
   BT_meta      *meta_pages[2];  /* double buffered */
   pgno_t        file_size_p;    /* the size of the pma file in pages */
+  pgno_t        flist_highpg;   /* highest page in the flist */
   unsigned int  which;          /* which double-buffered db are we using? */
   BT_nlistnode *nlist;          /* node freelist */
   BT_mlistnode *mlist;          /* memory freelist */
@@ -1584,14 +1585,19 @@ _flist_grow(BT_state *state, size_t pages)
 {
   /* grow the backing file by at least PMA_GROW_SIZE_p */
   pages = MAX(pages, PMA_GROW_SIZE_p);
-  off_t bytes = pages * BT_PAGESIZE;
+  off_t bytes = P2BYTES(pages);
   off_t size  = state->file_size_p * BT_PAGESIZE;
-  ftruncate(state->data_fd, size + bytes);
+  if (ftruncate(state->data_fd, size + bytes) != 0) {
+    DPUTS("resize of backing file failed. aborting");
+    abort();
+  }
 
   /* and add this space to the flist */
   _flist_insert(&state->flist,
-                state->file_size_p,
-                state->file_size_p + pages);
+                state->flist_highpg,
+                state->flist_highpg + pages);
+
+  state->flist_highpg += pages;
 }
 
 static int
@@ -1603,14 +1609,12 @@ _flist_new(BT_state *state)
   /* assert(root->datk[0].fo == 0); */
   size_t N = _bt_numkeys(root);
 
-  vaof_t lo = root->datk[0].va;
-  vaof_t hi = root->datk[N-1].va;
-  size_t len = hi - lo;
-
   BT_flistnode *head = calloc(1, sizeof *head);
   head->next = 0;
   head->lo = FLIST_PG_START;
-  head->hi = FLIST_PG_START + len;
+  state->flist_highpg           /* ;;: this won't work on re-reading the persistent file */
+    = head->hi
+    = PMA_GROW_SIZE_p - FLIST_PG_START;
   state->flist = head;
 
   return BT_SUCC;
@@ -2416,7 +2420,7 @@ _bt_falloc(BT_state *state, size_t pages)
 
   if (ret == 0) {
     /* flist out of mem, grow it */
-    DPRINTF("flist out of mem, growing current size (pages): 0x%" PRIX32 "to: 0x%" PRIX32,
+    DPRINTF("flist out of mem, growing current size (pages): 0x%" PRIX32 " to: 0x%" PRIX32,
           state->file_size_p, state->file_size_p + PMA_GROW_SIZE_p);
     _flist_grow(state, pages);
     /* restart the find procedure */
