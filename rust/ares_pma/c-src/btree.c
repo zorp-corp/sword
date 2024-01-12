@@ -331,7 +331,11 @@ struct BT_state {
   BYTE         *map;
   BT_meta      *meta_pages[2];  /* double buffered */
   pgno_t        file_size_p;    /* the size of the pma file in pages */
-  pgno_t        flist_highpg;   /* highest page in the flist */
+  /* ;;: todo: this may be unnecessary. But it's tricky to derive the lo pgno to
+       insert into the flist when extending the file. Probably possible though
+       by accounting for both file_size_p and the size of all allocated node
+       partitions. */
+  pgno_t        flist_highpg;   /* highest page alloced or not (exclusive) */
   unsigned int  which;          /* which double-buffered db are we using? */
   BT_nlistnode *nlist;          /* node freelist */
   BT_mlistnode *mlist;          /* memory freelist */
@@ -537,6 +541,9 @@ _flist_record_alloc(BT_state *state, pgno_t lo, pgno_t hi)
     free(*head);
     *head = next;
   }
+
+  /* update the highpg if necessary */
+  state->flist_highpg = MAX(state->flist_highpg, hi);
 }
 
 static BT_page *
@@ -1578,11 +1585,15 @@ _mlist_new(BT_state *state)
   return BT_SUCC;
 }
 
+/* ;;: todo: we could remove the hifreepg param if we can derive the highest
+     page (alloced or not) in the persistent file. */
 static void
-_flist_grow(BT_state *state, size_t pages)
+_flist_grow(BT_state *state, size_t pages, pgno_t hifreepg)
 /* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
    flist */
 {
+  pgno_t flist_highpg = MAX(hifreepg, state->flist_highpg);
+
   /* grow the backing file by at least PMA_GROW_SIZE_p */
   pages = MAX(pages, PMA_GROW_SIZE_p);
   off_t bytes = P2BYTES(pages);
@@ -1594,8 +1605,8 @@ _flist_grow(BT_state *state, size_t pages)
 
   /* and add this space to the flist */
   _flist_insert(&state->flist,
-                state->flist_highpg,
-                state->flist_highpg + pages);
+                flist_highpg,
+                flist_highpg + pages);
 
   state->flist_highpg += pages;
 }
@@ -2404,11 +2415,13 @@ _bt_falloc(BT_state *state, size_t pages)
      contiguous space for pages */
  start:
   BT_flistnode **n = &state->flist;
+  pgno_t hifreepg = 0;
   pgno_t ret = 0;
 
   /* first fit */
   for (; *n; n = &(*n)->next) {
     size_t sz_p = (*n)->hi - (*n)->lo;
+    hifreepg = (*n)->hi;
 
     if (sz_p >= pages) {
       ret = (*n)->lo;
@@ -2422,7 +2435,7 @@ _bt_falloc(BT_state *state, size_t pages)
     /* flist out of mem, grow it */
     DPRINTF("flist out of mem, growing current size (pages): 0x%" PRIX32 " to: 0x%" PRIX32,
           state->file_size_p, state->file_size_p + PMA_GROW_SIZE_p);
-    _flist_grow(state, pages);
+    _flist_grow(state, pages, hifreepg);
     /* restart the find procedure */
     /* TODO: obv a minor optimization can be made here */
     goto start;

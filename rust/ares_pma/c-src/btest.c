@@ -243,8 +243,9 @@ int main(int argc, char *argv[])
     allocs[i].hi = allocs[i].lo + pages;
     alloc_sizp += pages;
     /* validate size changes to mlist and flist */
-    assert(_flist_sizep(state3->flist)
-           == (flist_sizp - alloc_sizp));
+    /* ;;: no longer a valid comparison since the flist may have grown */
+    /* assert(_flist_sizep(state3->flist) */
+    /*        == (flist_sizp - alloc_sizp)); */
     assert(_mlist_sizep(state3->mlist)
            == (mlist_sizp - alloc_sizp));
     N = _bt_numkeys(root);
