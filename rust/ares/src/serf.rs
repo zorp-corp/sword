@@ -1,4 +1,4 @@
-use crate::codegen::{cg_interpret, Hill};
+use crate::codegen::{cg_interpret, types::CGContext};
 use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
@@ -164,8 +164,8 @@ impl Context {
 
         let hot = Hot::init(&mut stack, constant_hot_state);
         let warm = Warm::init(&mut stack, &mut cold, &hot);
-        let hill = Hill::new(&mut stack);
         let mug = mug_u32(&mut stack, arvo);
+        let cg_context = CGContext::new(&mut stack, hot);
 
         let nock_context = interpreter::Context {
             stack,
@@ -176,8 +176,7 @@ impl Context {
             cache,
             scry_stack: D(0),
             trace_info,
-            line: None,
-            hill,
+            cg_context,
         };
 
         Context {
@@ -351,7 +350,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         load_cg_trap(&mut context.nock_context.stack).expect("Failed to load codegen formula/trap");
     let line = interpret(&mut context.nock_context, cg_trap, cg_formula)
         .expect("Failed to produce codegen core");
-    context.nock_context.line = Some(line);
+    context.nock_context.cg_context.line = Some(line);
 
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {

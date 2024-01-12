@@ -1,7 +1,7 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
-use crate::codegen::Hill;
+use crate::codegen::types::CGContext;
 use crate::hamt::Hamt;
 use crate::jets::cold;
 use crate::jets::cold::Cold;
@@ -270,8 +270,7 @@ pub struct Context {
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
-    pub line: Option<Noun>, // codegen core
-    pub hill: Hill,
+    pub cg_context: CGContext,
 }
 
 impl Context {
@@ -280,11 +279,7 @@ impl Context {
         self.stack.preserve(&mut self.warm);
         self.stack.preserve(&mut self.cache);
         self.stack.preserve(&mut self.scry_stack);
-        match self.line.as_mut() {
-            None => {}
-            Some(lr) => self.stack.preserve(lr),
-        }
-        self.stack.preserve(&mut self.hill);
+        self.stack.preserve(&mut self.cg_context);
     }
 }
 

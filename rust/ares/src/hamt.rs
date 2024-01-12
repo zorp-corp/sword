@@ -5,7 +5,7 @@ use crate::persist::{pma_contains, Persist};
 use crate::unifying_equality::unifying_equality;
 use either::Either::{self, *};
 use std::mem::size_of;
-use std::ptr::{copy_nonoverlapping, null, null_mut};
+use std::ptr::{copy_nonoverlapping, null_mut};
 use std::slice;
 
 type MutStemEntry<T> = Either<*mut MutStem<T>, Leaf<T>>;
@@ -592,87 +592,6 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                 }
             }
         }
-    }
-}
-
-pub struct HamtIterator<T: Copy> {
-    buffers: [*const Entry<T>; 6],
-    bitmaps: [u32; 6],
-    typemaps: [u32; 6],
-    leaf_buffer: *const (Noun, T),
-    leaf_len: usize,
-    depth: usize,
-}
-
-impl<T: Copy> Iterator for HamtIterator<T> {
-    type Item = (Noun, T);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            // check if there's something in the current leaf
-            if self.leaf_len > 0 {
-                let res = unsafe { *(self.leaf_buffer) };
-                self.leaf_len -= 1;
-                self.leaf_buffer = unsafe { self.leaf_buffer.add(1) };
-                return Some(res);
-            }
-
-            // if not, seek up to find stem that isn't empty
-            loop {
-                if self.bitmaps[self.depth] > 0 {
-                    break;
-                } else if self.depth == 0 {
-                    // top bitmap is 0, nothing left here
-                    return None;
-                }
-
-                self.depth -= 1;
-            }
-            // take the next child from the current stem
-            loop {
-                let next_child_bit = self.bitmaps[self.depth].trailing_zeros();
-                if self.typemaps[self.depth] & (1 << next_child_bit) != 0 {
-                    let next_stem = unsafe { (*(self.buffers[self.depth])).stem };
-                    self.bitmaps[self.depth] = self.bitmaps[self.depth] >> next_child_bit + 1;
-                    self.typemaps[self.depth] = self.typemaps[self.depth] >> next_child_bit + 1;
-                    self.buffers[self.depth] = unsafe { self.buffers[self.depth].add(1) };
-                    self.depth += 1;
-                    self.bitmaps[self.depth] = next_stem.bitmap;
-                    self.typemaps[self.depth] = next_stem.typemap;
-                    self.buffers[self.depth] = next_stem.buffer;
-                } else {
-                    let next_leaf = unsafe { (*(self.buffers[self.depth])).leaf };
-                    self.bitmaps[self.depth] = self.bitmaps[self.depth] >> next_child_bit + 1;
-                    self.typemaps[self.depth] = self.typemaps[self.depth] >> next_child_bit + 1;
-                    self.buffers[self.depth] = unsafe { self.buffers[self.depth].add(1) };
-                    self.leaf_buffer = next_leaf.buffer;
-                    self.leaf_len = next_leaf.len;
-                }
-            }
-        }
-    }
-}
-
-impl<T: Copy> IntoIterator for Hamt<T> {
-    type Item = (Noun, T);
-    type IntoIter = HamtIterator<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        let mut iter = HamtIterator {
-            buffers: [null(); 6],
-            bitmaps: [0; 6],
-            typemaps: [0; 6],
-            leaf_buffer: null(),
-            leaf_len: 0,
-            depth: 0,
-        };
-
-        unsafe {
-            iter.buffers[0] = (*self.0).buffer;
-            iter.bitmaps[0] = (*self.0).bitmap;
-            iter.typemaps[0] = (*self.0).typemap;
-        }
-        iter
     }
 }
 

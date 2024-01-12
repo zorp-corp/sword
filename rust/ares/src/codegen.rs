@@ -1,10 +1,3 @@
-// XX codegen errors are nondeterministic: we probably need a version of slot that throws a
-// non-deterministic error, any other error caused by codegen being wrong should also be
-// nondeterministic, or just a panic.
-//
-// XX ECA TODO: figure out a robust way to make codegen errors nondeterministic
-// XX ECA TODO: turn hot state directly into a HAMT so we can grab jets from it easily in %jmf
-// XX ECA TODO: preprocess blobs in part_will, rewrite cal to caf and jet to jmf if no jets and
 // tracing is off
 use ares_macros::tas;
 use either::Either::{Left, Right};
@@ -19,7 +12,7 @@ use crate::jets::warm::Warm;
 use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, D, NO, T, YES};
 use crate::trace::TraceStack;
-use types::{ActualError, Frame, Pile};
+use types::{ActualError, Frame, Pile, JetEntry};
 
 use self::util::{comp, do_call, do_goto, do_return, do_tail_call, part_peek, peek, poke};
 
@@ -82,21 +75,21 @@ fn cg_slow_pop(frame: *mut Frame) {
 /// (bell, hill) tuple.
 fn cg_pull_peek(context: &mut Context, subject: Noun, formula: Noun) -> Noun {
     // +peek or +poke dance
-    if context.line.is_none() {
+    if context.cg_context.line.is_none() {
         panic!("line not set");
     }
     let pek = peek(context, subject, formula);
     let bell = if unsafe { pek.raw_equals(D(0)) } {
         let comp = comp(context, subject, formula);
         let line = poke(context, comp);
-        context.line = Some(line);
+        context.cg_context.line = Some(line);
         let good_peek = peek(context, subject, formula);
         let (bell, hill) = part_peek(&mut context.stack, good_peek);
-        context.hill = hill;
+        context.cg_context.hill = hill;
         bell
     } else {
         let (bell, hill) = part_peek(&mut context.stack, pek);
-        context.hill = hill;
+        context.cg_context.hill = hill;
         bell
     };
 
@@ -109,6 +102,7 @@ fn cg_pull_peek(context: &mut Context, subject: Noun, formula: Noun) -> Noun {
 fn cg_pull_pile(context: &mut Context, subject: Noun, formula: Noun) -> Pile {
     let mut bell = cg_pull_peek(context, subject, formula);
     context
+        .cg_context
         .hill
         .0
         .lookup(&mut context.stack, &mut bell)
@@ -194,8 +188,8 @@ pub fn cg_interpret(context: &mut Context, subject: Noun, formula: Noun) -> Resu
         cold: context.cold,
         warm: context.warm,
         cache: context.cache,
-        line: context.line,
-        hill: context.hill,
+        line: context.cg_context.line,
+        hill: context.cg_context.hill,
         virtual_frame: context.stack.get_frame_pointer(),
     };
     let nock = cg_interpret_inner(context, context_snapshot.virtual_frame, subject, formula);
@@ -600,11 +594,9 @@ fn cg_interpret_inner(
                     let d = slot(bend, 62).unwrap().as_direct().unwrap().data() as usize;
                     let mut t = slot(bend, 126).unwrap();
                     let u = slot(bend, 254).unwrap().as_direct().unwrap().data() as usize;
-                    let n = slot(bend, 255).unwrap();
-                    let mut path = slot(n, 2).unwrap();
-                    let axis = slot(n, 3).unwrap().as_atom().unwrap();
+                    let mut n = slot(bend, 255).unwrap();
 
-                    if let Some(jet) = context.hot.lookup(&mut context.stack, &mut path, axis) {
+                    if let Some(JetEntry(jet)) = context.cg_context.hot_hamt.lookup(&mut context.stack, &mut n) {
                         let subject = register_get(current_frame, u);
                         let jet_result = jet(context, subject);
                         match jet_result {
@@ -693,11 +685,9 @@ fn cg_interpret_inner(
                     let b = slot(bend, 14).unwrap();
                     let v = slot(bend, 30).unwrap();
                     let u = slot(bend, 62).unwrap().as_direct().unwrap().data() as usize;
-                    let n = slot(bend, 63).unwrap();
-                    let mut path = slot(n, 2).unwrap();
-                    let axis = slot(n, 3).unwrap().as_atom().unwrap();
+                    let mut n = slot(bend, 63).unwrap();
 
-                    if let Some(jet) = context.hot.lookup(&mut context.stack, &mut path, axis) {
+                    if let Some(JetEntry(jet)) = context.cg_context.hot_hamt.lookup(&mut context.stack, &mut n) {
                         let subject = register_get(current_frame, u);
                         let jet_result = jet(context, subject);
                         match jet_result {
@@ -873,8 +863,8 @@ fn exit(context: &mut Context, context_snapshot: ContextSnapshot, error: ActualE
     context.cold = context_snapshot.cold;
     context.warm = context_snapshot.warm;
     context.cache = context_snapshot.cache;
-    context.line = context_snapshot.line;
-    context.hill = context_snapshot.hill;
+    context.cg_context.line = context_snapshot.line;
+    context.cg_context.hill = context_snapshot.hill;
 
     let current_frame = unsafe { context.stack.get_frame_lowest() as *const Frame };
     let mut preserve = match error.0 {
@@ -937,12 +927,75 @@ pub mod types {
         hamt::Hamt,
         interpreter::Error,
         jets::util::slot,
+        jets::Jet,
+        jets::hot::Hot,
         mem::{NockStack, Preserve},
-        noun::Noun,
+        noun::{Noun, T},
         trace::TraceStack,
     };
 
+    use super::Hill;
     use super::util::part_will;
+
+    pub struct CGContext {
+        /// Linearizer core
+        pub line: Option<Noun>,
+        /// Code table
+        pub hill: Hill,
+        /// Jet table, as a HAMT for codegen
+        pub hot_hamt: Hamt<JetEntry>,
+    }
+
+    impl CGContext {
+        pub fn new(stack: &mut NockStack, hot: Hot) -> CGContext {
+            unsafe {
+                stack.frame_push(0);
+                let mut hill = Hill::new(stack);
+                let mut hot_hamt = Hamt::new(stack);
+                for lhe in hot.as_slice() {
+                    let n = &mut T(stack, &[lhe.path, lhe.axis.as_noun()]);
+                    hot_hamt = hot_hamt.insert(stack, n, JetEntry(lhe.jet));
+                }
+                stack.preserve(&mut hill);
+                stack.preserve(&mut hot_hamt);
+                stack.frame_pop();
+                CGContext {
+                    line: None,
+                    hill,
+                    hot_hamt,
+                }
+            }
+        }
+    }
+
+    impl Preserve for CGContext {
+        unsafe fn preserve(&mut self, stack: &mut NockStack) {
+            self.line.as_mut().map(|line_mut| {
+                stack.preserve(line_mut);
+            });
+            stack.preserve(&mut self.hill);
+            stack.preserve(&mut self.hot_hamt);
+        }
+
+        unsafe fn assert_in_stack(&self, stack: &NockStack) {
+            self.line.as_ref().map(|line_ref| {
+                line_ref.assert_in_stack(stack);
+            });
+            self.hill.assert_in_stack(stack);
+            self.hot_hamt.assert_in_stack(stack);
+        }
+    }
+
+    #[derive(Copy,Clone)]
+    pub struct JetEntry(pub Jet);
+
+    impl Preserve for JetEntry {
+        unsafe fn preserve(&mut self, _stack: &mut NockStack) {
+        }
+
+        unsafe fn assert_in_stack(&self, _stack: &NockStack) {
+        }
+    }
 
     pub struct Frame {
         pub mean: Noun,
@@ -1050,14 +1103,14 @@ mod util {
     pub type NounResult = Result<Noun, Error>;
 
     pub fn peek(context: &mut Context, subject: Noun, formula: Noun) -> Noun {
-        let line = context.line.unwrap();
+        let line = context.cg_context.line.unwrap();
         let pek = kick(context, line, D(PEEK_AXIS)).unwrap();
         let sam = T(&mut context.stack, &[subject, formula]);
         slam(context, pek, sam).unwrap()
     }
 
     pub fn poke(context: &mut Context, gist: Noun) -> Noun {
-        let line = context.line.unwrap();
+        let line = context.cg_context.line.unwrap();
         let pok = kick(context, line, D(POKE_AXIS)).unwrap();
         let sam = T(&mut context.stack, &[gist]);
         slam(context, pok, sam).unwrap()
@@ -1151,7 +1204,7 @@ mod util {
 
         let parent_frame = *frame_ref;
 
-        let pile = context.hill.0.lookup(&mut context.stack, &mut a).unwrap();
+        let pile = context.cg_context.hill.0.lookup(&mut context.stack, &mut a).unwrap();
 
         unsafe {
             new_frame(context, frame_ref, pile, false);
@@ -1218,7 +1271,7 @@ mod util {
         mut v: Noun,
     ) {
         unsafe {
-            let pile = context.hill.0.lookup(&mut context.stack, &mut a).unwrap();
+            let pile = context.cg_context.hill.0.lookup(&mut context.stack, &mut a).unwrap();
             new_frame(context, frame_ref, pile, true); // set up tail call frame
 
             let sans = (*(pile.0)).sans;

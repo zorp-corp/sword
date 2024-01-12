@@ -1,12 +1,10 @@
-use crate::hamt::Hamt;
-use crate::hamt::HamtIterator;
 use crate::jets::*;
-use crate::unifying_equality::unifying_equality;
 use crate::mem::Preserve;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, T};
 use ares_macros::tas;
 use either::Either::{self, Left, Right};
-use std::ptr::null_mut;
+use std::ptr::{copy_nonoverlapping};
+use std::slice::from_raw_parts_mut;
 
 /** Root for Hoon %k.139
  */
@@ -766,25 +764,33 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
     ),
 ];
 
-#[derive(Copy, Clone)]
-pub struct Hot(Hamt<HotMemEntry>);
-
-impl IntoIterator for Hot {
-    type Item = (Noun, HotMemEntry);
-    type IntoIter = HamtIterator<HotMemEntry>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
+#[derive(Copy,Clone)]
+pub struct LiveHotEntry {
+    pub path: Noun,
+    pub axis: Atom,
+    pub jet: Jet,
 }
 
+#[derive(Copy, Clone)]
+pub struct Hot {
+    length: usize,
+    buffer: *mut LiveHotEntry
+}
+
+
 impl Hot {
+    pub fn as_slice<'a>(&'a self) -> &'a mut [LiveHotEntry] {
+        unsafe {
+            from_raw_parts_mut(self.buffer, self.length)
+        }
+    }
+
     pub fn init(stack: &mut NockStack, constant_hot_state: &[HotEntry]) -> Self {
         stack.frame_push(0); // we can preserve the hamt when we're done thus cleaning intermediate
                              // allocations
         unsafe {
-            let mut hamt = Hamt::new(stack);
-            for (htap, axe, jet) in constant_hot_state {
+            let hot_buffer: *mut LiveHotEntry = stack.struct_alloc(constant_hot_state.len());
+            for (idx, (htap, axe, jet)) in constant_hot_state.iter().enumerate() {
                 let mut a_path = D(0);
                 for i in *htap {
                     match i {
@@ -807,95 +813,41 @@ impl Hot {
                     };
                 }
                 let axis = DirectAtom::new_panic(*axe).as_atom();
-                let current_hot_entry = hamt
-                    .lookup(stack, &mut a_path)
-                    .unwrap_or(HotMemEntry(null_mut()));
-                let hot_mem_ptr: *mut HotMem = stack.struct_alloc(1);
-                *hot_mem_ptr = HotMem {
+                *hot_buffer.add(idx) = LiveHotEntry {
                     axis,
+                    path: a_path,
                     jet: *jet,
-                    next: current_hot_entry,
-                };
-                hamt = hamt.insert(stack, &mut a_path, HotMemEntry(hot_mem_ptr));
+                }
             }
-            stack.preserve(&mut hamt);
+            let mut hot = Hot {
+                buffer: hot_buffer,
+                length: constant_hot_state.len(),
+            };
+            stack.preserve(&mut hot);
             stack.frame_pop();
-            Hot(hamt)
-        }
-    }
-
-    pub fn lookup(&mut self, stack: &mut NockStack, path: &mut Noun, axis: Atom) -> Option<Jet> {
-        let he = self.0.lookup(stack, path)?;
-        for (hot_axis, jet) in he {
-            if unsafe { unifying_equality(stack, &mut hot_axis.as_noun(), &mut axis.as_noun()) } {
-                return Some(jet);
-            }
-        }
-        None
-    }
-}
-
-impl Iterator for HotMemEntry {
-    type Item = (Atom, Jet); // path,axis,jet
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.0.is_null() {
-            return None;
-        }
-        unsafe {
-            let res = ((*(self.0)).axis, (*(self.0)).jet);
-            *self = (*(self.0)).next;
-            Some(res)
-        }
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct HotMemEntry(*mut HotMem);
-
-#[derive(Copy, Clone)]
-struct HotMem {
-    axis: Atom, // Axis of jetted formula in *battery*;
-    jet: Jet,
-    next: HotMemEntry,
-}
-
-impl Preserve for HotMemEntry {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        let mut dest = self as *mut Self;
-
-        loop {
-            stack.preserve(&mut (*((*dest).0)).axis);
-            let ptr = stack.struct_alloc_in_previous_frame::<HotMem>(1);
-            *ptr = *((*dest).0);
-
-            if (*ptr).next.0.is_null() {
-                break;
-            }
-            *dest = HotMemEntry(ptr);
-            dest = &mut ((*ptr).next)
-        }
-    }
-
-    unsafe fn assert_in_stack(&self, stack: &NockStack) {
-        let mut i = self;
-
-        loop {
-            if i.0.is_null() {
-                break;
-            }
-            stack.assert_struct_is_in(i.0, 1);
-            (*i.0).axis.as_noun().assert_in_stack(stack);
-            i = &(*i.0).next;
+            hot
         }
     }
 }
 
 impl Preserve for Hot {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        self.0.preserve(stack);
+        if stack.is_in_frame(self.buffer) {
+            let new_buffer = stack.struct_alloc_in_previous_frame(self.length);
+            copy_nonoverlapping(self.buffer, new_buffer, self.length);
+            for i in 0..self.length {
+                stack.preserve(&mut (*new_buffer.add(i)).axis);
+                stack.preserve(&mut (*new_buffer.add(i)).path);
+            }
+            self.buffer = new_buffer;
+        }
     }
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
-        self.0.assert_in_stack(stack);
+        stack.assert_struct_is_in(self.buffer, self.length);
+        for i in 0..self.length {
+            (*self.buffer.add(i)).axis.assert_in_stack(stack);
+            (*self.buffer.add(i)).path.assert_in_stack(stack);
+        }
     }
 }

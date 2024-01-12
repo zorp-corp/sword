@@ -113,18 +113,15 @@ impl Warm {
 
     pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> Self {
         let mut warm = Self::new(stack);
-        for (mut path, axis, jet) in hot
-            .into_iter()
-            .flat_map(|(n, he)| he.map(move |(a, j)| (n, a, j)))
-        {
-            let batteries_list = cold.find(stack, &mut path);
+        for lhe in hot.as_slice() {
+            let batteries_list = cold.find(stack, &mut lhe.path);
             for batteries in batteries_list {
                 let mut batteries_tmp = batteries;
                 let (battery, _parent_axis) = batteries_tmp
                     .next()
                     .expect("IMPOSSIBLE: empty battery entry in cold state");
-                if let Ok(mut formula) = unsafe { (*battery).slot_atom(axis) } {
-                    warm.insert(stack, &mut formula, path, batteries, jet);
+                if let Ok(mut formula) = unsafe { (*battery).slot_atom(lhe.axis) } {
+                    warm.insert(stack, &mut formula, lhe.path, batteries, lhe.jet);
                 } else {
                     //  XX: need NockStack allocated string interpolation
                     // eprintln!("Bad axis {} into formula {:?}", axis, battery);
