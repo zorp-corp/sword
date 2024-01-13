@@ -2374,6 +2374,14 @@ _bt_state_load(BT_state *state)
     assert(SUCC(_mlist_new(state)));
   }
   else {
+    /* Set the file length */
+    if (fstat(state->data_fd, &stat) != 0)
+      return errno;
+
+    /* the file size should be a multiple of our pagesize */
+    assert((stat.st_size % BT_PAGESIZE) == 0);
+    state->file_size_p = stat.st_size / BT_PAGESIZE;
+
     /* restore data memory maps */
     _bt_state_restore_maps(state);
 
@@ -2382,15 +2390,6 @@ _bt_state_load(BT_state *state)
 
     /* Dirty the metapage and root page */
     assert(SUCC(_bt_flip_meta(state)));
-
-    /* Set the file length */
-    // XX make sure the flist is updated with this!
-    if (fstat(state->data_fd, &stat) != 0)
-      return errno;
-
-    /* the file size should be a multiple of our pagesize */
-    assert((stat.st_size % BT_PAGESIZE) == 0);
-    state->file_size_p = stat.st_size / BT_PAGESIZE;
   }
 
   return BT_SUCC;

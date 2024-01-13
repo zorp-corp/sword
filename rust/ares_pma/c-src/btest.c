@@ -307,11 +307,26 @@ int main(int argc, char *argv[])
     return errno;
   assert(SUCC(bt_state_open(state4, "./pmatest4", 0, 0644)));
 
+#define PMA_INITIAL_SIZE_p PMA_GROW_SIZE_p
   BYTE *t4a = bt_malloc(state4, PMA_GROW_SIZE_p * 2);
   BYTE *t4b = t4a;
   for (size_t i = 0; i < PMA_GROW_SIZE_b * 2; i++) {
     *t4b++ = rand();
   }
+
+  assert(state4->file_size_p == PMA_INITIAL_SIZE_p + PMA_GROW_SIZE_p * 2);
+  /* given the allocation pattern the head of the flist should also be the
+     tail. The hi page here should match the file size */
+  assert(state4->flist->hi == state4->file_size_p);
+
+  bt_state_close(state4);
+
+  bt_state_new(&state4);
+
+  assert(SUCC(bt_state_open(state4, "./pmatest4", 0, 0644)));
+
+  assert(state4->file_size_p == PMA_INITIAL_SIZE_p + PMA_GROW_SIZE_p * 2);
+  assert(state4->flist->hi == state4->file_size_p);
 
   return 0;
 }
