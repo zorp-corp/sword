@@ -331,11 +331,6 @@ struct BT_state {
   BYTE         *map;
   BT_meta      *meta_pages[2];  /* double buffered */
   pgno_t        file_size_p;    /* the size of the pma file in pages */
-  /* ;;: todo: this may be unnecessary. But it's tricky to derive the lo pgno to
-       insert into the flist when extending the file. Probably possible though
-       by accounting for both file_size_p and the size of all allocated node
-       partitions. */
-  pgno_t        flist_highpg;   /* highest page alloced or not (exclusive) */
   unsigned int  which;          /* which double-buffered db are we using? */
   BT_nlistnode *nlist;          /* node freelist */
   BT_mlistnode *mlist;          /* memory freelist */
@@ -541,9 +536,6 @@ _flist_record_alloc(BT_state *state, pgno_t lo, pgno_t hi)
     free(*head);
     *head = next;
   }
-
-  /* update the highpg if necessary */
-  state->flist_highpg = MAX(state->flist_highpg, hi);
 }
 
 static BT_page *
@@ -1588,12 +1580,10 @@ _mlist_new(BT_state *state)
 /* ;;: todo: we could remove the hifreepg param if we can derive the highest
      page (alloced or not) in the persistent file. */
 static void
-_flist_grow(BT_state *state, size_t pages, pgno_t hifreepg)
+_flist_grow(BT_state *state, size_t pages)
 /* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
    flist */
 {
-  pgno_t flist_highpg = MAX(hifreepg, state->flist_highpg);
-
   /* grow the backing file by at least PMA_GROW_SIZE_p */
   pages = MAX(pages, PMA_GROW_SIZE_p);
   off_t bytes = P2BYTES(pages);
@@ -1605,40 +1595,43 @@ _flist_grow(BT_state *state, size_t pages, pgno_t hifreepg)
 
   /* and add this space to the flist */
   _flist_insert(&state->flist,
-                flist_highpg,
-                flist_highpg + pages);
+                state->file_size_p,
+                state->file_size_p + pages);
 
-  state->flist_highpg += pages;
+  state->file_size_p += pages;
 }
 
 static int
-_flist_new(BT_state *state)
-#define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0) / BT_PAGESIZE)
+_flist_new(BT_state *state, size_t size_p)
+#define FLIST_PG_START (BT_META_SECTION_WIDTH / BT_PAGESIZE)
+/* #define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0) / BT_PAGESIZE) */
 {
-  BT_meta *meta = state->meta_pages[state->which];
-  BT_page *root = _node_get(state, meta->root);
-  /* assert(root->datk[0].fo == 0); */
-  size_t N = _bt_numkeys(root);
-
   BT_flistnode *head = calloc(1, sizeof *head);
   head->next = 0;
   head->lo = FLIST_PG_START;
-  state->flist_highpg           /* ;;: this won't work on re-reading the persistent file */
-    = head->hi
-    = PMA_GROW_SIZE_p - FLIST_PG_START;
+  head->hi = size_p;
   state->flist = head;
 
   return BT_SUCC;
 }
 #undef FLIST_PG_START
 
+/* ;;: tmp. forward declared. move shit around */
+static pgno_t
+_bt_falloc(BT_state *state, size_t pages);
+
 static int
 _nlist_new(BT_state *state)
 {
   BT_nlistnode *head = calloc(1, sizeof *head);
 
+  pgno_t partition_0_pg = _bt_falloc(state, BLK_BASE_LEN0 / BT_PAGESIZE);
+  BT_page *partition_0 = _node_get(state, partition_0_pg);
+  /* ;;: tmp. assert. for debugging changes */
+  assert(partition_0 == &((BT_page *)state->map)[BT_NUMMETAS]);
+
   /* the size of a new node freelist is just the first stripe length */
-  head->lo = &((BT_page *)state->map)[BT_NUMMETAS];
+  head->lo = partition_0;
   head->hi = head->lo + B2PAGES(BLK_BASE_LEN0);
   head->next = 0;
 
@@ -2310,9 +2303,9 @@ _freelist_restore(BT_state *state)
 {
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
+  assert(SUCC(_flist_new(state, state->file_size_p)));
   assert(SUCC(_nlist_new(state)));
   assert(SUCC(_mlist_new(state)));
-  assert(SUCC(_flist_new(state)));
   /* first record root's allocation */
   _nlist_record_alloc(state, root);
   _freelist_restore2(state, root, 1, meta->depth);
@@ -2370,6 +2363,7 @@ _bt_state_load(BT_state *state)
 
   /* new db, so populate metadata */
   if (new) {
+    assert(SUCC(_flist_new(state, PMA_GROW_SIZE_p)));
     assert(SUCC(_nlist_new(state)));
 
     if (!SUCC(rc = _bt_state_meta_new(state))) {
@@ -2378,7 +2372,6 @@ _bt_state_load(BT_state *state)
     }
 
     assert(SUCC(_mlist_new(state)));
-    assert(SUCC(_flist_new(state)));
   }
   else {
     /* restore data memory maps */
@@ -2415,13 +2408,11 @@ _bt_falloc(BT_state *state, size_t pages)
      contiguous space for pages */
  start:
   BT_flistnode **n = &state->flist;
-  pgno_t hifreepg = 0;
   pgno_t ret = 0;
 
   /* first fit */
   for (; *n; n = &(*n)->next) {
     size_t sz_p = (*n)->hi - (*n)->lo;
-    hifreepg = (*n)->hi;
 
     if (sz_p >= pages) {
       ret = (*n)->lo;
@@ -2435,7 +2426,7 @@ _bt_falloc(BT_state *state, size_t pages)
     /* flist out of mem, grow it */
     DPRINTF("flist out of mem, growing current size (pages): 0x%" PRIX32 " to: 0x%" PRIX32,
           state->file_size_p, state->file_size_p + PMA_GROW_SIZE_p);
-    _flist_grow(state, pages, hifreepg);
+    _flist_grow(state, pages);
     /* restart the find procedure */
     /* TODO: obv a minor optimization can be made here */
     goto start;
@@ -3184,5 +3175,19 @@ _bt_printnode(BT_page *node)
   First, i'm implementing proper file extension. And then partition
   striping. Implementation of partition striping will ofc require adjustments to
   file extension.
+
+
+  when newing or restoring freelists, we have these dependencies:
+
+  - metapage creation depends on nlist because root nodes are are alloced
+
+  - nlist creation SHOULD depend on flist creation because partitions should be
+    falloced. They are not currently
+
+
+  The flist should be created first with and begin directly after the metapages
+
+  The nlist should be created next and immediately allocate the first required
+  2M node partition
 
  */
