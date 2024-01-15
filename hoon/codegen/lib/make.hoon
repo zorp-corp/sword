@@ -1,4 +1,5 @@
-!.
+/+  hoon
+=>  hoon
 |%
 ::  emits a trap that will produce the Ares codegen core.
 ::
@@ -17,7 +18,7 @@
   =.  sub  (build-sur cg sub %gene)
   =.  sub  (build-lib cg sub %line)
   =/  cg-kick
-    =>  sub  !.  !=  q:$
+    =>  sub  !=  !:  q:$
   [%cg cg-kick sub]
 ::  build a library file
 ++  build-lib
@@ -26,7 +27,7 @@
   =/  hun=hoon
     %+  mist  /lib/[nam]/hoon
     .^(@t cx+(welp cg /lib/[nam]/hoon))
-  (swat sub hun)
+  (swut sub hun nam)
 ::  build an interface file
 ++  build-sur
   |=  [cg=path sub=(trap vase) nam=term]  ^-  (trap vase)
@@ -34,7 +35,7 @@
   =/  hun=hoon
     %+  mist  /sur/[nam]/hoon
     .^(@t cx+(welp cg /sur/[nam]/hoon))
-  (swat sub hun)
+  (swut sub hun nam)
 ::  +mist: +rain but skipping past ford runes
 ::
 ::  copied from urbit lib/pill.hoon as it's not exported from there

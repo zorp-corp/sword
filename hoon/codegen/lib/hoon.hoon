@@ -11465,6 +11465,13 @@
   =/  gun  (~(mint ut p:$:tap) %noun gen)
   |.  ~+
   [p.gun .*(q:$:tap q.gun)]
+::  +swut: labeled and deferred +slap
+++  swut
+  |=  [tap=(trap vase) gen=hoon wut=@tas]
+  ^-  (trap vase)
+  =/  gun  (~(mint ut p:$:tap) %noun gen)
+  |.  ~+
+  [p.gun ~|(wut .*(q:$:tap q.gun))]
 ::
 ::    5d: parser
 +|  %parser

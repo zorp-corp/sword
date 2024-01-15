@@ -1112,8 +1112,7 @@ mod util {
     pub fn poke(context: &mut Context, gist: Noun) -> Noun {
         let line = context.cg_context.line.unwrap();
         let pok = kick(context, line, D(POKE_AXIS)).unwrap();
-        let sam = T(&mut context.stack, &[gist]);
-        slam(context, pok, sam).unwrap()
+        slam(context, pok, gist).unwrap()
     }
 
     pub fn tap(stack: &mut NockStack, map: Noun) -> NounResult {

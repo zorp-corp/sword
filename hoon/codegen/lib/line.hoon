@@ -60,14 +60,18 @@
     ?^  q.i.foam
       $(q.i.foam t.q.i.foam, miel [[soot.i.q.i.foam p.i.foam] miel])
     $(foam t.foam)
+  ~&  [%meil-lent (lent miel)]
   =/  jell  ~(key by hill)
   =/  mell  (~(gas in *(set bell)) miel)
+  ~&  [%mell-wyt ~(wyt in mell)]
   [(~(dif in mell) jell) (~(dif in jell) mell)] :: want mif-in
 ::
 ::  new bells
 ++  noob
   ^-  (set bell)
-  new:peck
+  =/  new  new:peck
+  ~&  [%noob-wyt new]
+  new
 ::
 ::  bells to drop
 ++  dead
@@ -98,16 +102,19 @@
   =|  kids=(jug bell bell)
   |-  ^-  (list bell)
   ?^  wurk
+    ~&  [%i-wurk i.wurk]
     =/  hues  (puck i.wurk)
     ?<  ?=(~ hues)
     =/  cads
       %-  ~(dif in (~(gas in *(set bell)) ~(val by ices.norm.u.hues)))
       loop.norm.u.hues
+    ~&  [%cads cads]
     =.  kids
       ?:  (~(has by kids) i.wurk)
         (~(jab by kids) i.wurk |=(a=(set bell bell) (~(uni in a) cads)))
       (~(put by kids) i.wurk cads)
     =.  nose  (~(uni by nose) cads)
+    ~&  [%nose nose]
     $(wurk t.wurk)
   =/  queu  ~(tap in (~(dif in new) nose))
   =|  back=(list bell)
@@ -115,7 +122,8 @@
   =|  toil=(list bell)
   |-  ^-  (list bell)
   ?^  queu
-    ?:  (~(has in done) i.queu)  $(queu t.queu)
+    ~&  [%i-queu i.queu]
+    ?:  (~(has in done) i.queu)  ~&  %queu-skip  $(queu t.queu)
     =/  punk  (puck i.queu)
     ?.  ?=(^ punk)  ~|  punk+i.queu  !!
     %=  $
@@ -1182,6 +1190,7 @@
   =|  todo=(list [=bell dire=next =gen])
   =|  like=(map bell need)
   =/  toil  work 
+  ~&  [%work-size (lent work)]
   |-  ^-  _hill
   ?^  toil
     =/  [dire=next =gen]  ~(cuts jean i.toil *gen like)
@@ -1302,11 +1311,12 @@
   ^-  (unit [=bell hall=_hill])
   =/  moat  (~(get ja moan) f)
   |-
-  ?~  moat  ~
+  ?~  moat  ~&  %not-in-moat  ~
   ?.  (~(huge so:sack soot.i.moat) [& s])
     $(moat t.moat)
+  ~&  [%hill-size ~(wyt by hill)]
   ?.  (~(has by hill) [soot.i.moat f])
-    ~
+    ~&  %not-in-hill  !!
   `[[soot.i.moat f] hill]
 ::
 ::    core state interface
@@ -1317,6 +1327,7 @@
   ::  %comp is the only case
   ::  analyze
   =.  sack  (rout:sack [& s.gist] f.gist)
+  ?<  =(~ moan)
   ::  save old codegen table keys
   =/  hole  ~(key by hill)
   ::  codegen

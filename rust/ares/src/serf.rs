@@ -348,8 +348,12 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     // Produce codegen core
     let (cg_formula, cg_trap) =
         load_cg_trap(&mut context.nock_context.stack).expect("Failed to load codegen formula/trap");
-    let line = interpret(&mut context.nock_context, cg_trap, cg_formula)
-        .expect("Failed to produce codegen core");
+    let line_res = interpret(&mut context.nock_context, cg_trap, cg_formula)
+        .expect("Failed to produce codegen noun");
+    unsafe {
+        assert!(slot(line_res, 2).expect("Codegen noun should be a cell").raw_equals(D(1)));
+    };
+    let line = slot(line_res, 3).expect("Codegen noun should be a cell");
     context.nock_context.cg_context.line = Some(line);
 
     // Can't use for loop because it borrows newt
