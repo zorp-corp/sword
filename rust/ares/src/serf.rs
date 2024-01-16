@@ -143,7 +143,7 @@ impl Context {
         snapshot: Option<Snapshot>,
         constant_hot_state: &[HotEntry],
     ) -> Self {
-        let mut stack = NockStack::new(1024 << 10 << 10, 0);
+        let mut stack = NockStack::new(4096 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
 
@@ -306,6 +306,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     signal_hook::flag::register_conditional_shutdown(SIGINT, 1, Arc::clone(&TERMINATOR))?;
     signal_hook::flag::register(SIGINT, Arc::clone(&TERMINATOR))?;
 
+   // std::thread::sleep(std::time::Duration::from_secs(10));
     let pier_path_string = std::env::args()
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;

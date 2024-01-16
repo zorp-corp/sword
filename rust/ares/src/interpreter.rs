@@ -1568,13 +1568,16 @@ mod hint {
                         match cold_res {
                             Ok(true) => context.warm = Warm::init(stack, cold, hot),
                             Err(cold::Error::NoParent) => {
+                                let chum = clue.slot(2).ok()?;
+                                let parent = clue.slot(6).ok()?;
+                                let parent_formula_ax = parent.slot(3).ok()?.atom()?;
                                 //  XX: Need better message in slog; need better slogging tools
-                                //      format!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
-                                let tape = tape(
-                                    stack,
-                                    "serf: cold: register: could not find parent battery at given axis",
-                                );
-                                slog_leaf(stack, newt, tape);
+                                eprintln!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
+                                //let tape = tape(
+                                    //stack,
+                                    //"serf: cold: register: could not find parent battery at given axis",
+                                //);
+                                //slog_leaf(stack, newt, tape);
                             }
                             Err(cold::Error::BadNock) => {
                                 //  XX: Need better message in slog; need better slogging tools
