@@ -91,7 +91,6 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
     .write(&mut info.file)?;
     info.file.write_all(",\n".as_bytes())?;
 
-    info.file.sync_data()?;
     Ok(())
 }
 
@@ -180,7 +179,6 @@ pub unsafe fn write_nock_trace(
         trace_stack = (*trace_stack).next;
     }
 
-    info.file.sync_data()?;
     Ok(())
 }
 
