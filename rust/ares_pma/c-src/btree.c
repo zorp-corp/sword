@@ -252,14 +252,14 @@ static_assert(BT_DAT_MAXBYTES % sizeof(BT_dat) == 0);
    a meta page is like any other page, but the data section is used to store
    additional information
 */
-#define BLK_BASE_LEN0 (MBYTES(2) - BT_META_SECTION_WIDTH)
-#define BLK_BASE_LEN1 (MBYTES(8))
-#define BLK_BASE_LEN2 (BLK_BASE_LEN1 * 4)
-#define BLK_BASE_LEN3 (BLK_BASE_LEN2 * 4)
-#define BLK_BASE_LEN4 (BLK_BASE_LEN3 * 4)
-#define BLK_BASE_LEN5 (BLK_BASE_LEN4 * 4)
-#define BLK_BASE_LEN6 (BLK_BASE_LEN5 * 4)
-#define BLK_BASE_LEN7 (BLK_BASE_LEN6 * 4)
+#define BLK_BASE_LEN0 ((size_t)MBYTES(2) - BT_META_SECTION_WIDTH)
+#define BLK_BASE_LEN1 ((size_t)MBYTES(8))
+#define BLK_BASE_LEN2 ((size_t)BLK_BASE_LEN1 * 4)
+#define BLK_BASE_LEN3 ((size_t)BLK_BASE_LEN2 * 4)
+#define BLK_BASE_LEN4 ((size_t)BLK_BASE_LEN3 * 4)
+#define BLK_BASE_LEN5 ((size_t)BLK_BASE_LEN4 * 4)
+#define BLK_BASE_LEN6 ((size_t)BLK_BASE_LEN5 * 4)
+#define BLK_BASE_LEN7 ((size_t)BLK_BASE_LEN6 * 4)
 #define BLK_BASE_LEN_TOTAL (                            \
                              BT_META_SECTION_WIDTH +    \
                              BLK_BASE_LEN0 +            \
@@ -270,6 +270,18 @@ static_assert(BT_DAT_MAXBYTES % sizeof(BT_dat) == 0);
                              BLK_BASE_LEN5 +            \
                              BLK_BASE_LEN6 +            \
                              BLK_BASE_LEN7)
+
+static const size_t BLK_BASE_LENS[8] = {
+  BLK_BASE_LEN0,
+  BLK_BASE_LEN1,
+  BLK_BASE_LEN2,
+  BLK_BASE_LEN3,
+  BLK_BASE_LEN4,
+  BLK_BASE_LEN5,
+  BLK_BASE_LEN6,
+  BLK_BASE_LEN7,
+};
+
 typedef struct BT_meta BT_meta;
 struct BT_meta {
 #define BT_NUMROOTS 32
@@ -436,13 +448,35 @@ _mlist_record_alloc(BT_state *state, void *lo, void *hi)
   }
 }
 
+/* ;;: tmp. forward declared. move shit around */
+static pgno_t
+_bt_falloc(BT_state *state, size_t pages);
+static void
+_nlist_insertn(BT_state *state, BT_nlistnode **dst, pgno_t lo, pgno_t hi);
+
 static void
 _nlist_grow(BT_state *state)
 /* grows the nlist by allocating the next sized stripe from the block base
    array. Handles storing the offset of this stripe in state->blk_base */
 {
-  /* ;;: i believe this will also need to appropriately modify the flist so
-       that we don't store general allocation data in node partitions */
+  BT_meta *meta = state->meta_pages[state->which];
+
+  /* find the next block (non zero pgno) */
+  size_t next_block = 0;
+  for (; meta->blk_base[next_block] == 0; next_block++)
+    ;
+
+  /* falloc the node partition and store its offset in the metapage */
+  size_t block_len_b = BLK_BASE_LENS[next_block];
+  size_t block_len_p = B2PAGES(block_len_b);
+  DPRINTF("Adding a new node stripe of size (pages): 0x%zX", block_len_p);
+  pgno_t partition_pg = _bt_falloc(state, block_len_p);
+  meta->blk_base[next_block] = partition_pg;
+
+  _nlist_insertn(state,
+                 &state->nlist,
+                 partition_pg,
+                 partition_pg + block_len_p);
 }
 
 static void
@@ -546,8 +580,8 @@ _bt_nalloc(BT_state *state)
   }
 
   if (ret == 0) {
-    /* ;;: todo: insert a grow call */
-    DPUTS("nlist out of mem!");
+    DPUTS("nlist out of mem. allocating a new block.");
+    _nlist_grow(state);
     return 0;
   }
 
@@ -1048,6 +1082,15 @@ _nlist_insert(BT_state *state, BT_nlistnode **dst, pgno_t nodepg)
   BT_page *lo = _node_get(state, nodepg);
   BT_page *hi = _node_get(state, nodepg+1);
   _nlist_insert2(state, dst, lo, hi);
+}
+
+static void
+_nlist_insertn(BT_state *state, BT_nlistnode **dst, pgno_t lo, pgno_t hi)
+{
+  _nlist_insert2(state,
+                 dst,
+                 _node_get(state, lo),
+                 _node_get(state, hi));
 }
 
 static void
@@ -1591,8 +1634,8 @@ _mlist_new(BT_state *state)
      page (alloced or not) in the persistent file. */
 static void
 _flist_grow(BT_state *state, size_t pages)
-/* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
-   flist */
+/* grows the backing file by maximally `pages' or minimally PMA_GROW_SIZE_p and
+   appends this freespace to the flist */
 {
   /* grow the backing file by at least PMA_GROW_SIZE_p */
   pages = MAX(pages, PMA_GROW_SIZE_p);
@@ -1625,10 +1668,6 @@ _flist_new(BT_state *state, size_t size_p)
   return BT_SUCC;
 }
 #undef FLIST_PG_START
-
-/* ;;: tmp. forward declared. move shit around */
-static pgno_t
-_bt_falloc(BT_state *state, size_t pages);
 
 static int
 _nlist_new(BT_state *state)
@@ -2227,7 +2266,7 @@ _bt_state_meta_new(BT_state *state)
   }
 
   /* initialize the block base array */
-  meta.blk_base[0] = BT_PAGESIZE * BT_NUMMETAS;
+  meta.blk_base[0] = BT_NUMMETAS;
 
   root = _bt_nalloc(state);
   _bt_root_new(&meta, root);
@@ -2633,8 +2672,6 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
 int
 bt_state_new(BT_state **state)
 {
-  // TRACE();
-
   BT_state *s = calloc(1, sizeof *s);
   s->data_fd = -1;
   s->fixaddr = BT_MAPADDR;
