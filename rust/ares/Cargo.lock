@@ -21,6 +21,7 @@ checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 name = "ares"
 version = "0.1.0"
 dependencies = [
+ "ares_guard",
  "ares_macros",
  "ares_pma",
  "assert_no_alloc",
@@ -41,6 +42,14 @@ dependencies = [
  "signal-hook",
  "static_assertions",
  "urcrypt-sys",
+]
+
+[[package]]
+name = "ares_guard"
+version = "0.1.0"
+dependencies = [
+ "bindgen 0.69.1",
+ "cc",
 ]
 
 [[package]]

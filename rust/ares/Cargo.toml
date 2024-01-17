@@ -11,6 +11,7 @@ edition = "2018"
 
 # Please keep these alphabetized
 [dependencies]
+ares_guard = { path = "../ares_guard" }
 ares_macros = { path = "../ares_macros" }
 # Use this when debugging requires the debug printfs in the PMA
 # ares_pma = { path = "../ares_pma", features=["debug_prints"] }
