@@ -341,20 +341,6 @@ struct BT_state {
 
 /*
 
-  ;;: wrt to frontier: if you need to allocate space for data, push the frontier
-     out by that amount allocated. If you're allocating a new stripe, push it to
-     the end of that stripe. -- no I don't think you should push it to the end
-     of the stripe. The frontier should track the extent of data IN
-     USE. e.g. only increment it for node allocations and data
-     allocations. Remember, on disk a node may be froward of data though in
-     memory, all nodes are mapped to the beginning of the arena.
-
-     on second thought, given the exponential sizing of node partitions, maybe
-     it's fine to grow the file by that amount? IDK, confirm with ed. --
-     confirmed: just falloc the node partition and grow the file by that amount.
-
-*/
-
 
 //// ===========================================================================
 ////                            btree internal routines
@@ -3137,56 +3123,3 @@ _bt_printnode(BT_page *node)
     fprintf(stderr, "[%5zu] %10x %10x\n", i, node->datk[i].va, node->datk[i].fo);
   }
 }
-
-/*
-
-  File extension and node partition striping plan:
-
-  File extension:
-
-  - whenever we are allocating space on disk, we should compare state->frontier
-    against state->file_size. If the frontier + allocation request amount will
-    exceed file size, the file should be grown with a function call.
-
-  - when reading the pma file, we'll need to set both file_size and frontier
-
-  - file_size can be retrieved with an fstat call
-
-  - the frontier can be found by keeping a global variable that we
-    MAX(frontier,currpg) on ephemeral state restoration. currpg for a node is
-    obvious. currpg for data is (position+len)
-
-  - the frontier should also be MAX()ed in all allocation routines.
-
-  Partition striping:
-
-  - fairly simple? If _bt_nalloc fails to find room in the current nlist,
-    allocate a new node partition and mmap it. Note it's file offset in
-    meta->blk_base
-
-  - the mlist is already appropriately initialized to map at the page following
-    all possible node partitions (0x2aaa80) so that shouldn't need any further
-    adjustment.
-
-
-  ------------------------------------------------------------------------------
-
-  First, i'm implementing proper file extension. And then partition
-  striping. Implementation of partition striping will ofc require adjustments to
-  file extension.
-
-
-  when newing or restoring freelists, we have these dependencies:
-
-  - metapage creation depends on nlist because root nodes are are alloced
-
-  - nlist creation SHOULD depend on flist creation because partitions should be
-    falloced. They are not currently
-
-
-  The flist should be created first with and begin directly after the metapages
-
-  The nlist should be created next and immediately allocate the first required
-  2M node partition
-
- */
