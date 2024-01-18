@@ -2,7 +2,6 @@ use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
-use ares_guard::*;
 use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
