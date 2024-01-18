@@ -81,10 +81,6 @@ void guard(void *(*f)(void *), void *arg, void **stack, void **alloc, void **ret
     goto fail;
   }
 
-  if ((err = _focus_guard()) != guard_sound) {
-    goto fail;
-  }
-
   *ret = f(arg);
   return;
 
