@@ -252,6 +252,31 @@ static_assert(BT_DAT_MAXBYTES % sizeof(BT_dat) == 0);
    a meta page is like any other page, but the data section is used to store
    additional information
 */
+typedef struct BT_meta BT_meta;
+struct BT_meta {
+#define BT_NUMROOTS 32
+#define BT_NUMPARTS 8
+  uint32_t  magic;
+  uint32_t  version;
+  pgno_t    last_pg;               /* last page used in file */
+  uint32_t  _pad0;
+  uint64_t  txnid;
+  void     *fix_addr;              /* fixed addr of btree */
+  pgno_t    blk_base[BT_NUMPARTS]; /* stores pg offsets of node partitions */
+  uint8_t   depth;                 /* tree depth */
+#define BP_META     ((uint8_t)0x02)
+  uint8_t   flags;
+  uint16_t  _pad1;
+  pgno_t    root;
+  /* 64bit alignment manually checked - 72 bytes total above */
+  uint64_t  roots[BT_NUMROOTS];    /* for usage by ares */
+  uint32_t  chk;                   /* checksum */
+} __packed;
+static_assert(sizeof(BT_meta) <= BT_DAT_MAXBYTES);
+
+/* the length of the metapage up to but excluding the checksum */
+#define BT_META_LEN (offsetof(BT_meta, chk))
+
 #define BLK_BASE_LEN0 ((size_t)MBYTES(2) - BT_META_SECTION_WIDTH)
 #define BLK_BASE_LEN1 ((size_t)MBYTES(8))
 #define BLK_BASE_LEN2 ((size_t)BLK_BASE_LEN1 * 4)
@@ -271,7 +296,7 @@ static_assert(BT_DAT_MAXBYTES % sizeof(BT_dat) == 0);
                              BLK_BASE_LEN6 +            \
                              BLK_BASE_LEN7)
 
-static const size_t BLK_BASE_LENS[8] = {
+static const size_t BLK_BASE_LENS_b[BT_NUMPARTS] = {
   BLK_BASE_LEN0,
   BLK_BASE_LEN1,
   BLK_BASE_LEN2,
@@ -282,32 +307,25 @@ static const size_t BLK_BASE_LENS[8] = {
   BLK_BASE_LEN7,
 };
 
-typedef struct BT_meta BT_meta;
-struct BT_meta {
-#define BT_NUMROOTS 32
-  uint32_t  magic;
-  uint32_t  version;
-  pgno_t    last_pg;            /* last page used in file */
-  uint32_t  _pad0;
-  uint64_t  txnid;
-  void     *fix_addr;           /* fixed addr of btree */
-  pgno_t   blk_base[8];         /* block base array for striped node partition */
-  /* ;;: for the blk_base array, code may be simpler if this were an array of
-       BT_page *. */
-  uint8_t  blk_cnt;             /* currently highest valid block base */
-  uint8_t  depth;               /* tree depth */
-#define BP_META  ((uint8_t)0x02)
-  uint8_t  flags;
-  uint8_t  _pad1;
-  pgno_t   root;
-  /* 64bit alignment manually checked - 72 bytes total above */
-  uint64_t roots[BT_NUMROOTS];  /* for usage by ares */
-  uint32_t chk;                 /* checksum */
-} __packed;
-static_assert(sizeof(BT_meta) <= BT_DAT_MAXBYTES);
+#define BLK_BASE_OFF0 ((size_t)BT_META_SECTION_WIDTH)
+#define BLK_BASE_OFF1 (BLK_BASE_OFF0 + BLK_BASE_LEN0)
+#define BLK_BASE_OFF2 (BLK_BASE_OFF1 + BLK_BASE_LEN1)
+#define BLK_BASE_OFF3 (BLK_BASE_OFF2 + BLK_BASE_LEN2)
+#define BLK_BASE_OFF4 (BLK_BASE_OFF3 + BLK_BASE_LEN3)
+#define BLK_BASE_OFF5 (BLK_BASE_OFF4 + BLK_BASE_LEN4)
+#define BLK_BASE_OFF6 (BLK_BASE_OFF5 + BLK_BASE_LEN5)
+#define BLK_BASE_OFF7 (BLK_BASE_OFF6 + BLK_BASE_LEN6)
 
-/* the length of the metapage up to but excluding the checksum */
-#define BT_META_LEN (offsetof(BT_meta, chk))
+static const size_t BLK_BASE_OFFS_b[BT_NUMPARTS] = {
+  BLK_BASE_OFF0,
+  BLK_BASE_OFF1,
+  BLK_BASE_OFF2,
+  BLK_BASE_OFF3,
+  BLK_BASE_OFF4,
+  BLK_BASE_OFF5,
+  BLK_BASE_OFF6,
+  BLK_BASE_OFF7,
+};
 
 typedef struct BT_mlistnode BT_mlistnode;
 struct BT_mlistnode {
@@ -391,10 +409,47 @@ _node_get(BT_state *state, pgno_t pgno)
   /* for now, this works because the 2M sector is at the beginning of both the
      memory arena and pma file
   */
-  if (pgno <= 1) return 0;      /* no nodes stored at 0 and 1 (metapages) */
-  /* TODO: when partition striping is implemented, a call beyond the furthest
-     block base should result in the allocation of a new block base */
-  assert((pgno * BT_PAGESIZE) < MBYTES(2));
+  assert(pgno >= BT_NUMMETAS);
+
+  BT_meta *meta = state->meta_pages[state->which];
+
+  /* find the partition that contains pgno */
+  size_t partition_idx = 0;
+  for (;; partition_idx++) {
+    assert(partition_idx < BT_NUMPARTS);
+    pgno_t partition_beg = meta->blk_base[partition_idx];
+    pgno_t partition_end = partition_beg + B2PAGES(BLK_BASE_LENS_b[partition_idx]);
+    if (partition_end > pgno) {
+      assert(partition_beg <= pgno);
+      break;
+    }
+  }
+
+  /* ;;: hmm. is there something wrong here? No, I don't think so.
+
+     On resume (reading a persistent file):
+     
+     1) mmap the node partitions.
+       - (read the offset stored in meta->blk_base)
+       - mmap the offset + corresponding length of the pma file next to the end
+         of the last partition in the memory arena. (in memory, nodes are all
+         stored at the lowest addresses)
+
+    calls to _node_get are given a pgno in the persistent file:
+
+    1) find the partition that contains this pgno
+
+    2) Do math on the pgno + found partition to find the memory address it's
+    mapped to and return that as a BT_page *
+
+
+    *** We do, however, need to be sure we aren't cheating anywhere and using a
+    *** page offset into the memory arena and calling _node_get on it. That
+    *** would technically work for the first partition. It will NOT work for any
+    *** other partition. Not sure if we are doing that anywhere currently.
+    
+ */
+  
   return FO2PA(state->map, pgno);
 }
 
@@ -461,22 +516,25 @@ _nlist_grow(BT_state *state)
 {
   BT_meta *meta = state->meta_pages[state->which];
 
-  /* find the next block (non zero pgno) */
+  /* find the next block (zero pgno) */
   size_t next_block = 0;
-  for (; meta->blk_base[next_block] == 0; next_block++)
+  for (; meta->blk_base[next_block] != 0; next_block++)
     ;
 
   /* falloc the node partition and store its offset in the metapage */
-  size_t block_len_b = BLK_BASE_LENS[next_block];
+  size_t block_len_b = BLK_BASE_LENS_b[next_block];
   size_t block_len_p = B2PAGES(block_len_b);
   DPRINTF("Adding a new node stripe of size (pages): 0x%zX", block_len_p);
   pgno_t partition_pg = _bt_falloc(state, block_len_p);
   meta->blk_base[next_block] = partition_pg;
 
+  /* add the partition to the nlist */
   _nlist_insertn(state,
                  &state->nlist,
                  partition_pg,
                  partition_pg + block_len_p);
+
+  /* ;;: also need an mmap call to map that pg offset into the memory arena */
 }
 
 static void
@@ -565,8 +623,12 @@ _bt_nalloc(BT_state *state)
   /* TODO: maybe change _bt_nalloc to return both a file and a node offset as
      params to the function and make actual return value an error code. This is
      to avoid forcing some callers to immediately use _fo_get */
-  BT_nlistnode **n = &state->nlist;
-  BT_page *ret = 0;
+  BT_nlistnode **n;
+  BT_page *ret;
+
+ start:
+  n = &state->nlist;
+  ret = 0;
 
   for (; *n; n = &(*n)->next) {
     size_t sz_p = (*n)->hi - (*n)->lo;
@@ -582,7 +644,8 @@ _bt_nalloc(BT_state *state)
   if (ret == 0) {
     DPUTS("nlist out of mem. allocating a new block.");
     _nlist_grow(state);
-    return 0;
+    /* restart the find procedure */
+    goto start;
   }
 
   /* make node writable */
@@ -2277,7 +2340,6 @@ _bt_state_meta_new(BT_state *state)
   meta.last_pg = 1;
   meta.txnid = 0;
   meta.fix_addr = BT_MAPADDR;
-  meta.blk_cnt = 1;
   meta.depth = 1;
   meta.flags = BP_META;
   meta.root = _fo_get(state, root);
