@@ -2391,9 +2391,11 @@ _bt_falloc(BT_state *state, size_t pages)
 {
   /* walk the persistent file freelist and return a pgno with sufficient
      contiguous space for pages */
+  BT_flistnode **n;
+  pgno_t ret;
  start:
-  BT_flistnode **n = &state->flist;
-  pgno_t ret = 0;
+  n = &state->flist;
+  ret = 0;
 
   /* first fit */
   for (; *n; n = &(*n)->next) {
