@@ -53,6 +53,8 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 /* prints a node before and after a call to _bt_insertdat */
 #define DEBUG_PRINTNODE 0
 
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(x, y) ((x) > (y) ? (y) : (x))
 #define ZERO(s, n) memset((s), 0, (n))
 
 #define S7(A, B, C, D, E, F, G) A##B##C##D##E##F##G
@@ -120,7 +122,8 @@ off2addr(vaof_t off)
 #define BT_NUMMETAS 2                     /* 2 metapages */
 #define BT_META_SECTION_WIDTH (BT_NUMMETAS * BT_PAGESIZE)
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
-#define PMA_GROW_SIZE (BT_PAGESIZE * 1024 * 64)
+#define PMA_GROW_SIZE_p (1024)
+#define PMA_GROW_SIZE_b (BT_PAGESIZE * PMA_GROW_SIZE_p)
 
 #define BT_NOPAGE 0
 
@@ -294,8 +297,6 @@ static_assert(sizeof(BT_meta) <= BT_DAT_MAXBYTES);
 /* the length of the metapage up to but excluding the checksum */
 #define BT_META_LEN (offsetof(BT_meta, chk))
 
-#define BT_roots_bytelen (sizeof(BT_meta) - offsetof(BT_meta, roots))
-
 typedef struct BT_mlistnode BT_mlistnode;
 struct BT_mlistnode {
   /* ;;: lo and hi might as well by (BT_page *) because we don't have any reason
@@ -329,12 +330,7 @@ struct BT_state {
   void         *fixaddr;
   BYTE         *map;
   BT_meta      *meta_pages[2];  /* double buffered */
-  /* ;;: note, while meta_pages[which]->root stores a pgno, we may want to just
-       store a pointer to root in state in addition to avoid a _node_find on it
-       every time it's referenced */
-  /* BT_page      *root; */
-  off_t         file_size;      /* the size of the pma file in bytes */
-  pgno_t        frontier;       /* last non-free page in use by pma (exclusive) */
+  pgno_t        file_size_p;    /* the size of the pma file in pages */
   unsigned int  which;          /* which double-buffered db are we using? */
   BT_nlistnode *nlist;          /* node freelist */
   BT_mlistnode *mlist;          /* memory freelist */
@@ -344,10 +340,6 @@ struct BT_state {
 };
 
 /*
-  ;;: wrt to frontier: if you need to allocate space for data, push the frontier
-     out by that amount allocated. If you're allocating a new stripe, push it to
-     the end of that stripe.
-*/
 
 
 //// ===========================================================================
@@ -442,6 +434,15 @@ _mlist_record_alloc(BT_state *state, void *lo, void *hi)
     free(*head);
     *head = next;
   }
+}
+
+static void
+_nlist_grow(BT_state *state)
+/* grows the nlist by allocating the next sized stripe from the block base
+   array. Handles storing the offset of this stripe in state->blk_base */
+{
+  /* ;;: i believe this will also need to appropriately modify the flist so
+       that we don't store general allocation data in node partitions */
 }
 
 static void
@@ -545,6 +546,7 @@ _bt_nalloc(BT_state *state)
   }
 
   if (ret == 0) {
+    /* ;;: todo: insert a grow call */
     DPUTS("nlist out of mem!");
     return 0;
   }
@@ -1561,92 +1563,61 @@ _mlist_new(BT_state *state)
   return BT_SUCC;
 }
 
-#if 0
-static int
-_flist_grow(BT_state *state, BT_flistnode *space)
-/* growing the flist consists of expanding the backing persistent file, pushing
-   that space onto the disk freelist, and updating the dimension members in
-   BT_state */
+/* ;;: todo: we could remove the hifreepg param if we can derive the highest
+     page (alloced or not) in the persistent file. */
+static void
+_flist_grow(BT_state *state, size_t pages)
+/* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
+   flist */
 {
-  /* ;;: I don't see any reason to grow the backing file non-linearly, but we
-       may want to adjust the size of the amount grown based on performance
-       testing. */
-  if (-1 == lseek(state->data_fd, state->file_size + PMA_GROW_SIZE, SEEK_SET))
-    return errno;
-  if (-1 == write(state->data_fd, "", 1))
-    return errno;
-
-
-  /* find the last node in the disk freelist */
-  BT_flistnode *tail = state->flist;
-  for (; tail->next; tail = tail->next)
-    ;
-
-  pgno_t lastpgfree = tail->hi;
-
-  /* ;;: TODO, make sure you are certain of this logic. Further, add assertions
-       regarding relative positions of state->file_size, state->frontier, and
-       lastpgfree
-
-       we MAY call into this routine even if there is freespace on the end
-       because it's possible that freespace isn't large enough. We may also call
-       into this routine when the frontier exceeds the last free pg because
-       that's just how freelists work. ofc, frontier should never exceed
-       file_size. what other assertions??
-
-  */
-
-  /* if the frontier (last pg in use) is less than the last page free, we should
-     coalesce the new node with the tail. */
-  if (state->frontier <= lastpgfree) {
-    tail->hi += PMA_GROW_SIZE;  /* ;;: THIS IS INCORRECT */
-  }
-  /* otherwise, a new node needs to be allocated */
-  else {
-    BT_flistnode *new = calloc(1, sizeof *new);
-    /* since the frontier exceeds the last pg free, new freespace should
-       naturally be allocated at the frontier */
-    new->pg = state->frontier;
-    new->hi = PMA_GROW_SIZE;
-    tail->next = new;
+  /* grow the backing file by at least PMA_GROW_SIZE_p */
+  pages = MAX(pages, PMA_GROW_SIZE_p);
+  off_t bytes = P2BYTES(pages);
+  off_t size  = state->file_size_p * BT_PAGESIZE;
+  if (ftruncate(state->data_fd, size + bytes) != 0) {
+    DPUTS("resize of backing file failed. aborting");
+    abort();
   }
 
-  /* finally, update the file size */
-  state->file_size += PMA_GROW_SIZE;
+  /* and add this space to the flist */
+  _flist_insert(&state->flist,
+                state->file_size_p,
+                state->file_size_p + pages);
 
-  return BT_SUCC;
+  state->file_size_p += pages;
 }
-#endif
 
 static int
-_flist_new(BT_state *state)
-#define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0) / BT_PAGESIZE)
+_flist_new(BT_state *state, size_t size_p)
+#define FLIST_PG_START (BT_META_SECTION_WIDTH / BT_PAGESIZE)
+/* #define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0) / BT_PAGESIZE) */
 {
-  BT_meta *meta = state->meta_pages[state->which];
-  BT_page *root = _node_get(state, meta->root);
-  /* assert(root->datk[0].fo == 0); */
-  size_t N = _bt_numkeys(root);
-
-  vaof_t lo = root->datk[0].va;
-  vaof_t hi = root->datk[N-1].va;
-  size_t len = hi - lo;
-
   BT_flistnode *head = calloc(1, sizeof *head);
   head->next = 0;
   head->lo = FLIST_PG_START;
-  head->hi = FLIST_PG_START + len;
+  head->hi = size_p;
   state->flist = head;
 
   return BT_SUCC;
 }
+#undef FLIST_PG_START
+
+/* ;;: tmp. forward declared. move shit around */
+static pgno_t
+_bt_falloc(BT_state *state, size_t pages);
 
 static int
 _nlist_new(BT_state *state)
 {
   BT_nlistnode *head = calloc(1, sizeof *head);
 
+  pgno_t partition_0_pg = _bt_falloc(state, BLK_BASE_LEN0 / BT_PAGESIZE);
+  BT_page *partition_0 = _node_get(state, partition_0_pg);
+  /* ;;: tmp. assert. for debugging changes */
+  assert(partition_0 == &((BT_page *)state->map)[BT_NUMMETAS]);
+
   /* the size of a new node freelist is just the first stripe length */
-  head->lo = &((BT_page *)state->map)[BT_NUMMETAS];
+  head->lo = partition_0;
   head->hi = head->lo + B2PAGES(BLK_BASE_LEN0);
   head->next = 0;
 
@@ -2272,6 +2243,7 @@ _bt_state_meta_new(BT_state *state)
 
   return BT_SUCC;
 }
+#undef INITIAL_ROOTPG
 
 static void
 _freelist_restore2(BT_state *state, BT_page *node,
@@ -2317,9 +2289,9 @@ _freelist_restore(BT_state *state)
 {
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
+  assert(SUCC(_flist_new(state, state->file_size_p)));
   assert(SUCC(_nlist_new(state)));
   assert(SUCC(_mlist_new(state)));
-  assert(SUCC(_flist_new(state)));
   /* first record root's allocation */
   _nlist_record_alloc(state, root);
   _freelist_restore2(state, root, 1, meta->depth);
@@ -2336,6 +2308,8 @@ _bt_state_load(BT_state *state)
   TRACE();
 
   /* map first node stripe (along with metapages) as read only */
+  /* ;;: todo: after handling the first node stripe which always exists, read
+       the current metapage's blk_base and appropriately mmap each partition */
   state->map = mmap(BT_MAPADDR,
                     BT_META_SECTION_WIDTH + BLK_BASE_LEN0,
                     BT_PROT_CLEAN,
@@ -2350,9 +2324,9 @@ _bt_state_load(BT_state *state)
   if (!SUCC(rc = _bt_state_read_header(state))) {
     if (rc != ENOENT) return rc;
     DPUTS("creating new db");
-    state->file_size = PMA_GROW_SIZE;
+    state->file_size_p = PMA_GROW_SIZE_p;
     new = 1;
-    if(ftruncate(state->data_fd, PMA_GROW_SIZE)) {
+    if (ftruncate(state->data_fd, PMA_GROW_SIZE_b)) {
       return errno;
     }
   }
@@ -2375,14 +2349,7 @@ _bt_state_load(BT_state *state)
 
   /* new db, so populate metadata */
   if (new) {
-    /* ;;: move this logic to _flist_new */
-    if (-1 == lseek(state->data_fd, state->file_size, SEEK_SET))
-      return errno;
-    if (-1 == write(state->data_fd, "", 1))
-      return errno;
-
-    state->file_size = PMA_GROW_SIZE;
-
+    assert(SUCC(_flist_new(state, PMA_GROW_SIZE_p)));
     assert(SUCC(_nlist_new(state)));
 
     if (!SUCC(rc = _bt_state_meta_new(state))) {
@@ -2391,9 +2358,16 @@ _bt_state_load(BT_state *state)
     }
 
     assert(SUCC(_mlist_new(state)));
-    assert(SUCC(_flist_new(state)));
   }
   else {
+    /* Set the file length */
+    if (fstat(state->data_fd, &stat) != 0)
+      return errno;
+
+    /* the file size should be a multiple of our pagesize */
+    assert((stat.st_size % BT_PAGESIZE) == 0);
+    state->file_size_p = stat.st_size / BT_PAGESIZE;
+
     /* restore data memory maps */
     _bt_state_restore_maps(state);
 
@@ -2402,13 +2376,6 @@ _bt_state_load(BT_state *state)
 
     /* Dirty the metapage and root page */
     assert(SUCC(_bt_flip_meta(state)));
-
-    /* Set the file length */
-    // XX make sure the flist is updated with this!
-    if (fstat(state->data_fd, &stat) != 0)
-      return errno;
-
-    state->file_size = stat.st_size;
   }
 
   return BT_SUCC;
@@ -2424,6 +2391,7 @@ _bt_falloc(BT_state *state, size_t pages)
 {
   /* walk the persistent file freelist and return a pgno with sufficient
      contiguous space for pages */
+ start:
   BT_flistnode **n = &state->flist;
   pgno_t ret = 0;
 
@@ -2440,8 +2408,13 @@ _bt_falloc(BT_state *state, size_t pages)
   }
 
   if (ret == 0) {
-    DPUTS("flist out of mem!");
-    return UINT32_MAX;
+    /* flist out of mem, grow it */
+    DPRINTF("flist out of mem, growing current size (pages): 0x%" PRIX32 " to: 0x%" PRIX32,
+          state->file_size_p, state->file_size_p + PMA_GROW_SIZE_p);
+    _flist_grow(state, pages);
+    /* restart the find procedure */
+    /* TODO: obv a minor optimization can be made here */
+    goto start;
   }
 
   return ret;
@@ -2643,9 +2616,9 @@ bt_state_new(BT_state **state)
   return BT_SUCC;
 }
 
-#define DATANAME "/data.pma"
 int
 bt_state_open(BT_state *state, const char *path, ULONG flags, mode_t mode)
+#define DATANAME "/data.pma"
 {
   int oflags, rc;
   char *dpath;
@@ -2675,6 +2648,7 @@ bt_state_open(BT_state *state, const char *path, ULONG flags, mode_t mode)
   free(dpath);
   return rc;
 }
+#undef DATANAME
 
 int
 bt_state_close(BT_state *state)
@@ -2962,8 +2936,6 @@ _bt_data_cow(BT_state *state, vaof_t lo, vaof_t hi, pgno_t pg)
   return newpg;
 }
 
-#define MIN(x, y) ((x) > (y) ? (y) : (x))
-
 static int
 _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
           uint8_t depth, uint8_t maxdepth)
@@ -3002,7 +2974,7 @@ _bt_dirty(BT_state *state, vaof_t lo, vaof_t hi, pgno_t nodepg,
       pgno_t pg = node->datk[i].fo;
       pgno_t newpg = _bt_data_cow(state, llo, hhi, pg);
       _bt_insert(state, llo, hhi, newpg);
-    } 
+    }
   } else {
     for (size_t i = loidx; i < hiidx; i++) {
       /* branch: recursive case */
@@ -3151,49 +3123,3 @@ _bt_printnode(BT_page *node)
     fprintf(stderr, "[%5zu] %10x %10x\n", i, node->datk[i].va, node->datk[i].fo);
   }
 }
-
-/*
-  _bt_state_restore_maps2
-  if pg 0:
-  mmap MAP_ANONYMOUS | MAP_FIXED | MAP_NO_RESERVE
-  PROT_NONE
-
-  if pg !0:
-  mmap MAP_SHARED | MAP_FIXED
-  PROT_READ
-
-
-  ------------------
-
-  the three routines that make modification to the data maps are:
-
-  bt_malloc:
-
-  MAP_SHARED | MAP_FIXED
-  PROT_READ | PROT_WRITE
-
-  _bt_data_cow:
-
-  MAP_SHARED | MAP_FIXED
-  PROT_READ | PROT_WRITE
-
-  bt_sync:
-
-  (mprotect)
-  PROT_READ
-
-  bt_free:
-
-  MAP_ANONYMOUS | MAP_FIXED | MAP_NO_RESERVE
-  PROT_NONE
-
-  -----------------
-
-  8 linear mappings (striping)
-
-  when we _bt_nalloc, mprotect(PROT_READ | PROT_WRITE)
-
-  when we free a node: mprotect(PROT_NONE)
-
-  additionally, when we sync, all allocated nodes: mprotect(PROT_READ)
-*/
