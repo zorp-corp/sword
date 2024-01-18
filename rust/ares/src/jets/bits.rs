@@ -3,7 +3,7 @@
 use crate::interpreter::{Context, Error};
 use crate::jets::util::*;
 use crate::jets::{JetErr, Result};
-use crate::noun::{DirectAtom, IndirectAtom, Noun, D};
+use crate::noun::{IndirectAtom, Noun, D};
 use std::cmp;
 
 crate::gdb!();
@@ -207,17 +207,9 @@ pub fn jet_rev(context: &mut Context, subject: Noun) -> Result {
 
     let bits = len << boz;
 
-    /* 63 is the maximum number of bits for a direct atom */
-    let mut output = if dat.is_direct() && bits < 64 {
-        unsafe { DirectAtom::new_unchecked(0).as_atom() }
-    } else {
-        unsafe {
-            IndirectAtom::new_raw(&mut context.stack, ((bits + 7) / 8) as usize, &0).as_atom()
-        }
-    };
-
     let src = dat.as_bitslice();
-    let dest = output.as_bitslice_mut();
+    let (mut output, dest) =
+        unsafe { IndirectAtom::new_raw_mut_bitslice(&mut context.stack, bits as usize) };
 
     let len = len as usize;
     let total_len = len << boz;
@@ -226,7 +218,7 @@ pub fn jet_rev(context: &mut Context, subject: Noun) -> Result {
         dest[start..end].copy_from_bitslice(&src[(total_len - end)..(total_len - start)]);
     }
 
-    Ok(unsafe { output.normalize() }.as_noun())
+    Ok(unsafe { output.normalize_as_atom() }.as_noun())
 }
 
 pub fn jet_rip(context: &mut Context, subject: Noun) -> Result {
@@ -736,12 +728,15 @@ mod tests {
     fn test_rev() {
         let c = &mut init_context();
 
-        let (_a0, a24, _a63, _a96, _a128) = atoms(&mut c.stack);
+        let (_a0, a24, _a63, a96, _a128) = atoms(&mut c.stack);
         let sam = T(&mut c.stack, &[D(0), D(60), a24]);
         assert_jet(c, jet_rev, sam, D(0xc2a6e1000000000));
         let test = 0x1234567890123u64;
         let sam = T(&mut c.stack, &[D(3), D(7), D(test)]);
         assert_jet(c, jet_rev, sam, D(test.swap_bytes() >> 8));
+        let sam = T(&mut c.stack, &[D(3), D(12), a96]);
+        let res = A(&mut c.stack, &ubig!(0x563412efbeadde150cb0cefa));
+        assert_jet(c, jet_rev, sam, res);
     }
 
     #[test]
