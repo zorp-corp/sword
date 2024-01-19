@@ -22,11 +22,11 @@ typedef enum {
 
 
 guard_err _focus_guard(void *si_addr) {
-  if (stack_p == NULL || alloc_p == NULL) {
+  if (stack_p == NULL || alloc_p == NULL || si_addr == NULL) {
     return guard_weird;
   }
 
-  // Install the guard page.
+  // Install the guard page, if needed.
   if (guard_p == NULL) {
     guard_p = stack_p + ((alloc_p - stack_p) / 2);
     if (mprotect(guard_p, GD_PAGESZ, PROT_NONE) == -1) {
