@@ -14,24 +14,20 @@ static void *stack_p = NULL;
 static void *alloc_p = NULL;
 
 typedef enum {
-  guard_weird = 0, // strange state
-  guard_armor = 1, // mprotect failure
-  guard_spent = 2, // out of memory (bail:meme)
-  guard_sound = 3  // job's done
-} guard_err;
+  guard_sound = 0, // job's done
+  guard_armor = 1, // mprotect
+  guard_weird = 2, // strange state
+  guard_spent = 3, // out of memory (bail:meme)
+  guard_erupt = 4, // sigint
+} guard_err_t;
+
+volatile sig_atomic_t guard_err = guard_sound;
 
 
-guard_err _focus_guard(void *si_addr) {
+guard_err_t _focus_guard(void *si_addr) {
+  // Check for strange situations.
   if (stack_p == NULL || alloc_p == NULL || si_addr == NULL) {
     return guard_weird;
-  }
-
-  // Install the guard page, if needed.
-  if (guard_p == NULL) {
-    guard_p = stack_p + ((alloc_p - stack_p) / 2);
-    if (mprotect(guard_p, GD_PAGESZ, PROT_NONE) == -1) {
-      return guard_armor;
-    }
   }
 
   // Re-center the guard page if the fault address falls within it.
@@ -44,6 +40,8 @@ guard_err _focus_guard(void *si_addr) {
 
     // Place the new guard page in the center.
     guard_p = stack_p + ((alloc_p - stack_p) / 2);
+    // TODO: Ensure the guard_p is page-aligned.
+    // guard_p = (void *)((uintptr_t)guard_p & ~(GD_PAGESZ - 1));
     if (guard_p != old_guard_pg) {
       if (mprotect(guard_p, GD_PAGESZ, PROT_NONE) == -1) {
         return guard_armor;
@@ -56,35 +54,61 @@ guard_err _focus_guard(void *si_addr) {
   return guard_sound;
 }
 
-void _sigsegv_handler(int sig, siginfo_t *si, void *unused) {
-  _focus_guard(si->si_addr);
+void _signal_handler(int sig, siginfo_t *si, void *unused) {
+  switch (sig) {
+    case SIGSEGV:
+      guard_err = _focus_guard(si->si_addr);
+      break;
+    case SIGINT:
+      guard_err = guard_erupt;
+      break;
+    default:
+      break;
+  }
 }
 
-int _register_handler() {
+guard_err_t _register_handler() {
+  guard_err_t err = guard_sound;
   struct sigaction sa;
 
   sa.sa_flags = SA_SIGINFO;
-  sa.sa_sigaction = _sigsegv_handler;
-  sigemptyset(&sa.sa_mask);
+  sa.sa_sigaction = _signal_handler;
+  sa.sa_mask = 0;
 
-  return sigaction(SIGSEGV, &sa, NULL);
+  if (sigaction(SIGSEGV, &sa, NULL)) {
+    err = guard_weird;
+  }
+
+  return guard_err;
 }
 
 void guard(void *(*f)(void *), void *arg, void **stack, void **alloc, void **ret) {
-  guard_err err;
-
+  guard_err_t err;
   stack_p = *stack;
   alloc_p = *alloc;
 
-  if (_register_handler() == -1) {
+  if (_register_handler() != guard_sound) {
     err = guard_weird;
     goto fail;
   }
 
+  if (guard_p == NULL) {
+    guard_p = stack_p + ((alloc_p - stack_p) / 2);
+    if (mprotect(guard_p, GD_PAGESZ, PROT_NONE) == -1) {
+      err = guard_armor;
+      goto fail;
+    }
+  }
+
   *ret = f(arg);
+
+  if (guard_err != guard_sound) {
+    goto fail;
+  }
+
   return;
 
 fail:
-  *ret = (void *) &err;
+  *ret = (void *) &guard_err;
   return;
 }
