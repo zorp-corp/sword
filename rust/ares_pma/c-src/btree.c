@@ -307,25 +307,7 @@ static const size_t BLK_BASE_LENS_b[BT_NUMPARTS] = {
   BLK_BASE_LEN7,
 };
 
-#define BLK_BASE_OFF0 ((size_t)BT_META_SECTION_WIDTH)
-#define BLK_BASE_OFF1 (BLK_BASE_OFF0 + BLK_BASE_LEN0)
-#define BLK_BASE_OFF2 (BLK_BASE_OFF1 + BLK_BASE_LEN1)
-#define BLK_BASE_OFF3 (BLK_BASE_OFF2 + BLK_BASE_LEN2)
-#define BLK_BASE_OFF4 (BLK_BASE_OFF3 + BLK_BASE_LEN3)
-#define BLK_BASE_OFF5 (BLK_BASE_OFF4 + BLK_BASE_LEN4)
-#define BLK_BASE_OFF6 (BLK_BASE_OFF5 + BLK_BASE_LEN5)
-#define BLK_BASE_OFF7 (BLK_BASE_OFF6 + BLK_BASE_LEN6)
-
-static const size_t BLK_BASE_OFFS_b[BT_NUMPARTS] = {
-  BLK_BASE_OFF0,
-  BLK_BASE_OFF1,
-  BLK_BASE_OFF2,
-  BLK_BASE_OFF3,
-  BLK_BASE_OFF4,
-  BLK_BASE_OFF5,
-  BLK_BASE_OFF6,
-  BLK_BASE_OFF7,
-};
+static_assert(PMA_GROW_SIZE_b >= (BLK_BASE_LEN0 + BT_META_LEN));
 
 typedef struct BT_mlistnode BT_mlistnode;
 struct BT_mlistnode {
@@ -358,6 +340,7 @@ struct BT_state {
   int           data_fd;
   char         *path;
   void         *fixaddr;
+  /* ;;: TODO: refactor ->map to be a (BT_page *) */
   BYTE         *map;
   BT_meta      *meta_pages[2];  /* double buffered */
   pgno_t        file_size_p;    /* the size of the pma file in pages */
@@ -428,7 +411,7 @@ _node_get(BT_state *state, pgno_t pgno)
   /* ;;: hmm. is there something wrong here? No, I don't think so.
 
      On resume (reading a persistent file):
-     
+
      1) mmap the node partitions.
        - (read the offset stored in meta->blk_base)
        - mmap the offset + corresponding length of the pma file next to the end
@@ -447,9 +430,9 @@ _node_get(BT_state *state, pgno_t pgno)
     *** page offset into the memory arena and calling _node_get on it. That
     *** would technically work for the first partition. It will NOT work for any
     *** other partition. Not sure if we are doing that anywhere currently.
-    
+
  */
-  
+
   return FO2PA(state->map, pgno);
 }
 
@@ -457,6 +440,7 @@ _node_get(BT_state *state, pgno_t pgno)
 static pgno_t
 _fo_get(BT_state *state, BT_page *node)
 {
+  /* ;;: This may need to be fixed to accommodate partition striping */
   uintptr_t vaddr = (uintptr_t)node;
   uintptr_t start = (uintptr_t)state->map;
   return BY2FO(vaddr - start);
@@ -2422,6 +2406,54 @@ _freelist_restore(BT_state *state)
   _freelist_restore2(state, root, 1, meta->depth);
 }
 
+static void
+_bt_state_map_node_segment(BT_state *state)
+{
+  BT_meta *meta = state->meta_pages[state->which];
+  BYTE *targ = BT_MAPADDR + BT_META_SECTION_WIDTH;
+  size_t i;
+
+  /* map all allocated node stripes as clean */
+  for (i = 0
+         ; i < BT_NUMPARTS && meta->blk_base[i] != 0
+         ; i++) {
+    pgno_t partoff_p = meta->blk_base[i];
+    size_t partoff_b = P2BYTES(partoff_p);
+    size_t partlen_b = BLK_BASE_LENS_b[i];
+
+    if (targ != mmap(targ,
+                     partlen_b,
+                     BT_PROT_CLEAN,
+                     BT_FLAG_CLEAN,
+                     state->data_fd,
+                     partoff_b)) {
+      DPRINTF("mmap: failed to map node stripe %zu, addr: 0x%p, file offset (bytes): 0x%zX, errno: %s",
+              i, targ, partoff_b, strerror(errno));
+      abort();
+    }
+
+    /* move the target address ahead of the mapped partition */
+    targ += partlen_b;
+  }
+
+  /* map the rest of the node segment as free */
+  for (; i < BT_NUMPARTS; i++) {
+    assert(meta->blk_base[i] == 0);
+    size_t partlen_b = BLK_BASE_LENS_b[i];
+    if (targ != mmap (targ,
+                      partlen_b,
+                      BT_PROT_FREE,
+                      BT_FLAG_FREE,
+                      0, 0)) {
+      DPRINTF("mmap: failed to map unallocated node segment, addr: 0x%p, errno: %s",
+              targ, strerror(errno));
+      abort();
+    }
+
+    targ += partlen_b;
+  }
+}
+
 static int
 _bt_state_load(BT_state *state)
 {
@@ -2432,15 +2464,18 @@ _bt_state_load(BT_state *state)
 
   TRACE();
 
-  /* map first node stripe (along with metapages) as read only */
-  /* ;;: todo: after handling the first node stripe which always exists, read
-       the current metapage's blk_base and appropriately mmap each partition */
+  /* map the metapages */
   state->map = mmap(BT_MAPADDR,
-                    BT_META_SECTION_WIDTH + BLK_BASE_LEN0,
+                    BT_META_SECTION_WIDTH,
                     BT_PROT_CLEAN,
                     BT_FLAG_CLEAN,
                     state->data_fd,
                     0);
+
+  if (state->map != BT_MAPADDR) {
+    DPRINTF("mmap: failed to map at addr %p, errno: %s", BT_MAPADDR, strerror(errno));
+    abort();
+  }
 
   p = (BT_page *)state->map;
   state->meta_pages[0] = METADATA(p);
@@ -2456,21 +2491,8 @@ _bt_state_load(BT_state *state)
     }
   }
 
-  if (state->map != BT_MAPADDR) {
-    DPRINTF("mmap: failed to map at addr %p, errno: %s", BT_MAPADDR, strerror(errno));
-    abort();
-  }
-
-  BYTE *nullspace_addr = BT_MAPADDR + (BT_META_SECTION_WIDTH + BLK_BASE_LEN0);
-  size_t nullspace_len = BLK_BASE_LEN_TOTAL - (BT_META_SECTION_WIDTH + BLK_BASE_LEN0);
-  if (nullspace_addr != mmap(nullspace_addr,
-                             nullspace_len,
-                             BT_PROT_FREE,
-                             BT_FLAG_FREE,
-                             0, 0)) {
-    DPRINTF("mmap: failed to map at addr %p, errno: %s", nullspace_addr, strerror(errno));
-    abort();
-  }
+  /* map the node segment */
+  _bt_state_map_node_segment(state);
 
   /* new db, so populate metadata */
   if (new) {
@@ -3250,3 +3272,37 @@ _bt_printnode(BT_page *node)
     fprintf(stderr, "[%5zu] %10x %10x\n", i, node->datk[i].va, node->datk[i].fo);
   }
 }
+
+
+/*
+
+  re: partition striping, I find the following somewhat confusing.
+
+  A pgno for a node could be either:
+
+  1) Its actual pgno in the persistent file
+
+  2) merely a page offset into the memory arena
+
+  The pgno that a parent node stores for a child need not be (1) if the memory
+  maps are properly restored from the blk_base array in the metapage. Right?
+
+  So, on startup:
+
+  before traversing nodes, restore the memory map by mapping each partition
+  successively after the other. Do this for all non-zero page offsets in
+  blk_base.
+
+  If this is done, then _node_get and _fo_get can remain largely unchanged
+
+  Is there any reason this won't work?
+
+---------------------------
+
+  If we have to do (2) for some reason. Then _node_get and _fo_get /will/ have
+  to read the blk_base array and appropriately translate using the offsets and
+  partition sizes.
+
+  is _bt_data_cow a problem?
+
+*/
