@@ -3,6 +3,15 @@
 
 #include <stdint.h>
 
+
+typedef enum {
+  guard_sound = 0, // job's done
+  guard_armor = 1, // mprotect
+  guard_weird = 2, // strange state
+  guard_spent = 3, // out of memory (bail:meme)
+  guard_erupt = 4, // sigint
+} guard_err;
+
 /**
  * Execute the given closure `f` within the memory arena between the
  * `stack` and `alloc` pointers, with guard page protection. Write either
@@ -31,15 +40,13 @@
  * error will be written to the `ret` pointer. The caller is then responsible
  * for handling this error and aborting with a `bail:meme`.
  */
-void guard(void *(*f)(void *), void *arg, void *const *stack_pp, void *const *alloc_pp, void *ret);
-
-typedef enum {
-  guard_sound = 0, // job's done
-  guard_armor = 1, // mprotect
-  guard_weird = 2, // strange state
-  guard_spent = 3, // out of memory (bail:meme)
-  guard_erupt = 4, // sigint
-} guard_err;
+guard_err guard(
+  void *(*f)(void *),
+  void *user_data,
+  void *const *stack_pp,
+  void *const *alloc_pp,
+  void *ret
+);
 
 
 #endif

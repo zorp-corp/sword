@@ -15,11 +15,12 @@ use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
 use crate::serf::TERMINATOR;
 use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
 use crate::unifying_equality::unifying_equality;
-use ares_guard::{guard, guard_err};
+use ares_guard::*;
 use ares_macros::tas;
 use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters};
 use bitvec::prelude::{BitSlice, Lsb0};
-use either::Either::*;
+use either::*;
+use std::convert::TryFrom;
 use std::ffi::c_void;
 use std::result;
 use std::sync::atomic::Ordering;
@@ -319,11 +320,25 @@ pub enum Error {
 }
 
 pub enum GuardError {
-    GuardSound = 0,
-    GuardArmor = 1,
-    GuardWeird = 2,
-    GuardSpent = 3,
-    GuardErupt = 4,
+    GuardSound = GUARD_SOUND as isize,
+    GuardArmor = GUARD_ARMOR as isize,
+    GuardWeird = GUARD_WEIRD as isize,
+    GuardSpent = GUARD_SPENT as isize,
+    GuardErupt = GUARD_ERUPT as isize,
+}
+
+impl TryFrom<u32> for GuardError {
+    type Error = ();
+    fn try_from(value: u32) -> std::result::Result<Self, Self::Error> {
+        match value {
+            GUARD_SOUND => Ok(GuardError::GuardSound),
+            GUARD_ARMOR => Ok(GuardError::GuardArmor),
+            GUARD_WEIRD => Ok(GuardError::GuardWeird),
+            GUARD_SPENT => Ok(GuardError::GuardSpent),
+            GUARD_ERUPT => Ok(GuardError::GuardErupt),
+            _ => Err(()),
+        }
+    }
 }
 
 impl Preserve for Error {
@@ -367,48 +382,89 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
     assert_no_junior_pointers!(stack, noun);
 }
 
-extern "C" fn rust_callback(arg: *mut c_void) -> *mut c_void {
-    let closure: &mut Box<dyn FnMut() -> *mut c_void> =
-        unsafe { &mut *(arg as *mut Box<dyn FnMut() -> *mut c_void>) };
-    closure()
+use std::marker::PhantomData;
+
+pub struct CCallback<'closure> {
+    pub function: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+    pub user_data: *mut c_void,
+
+    // without this it's too easy to accidentally drop the closure too soon
+    _lifetime: PhantomData<&'closure mut c_void>,
 }
 
+impl<'closure> CCallback<'closure> {
+    pub fn new<F>(closure: &'closure mut F) -> Self where F: FnMut() -> Result {
+        let function: unsafe extern "C" fn(*mut c_void) -> *mut c_void = Self::call_closure::<F>;
+
+        debug_assert_eq!(std::mem::size_of::<&'closure mut F>(), std::mem::size_of::<*const c_void>());
+        debug_assert_eq!(std::mem::size_of_val(&function), std::mem::size_of::<*const c_void>());
+
+        Self {
+            function,
+            user_data: closure as *mut F as *mut c_void,
+            _lifetime: PhantomData,
+        }
+    }
+
+    unsafe extern "C" fn call_closure<F>(user_data: *mut c_void) -> *mut c_void where F: FnMut() -> Result {
+        let cb: &mut F = user_data.cast::<F>().as_mut().unwrap();
+        let mut v = (*cb)();
+        let v_ptr = &mut v as *mut _ as *mut c_void;
+        v_ptr
+    }
+}
+
+// fn main() {
+//     let mut v = Vec::new();
+
+//     // must assign to a variable to ensure it lives until the end of scope
+//     let closure = &mut |x: i32| { v.push(x) };
+//     let c = CCallback::new(closure);
+
+//     unsafe { (c.function)(c.user_data, 123) };
+    
+//     assert_eq!(v, [123]);
+// }
+
 pub fn call_with_guard<F: FnMut() -> Result>(
-    f: F,
+    f: &mut F,
     stack: *const *mut c_void,
     alloc: *const *mut c_void,
 ) -> Result {
-    let boxed_f = Box::new(f);
-    let res: Result = Err(Error::Deterministic(D(0)));
-    let mut result = Box::new(res);
+    let c = CCallback::new(f);
+    let mut result: Result = Ok(D(0));
+    let result_ptr = &mut result as *mut _ as *mut c_void;
 
     unsafe {
-        let raw_f = Box::into_raw(Box::new(boxed_f));
-        let result_ptr = &mut result as *mut _ as *mut c_void;
 
-        guard(
-            Some(rust_callback),
-            raw_f as *mut c_void,
+        let err = guard(
+            Some(c.function as unsafe extern "C" fn(*mut c_void) -> *mut c_void),
+            c.user_data as *mut c_void,
             stack,
             alloc,
             result_ptr,
         );
 
-        let _ = Box::from_raw(raw_f);
-
-        if !*result.is_null() {
-            let err = *(result as *const guard_err);
+        if let Ok(err) = GuardError::try_from(err) {
             match err {
-                0 => { // sound
-                    let res = result as *mut Result;
-                    *res
-                },
-                // TODO: handle other errors explicitly.
-                _ => Err(Error::Deterministic(D(0))),
+                GuardError::GuardSound => {
+                    return result;
+                }
+                GuardError::GuardArmor => {
+                    return Err(Error::Deterministic(D(0)));
+                }
+                GuardError::GuardWeird => {
+                    return Err(Error::Deterministic(D(0)));
+                }
+                GuardError::GuardSpent => {
+                    return Err(Error::NonDeterministic(D(0)));
+                }
+                GuardError::GuardErupt => {
+                    return Err(Error::NonDeterministic(D(0)));
+                }
             }
-        }
-        else {
-            (Box::from_raw(raw_f))()
+        } else {
+            return Err(Error::Deterministic(D(0)));
         }
     }
 }
@@ -450,8 +506,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     let nock = assert_no_alloc(|| {
         ensure_alloc_counters(|| {
-            call_with_guard(|| unsafe {
+            let work_closure = &mut || unsafe {
+                eprint!("ares: entered closure\r\n");
                 push_formula(&mut context.stack, formula, true)?;
+                eprint!("ares: pushed formula\r\n");
 
                 loop {
                     let work: NockWork = *context.stack.top();
@@ -989,11 +1047,8 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         },
                     };
                 }
-            },
-            stack_ptr_ptr,
-            alloc_ptr_ptr,
-            std::ptr::null_mut() as *mut *mut c_void,
-            )
+            };
+            call_with_guard(work_closure, stack_ptr_ptr, alloc_ptr_ptr)
         })
     });
 

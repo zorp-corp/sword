@@ -1,4 +1,4 @@
-#include <pthread.h>
+#include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,12 +15,13 @@
 static uint64_t *guard_p = 0;
 static uint64_t **stack = 0;
 static uint64_t **alloc = 0;
+static jmp_buf env_buffer;
 
 volatile sig_atomic_t err = guard_sound;
 
-
 // Center the guard page.
-guard_err _focus_guard() {
+guard_err _focus_guard()
+{
   uint64_t *stack_p = *stack;
   uint64_t *alloc_p = *alloc;
 
@@ -61,8 +62,8 @@ guard_err _focus_guard() {
 }
 
 guard_err _slash_guard(void *si_addr) {
-  // fprintf(stderr, "guard: slash at %p\r\n", si_addr);
-  // fprintf(stderr, "guard: guard at %p\r\n", (void *) guard_p);
+  fprintf(stderr, "guard: slash at %p\r\n", si_addr);
+  fprintf(stderr, "guard: guard at %p\r\n", (void *) guard_p);
 
   if (si_addr >= (void *)guard_p && si_addr < (void *)guard_p + GD_PAGESIZE) {
     return _focus_guard();
@@ -71,16 +72,23 @@ guard_err _slash_guard(void *si_addr) {
   return guard_weird;
 }
 
-void _signal_handler(int sig, siginfo_t *si, void *unused) {
+void _signal_handler(int sig, siginfo_t *si, void *unused)
+{
   switch (sig) {
     case SIGSEGV:
+      fprintf(stderr, "guard: sigsegv\r\n");
       err = _slash_guard(si->si_addr);
       break;
     case SIGINT:
+      fprintf(stderr, "guard: sigint\r\n");
       err = guard_erupt;
       break;
     default:
       break;
+  }
+
+  if (err != guard_sound) {
+    longjmp(env_buffer, 1);
   }
 }
 
@@ -95,18 +103,27 @@ guard_err _register_handler() {
     return guard_weird;
   }
 
+  fprintf(stderr, "guard: registered handler\r\n");
   return guard_sound;
 }
 
-void guard(void *(*f)(void *), void *arg, void *const *stack_pp, void *const *alloc_pp, void *ret) {
+guard_err guard(
+  void *(*f)(void *),
+  void *user_data,
+  void *const *stack_pp,
+  void *const *alloc_pp,
+  void *ret
+)
+{
   stack = (uint64_t**) stack_pp;
   alloc = (uint64_t**) alloc_pp;
 
+  fprintf(stderr, "guard: f pointer at %p\r\n", (void *) f);
   fprintf(stderr, "guard: stack at %p\r\n", (void *) stack);
   fprintf(stderr, "guard: alloc at %p\r\n", (void *) alloc);
-
   fprintf(stderr, "guard: stack pointer at %p\r\n", (void *) *stack);
   fprintf(stderr, "guard: alloc pointer at %p\r\n", (void *) *alloc);
+  fprintf(stderr, "guard: ret pointer at %p\r\n", (void *) ret);
 
   if (guard_p == 0) {
     fprintf(stderr, "guard: installing guard page\r\n");
@@ -124,27 +141,21 @@ void guard(void *(*f)(void *), void *arg, void *const *stack_pp, void *const *al
     goto fail;
   }
 
-  pthread_t thread;
-  int thread_err;
-  thread_err = pthread_create(&thread, NULL, f, arg);
-  if (thread_err != 0) {
-    err = guard_weird;
-    goto fail;
+  void *result;
+  if (setjmp(env_buffer) == 0) {
+    fprintf(stderr, "guard: calling f\r\n");
+    result = f(user_data);
   }
-
-  while (err == guard_sound) {
-    if (pthread_kill(thread, 0) != 0) {
+  else {
+    fprintf(stderr, "guard: jump buffer already set\r\n");
+    if (err != guard_sound) {
+      fprintf(stderr, "guard: not sound\r\n");
       goto fail;
     }
-    sleep(1);
-  }
-
-  void *thread_result;
-  pthread_join(thread, &thread_result);
-  *(void **)ret = thread_result;
-
-  if (err != guard_sound) {
-    goto fail;
+    else {
+      fprintf(stderr, "guard: assigning ret\r\n");
+      *(void **)ret = result;
+    }
   }
 
   if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
@@ -152,13 +163,25 @@ void guard(void *(*f)(void *), void *arg, void *const *stack_pp, void *const *al
     goto fail;
   }
 
-  return;
+  return guard_sound;
 
 fail:
   if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
-    fprintf(stderr, "guard: failed to remove guard page\r\n");
+    fprintf(stderr, "guard: failed to uninstall guard page\r\n");
   }
-  fprintf(stderr, "guard: error %d\r\n", err);
-  *(void **)ret = (void *) &err;
-  return;
+  switch (err) {
+    case guard_armor:
+      fprintf(stderr, "guard: armor error\r\n");
+      break;
+    case guard_weird:
+      fprintf(stderr, "guard: weird error\r\n");
+      break;
+    case guard_spent:
+      fprintf(stderr, "guard: spent error\r\n");
+      break;
+    case guard_erupt:
+      fprintf(stderr, "guard: erupt error\r\n");
+      break;
+  }
+  return err;
 }
