@@ -507,9 +507,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     let nock = assert_no_alloc(|| {
         ensure_alloc_counters(|| {
             let work_closure = &mut || unsafe {
-                eprint!("ares: entered closure\r\n");
                 push_formula(&mut context.stack, formula, true)?;
-                eprint!("ares: pushed formula\r\n");
 
                 loop {
                     let work: NockWork = *context.stack.top();

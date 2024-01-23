@@ -18,8 +18,8 @@ ares_macros = { path = "../ares_macros" }
 # ares_pma = { path = "../ares_pma", features=["debug_prints"] }
 ares_pma = { path = "../ares_pma" }
 # use this when debugging requires allocation (e.g. eprintln)
-assert_no_alloc = { path = "../rust-assert-no-alloc", features=["warn_debug"] }
-# assert_no_alloc = { path = "../rust-assert-no-alloc" }
+# assert_no_alloc = { path = "../rust-assert-no-alloc", features=["warn_debug"] }
+assert_no_alloc = { path = "../rust-assert-no-alloc" }
 bitvec = "1.0.0"
 criterion = "0.4"
 either = "1.9.0"
