@@ -19,7 +19,6 @@ use ares_guard::{guard, guard_err};
 use ares_macros::tas;
 use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters};
 use bitvec::prelude::{BitSlice, Lsb0};
-use bitvec::ptr::null_mut;
 use either::Either::*;
 use std::ffi::c_void;
 use std::result;
@@ -380,6 +379,7 @@ pub fn call_with_guard<F: FnMut() -> Result>(
     alloc: *mut *mut c_void,
     ret: *mut *mut c_void,
 ) -> Result {
+    eprintln!("call_with_guard");
     let boxed_f = Box::new(f);
 
     unsafe {

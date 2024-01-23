@@ -65,9 +65,11 @@ guard_err _slash_guard(void *si_addr) {
 void _signal_handler(int sig, siginfo_t *si, void *unused) {
   switch (sig) {
     case SIGSEGV:
+      fprintf(stderr, "guard: caught sigsegv\r\n");
       err = _slash_guard(si->si_addr);
       break;
     case SIGINT:
+      fprintf(stderr, "guard: caught sigint\r\n");
       err = guard_erupt;
       break;
     default:
@@ -98,6 +100,7 @@ void guard(void *(*f)(void *), void *arg, void *const *const stack, void *const 
     goto fail;
   }
 
+  fprintf(stderr, "guard: installing guard page\r\n");
   if (guard_p == NULL && (err = _focus_guard()) != guard_sound) {
     goto fail;
   }

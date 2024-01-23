@@ -3,7 +3,7 @@ use crate::jets::bits::util::met;
 use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
 use crate::noun::{IndirectAtom, Noun, D};
-use urcrypt_sys::*;
+use ares_crypto::sha::{ac_sha1, ac_shal, ac_shas, ac_shay};
 
 crate::gdb!();
 
@@ -17,19 +17,22 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
     let (mut _salt_ida, salt) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
     salt.copy_from_slice(sal_bytes);
 
-    let message = &(ruz.as_bytes())[0..met(3, ruz)]; // drop trailing zeros
-
     unsafe {
         let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_shas(
-            salt.as_mut_ptr(),
-            salt.len(),
-            message.as_ptr(),
-            message.len(),
-            out.as_mut_ptr(),
-        );
+
+        let msg_len = met(3, ruz);
+        if msg_len > 0 {
+            let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
+            message.copy_from_slice(&ruz.as_bytes()[0..msg_len]);
+            ac_shas(message, salt, out);
+        }
+        else {
+            ac_shas(&mut [], salt, out);
+        }
+
         Ok(out_ida.normalize_as_atom().as_noun())
     }
+
 }
 
 pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
@@ -40,7 +43,16 @@ pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
 
     unsafe {
         let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_shay(msg.as_bytes().as_ptr(), len, out.as_mut_ptr());
+
+        if len > 0 {
+            let (mut _msg_ida, msg_copy) = IndirectAtom::new_raw_mut_bytes(stack, len);
+            msg_copy.copy_from_slice(&msg.as_bytes()[0..len]);
+            ac_shay(&mut (msg_copy)[0..len], out);
+        }
+        else {
+            ac_shay(&mut [], out);
+        }
+
         Ok(ida.normalize_as_atom().as_noun())
     }
 }
@@ -56,11 +68,16 @@ pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
         Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
 
-    let message = dat.as_bytes();
-
     unsafe {
         let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_shay(message.as_ptr(), width, out.as_mut_ptr());
+        if width > 0 {
+            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, width);
+            msg.copy_from_slice(&dat.as_bytes()[0..width]);
+            ac_shay(msg, out);
+        }
+        else {
+            ac_shay(&mut [], out);
+        }
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
@@ -71,16 +88,23 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
     let wid = slot(sam, 2)?.as_atom()?;
     let dat = slot(sam, 3)?.as_atom()?;
 
-    let width = match wid.as_direct() {
+    let _width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
         Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
 
-    let message = &(dat.as_bytes())[0..met(3, dat)]; // drop trailing zeros
+    let msg_len = met(3, dat);
 
     unsafe {
         let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        urcrypt_shal(message.as_ptr(), width, out.as_mut_ptr());
+        if msg_len > 0 {
+            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
+            msg.copy_from_slice(&dat.as_bytes()[0..msg_len]);
+            ac_shal(msg, out);
+        }
+        else {
+            ac_shal(&mut [], out);
+        }
         Ok(ida.normalize_as_atom().as_noun())
     }
 }
@@ -97,12 +121,12 @@ pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
     };
 
     unsafe {
-        let msg_bytes = dat.as_bytes();
+        let msg_bytes = &(dat.as_bytes())[0..width];
         let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
         msg.copy_from_slice(msg_bytes);
 
         let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
-        urcrypt_sha1(msg.as_mut_ptr(), width, out.as_mut_ptr());
+        ac_sha1(msg, out);
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
@@ -118,6 +142,14 @@ mod tests {
     #[test]
     fn test_shas() {
         let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(1), D(0)]);
+        assert_jet_ubig(
+            c,
+            jet_shas,
+            sam,
+            ubig!(_0x4abac214e1e95fe0c60df79d09cbd05454a4cb958683e02318aa147f2a5e6d60),
+        );
 
         let sam = T(&mut c.stack, &[D(1), D(1)]);
         assert_jet_ubig(
@@ -159,6 +191,13 @@ mod tests {
         assert_jet_ubig(
             c,
             jet_shax,
+            D(0), // ''
+            ubig!(_0x55b852781b9995a44c939b64e441ae2724b96f99c8f4fb9a141cfc9842c4b0e3),
+        );
+
+        assert_jet_ubig(
+            c,
+            jet_shax,
             D(7303014), // 'foo'
             ubig!(_0xaee76662885e8af9a0bf8364702d42133441301d3c459bf98fc6ff686bb4262c),
         );
@@ -196,6 +235,13 @@ mod tests {
     #[test]
     fn test_shay() {
         let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(0), D(0)]);
+        let ret = A(
+            &mut c.stack,
+            &ubig!(_0x55b852781b9995a44c939b64e441ae2724b96f99c8f4fb9a141cfc9842c4b0e3),
+        );
+        assert_jet(c, jet_shay, sam, ret);
 
         let sam = T(&mut c.stack, &[D(1), D(0)]);
         let ret = A(
@@ -253,6 +299,14 @@ mod tests {
     #[test]
     fn test_shal() {
         let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(0), D(0)]);
+        assert_jet_ubig(
+            c,
+            jet_shal,
+            sam,
+            ubig!(_0x3eda27f97a3238a5817a4147bd31b9632fec7e87d21883ffb0f2855d3cd1d047cee96cd321a9f483dc15570b05e420d607806dd6502854f1bdb8ef7e35e183cf)
+        );
 
         let sam = T(&mut c.stack, &[D(1), D(1)]);
         assert_jet_ubig(

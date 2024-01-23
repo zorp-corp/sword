@@ -2,8 +2,9 @@ use crate::interpreter::{Context, Error};
 use crate::jets::bits::util::met;
 use crate::jets::util::slot;
 use crate::jets::{JetErr, Result};
+use crate::mem::NockStack;
 use crate::noun::{IndirectAtom, Noun, D, NO, YES};
-use urcrypt_sys::*;
+use ares_crypto::ed25519::{ac_ed_puck, ac_ed_shar, ac_ed_sign, ac_ed_veri};
 
 crate::gdb!();
 
@@ -11,21 +12,17 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sed = slot(subject, 6)?.as_atom()?;
 
-    if met(3, sed) > 32 {
+    let sed_len = met(3, sed);
+    if sed_len > 32 {
         return Err(JetErr::Fail(Error::Deterministic(D(0))));
     }
 
     unsafe {
-        // allocate 32 byte buffer on
-        let sed_buffer = &mut [0u8; 32] as *mut u8;
-        let sed_bytes = sed.as_bytes();
+        let sed_bytes = &mut [0u8; 32];
+        sed_bytes[0..sed_len].copy_from_slice(&(sed.as_bytes())[0..sed_len]);
 
-        // we need to copy because the atom might be less than 32 bytes and urcrypt expects a
-        // 32-byte buffer
-        std::ptr::copy_nonoverlapping(sed_bytes.as_ptr(), sed_buffer, sed_bytes.len());
-
-        let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_ed_puck(sed_buffer as *const u8, pub_key.as_mut_ptr());
+        let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack);
+        ac_ed_puck(sed_bytes, pub_key);
 
         Ok(pub_ida.normalize_as_atom().as_noun())
     }
@@ -47,17 +44,17 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
     }
 
     unsafe {
-        let (_, public) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        let (_, secret) = IndirectAtom::new_raw_mut_bytes(stack, 32);
+        let public = &mut [0u8; 32];
+        let secret = &mut [0u8; 32];
 
         let pub_bytes = pub_key.as_bytes();
         let sec_bytes = sec_key.as_bytes();
 
         public[0..pub_bytes.len()].copy_from_slice(pub_bytes);
-        secret[0..sec_bytes.len()].copy_from_slice(sec_bytes);
+        secret[0..pub_bytes.len()].copy_from_slice(sec_bytes);
 
-        let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        urcrypt_ed_shar(public.as_ptr(), secret.as_ptr(), shar.as_mut_ptr());
+        let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack);
+        ac_ed_shar(public, secret, shar);
 
         Ok(shar_ida.normalize_as_atom().as_noun())
     }
@@ -70,62 +67,55 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
 
     unsafe {
         let sed_bytes = sed.as_bytes();
-        if sed_bytes.len() > 32 {
+        let sed_len = sed_bytes.len();
+        if sed_len > 32 {
             return Err(JetErr::Fail(Error::Deterministic(D(0))));
         };
+        let seed = &mut [0u8; 32];
+        seed[0..sed_len].copy_from_slice(sed_bytes);
 
-        let msg_bytes = &(msg.as_bytes())[0..met(3, msg)]; // drop trailing zeros
+        let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytearray::<64, NockStack>(stack);
 
-        let (mut _seed_ida, seed) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        seed.copy_from_slice(sed_bytes);
+        let msg_len = met(3, msg);
+        if msg_len > 0 {
+            let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
+            message.copy_from_slice(&msg.as_bytes()[0..msg_len]);
+            ac_ed_sign(message, seed, sig);
+        }
+        else {
+            ac_ed_sign(&[0u8; 0], seed, sig);
+        }
 
-        let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        urcrypt_ed_sign(
-            msg_bytes.as_ptr(),
-            msg_bytes.len(),
-            seed.as_ptr(),
-            sig.as_mut_ptr(),
-        );
-        sig.reverse(); // LSB first
-
+        sig.reverse();
         Ok(sig_ida.normalize_as_atom().as_noun())
     }
 }
 
-pub fn jet_veri(context: &mut Context, subject: Noun) -> Result {
-    let stack = &mut context.stack;
+pub fn jet_veri(_context: &mut Context, subject: Noun) -> Result {
     let sig = slot(subject, 12)?.as_atom()?;
     let msg = slot(subject, 26)?.as_atom()?;
     let puk = slot(subject, 27)?.as_atom()?;
 
-    unsafe {
-        // Both are size checked by Hoon, but without crashing
-        let sig_bytes = sig.as_bytes();
-        if sig_bytes.len() > 64 {
-            return Ok(NO);
-        };
+    // Both are size checked by Hoon, but without crashing
+    let sig_bytes = sig.as_bytes();
+    if sig_bytes.len() > 64 {
+        return Ok(NO);
+    };
+    let signature = &mut [0u8; 64];
+    signature[0..sig_bytes.len()].copy_from_slice(sig_bytes);
 
-        let pub_bytes = puk.as_bytes();
-        if pub_bytes.len() > 32 {
-            return Ok(NO);
-        };
+    let pub_bytes = puk.as_bytes();
+    if pub_bytes.len() > 32 {
+        return Ok(NO);
+    };
+    let public_key = &mut [0u8; 32];
+    public_key[0..pub_bytes.len()].copy_from_slice(pub_bytes);
 
-        let (mut _sig_ida, signature) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        signature.copy_from_slice(sig_bytes);
-        let (mut _pub_ida, public_key) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        public_key.copy_from_slice(pub_bytes);
+    let message = &(msg.as_bytes())[0..met(3, msg)]; // drop trailing zeros
 
-        let message = &(msg.as_bytes())[0..met(3, msg)]; // drop trailing zeros
+    let valid = ac_ed_veri(message, public_key, signature);
 
-        let valid = urcrypt_ed_veri(
-            message.as_ptr(),
-            message.len(),
-            public_key.as_ptr(),
-            signature.as_ptr(),
-        );
-
-        Ok(if valid { YES } else { NO })
-    }
+    Ok(if valid { YES } else { NO })
 }
 
 #[cfg(test)]
@@ -144,6 +134,16 @@ mod tests {
 
         let sam = A(
             &mut c.stack,
+            &ubig!(_0x0),
+        );
+        let ret = A(
+            &mut c.stack,
+            &ubig!(_0x29da598ba148c03aa643e21d77153265730d6f2ad0a8a3622da4b6cebc276a3b),
+        );
+        assert_jet(c, jet_puck, sam, ret);
+
+        let sam = A(
+            &mut c.stack,
             &ubig!(_0x607fae1c03ac3b701969327b69c54944c42cec92f44a84ba605afdef9db1619d),
         );
         let ret = A(
@@ -156,6 +156,13 @@ mod tests {
     #[test]
     fn test_shar() {
         let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(0), D(0)]);
+        let ret = A(
+            &mut c.stack,
+            &ubig!(_0x0),
+        );
+        assert_jet(c, jet_shar, sam, ret);
 
         let sam = T(&mut c.stack, &[D(234), D(234)]);
         let ret = A(
@@ -176,6 +183,10 @@ mod tests {
         let c = &mut init_context();
 
         unsafe {
+            let sam = T(&mut c.stack, &[D(0), D(0)]);
+            let ret = A(&mut c.stack, &ubig!(_0x8f895b3cafe2c9506039d0e2a66382568004674fe8d237785092e40d6aaf483e4fc60168705f31f101596138ce21aa357c0d32a064f423dc3ee4aa3abf53f803));
+            assert_jet(c, jet_sign, sam, ret);
+
             let message = D(0x72);
 
             let sed_ubig =
@@ -213,6 +224,9 @@ mod tests {
         let c = &mut init_context();
 
         unsafe {
+            let sam = T(&mut c.stack, &[D(0), D(0), D(0)]);
+            assert_jet(c, jet_veri, sam, NO);
+
             let sig_ubig = ubig!(_0x92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00);
             let sig_bytes = sig_ubig.to_be_bytes();
             let signature =
