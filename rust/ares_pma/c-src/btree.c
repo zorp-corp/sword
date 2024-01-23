@@ -503,13 +503,14 @@ _nlist_grow(BT_state *state)
   /* find the next block (zero pgno) */
   size_t next_block = 0;
   for (; meta->blk_base[next_block] != 0; next_block++)
-    ;
+    assert(next_block < BT_NUMPARTS);
 
   /* falloc the node partition and store its offset in the metapage */
   size_t block_len_b = BLK_BASE_LENS_b[next_block];
   size_t block_len_p = B2PAGES(block_len_b);
   DPRINTF("Adding a new node stripe of size (pages): 0x%zX", block_len_p);
   pgno_t partition_pg = _bt_falloc(state, block_len_p);
+  size_t partoff_b = P2BYTES(partition_pg);
   meta->blk_base[next_block] = partition_pg;
 
   /* add the partition to the nlist */
@@ -518,7 +519,23 @@ _nlist_grow(BT_state *state)
                  partition_pg,
                  partition_pg + block_len_p);
 
-  /* ;;: also need an mmap call to map that pg offset into the memory arena */
+  /* calculate the target address of the mmap call */
+  BYTE *targ = BT_MAPADDR + BT_META_SECTION_WIDTH;
+  for (size_t i = 0; i < next_block; i++) {
+    targ += BLK_BASE_LENS_b[i];
+  }
+
+  /* map the newly alloced node partition */
+  if (targ != mmap(targ,
+                   block_len_b,
+                   BT_PROT_CLEAN,
+                   BT_FLAG_CLEAN,
+                   state->data_fd,
+                   P2BYTES(partition_pg))) {
+    DPRINTF("mmap: failed to map node stripe %zu, addr: 0x%p, file offset (bytes): 0x%zX, errno: %s",
+            next_block, targ, partoff_b, strerror(errno));
+    abort();
+  }
 }
 
 static void
