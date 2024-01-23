@@ -30,7 +30,7 @@
  * error will be written to the `ret` pointer. The caller is then responsible
  * for handling this error and aborting with a `bail:meme`.
  */
-void guard(void *(*f)(void *), void *arg, void *const *const stack, void *const *const alloc, void **ret);
+void guard(void *(*f)(void *), void *arg, void *const stack, void *const alloc, void **ret);
 
 typedef enum {
   guard_sound = 0, // job's done

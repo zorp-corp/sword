@@ -375,11 +375,10 @@ extern "C" fn rust_callback(arg: *mut c_void) -> *mut c_void {
 
 pub fn call_with_guard<F: FnMut() -> Result>(
     f: F,
-    stack: *mut *mut c_void,
-    alloc: *mut *mut c_void,
+    stack: *const c_void,
+    alloc: *const c_void,
     ret: *mut *mut c_void,
 ) -> Result {
-    eprintln!("call_with_guard");
     let boxed_f = Box::new(f);
 
     unsafe {
@@ -988,8 +987,8 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     };
                 }
             },
-            stack_p as *mut *mut c_void,
-            alloc_p as *mut *mut c_void,
+            stack_p as *const c_void,
+            alloc_p as *const c_void,
             std::ptr::null_mut() as *mut *mut c_void,
             )
         })

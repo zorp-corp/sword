@@ -21,12 +21,13 @@ volatile sig_atomic_t err = guard_sound;
 guard_err _focus_guard() {
   // Check for strange situations.
   if (stack_p == NULL || alloc_p == NULL) {
+    fprintf(stderr, "guard: stack or alloc pointer is null\r\n");
     return guard_weird;
   }
 
   // Unmark the old guard page.
   void *old_guard_p = guard_p;
-  if (mprotect(old_guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
+  if (old_guard_p != NULL && mprotect(old_guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
     return guard_armor;
   }
 
@@ -56,6 +57,7 @@ guard_err _focus_guard() {
 
 guard_err _slash_guard(void *si_addr) {
   if (si_addr >= guard_p && si_addr < guard_p + GD_PAGESIZE) {
+    fprintf(stderr, "guard: slash\r\n");
     return _focus_guard();
   }
 
@@ -65,11 +67,11 @@ guard_err _slash_guard(void *si_addr) {
 void _signal_handler(int sig, siginfo_t *si, void *unused) {
   switch (sig) {
     case SIGSEGV:
-      fprintf(stderr, "guard: caught sigsegv\r\n");
+      fprintf(stderr, "guard: segfault at %p\r\n", si->si_addr);
+      fprintf(stderr, "guard: guard    at %p\r\n", guard_p);
       err = _slash_guard(si->si_addr);
       break;
     case SIGINT:
-      fprintf(stderr, "guard: caught sigint\r\n");
       err = guard_erupt;
       break;
     default:
@@ -91,19 +93,25 @@ guard_err _register_handler() {
   return guard_sound;
 }
 
-void guard(void *(*f)(void *), void *arg, void *const *const stack, void *const *const alloc, void **ret) {
-  stack_p = *stack;
-  alloc_p = *alloc;
+void guard(void *(*f)(void *), void *arg, void *const stack, void *const alloc, void **ret) {
+  stack_p = stack;
+  alloc_p = alloc;
 
   if (_register_handler() != guard_sound) {
     err = guard_weird;
     goto fail;
   }
 
-  fprintf(stderr, "guard: installing guard page\r\n");
-  if (guard_p == NULL && (err = _focus_guard()) != guard_sound) {
-    goto fail;
+  if (guard_p == NULL) {
+    fprintf(stderr, "guard: installing guard page\r\n");
+    guard_err install_err = _focus_guard();
+    if (install_err != guard_sound) {
+      fprintf(stderr, "guard: failed to install guard page\r\n");
+      err = install_err;
+      goto fail;
+    }
   }
+  fprintf(stderr, "guard: guard page installed at %p\r\n", guard_p);
 
   *ret = f(arg);
 
@@ -114,6 +122,7 @@ void guard(void *(*f)(void *), void *arg, void *const *const stack, void *const 
   return;
 
 fail:
+  fprintf(stderr, "guard: error %d\r\n", err);
   *ret = (void *) &err;
   return;
 }
