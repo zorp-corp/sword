@@ -375,27 +375,28 @@ extern "C" fn rust_callback(arg: *mut c_void) -> *mut c_void {
 
 pub fn call_with_guard<F: FnMut() -> Result>(
     f: F,
-    stack: *const c_void,
-    alloc: *const c_void,
-    ret: *mut *mut c_void,
+    stack: *const *mut c_void,
+    alloc: *const *mut c_void,
 ) -> Result {
     let boxed_f = Box::new(f);
+    let res: Result = Err(Error::Deterministic(D(0)));
+    let mut result = Box::new(res);
 
     unsafe {
-        let result: *mut c_void = std::ptr::null_mut();
         let raw_f = Box::into_raw(Box::new(boxed_f));
+        let result_ptr = &mut result as *mut _ as *mut c_void;
 
         guard(
             Some(rust_callback),
             raw_f as *mut c_void,
             stack,
             alloc,
-            ret,
+            result_ptr,
         );
 
         let _ = Box::from_raw(raw_f);
 
-        if !result.is_null() {
+        if !*result.is_null() {
             let err = *(result as *const guard_err);
             match err {
                 0 => { // sound
@@ -419,6 +420,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     let snapshot = context.save();
     let virtual_frame: *const u64 = context.stack.get_frame_pointer();
     let mut res: Noun = D(0);
+    let stack_ptr = context.stack.get_stack_pointer() as *mut c_void;
+    let stack_ptr_ptr = &stack_ptr as *const *mut c_void;
+    let alloc_ptr = context.stack.get_alloc_pointer() as *mut c_void;
+    let alloc_ptr_ptr = &alloc_ptr as *const *mut c_void;
 
     // Setup stack for Nock computation
     unsafe {
@@ -445,8 +450,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     let nock = assert_no_alloc(|| {
         ensure_alloc_counters(|| {
-            let stack_p = context.stack.get_stack_pointer();
-            let alloc_p = context.stack.get_alloc_pointer();
             call_with_guard(|| unsafe {
                 push_formula(&mut context.stack, formula, true)?;
 
@@ -987,8 +990,8 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     };
                 }
             },
-            stack_p as *const c_void,
-            alloc_p as *const c_void,
+            stack_ptr_ptr,
+            alloc_ptr_ptr,
             std::ptr::null_mut() as *mut *mut c_void,
             )
         })
