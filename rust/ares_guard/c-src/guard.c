@@ -14,19 +14,11 @@ static void *guard_p = NULL;
 static void *stack_p = NULL;
 static void *alloc_p = NULL;
 
-typedef enum {
-  guard_sound = 0, // job's done
-  guard_armor = 1, // mprotect
-  guard_weird = 2, // strange state
-  guard_spent = 3, // out of memory (bail:meme)
-  guard_erupt = 4, // sigint
-} guard_error;
-
-volatile sig_atomic_t guard_err = guard_sound;
+volatile sig_atomic_t err = guard_sound;
 
 
 // Center the guard page.
-guard_error _focus_guard() {
+guard_err _focus_guard() {
   // Check for strange situations.
   if (stack_p == NULL || alloc_p == NULL) {
     return guard_weird;
@@ -62,7 +54,7 @@ guard_error _focus_guard() {
   return guard_sound;
 }
 
-guard_error _slash_guard(void *si_addr) {
+guard_err _slash_guard(void *si_addr) {
   if (si_addr >= guard_p && si_addr < guard_p + GD_PAGESIZE) {
     return _focus_guard();
   }
@@ -73,17 +65,17 @@ guard_error _slash_guard(void *si_addr) {
 void _signal_handler(int sig, siginfo_t *si, void *unused) {
   switch (sig) {
     case SIGSEGV:
-      guard_err = _slash_guard(si->si_addr);
+      err = _slash_guard(si->si_addr);
       break;
     case SIGINT:
-      guard_err = guard_erupt;
+      err = guard_erupt;
       break;
     default:
       break;
   }
 }
 
-guard_error _register_handler() {
+guard_err _register_handler() {
   struct sigaction sa;
 
   sa.sa_flags = SA_SIGINFO;
@@ -97,28 +89,28 @@ guard_error _register_handler() {
   return guard_sound;
 }
 
-void guard(void *(*f)(void *), void *arg, void **stack, void **alloc, void **ret) {
+void guard(void *(*f)(void *), void *arg, void *const *const stack, void *const *const alloc, void **ret) {
   stack_p = *stack;
   alloc_p = *alloc;
 
   if (_register_handler() != guard_sound) {
-    guard_err = guard_weird;
+    err = guard_weird;
     goto fail;
   }
 
-  if (guard_p == NULL && (guard_err = _focus_guard()) != guard_sound) {
+  if (guard_p == NULL && (err = _focus_guard()) != guard_sound) {
     goto fail;
   }
 
   *ret = f(arg);
 
-  if (guard_err != guard_sound) {
+  if (err != guard_sound) {
     goto fail;
   }
 
   return;
 
 fail:
-  *ret = (void *) &guard_err;
+  *ret = (void *) &err;
   return;
 }

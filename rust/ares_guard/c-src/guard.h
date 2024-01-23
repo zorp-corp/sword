@@ -30,6 +30,15 @@
  * error will be written to the `ret` pointer. The caller is then responsible
  * for handling this error and aborting with a `bail:meme`.
  */
-void guard(void *(*f)(void *), void *arg, void **stack, void **alloc, void **ret);
+void guard(void *(*f)(void *), void *arg, void *const *const stack, void *const *const alloc, void **ret);
+
+typedef enum {
+  guard_sound = 0, // job's done
+  guard_armor = 1, // mprotect
+  guard_weird = 2, // strange state
+  guard_spent = 3, // out of memory (bail:meme)
+  guard_erupt = 4, // sigint
+} guard_err;
+
 
 #endif
