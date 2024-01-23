@@ -275,39 +275,39 @@ struct BT_meta {
 static_assert(sizeof(BT_meta) <= BT_DAT_MAXBYTES);
 
 /* the length of the metapage up to but excluding the checksum */
-#define BT_META_LEN (offsetof(BT_meta, chk))
+#define BT_META_LEN_b (offsetof(BT_meta, chk))
 
-#define BLK_BASE_LEN0 ((size_t)MBYTES(2) - BT_META_SECTION_WIDTH)
-#define BLK_BASE_LEN1 ((size_t)MBYTES(8))
-#define BLK_BASE_LEN2 ((size_t)BLK_BASE_LEN1 * 4)
-#define BLK_BASE_LEN3 ((size_t)BLK_BASE_LEN2 * 4)
-#define BLK_BASE_LEN4 ((size_t)BLK_BASE_LEN3 * 4)
-#define BLK_BASE_LEN5 ((size_t)BLK_BASE_LEN4 * 4)
-#define BLK_BASE_LEN6 ((size_t)BLK_BASE_LEN5 * 4)
-#define BLK_BASE_LEN7 ((size_t)BLK_BASE_LEN6 * 4)
+#define BLK_BASE_LEN0_b ((size_t)MBYTES(2) - BT_META_SECTION_WIDTH)
+#define BLK_BASE_LEN1_b ((size_t)MBYTES(8))
+#define BLK_BASE_LEN2_b ((size_t)BLK_BASE_LEN1_b * 4)
+#define BLK_BASE_LEN3_b ((size_t)BLK_BASE_LEN2_b * 4)
+#define BLK_BASE_LEN4_b ((size_t)BLK_BASE_LEN3_b * 4)
+#define BLK_BASE_LEN5_b ((size_t)BLK_BASE_LEN4_b * 4)
+#define BLK_BASE_LEN6_b ((size_t)BLK_BASE_LEN5_b * 4)
+#define BLK_BASE_LEN7_b ((size_t)BLK_BASE_LEN6_b * 4)
 #define BLK_BASE_LEN_TOTAL (                            \
                              BT_META_SECTION_WIDTH +    \
-                             BLK_BASE_LEN0 +            \
-                             BLK_BASE_LEN1 +            \
-                             BLK_BASE_LEN2 +            \
-                             BLK_BASE_LEN3 +            \
-                             BLK_BASE_LEN4 +            \
-                             BLK_BASE_LEN5 +            \
-                             BLK_BASE_LEN6 +            \
-                             BLK_BASE_LEN7)
+                             BLK_BASE_LEN0_b +            \
+                             BLK_BASE_LEN1_b +            \
+                             BLK_BASE_LEN2_b +            \
+                             BLK_BASE_LEN3_b +            \
+                             BLK_BASE_LEN4_b +            \
+                             BLK_BASE_LEN5_b +            \
+                             BLK_BASE_LEN6_b +            \
+                             BLK_BASE_LEN7_b)
 
 static const size_t BLK_BASE_LENS_b[BT_NUMPARTS] = {
-  BLK_BASE_LEN0,
-  BLK_BASE_LEN1,
-  BLK_BASE_LEN2,
-  BLK_BASE_LEN3,
-  BLK_BASE_LEN4,
-  BLK_BASE_LEN5,
-  BLK_BASE_LEN6,
-  BLK_BASE_LEN7,
+  BLK_BASE_LEN0_b,
+  BLK_BASE_LEN1_b,
+  BLK_BASE_LEN2_b,
+  BLK_BASE_LEN3_b,
+  BLK_BASE_LEN4_b,
+  BLK_BASE_LEN5_b,
+  BLK_BASE_LEN6_b,
+  BLK_BASE_LEN7_b,
 };
 
-static_assert(PMA_GROW_SIZE_b >= (BLK_BASE_LEN0 + BT_META_LEN));
+static_assert(PMA_GROW_SIZE_b >= (BLK_BASE_LEN0_b + BT_META_LEN_b));
 
 typedef struct BT_mlistnode BT_mlistnode;
 struct BT_mlistnode {
@@ -1704,7 +1704,7 @@ _flist_grow(BT_state *state, size_t pages)
 static int
 _flist_new(BT_state *state, size_t size_p)
 #define FLIST_PG_START (BT_META_SECTION_WIDTH / BT_PAGESIZE)
-/* #define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0) / BT_PAGESIZE) */
+/* #define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0_b) / BT_PAGESIZE) */
 {
   BT_flistnode *head = calloc(1, sizeof *head);
   head->next = 0;
@@ -1721,14 +1721,14 @@ _nlist_new(BT_state *state)
 {
   BT_nlistnode *head = calloc(1, sizeof *head);
 
-  pgno_t partition_0_pg = _bt_falloc(state, BLK_BASE_LEN0 / BT_PAGESIZE);
+  pgno_t partition_0_pg = _bt_falloc(state, BLK_BASE_LEN0_b / BT_PAGESIZE);
   BT_page *partition_0 = _node_get(state, partition_0_pg);
   /* ;;: tmp. assert. for debugging changes */
   assert(partition_0 == &((BT_page *)state->map)[BT_NUMMETAS]);
 
   /* the size of a new node freelist is just the first stripe length */
   head->lo = partition_0;
-  head->hi = head->lo + B2PAGES(BLK_BASE_LEN0);
+  head->hi = head->lo + B2PAGES(BLK_BASE_LEN0_b);
   head->next = 0;
 
   state->nlist = head;
@@ -1877,7 +1877,7 @@ _nlist_read(BT_state *state)
   /* ;;: since partition striping isn't implemented yet, simplifying code by
      assuming all nodes reside in the 2M region */
   BT_nlistnode *head = calloc(1, sizeof *head);
-  head->sz = BLK_BASE_LEN0;
+  head->sz = BLK_BASE_LEN0_b;
   head->va = &((BT_page *)state->map)[BT_NUMMETAS];
   head->next = 0;
 
@@ -2228,7 +2228,7 @@ _bt_state_meta_which(BT_state *state)
 
   /* checksum the metapage found and abort if checksum doesn't match */
   BT_meta *meta = state->meta_pages[which];
-  uint32_t chk = nonzero_crc_32(meta, BT_META_LEN);
+  uint32_t chk = nonzero_crc_32(meta, BT_META_LEN_b);
   if (chk != meta->chk) {
     abort();
   }
@@ -2645,7 +2645,7 @@ _bt_sync_meta(BT_state *state)
   meta->txnid += 1;
 
   /* checksum the metapage */
-  chk = nonzero_crc_32(meta, BT_META_LEN);
+  chk = nonzero_crc_32(meta, BT_META_LEN_b);
   /* ;;: todo: guarantee the chk cannot be zero */
 
   meta->chk = chk;
@@ -2686,7 +2686,7 @@ static int _bt_flip_meta(BT_state *state) {
   newmeta->chk = 0;
 
   /* copy over metapage to new metapage excluding the checksum */
-  memcpy(newmeta, meta, BT_META_LEN);
+  memcpy(newmeta, meta, BT_META_LEN_b);
 
   /* CoW a new root since the root referred to by the metapage should always be
      dirty */
@@ -3257,7 +3257,7 @@ _sham_sync(BT_state *state)
   /* walk the tree and unset the dirty bit from all pages */
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
-  meta->chk = nonzero_crc_32(meta, BT_META_LEN);
+  meta->chk = nonzero_crc_32(meta, BT_META_LEN_b);
   _sham_sync2(state, root, 1, meta->depth);
 }
 
