@@ -421,9 +421,9 @@ impl<'closure> CCallback<'closure> {
     {
         let cb: &mut F = user_data.cast::<F>().as_mut().unwrap();
         let mut v = (*cb)();
-        eprint!("ares: v: {:?}\r\n", v);
+        eprint!("call_closure: v: {:?}\r\n", v);
         let v_ptr = &mut v as *mut _ as *mut c_void;
-        eprint!("ares: v_ptr: {:p}\r\n", v_ptr);
+        eprint!("call_closure: v_ptr: {:p}\r\n", v_ptr);
         v_ptr
     }
 }
@@ -447,10 +447,9 @@ pub fn call_with_guard<F: FnMut() -> Result>(
 ) -> Result {
     let c = CCallback::new(f);
     let mut result: Result = Ok(D(0));
-    let result_ptr = &mut result as *mut _ as *mut c_void;
-    let result_ptr_ptr = result_ptr as *mut *mut c_void;
-
-    eprint!("ares: result_ptr_ptr: {:p}\r\n", result_ptr_ptr);
+    let res_ptr = &mut result as *mut _ as *mut c_void;
+    let res_ptr_ptr = &res_ptr as *const *mut c_void;
+    eprint!("call_with_guard: before res_ptr: {:p}\r\n", res_ptr);
 
     unsafe {
         let err = guard(
@@ -458,15 +457,16 @@ pub fn call_with_guard<F: FnMut() -> Result>(
             c.user_data as *mut c_void,
             stack,
             alloc,
-            result_ptr_ptr,
+            res_ptr_ptr,
         );
 
-        eprint!("ares: result_ptr: {:p}\r\n", result_ptr);
+        eprint!("call_with_guard: after res_ptr: {:p}\r\n", res_ptr);
 
         if let Ok(err) = GuardError::try_from(err) {
             match err {
                 GuardError::GuardSound => {
-                    eprint!("ares: result: {:?}\n", result);
+                    let result = *(res_ptr as *mut Result);
+                    eprint!("call_with_guard: result: {:?}\r\n", result);
                     return result;
                 }
                 GuardError::GuardArmor => {
@@ -1076,7 +1076,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
         })
     });
 
-    eprint!("nock: {:?}", nock);
     match nock {
         Ok(res) => Ok(res),
         Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),

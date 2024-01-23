@@ -45,7 +45,7 @@ guard_err guard(
   void *user_data,
   void *const *stack_pp,
   void *const *alloc_pp,
-  void **ret
+  void *const *ret
 );
 
 

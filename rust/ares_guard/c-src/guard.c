@@ -112,7 +112,7 @@ guard_err guard(
   void *user_data,
   void *const *stack_pp,
   void *const *alloc_pp,
-  void **ret
+  void *const *ret
 )
 {
   stack = (uint64_t**) stack_pp;
@@ -124,7 +124,6 @@ guard_err guard(
   fprintf(stderr, "guard: stack pointer at %p\r\n", (void *) *stack);
   fprintf(stderr, "guard: alloc pointer at %p\r\n", (void *) *alloc);
   fprintf(stderr, "guard: ret pointer at %p\r\n", (void *) ret);
-  fprintf(stderr, "guard: res pointer at %p\r\n", (void *) *ret);
 
   if (guard_p == 0) {
     fprintf(stderr, "guard: installing guard page\r\n");
@@ -154,8 +153,9 @@ guard_err guard(
     }
   }
 
-  fprintf(stderr, "guard: assigning ret to %p\r\n", result);
-  *ret = result;
+  fprintf(stderr, "guard: assigning *ret to %p\r\n", result);
+  *(void **)ret = result;
+  fprintf(stderr, "guard: assigned  *ret to %p\r\n", *ret);
 
   if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
     err = guard_armor;
