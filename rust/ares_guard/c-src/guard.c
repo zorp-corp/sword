@@ -112,7 +112,7 @@ guard_err guard(
   void *user_data,
   void *const *stack_pp,
   void *const *alloc_pp,
-  void *ret
+  void **ret
 )
 {
   stack = (uint64_t**) stack_pp;
@@ -124,6 +124,7 @@ guard_err guard(
   fprintf(stderr, "guard: stack pointer at %p\r\n", (void *) *stack);
   fprintf(stderr, "guard: alloc pointer at %p\r\n", (void *) *alloc);
   fprintf(stderr, "guard: ret pointer at %p\r\n", (void *) ret);
+  fprintf(stderr, "guard: res pointer at %p\r\n", (void *) *ret);
 
   if (guard_p == 0) {
     fprintf(stderr, "guard: installing guard page\r\n");
@@ -147,21 +148,20 @@ guard_err guard(
     result = f(user_data);
   }
   else {
-    fprintf(stderr, "guard: jump buffer already set\r\n");
+    fprintf(stderr, "guard: longjmp\r\n");
     if (err != guard_sound) {
-      fprintf(stderr, "guard: not sound\r\n");
       goto fail;
     }
-    else {
-      fprintf(stderr, "guard: assigning ret\r\n");
-      *(void **)ret = result;
-    }
   }
+
+  fprintf(stderr, "guard: assigning ret to %p\r\n", result);
+  *ret = result;
 
   if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
     err = guard_armor;
     goto fail;
   }
+  fprintf(stderr, "guard: uninstalled guard page\r\n");
 
   return guard_sound;
 
@@ -169,6 +169,7 @@ fail:
   if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
     fprintf(stderr, "guard: failed to uninstall guard page\r\n");
   }
+  fprintf(stderr, "guard: uninstalled guard page\r\n");
   switch (err) {
     case guard_armor:
       fprintf(stderr, "guard: armor error\r\n");

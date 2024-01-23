@@ -393,11 +393,20 @@ pub struct CCallback<'closure> {
 }
 
 impl<'closure> CCallback<'closure> {
-    pub fn new<F>(closure: &'closure mut F) -> Self where F: FnMut() -> Result {
+    pub fn new<F>(closure: &'closure mut F) -> Self
+    where
+        F: FnMut() -> Result,
+    {
         let function: unsafe extern "C" fn(*mut c_void) -> *mut c_void = Self::call_closure::<F>;
 
-        debug_assert_eq!(std::mem::size_of::<&'closure mut F>(), std::mem::size_of::<*const c_void>());
-        debug_assert_eq!(std::mem::size_of_val(&function), std::mem::size_of::<*const c_void>());
+        debug_assert_eq!(
+            std::mem::size_of::<&'closure mut F>(),
+            std::mem::size_of::<*const c_void>()
+        );
+        debug_assert_eq!(
+            std::mem::size_of_val(&function),
+            std::mem::size_of::<*const c_void>()
+        );
 
         Self {
             function,
@@ -406,10 +415,15 @@ impl<'closure> CCallback<'closure> {
         }
     }
 
-    unsafe extern "C" fn call_closure<F>(user_data: *mut c_void) -> *mut c_void where F: FnMut() -> Result {
+    unsafe extern "C" fn call_closure<F>(user_data: *mut c_void) -> *mut c_void
+    where
+        F: FnMut() -> Result,
+    {
         let cb: &mut F = user_data.cast::<F>().as_mut().unwrap();
         let mut v = (*cb)();
+        eprint!("ares: v: {:?}\r\n", v);
         let v_ptr = &mut v as *mut _ as *mut c_void;
+        eprint!("ares: v_ptr: {:p}\r\n", v_ptr);
         v_ptr
     }
 }
@@ -422,7 +436,7 @@ impl<'closure> CCallback<'closure> {
 //     let c = CCallback::new(closure);
 
 //     unsafe { (c.function)(c.user_data, 123) };
-    
+
 //     assert_eq!(v, [123]);
 // }
 
@@ -434,20 +448,25 @@ pub fn call_with_guard<F: FnMut() -> Result>(
     let c = CCallback::new(f);
     let mut result: Result = Ok(D(0));
     let result_ptr = &mut result as *mut _ as *mut c_void;
+    let result_ptr_ptr = result_ptr as *mut *mut c_void;
+
+    eprint!("ares: result_ptr_ptr: {:p}\r\n", result_ptr_ptr);
 
     unsafe {
-
         let err = guard(
             Some(c.function as unsafe extern "C" fn(*mut c_void) -> *mut c_void),
             c.user_data as *mut c_void,
             stack,
             alloc,
-            result_ptr,
+            result_ptr_ptr,
         );
+
+        eprint!("ares: result_ptr: {:p}\r\n", result_ptr);
 
         if let Ok(err) = GuardError::try_from(err) {
             match err {
                 GuardError::GuardSound => {
+                    eprint!("ares: result: {:?}\n", result);
                     return result;
                 }
                 GuardError::GuardArmor => {
@@ -932,9 +951,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         },
                         NockWork::Work11S(mut sint) => match sint.todo {
                             Todo11S::ComputeResult => {
-                                if let Some(ret) =
-                                    hint::match_pre_nock(context, subject, sint.tag, None, sint.body)
-                                {
+                                if let Some(ret) = hint::match_pre_nock(
+                                    context, subject, sint.tag, None, sint.body,
+                                ) {
                                     match ret {
                                         Ok(found) => {
                                             res = found;
@@ -1008,25 +1027,32 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                                     break Err(Error::ScryCrashed(D(0)));
                                                 }
                                             }
-                                            Right(cell) => match cell.tail().as_either_atom_cell() {
-                                                Left(_) => {
-                                                    let stack = &mut context.stack;
-                                                    let hunk = T(
-                                                        stack,
-                                                        &[D(tas!(b"hunk")), scry.reff, scry.path],
-                                                    );
-                                                    mean_push(stack, hunk);
-                                                    break Err(Error::ScryCrashed(D(0)));
+                                            Right(cell) => {
+                                                match cell.tail().as_either_atom_cell() {
+                                                    Left(_) => {
+                                                        let stack = &mut context.stack;
+                                                        let hunk = T(
+                                                            stack,
+                                                            &[
+                                                                D(tas!(b"hunk")),
+                                                                scry.reff,
+                                                                scry.path,
+                                                            ],
+                                                        );
+                                                        mean_push(stack, hunk);
+                                                        break Err(Error::ScryCrashed(D(0)));
+                                                    }
+                                                    Right(cell) => {
+                                                        res = cell.tail();
+                                                        context.scry_stack = scry_stack;
+                                                        context.stack.pop::<NockWork>();
+                                                    }
                                                 }
-                                                Right(cell) => {
-                                                    res = cell.tail();
-                                                    context.scry_stack = scry_stack;
-                                                    context.stack.pop::<NockWork>();
-                                                }
-                                            },
+                                            }
                                         },
                                         Err(error) => match error {
-                                            Error::Deterministic(trace) | Error::ScryCrashed(trace) => {
+                                            Error::Deterministic(trace)
+                                            | Error::ScryCrashed(trace) => {
                                                 break Err(Error::ScryCrashed(trace));
                                             }
                                             Error::NonDeterministic(_) => {
@@ -1050,6 +1076,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
         })
     });
 
+    eprint!("nock: {:?}", nock);
     match nock {
         Ok(res) => Ok(res),
         Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
