@@ -1071,6 +1071,7 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
       continue;
     }
 
+    /* ;;: i think this chunk can replace the below "found end of list" chunk */
     /* otherwise, insert discontinuous node */
     BT_mlistnode *new = calloc(1, sizeof *new);
     new->lo = lob;
@@ -1129,15 +1130,14 @@ _nlist_insert2(BT_state *state, BT_nlistnode **dst, BT_page *lo, BT_page *hi)
       dst = &(*dst)->next;
       continue;
     }
-
-    /* otherwise, insert discontinuous node */
-    BT_nlistnode *new = calloc(1, sizeof *new);
-    new->lo = lo;
-    new->hi = hi;
-    new->next = *dst;
-    *dst = new;
-    return;
   }
+
+  /* otherwise, insert discontinuous node */
+  BT_nlistnode *new = calloc(1, sizeof *new);
+  new->lo = lo;
+  new->hi = hi;
+  new->next = *dst;
+  *dst = new;
 }
 
 static void
@@ -1211,14 +1211,6 @@ _flist_insert(BT_flistnode **dst, pgno_t lo, pgno_t hi)
       dst = &(*dst)->next;
       continue;
     }
-
-    /* otherwise, insert discontinuous node */
-    BT_flistnode *new = calloc(1, sizeof *new);
-    new->lo = lo;
-    new->hi = hi;
-    new->next = *dst;
-    *dst = new;
-    return;
   }
 
   /* otherwise, insert discontinuous node */
