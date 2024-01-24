@@ -224,8 +224,9 @@ struct BT_kv {
 
 #define BT_DAT_MAXBYTES (BT_PAGESIZE - sizeof(BT_pageheader))
 #define BT_DAT_MAXENTRIES  (BT_DAT_MAXBYTES / sizeof(BT_dat))
+#ifndef BT_DAT_MAXKEYS
 #define BT_DAT_MAXKEYS (BT_DAT_MAXENTRIES / 2)
-/* #define BT_DAT_MAXKEYS 10 */
+#endif
 #define BT_DAT_MAXVALS BT_DAT_MAXKEYS
 static_assert(BT_DAT_MAXENTRIES % 2 == 0);
 /* we assume off_t is 64 bit */
@@ -1094,7 +1095,7 @@ _nlist_insert2(BT_state *state, BT_nlistnode **dst, BT_page *lo, BT_page *hi)
 {
   BT_nlistnode **prev_dst = 0;
 
-  while(*dst) {
+  while(*dst) {                 /* ;;: this is a problem */
     if (hi == (*dst)->lo) {
       (*dst)->lo = lo;
       /* check if we can coalesce with left neighbor */
@@ -1205,21 +1206,22 @@ _flist_insert(BT_flistnode **dst, pgno_t lo, pgno_t hi)
       return;
     }
     if (hi > (*dst)->lo) {
+      /* advance to next freeblock and retry */
       assert(lo > (*dst)->hi);
       assert(hi > (*dst)->hi);
       prev_dst = dst;
       dst = &(*dst)->next;
       continue;
     }
-  }
 
-  /* otherwise, insert discontinuous node */
-  BT_flistnode *new = calloc(1, sizeof *new);
-  new->lo = lo;
-  new->hi = hi;
-  new->next = *dst;
-  *dst = new;
-  return;
+    /* otherwise, insert discontinuous node */
+    BT_flistnode *new = calloc(1, sizeof *new);
+    new->lo = lo;
+    new->hi = hi;
+    new->next = *dst;
+    *dst = new;
+    return;
+  }
 }
 
 static void
@@ -2501,7 +2503,7 @@ _bt_state_load(BT_state *state)
   }
 
   /* map the node segment */
-  _bt_state_map_node_segment(state);
+  _bt_state_map_node_segment(state); /* ;;: this should follow a call to  _bt_state_meta_new. hmm... but that leads to a bad dependency graph. We may need to separately initialize the first partition and only call map_node_segment on restore. */
 
   /* new db, so populate metadata */
   if (new) {
