@@ -33,7 +33,8 @@ guard_err _focus_guard()
 
   // Unmark the old guard page.
   void *old_guard_p = guard_p;
-  if (old_guard_p != 0 && mprotect(old_guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
+  if (old_guard_p != 0
+      && mprotect(old_guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
     return guard_armor;
   }
 
@@ -45,6 +46,7 @@ guard_err _focus_guard()
     guard_p = stack_p + ((alloc_p - stack_p) / 2);
   }
   else {
+    fprintf(stderr, "guard: weird; stack and alloc pointers are equal\r\n");
     return guard_weird;
   }
   guard_p = (void *)((uintptr_t)guard_p & ~(GD_PAGESIZE - 1));
@@ -76,7 +78,7 @@ void _signal_handler(int sig, siginfo_t *si, void *unused)
 {
   switch (sig) {
     case SIGSEGV:
-      fprintf(stderr, "guard: sigsegv\r\n");
+      fprintf(stderr, "guard: sigsegv at %p\r\n", si->si_addr);
       err = _slash_guard(si->si_addr);
       break;
     case SIGINT:
@@ -88,6 +90,7 @@ void _signal_handler(int sig, siginfo_t *si, void *unused)
   }
 
   if (err != guard_sound) {
+    fprintf(stderr, "guard: error %d; long jumping\r\n", err);
     longjmp(env_buffer, 1);
   }
 }
@@ -118,8 +121,8 @@ guard_err guard(
   stack = (uint64_t**) stack_pp;
   alloc = (uint64_t**) alloc_pp;
 
-  fprintf(stderr, "guard: stack pointer at %p\r\n", (void *) *stack);
-  fprintf(stderr, "guard: alloc pointer at %p\r\n", (void *) *alloc);
+  // fprintf(stderr, "guard: stack pointer at %p\r\n", (void *) *stack);
+  // fprintf(stderr, "guard: alloc pointer at %p\r\n", (void *) *alloc);
 
   if (guard_p == 0) {
     guard_err install_err = _focus_guard();
@@ -129,7 +132,6 @@ guard_err guard(
       goto fail;
     }
   }
-  fprintf(stderr, "guard: guard page installed at %p\r\n", (void *) guard_p);
 
   if (_register_handler() != guard_sound) {
     err = guard_weird;
@@ -138,11 +140,9 @@ guard_err guard(
 
   void *result;
   if (setjmp(env_buffer) == 0) {
-    fprintf(stderr, "guard: calling f\r\n");
     result = f(user_data);
   }
   else {
-    fprintf(stderr, "guard: longjmp\r\n");
     if (err != guard_sound) {
       goto fail;
     }
@@ -150,11 +150,11 @@ guard_err guard(
 
   *(void **)ret = result;
 
-  if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
-    err = guard_armor;
-    goto fail;
-  }
-  fprintf(stderr, "guard: sound; uninstalled guard page\r\n");
+  // if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
+  //   err = guard_armor;
+  //   goto fail;
+  // }
+  // fprintf(stderr, "guard: sound; uninstalled guard page\r\n");
 
   return guard_sound;
 

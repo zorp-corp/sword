@@ -17,6 +17,7 @@ use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
 use crate::unifying_equality::unifying_equality;
 use ares_guard::*;
 use ares_macros::tas;
+use assert_no_alloc::permit_alloc;
 use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::*;
@@ -420,25 +421,17 @@ impl<'closure> CCallback<'closure> {
         F: FnMut() -> Result,
     {
         let cb: &mut F = user_data.cast::<F>().as_mut().unwrap();
-        let mut v = (*cb)();
-        // eprint!("call_closure: v: {:?}\r\n", v);
-        let v_ptr = &mut v as *mut _ as *mut c_void;
-        // eprint!("call_closure: v_ptr: {:p}\r\n", v_ptr);
-        v_ptr
+        let v = (*cb)();
+        permit_alloc(|| {
+            // eprint!("call_closure: v: {:?}\r\n", v);
+            let v_box = Box::new(v);
+            let v_ptr = Box::into_raw(v_box);
+            // let v_ptr = &mut v as *mut _ as *mut c_void;
+            // eprint!("call_closure: v_ptr: {:p}\r\n", v_ptr);
+            v_ptr as *mut c_void
+        })
     }
 }
-
-// fn main() {
-//     let mut v = Vec::new();
-
-//     // must assign to a variable to ensure it lives until the end of scope
-//     let closure = &mut |x: i32| { v.push(x) };
-//     let c = CCallback::new(closure);
-
-//     unsafe { (c.function)(c.user_data, 123) };
-
-//     assert_eq!(v, [123]);
-// }
 
 pub fn call_with_guard<F: FnMut() -> Result>(
     f: &mut F,
@@ -446,10 +439,9 @@ pub fn call_with_guard<F: FnMut() -> Result>(
     alloc: *const *mut c_void,
 ) -> Result {
     let c = CCallback::new(f);
-    let mut result: Result = Ok(D(0));
-    let res_ptr = &mut result as *mut _ as *mut c_void;
-    let res_ptr_ptr = &res_ptr as *const *mut c_void;
-    // eprint!("call_with_guard: before res_ptr: {:p}\r\n", res_ptr);
+    let mut ret: Result = Ok(D(0));
+    let ret_p = &mut ret as *mut _ as *mut c_void;
+    let ret_pp = &ret_p as *const *mut c_void;
 
     unsafe {
         let err = guard(
@@ -457,15 +449,14 @@ pub fn call_with_guard<F: FnMut() -> Result>(
             c.user_data as *mut c_void,
             stack,
             alloc,
-            res_ptr_ptr,
+            ret_pp,
         );
-
-        // eprint!("call_with_guard: after res_ptr: {:p}\r\n", res_ptr);
 
         if let Ok(err) = GuardError::try_from(err) {
             match err {
                 GuardError::GuardSound => {
-                    let result = *(res_ptr as *mut Result);
+                    let result = *(ret_p as *mut Result);
+                    // eprint!("call_with_guard: ret_p: {:p}\r\n", ret_p);
                     // eprint!("call_with_guard: result: {:?}\r\n", result);
                     return result;
                 }
