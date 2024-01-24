@@ -58,14 +58,14 @@ guard_err _focus_guard()
     return guard_spent;
   }
 
+  fprintf(stderr, "guard: installed guard page at %p\r\n", (void *) guard_p);
+
   return guard_sound;
 }
 
 guard_err _slash_guard(void *si_addr) {
-  fprintf(stderr, "guard: slash at %p\r\n", si_addr);
-  fprintf(stderr, "guard: guard at %p\r\n", (void *) guard_p);
-
   if (si_addr >= (void *)guard_p && si_addr < (void *)guard_p + GD_PAGESIZE) {
+    fprintf(stderr, "guard: slash in guard\r\n");
     return _focus_guard();
   }
 
@@ -103,7 +103,7 @@ guard_err _register_handler() {
     return guard_weird;
   }
 
-  fprintf(stderr, "guard: registered handler\r\n");
+  // fprintf(stderr, "guard: registered handler\r\n");
   return guard_sound;
 }
 
@@ -118,15 +118,10 @@ guard_err guard(
   stack = (uint64_t**) stack_pp;
   alloc = (uint64_t**) alloc_pp;
 
-  fprintf(stderr, "guard: f pointer at %p\r\n", (void *) f);
-  fprintf(stderr, "guard: stack at %p\r\n", (void *) stack);
-  fprintf(stderr, "guard: alloc at %p\r\n", (void *) alloc);
   fprintf(stderr, "guard: stack pointer at %p\r\n", (void *) *stack);
   fprintf(stderr, "guard: alloc pointer at %p\r\n", (void *) *alloc);
-  fprintf(stderr, "guard: ret pointer at %p\r\n", (void *) ret);
 
   if (guard_p == 0) {
-    fprintf(stderr, "guard: installing guard page\r\n");
     guard_err install_err = _focus_guard();
     if (install_err != guard_sound) {
       fprintf(stderr, "guard: failed to install guard page\r\n");
@@ -153,15 +148,13 @@ guard_err guard(
     }
   }
 
-  fprintf(stderr, "guard: assigning *ret to %p\r\n", result);
   *(void **)ret = result;
-  fprintf(stderr, "guard: assigned  *ret to %p\r\n", *ret);
 
   if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
     err = guard_armor;
     goto fail;
   }
-  fprintf(stderr, "guard: uninstalled guard page\r\n");
+  fprintf(stderr, "guard: sound; uninstalled guard page\r\n");
 
   return guard_sound;
 
@@ -169,7 +162,7 @@ fail:
   if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
     fprintf(stderr, "guard: failed to uninstall guard page\r\n");
   }
-  fprintf(stderr, "guard: uninstalled guard page\r\n");
+  fprintf(stderr, "guard: fail; uninstalled guard page\r\n");
   switch (err) {
     case guard_armor:
       fprintf(stderr, "guard: armor error\r\n");
