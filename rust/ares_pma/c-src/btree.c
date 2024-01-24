@@ -395,6 +395,7 @@ _node_get(BT_state *state, pgno_t pgno)
   */
   assert(pgno >= BT_NUMMETAS);
 
+#if 0
   BT_meta *meta = state->meta_pages[state->which];
 
   /* find the partition that contains pgno */
@@ -433,7 +434,7 @@ _node_get(BT_state *state, pgno_t pgno)
     *** other partition. Not sure if we are doing that anywhere currently.
 
  */
-
+#endif
   return FO2PA(state->map, pgno);
 }
 
@@ -514,13 +515,8 @@ _nlist_grow(BT_state *state)
   size_t partoff_b = P2BYTES(partition_pg);
   meta->blk_base[next_block] = partition_pg;
 
-  /* add the partition to the nlist */
-  _nlist_insertn(state,
-                 &state->nlist,
-                 partition_pg,
-                 partition_pg + block_len_p);
-
-  /* calculate the target address of the mmap call */
+  /* calculate the target memory address of the mmap call (the length of all
+     partitions preceding it) */
   BYTE *targ = BT_MAPADDR + BT_META_SECTION_WIDTH;
   for (size_t i = 0; i < next_block; i++) {
     targ += BLK_BASE_LENS_b[i];
@@ -532,11 +528,21 @@ _nlist_grow(BT_state *state)
                    BT_PROT_CLEAN,
                    BT_FLAG_CLEAN,
                    state->data_fd,
-                   P2BYTES(partition_pg))) {
+                   partoff_b)) {
     DPRINTF("mmap: failed to map node stripe %zu, addr: 0x%p, file offset (bytes): 0x%zX, errno: %s",
             next_block, targ, partoff_b, strerror(errno));
     abort();
   }
+
+  pgno_t memoff_p = B2PAGES(targ - BT_MAPADDR);
+  /* ;;: tmp assert. debugging. */
+  assert(&((BT_page *)state->map)[memoff_p] == (BT_page *)targ);
+
+  /* add the partition to the nlist */
+  _nlist_insertn(state,
+                 &state->nlist,
+                 memoff_p,
+                 memoff_p + block_len_p);
 }
 
 static void
@@ -653,7 +659,7 @@ _bt_nalloc(BT_state *state)
   /* make node writable */
   if (mprotect(ret, sizeof(BT_page), BT_PROT_DIRTY) != 0) {
     DPRINTF("mprotect of node: %p failed with %s", ret, strerror(errno));
-    abort();
+    abort(); /* ;;: https://stackoverflow.com/questions/6862825/getting-cannot-allocate-memory-error */
   }
 
   return ret;
@@ -1728,23 +1734,50 @@ _flist_new(BT_state *state, size_t size_p)
 #undef FLIST_PG_START
 
 static int
-_nlist_new(BT_state *state)
+_nlist_creat(BT_state *state, BT_page *start, size_t len_p)
+/* create a new nlist in `state' */
 {
   BT_nlistnode *head = calloc(1, sizeof *head);
+  head->lo = start;
+  head->hi = head->lo + len_p;
+  head->next = 0;
 
+  state->nlist = head;
+
+  return BT_SUCC;
+}
+
+static int
+_nlist_new(BT_state *state)
+/* create a new nlist */
+{
   pgno_t partition_0_pg = _bt_falloc(state, BLK_BASE_LEN0_b / BT_PAGESIZE);
   BT_page *partition_0 = _node_get(state, partition_0_pg);
   /* ;;: tmp. assert. for debugging changes */
   assert(partition_0 == &((BT_page *)state->map)[BT_NUMMETAS]);
 
   /* the size of a new node freelist is just the first stripe length */
-  head->lo = partition_0;
-  head->hi = head->lo + B2PAGES(BLK_BASE_LEN0_b);
-  head->next = 0;
+  return _nlist_creat(state, partition_0, B2PAGES(BLK_BASE_LEN0_b));
+}
 
-  state->nlist = head;
+static int
+_nlist_load(BT_state *state)
+/* create new nlist from persistent state. Doesn't call _bt_falloc */
+{
+  BT_meta *meta = state->meta_pages[state->which];
+  size_t len_p = 0;
+  BT_page *partition_0 = _node_get(state, meta->blk_base[0]);
+  /* ;;: tmp. assert. for debugging changes */
+  assert(partition_0 == &((BT_page *)state->map)[BT_NUMMETAS]);
 
-  return BT_SUCC;
+  /* calculate total size */
+  for (size_t i = 0
+         ; meta->blk_base[i] != 0 && i < BT_NUMPARTS
+         ; i++) {
+    len_p += B2PAGES(BLK_BASE_LENS_b[i]);
+  }
+
+  return _nlist_creat(state, partition_0, len_p);
 }
 
 static int
@@ -2410,7 +2443,7 @@ _freelist_restore(BT_state *state)
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
   assert(SUCC(_flist_new(state, state->file_size_p)));
-  assert(SUCC(_nlist_new(state)));
+  assert(SUCC(_nlist_load(state)));
   assert(SUCC(_mlist_new(state)));
   /* first record root's allocation */
   _nlist_record_alloc(state, root);
