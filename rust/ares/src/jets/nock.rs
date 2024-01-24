@@ -71,7 +71,7 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
 
 pub mod util {
     use crate::hamt::Hamt;
-    use crate::interpreter::{interpret, Context, Error};
+    use crate::interpreter::{interpret, Context, Error, Mote};
     use crate::jets;
     use crate::jets::bits::util::rip;
     use crate::jets::form::util::scow;
@@ -164,7 +164,7 @@ pub mod util {
                     context.scry_stack = scry_snapshot;
                     Ok(T(&mut context.stack, &[D(1), path]))
                 }
-                Error::Deterministic(trace) => {
+                Error::Deterministic(_, trace) => {
                     context.cache = cache_snapshot;
                     context.scry_stack = scry_snapshot;
                     Ok(T(&mut context.stack, &[D(2), trace]))
@@ -185,12 +185,12 @@ pub mod util {
                     // are identical, jet_mink() bails with Error::Deterministic. Otherwise, it forwards
                     // the Error::ScryCrashed to the senior virtualization call.
                     if unsafe { context.scry_stack.raw_equals(scry_snapshot) } {
-                        Err(Error::Deterministic(trace))
+                        Err(Error::Deterministic(Mote::Exit, trace))
                     } else {
                         Err(err)
                     }
                 }
-                Error::NonDeterministic(_) => {
+                Error::NonDeterministic(_, _) => {
                     // We choose to restore the cache and scry stack even on NonDeterministic errors
                     // to keep the logic all in one place (as opposed to having the serf reset them
                     // manually ONLY for NonDeterministic errors).
@@ -212,7 +212,7 @@ pub mod util {
         if (tag.data() != 2) | unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
         } else if original_list.atom().is_some() {
-            return Err(Error::Deterministic(D(0)));
+            return Err(Error::Deterministic(Mote::Exit, D(0)));
         }
 
         // XX: trim traces longer than 1024 frames

@@ -1,9 +1,9 @@
 /** Tree jets
  */
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::bits::util::*;
 use crate::jets::util::*;
-use crate::jets::{JetErr, Result};
+use crate::jets::Result;
 use crate::noun::{IndirectAtom, Noun, D};
 
 crate::gdb!();
@@ -15,7 +15,7 @@ pub fn jet_cap(_context: &mut Context, subject: Noun) -> Result {
 
     unsafe {
         if met < 2 {
-            Err(JetErr::Fail(Error::Deterministic(D(0))))
+            Err(BAIL_EXIT)
         } else if *(tom.as_bitslice().get_unchecked(met - 2)) {
             Ok(D(3))
         } else {
@@ -30,7 +30,7 @@ pub fn jet_mas(context: &mut Context, subject: Noun) -> Result {
     let met = met(0, tom);
 
     if met < 2 {
-        Err(JetErr::Fail(Error::Deterministic(D(0))))
+        Err(BAIL_EXIT)
     } else {
         let out_bits = met - 1;
         let out_words = (out_bits + 63) >> 6;
@@ -52,11 +52,11 @@ pub fn jet_peg(context: &mut Context, subject: Noun) -> Result {
 
     unsafe {
         if a.as_noun().raw_equals(D(0)) {
-            return Err(JetErr::Fail(Error::Deterministic(D(0))));
+            return Err(BAIL_EXIT);
         };
 
         if b.as_noun().raw_equals(D(0)) {
-            return Err(JetErr::Fail(Error::Deterministic(D(0))));
+            return Err(BAIL_EXIT);
         };
     }
 
@@ -78,9 +78,7 @@ pub fn jet_peg(context: &mut Context, subject: Noun) -> Result {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::interpreter::Error;
     use crate::jets::util::test::*;
-    use crate::jets::JetErr;
     use crate::mem::NockStack;
     use crate::noun::{Noun, D, DIRECT_MAX};
     use ibig::ubig;
@@ -129,8 +127,8 @@ mod tests {
     fn test_cap() {
         let c = &mut init_context();
 
-        assert_jet_err(c, jet_cap, D(0), JetErr::Fail(Error::Deterministic(D(0))));
-        assert_jet_err(c, jet_cap, D(1), JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_cap, D(0), BAIL_EXIT);
+        assert_jet_err(c, jet_cap, D(1), BAIL_EXIT);
 
         assert_jet(c, jet_cap, D(2), D(2));
         assert_jet(c, jet_cap, D(3), D(3));
@@ -150,8 +148,8 @@ mod tests {
         let a66 = atom_66(&mut c.stack);
 
         // Test invalid input
-        assert_jet_err(c, jet_mas, D(0), JetErr::Fail(Error::Deterministic(D(0))));
-        assert_jet_err(c, jet_mas, D(1), JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_mas, D(0), BAIL_EXIT);
+        assert_jet_err(c, jet_mas, D(1), BAIL_EXIT);
 
         // Test direct
         assert_jet(c, jet_mas, D(2), D(1));
@@ -177,18 +175,8 @@ mod tests {
     fn test_peg() {
         let c = &mut init_context();
 
-        assert_common_jet_err(
-            c,
-            jet_peg,
-            &[atom_0, atom_1],
-            JetErr::Fail(Error::Deterministic(D(0))),
-        );
-        assert_common_jet_err(
-            c,
-            jet_peg,
-            &[atom_1, atom_0],
-            JetErr::Fail(Error::Deterministic(D(0))),
-        );
+        assert_common_jet_err(c, jet_peg, &[atom_0, atom_1], BAIL_EXIT);
+        assert_common_jet_err(c, jet_peg, &[atom_1, atom_0], BAIL_EXIT);
 
         // Test direct
         assert_common_jet_noun(c, jet_peg, &[pos_2, pos_3], D(5));

@@ -1,9 +1,9 @@
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::bits::util::met;
-use crate::jets::util::slot;
+use crate::jets::util::{slot, BAIL_EXIT};
 use crate::jets::{JetErr, Result};
 use crate::mem::NockStack;
-use crate::noun::{IndirectAtom, Noun, D, NO, YES};
+use crate::noun::{IndirectAtom, Noun, NO, YES};
 use ares_crypto::ed25519::{ac_ed_puck, ac_ed_shar, ac_ed_sign, ac_ed_veri};
 
 crate::gdb!();
@@ -14,7 +14,7 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
 
     let sed_len = met(3, sed);
     if sed_len > 32 {
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
+        return Err(BAIL_EXIT);
     }
 
     unsafe {
@@ -35,7 +35,7 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
 
     if met(3, sec_key) > 32 {
         // sek is size checked by +puck via +suck
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
+        return Err(BAIL_EXIT);
     }
     if met(3, pub_key) > 32 {
         // pub is not size checked in Hoon, but it must be 32 bytes or less for
@@ -69,7 +69,7 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
         let sed_bytes = sed.as_bytes();
         let sed_len = sed_bytes.len();
         if sed_len > 32 {
-            return Err(JetErr::Fail(Error::Deterministic(D(0))));
+            return Err(BAIL_EXIT);
         };
         let seed = &mut [0u8; 32];
         seed[0..sed_len].copy_from_slice(sed_bytes);
@@ -81,8 +81,7 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
             let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
             message.copy_from_slice(&msg.as_bytes()[0..msg_len]);
             ac_ed_sign(message, seed, sig);
-        }
-        else {
+        } else {
             ac_ed_sign(&[0u8; 0], seed, sig);
         }
 
@@ -132,10 +131,7 @@ mod tests {
     fn test_puck() {
         let c = &mut init_context();
 
-        let sam = A(
-            &mut c.stack,
-            &ubig!(_0x0),
-        );
+        let sam = A(&mut c.stack, &ubig!(_0x0));
         let ret = A(
             &mut c.stack,
             &ubig!(_0x29da598ba148c03aa643e21d77153265730d6f2ad0a8a3622da4b6cebc276a3b),
@@ -158,10 +154,7 @@ mod tests {
         let c = &mut init_context();
 
         let sam = T(&mut c.stack, &[D(0), D(0)]);
-        let ret = A(
-            &mut c.stack,
-            &ubig!(_0x0),
-        );
+        let ret = A(&mut c.stack, &ubig!(_0x0));
         assert_jet(c, jet_shar, sam, ret);
 
         let sam = T(&mut c.stack, &[D(234), D(234)]);
@@ -175,7 +168,7 @@ mod tests {
             &mut c.stack,
             &ubig!(_0xfb099b0acc4d1ce37f9982a2ed331245e0cdfdf6979364b7676a142b8233e53b),
         );
-        assert_jet_err(c, jet_shar, sam, JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_shar, sam, BAIL_EXIT);
     }
 
     #[test]

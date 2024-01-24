@@ -25,7 +25,7 @@ pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
-    use crate::interpreter::Error;
+    use crate::jets::util::BAIL_EXIT;
     use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
     use crate::noun::{Cell, Noun, D, T};
@@ -56,7 +56,7 @@ pub mod util {
                 if atom.as_bitslice().first_one().is_none() {
                     break;
                 } else {
-                    return Err(JetErr::Fail(Error::Deterministic(D(0))));
+                    return Err(BAIL_EXIT);
                 }
             }
             let cell = list.as_cell()?;
@@ -98,9 +98,8 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::interpreter::Error;
     use crate::jets::util::test::{assert_jet, assert_jet_err, init_context};
-    use crate::jets::JetErr;
+    use crate::jets::util::BAIL_EXIT;
     use crate::noun::{D, T};
 
     #[test]
@@ -135,9 +134,9 @@ mod tests {
         );
         assert_jet(c, jet_flop, sam, res);
 
-        assert_jet_err(c, jet_flop, D(1), JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_flop, D(1), BAIL_EXIT);
         let sam = T(&mut c.stack, &[D(1), D(2), D(3)]);
-        assert_jet_err(c, jet_flop, sam, JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_flop, sam, BAIL_EXIT);
     }
 
     #[test]
@@ -149,9 +148,9 @@ mod tests {
         assert_jet(c, jet_lent, sam, D(3));
         let sam = T(&mut c.stack, &[D(3), D(2), D(1), D(0)]);
         assert_jet(c, jet_lent, sam, D(3));
-        assert_jet_err(c, jet_lent, D(1), JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_lent, D(1), BAIL_EXIT);
         let sam = T(&mut c.stack, &[D(3), D(2), D(1)]);
-        assert_jet_err(c, jet_lent, sam, JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_lent, sam, BAIL_EXIT);
     }
 
     #[test]

@@ -1,8 +1,8 @@
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::bits::util::met;
-use crate::jets::util::slot;
-use crate::jets::{JetErr, Result};
-use crate::noun::{IndirectAtom, Noun, D};
+use crate::jets::util::{slot, BAIL_FAIL};
+use crate::jets::Result;
+use crate::noun::{IndirectAtom, Noun};
 use ares_crypto::sha::{ac_sha1, ac_shal, ac_shas, ac_shay};
 
 crate::gdb!();
@@ -25,14 +25,12 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
             let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
             message.copy_from_slice(&ruz.as_bytes()[0..msg_len]);
             ac_shas(message, salt, out);
-        }
-        else {
+        } else {
             ac_shas(&mut [], salt, out);
         }
 
         Ok(out_ida.normalize_as_atom().as_noun())
     }
-
 }
 
 pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
@@ -48,8 +46,7 @@ pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
             let (mut _msg_ida, msg_copy) = IndirectAtom::new_raw_mut_bytes(stack, len);
             msg_copy.copy_from_slice(&msg.as_bytes()[0..len]);
             ac_shay(&mut (msg_copy)[0..len], out);
-        }
-        else {
+        } else {
             ac_shay(&mut [], out);
         }
 
@@ -65,7 +62,7 @@ pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
 
     let width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+        Err(_) => return Err(BAIL_FAIL),
     };
 
     unsafe {
@@ -74,8 +71,7 @@ pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
             let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, width);
             msg.copy_from_slice(&dat.as_bytes()[0..width]);
             ac_shay(msg, out);
-        }
-        else {
+        } else {
             ac_shay(&mut [], out);
         }
         Ok(out_ida.normalize_as_atom().as_noun())
@@ -90,7 +86,7 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
 
     let _width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+        Err(_) => return Err(BAIL_FAIL),
     };
 
     let msg_len = met(3, dat);
@@ -101,8 +97,7 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
             let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
             msg.copy_from_slice(&dat.as_bytes()[0..msg_len]);
             ac_shal(msg, out);
-        }
-        else {
+        } else {
             ac_shal(&mut [], out);
         }
         Ok(ida.normalize_as_atom().as_noun())
@@ -117,7 +112,7 @@ pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
 
     let width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+        Err(_) => return Err(BAIL_FAIL),
     };
 
     unsafe {
@@ -276,24 +271,14 @@ mod tests {
             IndirectAtom::new_raw_bytes(&mut c.stack, 8, &big as *const u64 as *const u8)
         };
         let sam = T(&mut c.stack, &[ida.as_noun(), D(478560413032)]);
-        assert_jet_err(
-            c,
-            jet_shay,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_shay, sam, BAIL_FAIL);
 
         let big: u128 = (DIRECT_MAX as u128) << 64;
         let ida = unsafe {
             IndirectAtom::new_raw_bytes(&mut c.stack, 8, &big as *const u128 as *const u8)
         };
         let sam = T(&mut c.stack, &[ida.as_noun(), D(478560413032)]);
-        assert_jet_err(
-            c,
-            jet_shay,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_shay, sam, BAIL_FAIL);
     }
 
     #[test]
@@ -333,24 +318,14 @@ mod tests {
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73),
         );
         let sam = T(&mut c.stack, &[wid, dat]);
-        assert_jet_err(
-            c,
-            jet_shal,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_shal, sam, BAIL_FAIL);
 
         let wid = A(
             &mut c.stack,
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
         );
         let sam = T(&mut c.stack, &[wid, D(1)]);
-        assert_jet_err(
-            c,
-            jet_shal,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_shal, sam, BAIL_FAIL);
     }
 
     #[test]
@@ -382,23 +357,13 @@ mod tests {
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73),
         );
         let sam = T(&mut c.stack, &[wid, dat]);
-        assert_jet_err(
-            c,
-            jet_sha1,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_sha1, sam, BAIL_FAIL);
 
         let wid = A(
             &mut c.stack,
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
         );
         let sam = T(&mut c.stack, &[wid, D(1)]);
-        assert_jet_err(
-            c,
-            jet_sha1,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_sha1, sam, BAIL_FAIL);
     }
 }

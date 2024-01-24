@@ -1,8 +1,8 @@
 /** Bit arithmetic & logic jets
  */
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::util::*;
-use crate::jets::{JetErr, Result};
+use crate::jets::Result;
 use crate::noun::{IndirectAtom, Noun, D};
 use std::cmp;
 
@@ -196,7 +196,7 @@ pub fn jet_rev(context: &mut Context, subject: Noun) -> Result {
     let boz = slot(arg, 2)?.as_atom()?.as_direct()?.data();
 
     if boz >= 64 {
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
+        return Err(BAIL_EXIT);
     }
 
     let boz = boz as usize;

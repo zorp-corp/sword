@@ -12,9 +12,9 @@
  * Another approach is use a global custom allocator.  This is fairly involved, but it would allow
  * us to use any library without worrying whether it allocates.
  */
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::util::*;
-use crate::jets::{JetErr, Result};
+use crate::jets::Result;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
 use either::{Left, Right};
 use ibig::ops::DivRem;
@@ -35,7 +35,7 @@ pub fn jet_dec(context: &mut Context, subject: Noun) -> Result {
         match atom.as_either() {
             Left(direct) => {
                 if direct.data() == 0 {
-                    Err(JetErr::Fail(Error::Deterministic(D(0))))
+                    Err(BAIL_EXIT)
                 } else {
                     Ok(unsafe { DirectAtom::new_unchecked(direct.data() - 1) }.as_noun())
                 }
@@ -63,7 +63,7 @@ pub fn jet_dec(context: &mut Context, subject: Noun) -> Result {
             }
         }
     } else {
-        Err(JetErr::Fail(Error::Deterministic(D(0))))
+        Err(BAIL_EXIT)
     }
 }
 
@@ -74,7 +74,7 @@ pub fn jet_div(context: &mut Context, subject: Noun) -> Result {
     let b = slot(arg, 3)?.as_atom()?;
 
     if unsafe { b.as_noun().raw_equals(D(0)) } {
-        Err(JetErr::Fail(Error::Deterministic(D(0))))
+        Err(BAIL_EXIT)
     } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         Ok(unsafe { DirectAtom::new_unchecked(a.data() / b.data()) }.as_noun())
     } else {
@@ -92,7 +92,7 @@ pub fn jet_dvr(context: &mut Context, subject: Noun) -> Result {
     let b = slot(arg, 3)?.as_atom()?;
 
     if unsafe { b.as_noun().raw_equals(D(0)) } {
-        Err(JetErr::Fail(Error::Deterministic(D(0))))
+        Err(BAIL_EXIT)
     } else {
         let (div, rem) = if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             let (div, rem) = (a.data() / b.data(), a.data() % b.data());
@@ -245,7 +245,7 @@ pub fn jet_mod(context: &mut Context, subject: Noun) -> Result {
     let b = slot(arg, 3)?.as_atom()?;
 
     if unsafe { b.as_noun().raw_equals(D(0)) } {
-        Err(JetErr::Fail(Error::Deterministic(D(0))))
+        Err(BAIL_EXIT)
     } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         Ok(unsafe { DirectAtom::new_unchecked(a.data() % b.data()) }.as_noun())
     } else {
@@ -429,7 +429,7 @@ mod tests {
         let (a0, _a24, a63, _a96, a128) = atoms(s);
         assert_jet_ubig(c, jet_dec, a128, ubig!(0xdeadbeef12345678fedcba987654320f));
         assert_jet(c, jet_dec, a63, D(0x7ffffffffffffffe));
-        assert_jet_err(c, jet_dec, a0, JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_dec, a0, BAIL_EXIT);
     }
 
     #[test]
@@ -451,18 +451,8 @@ mod tests {
             _0x00000000000001000000000000000000000000000000000000000000000000000000000000000001
         );
         assert_common_jet(c, jet_div, &[atom_528, atom_264], res);
-        assert_common_jet_err(
-            c,
-            jet_div,
-            &[atom_63, atom_0],
-            JetErr::Fail(Error::Deterministic(D(0))),
-        );
-        assert_common_jet_err(
-            c,
-            jet_div,
-            &[atom_0, atom_0],
-            JetErr::Fail(Error::Deterministic(D(0))),
-        );
+        assert_common_jet_err(c, jet_div, &[atom_63, atom_0], BAIL_EXIT);
+        assert_common_jet_err(c, jet_div, &[atom_0, atom_0], BAIL_EXIT);
     }
 
     #[test]
@@ -508,12 +498,7 @@ mod tests {
         let res = T(&mut c.stack, &[res_a, res_b]);
         assert_jet(c, jet_dvr, sam, res);
 
-        assert_common_jet_err(
-            c,
-            jet_dvr,
-            &[atom_63, atom_0],
-            JetErr::Fail(Error::Deterministic(D(0))),
-        );
+        assert_common_jet_err(c, jet_dvr, &[atom_63, atom_0], BAIL_EXIT);
     }
 
     #[test]
@@ -675,18 +660,8 @@ mod tests {
         assert_common_jet(c, jet_mod, &[atom_63, atom_24], ubig!(0x798385));
         assert_common_jet(c, jet_mod, &[atom_128, atom_24], ubig!(0x3b2013));
         assert_common_jet(c, jet_mod, &[atom_528, atom_264], ubig!(0x100));
-        assert_common_jet_err(
-            c,
-            jet_mod,
-            &[atom_63, atom_0],
-            JetErr::Fail(Error::Deterministic(D(0))),
-        );
-        assert_common_jet_err(
-            c,
-            jet_mod,
-            &[atom_0, atom_0],
-            JetErr::Fail(Error::Deterministic(D(0))),
-        );
+        assert_common_jet_err(c, jet_mod, &[atom_63, atom_0], BAIL_EXIT);
+        assert_common_jet_err(c, jet_mod, &[atom_0, atom_0], BAIL_EXIT);
     }
 
     #[test]
@@ -732,11 +707,6 @@ mod tests {
         );
         assert_common_jet(c, jet_sub, &[atom_63, atom_63], ubig!(0));
         assert_common_jet(c, jet_sub, &[atom_128, atom_128], ubig!(0));
-        assert_common_jet_err(
-            c,
-            jet_sub,
-            &[atom_63, atom_96],
-            JetErr::Fail(Error::Deterministic(D(0))),
-        );
+        assert_common_jet_err(c, jet_sub, &[atom_63, atom_96], BAIL_EXIT);
     }
 }

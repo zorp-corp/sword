@@ -15,7 +15,7 @@ pub mod serial;
 pub mod sort;
 pub mod tree;
 
-use crate::interpreter::{Context, Error};
+use crate::interpreter::{Context, Error, Mote};
 use crate::jets::bits::*;
 use crate::jets::cold::Cold;
 use crate::jets::form::*;
@@ -79,7 +79,7 @@ impl From<Error> for JetErr {
 
 impl From<noun::Error> for JetErr {
     fn from(_err: noun::Error) -> Self {
-        Self::Fail(Error::Deterministic(D(0)))
+        Self::Fail(Error::Deterministic(Mote::Exit, D(0)))
     }
 }
 
@@ -190,6 +190,9 @@ pub mod util {
     use bitvec::prelude::{BitSlice, Lsb0};
     use std::result;
 
+    pub const BAIL_EXIT: JetErr = JetErr::Fail(Error::Deterministic(Mote::Exit, D(0)));
+    pub const BAIL_FAIL: JetErr = JetErr::Fail(Error::NonDeterministic(Mote::Fail, D(0)));
+
     /**
      * Address-based size checks.
      * Currently, only addresses indexable by the first 48 bits are reachable by
@@ -201,13 +204,12 @@ pub mod util {
     pub fn checked_add(a: usize, b: usize) -> result::Result<usize, JetErr> {
         a.checked_add(b)
             .filter(|x| x <= &MAX_BIT_LENGTH)
-            .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
+            .ok_or(BAIL_FAIL)
     }
 
     /// Performs subtraction that returns None on Noun size overflow
     pub fn checked_sub(a: usize, b: usize) -> result::Result<usize, JetErr> {
-        a.checked_sub(b)
-            .ok_or(JetErr::Fail(Error::NonDeterministic(D(0))))
+        a.checked_sub(b).ok_or(BAIL_FAIL)
     }
 
     pub fn checked_left_shift(bloq: usize, a: usize) -> result::Result<usize, JetErr> {
@@ -215,7 +217,7 @@ pub mod util {
 
         // Catch overflow
         if (res >> bloq) < a || res > MAX_BIT_LENGTH {
-            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
+            Err(BAIL_FAIL)
         } else {
             Ok(res)
         }
@@ -232,15 +234,14 @@ pub mod util {
     }
 
     pub fn slot(noun: Noun, axis: u64) -> Result {
-        noun.slot(axis)
-            .map_err(|_e| JetErr::Fail(Error::Deterministic(D(0))))
+        noun.slot(axis).map_err(|_e| BAIL_EXIT)
     }
 
     /// Extract a bloq and check that it's computable by the current system
     pub fn bloq(a: Noun) -> result::Result<usize, JetErr> {
         let bloq = a.as_direct()?.data() as usize;
         if bloq >= 47 {
-            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
+            Err(BAIL_FAIL)
         } else {
             Ok(bloq)
         }
@@ -380,10 +381,13 @@ pub mod util {
                     match (actual_err, expected_err) {
                         (Error::ScryBlocked(mut actual), Error::ScryBlocked(mut expected))
                         | (Error::ScryCrashed(mut actual), Error::ScryCrashed(mut expected))
-                        | (Error::Deterministic(mut actual), Error::Deterministic(mut expected))
                         | (
-                            Error::NonDeterministic(mut actual),
-                            Error::NonDeterministic(mut expected),
+                            Error::Deterministic(_, mut actual),
+                            Error::Deterministic(_, mut expected),
+                        )
+                        | (
+                            Error::NonDeterministic(_, mut actual),
+                            Error::NonDeterministic(_, mut expected),
                         ) => unsafe {
                             assert!(unifying_equality(
                                 &mut context.stack,
