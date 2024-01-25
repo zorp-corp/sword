@@ -214,10 +214,12 @@ int main(int argc, char *argv[])
 
   bt_state_close(state2);
 
-  /* disabling these for now because they break when we change BT_DAT_MAXKEYS
-     for some reason. fix this?? */
 #if 0
-
+  /*
+     test 3 pairs poorly with an overridden BT_DAT_MAKEYS=10 leading to huge
+     persistent file growth. Disabling for now. Is there some way we can easily
+     override these values at a per-test level without altering a code?
+  */
 
 
   DPUTS("== test 3: ephemeral structure restoration");
@@ -259,7 +261,7 @@ int main(int argc, char *argv[])
     assert(_mlist_sizep(state3->mlist)
            == (mlist_sizp - alloc_sizp));
     N = _bt_numkeys(root);
-    assert(root->datk[N-2].fo == 0);
+    /* assert(root->datk[N-2].fo == 0); */
   }
 
   /* sync the state */
@@ -308,6 +310,8 @@ int main(int argc, char *argv[])
 
   bt_state_close(state3);
 
+#endif
+
 
   DPUTS("== test 4: backing file extension");
   BT_state *state4;
@@ -337,9 +341,6 @@ int main(int argc, char *argv[])
 
   assert(state4->file_size_p == PMA_INITIAL_SIZE_p + PMA_GROW_SIZE_p * 2);
   assert(state4->flist->hi == state4->file_size_p);
-
-#endif
-
 
 
   DPUTS("== test 5: partition striping");
