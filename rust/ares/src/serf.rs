@@ -424,9 +424,6 @@ fn goof(context: &mut Context, mote: Mote, traces: Noun) -> Noun {
     let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
         .tail();
-    //  XX: noun::Error should use a bail enum system similar to u3m_bail motes;
-    //      might be able to replace NockErr with mote and map determinism to individual motes;
-    //      for, always set to %exit
     T(&mut context.nock_context.stack, &[D(mote as u64), tang])
 }
 

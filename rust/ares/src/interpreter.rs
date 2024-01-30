@@ -17,8 +17,7 @@ use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
 use crate::unifying_equality::unifying_equality;
 use ares_guard::*;
 use ares_macros::tas;
-use assert_no_alloc::permit_alloc;
-use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters};
+use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters, permit_alloc};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::*;
 use std::convert::TryFrom;
@@ -433,11 +432,8 @@ impl<'closure> CCallback<'closure> {
         let cb: &mut F = user_data.cast::<F>().as_mut().unwrap();
         let v = (*cb)();
         permit_alloc(|| {
-            // eprint!("call_closure: v: {:?}\r\n", v);
             let v_box = Box::new(v);
             let v_ptr = Box::into_raw(v_box);
-            // let v_ptr = &mut v as *mut _ as *mut c_void;
-            // eprint!("call_closure: v_ptr: {:p}\r\n", v_ptr);
             v_ptr as *mut c_void
         })
     }
@@ -465,10 +461,11 @@ pub fn call_with_guard<F: FnMut() -> Result>(
         if let Ok(err) = GuardError::try_from(err) {
             match err {
                 GuardError::GuardSound => {
-                    let result = *(ret_p as *mut Result);
-                    // eprint!("call_with_guard: ret_p: {:p}\r\n", ret_p);
-                    // eprint!("call_with_guard: result: {:?}\r\n", result);
-                    return result;
+                    permit_alloc(|| {
+                        let result_box = Box::from_raw(ret_p as *mut Result);
+                        let result = *result_box;
+                        return result;
+                    })
                 }
                 GuardError::GuardArmor => {
                     return Err(Error::Deterministic(Mote::Exit, D(0)));

@@ -122,7 +122,7 @@ off2addr(vaof_t off)
 #define BT_NUMMETAS 2                     /* 2 metapages */
 #define BT_META_SECTION_WIDTH (BT_NUMMETAS * BT_PAGESIZE)
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
-#define PMA_GROW_SIZE_p (1024)
+#define PMA_GROW_SIZE_p (10000000)
 #define PMA_GROW_SIZE_b (BT_PAGESIZE * PMA_GROW_SIZE_p)
 
 #define BT_NOPAGE 0
@@ -1570,6 +1570,7 @@ _flist_grow(BT_state *state, size_t pages)
 /* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
    flist */
 {
+  exit(1);
   /* grow the backing file by at least PMA_GROW_SIZE_p */
   pages = MAX(pages, PMA_GROW_SIZE_p);
   off_t bytes = P2BYTES(pages);

@@ -27,7 +27,7 @@ guard_err _focus_guard()
 
   // Check for strange situations.
   if (stack_p == 0 || alloc_p == 0) {
-    // fprintf(stderr, "guard: stack or alloc pointer is null\r\n");
+    fprintf(stderr, "guard: stack or alloc pointer is null\r\n");
     return guard_weird;
   }
 
@@ -46,7 +46,7 @@ guard_err _focus_guard()
     guard_p = stack_p + ((alloc_p - stack_p) / 2);
   }
   else {
-    // fprintf(stderr, "guard: weird; stack and alloc pointers are equal\r\n");
+    fprintf(stderr, "guard: weird; stack and alloc pointers are equal\r\n");
     return guard_weird;
   }
   guard_p = (void *)((uintptr_t)guard_p & ~(GD_PAGESIZE - 1));
@@ -60,16 +60,17 @@ guard_err _focus_guard()
     return guard_spent;
   }
 
-  // fprintf(stderr, "guard: installed guard page at %p\r\n", (void *) guard_p);
+  fprintf(stderr, "guard: installed guard page at %p\r\n", (void *) guard_p);
 
   return guard_sound;
 }
 
 guard_err _slash_guard(void *si_addr) {
   if (si_addr >= (void *)guard_p && si_addr < (void *)guard_p + GD_PAGESIZE) {
-    // fprintf(stderr, "guard: slash in guard\r\n");
+    fprintf(stderr, "guard: slash in guard\r\n");
     return _focus_guard();
   }
+  fprintf(stderr, "guard: slash outside guard\r\n");
 
   return guard_weird;
 }
@@ -78,11 +79,11 @@ void _signal_handler(int sig, siginfo_t *si, void *unused)
 {
   switch (sig) {
     case SIGSEGV:
-      // fprintf(stderr, "guard: sigsegv at %p\r\n", si->si_addr);
+      fprintf(stderr, "guard: sigsegv at %p\r\n", si->si_addr);
       err = _slash_guard(si->si_addr);
       break;
     case SIGINT:
-      // fprintf(stderr, "guard: sigint\r\n");
+      fprintf(stderr, "guard: sigint\r\n");
       err = guard_erupt;
       break;
     default:
@@ -90,7 +91,7 @@ void _signal_handler(int sig, siginfo_t *si, void *unused)
   }
 
   if (err != guard_sound) {
-    // fprintf(stderr, "guard: error %d; long jumping\r\n", err);
+    fprintf(stderr, "guard: error %d; long jumping\r\n", err);
     longjmp(env_buffer, 1);
   }
 }
@@ -104,6 +105,7 @@ guard_err _register_handler() {
 
   // if (sigaction(SIGSEGV, &sa, 0) || sigaction(SIGINT, &sa, 0)) {
   if (sigaction(SIGSEGV, &sa, 0)) {
+    fprintf(stderr, "guard: failed to register handler\r\n");
     return guard_weird;
   }
 
@@ -128,7 +130,7 @@ guard_err guard(
   if (guard_p == 0) {
     guard_err install_err = _focus_guard();
     if (install_err != guard_sound) {
-      // fprintf(stderr, "guard: failed to install guard page\r\n");
+      fprintf(stderr, "guard: failed to install guard page\r\n");
       err = install_err;
       goto fail;
     }
@@ -151,31 +153,31 @@ guard_err guard(
 
   *(void **)ret = result;
 
-  // if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
-  //   err = guard_armor;
-  //   goto fail;
-  // }
+  if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
+    err = guard_armor;
+    goto fail;
+  }
   // fprintf(stderr, "guard: sound; uninstalled guard page\r\n");
 
   return guard_sound;
 
 fail:
   if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
-    // fprintf(stderr, "guard: failed to uninstall guard page\r\n");
+    fprintf(stderr, "guard: failed to uninstall guard page\r\n");
   }
-  // fprintf(stderr, "guard: fail; uninstalled guard page\r\n");
+  fprintf(stderr, "guard: fail; uninstalled guard page\r\n");
   switch (err) {
     case guard_armor:
-      // fprintf(stderr, "guard: armor error\r\n");
+      fprintf(stderr, "guard: armor error\r\n");
       break;
     case guard_weird:
-      // fprintf(stderr, "guard: weird error\r\n");
+      fprintf(stderr, "guard: weird error\r\n");
       break;
     case guard_spent:
-      // fprintf(stderr, "guard: spent error\r\n");
+      fprintf(stderr, "guard: spent error\r\n");
       break;
     case guard_erupt:
-      // fprintf(stderr, "guard: erupt error\r\n");
+      fprintf(stderr, "guard: erupt error\r\n");
       break;
   }
   return err;
