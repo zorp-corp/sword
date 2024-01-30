@@ -40,7 +40,6 @@ fn main() {
         .flag("-Wformat=2")
         .flag("-Wmissing-include-dirs")
         .flag("-Wnested-externs")
-        .flag("-Wold-style-definition")
         .flag("-Wpedantic")
         .flag("-Wredundant-decls")
         .flag("-Wshadow")
@@ -48,6 +47,7 @@ fn main() {
         .flag("-Wno-unused-parameter")
         .flag("-Wno-pointer-arith")
         .flag("-Wno-strict-prototypes")
+        .flag("-Wno-unused-function")
         .try_compile("guard");
 
     if let Err(err) = res {

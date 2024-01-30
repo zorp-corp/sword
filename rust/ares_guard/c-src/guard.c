@@ -1,8 +1,6 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -19,8 +17,10 @@ static jmp_buf env_buffer;
 
 volatile sig_atomic_t err = guard_sound;
 
+
 // Center the guard page.
-guard_err _focus_guard()
+static guard_err
+_focus_guard()
 {
   uint64_t *stack_p = *stack;
   uint64_t *alloc_p = *alloc;
@@ -65,8 +65,10 @@ guard_err _focus_guard()
   return guard_sound;
 }
 
-guard_err _slash_guard(void *si_addr) {
-  if (si_addr >= (void *)guard_p && si_addr < (void *)guard_p + GD_PAGESIZE) {
+static guard_err
+_slash_guard(void *addr)
+{
+  if (addr >= (void *)guard_p && addr < (void *)guard_p + GD_PAGESIZE) {
     fprintf(stderr, "guard: slash in guard\r\n");
     return _focus_guard();
   }
@@ -75,7 +77,8 @@ guard_err _slash_guard(void *si_addr) {
   return guard_weird;
 }
 
-void _signal_handler(int sig, siginfo_t *si, void *unused)
+static void
+_signal_handler(int sig, siginfo_t *si, void *unused)
 {
   switch (sig) {
     case SIGSEGV:
@@ -96,12 +99,14 @@ void _signal_handler(int sig, siginfo_t *si, void *unused)
   }
 }
 
-guard_err _register_handler() {
+static guard_err
+_register_handler()
+{
   struct sigaction sa;
 
   sa.sa_flags = SA_SIGINFO;
   sa.sa_sigaction = _signal_handler;
-  sa.sa_mask = 0;
+  sigemptyset(&sa.sa_mask);
 
   // if (sigaction(SIGSEGV, &sa, 0) || sigaction(SIGINT, &sa, 0)) {
   if (sigaction(SIGSEGV, &sa, 0)) {
@@ -113,7 +118,8 @@ guard_err _register_handler() {
   return guard_sound;
 }
 
-guard_err guard(
+guard_err
+guard(
   void *(*f)(void *),
   void *user_data,
   void *const *stack_pp,

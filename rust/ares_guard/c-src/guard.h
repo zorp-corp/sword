@@ -40,13 +40,13 @@ typedef enum {
  * error will be written to the `ret` pointer. The caller is then responsible
  * for handling this error and aborting with a `bail:meme`.
  */
-guard_err guard(
+guard_err
+guard(
   void *(*f)(void *),
   void *user_data,
   void *const *stack_pp,
   void *const *alloc_pp,
   void *const *ret
 );
-
 
 #endif
