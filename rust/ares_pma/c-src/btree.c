@@ -1100,6 +1100,14 @@ _flist_insert(BT_flistnode **dst, pgno_t lo, pgno_t hi)
     *dst = new;
     return;
   }
+
+  /* otherwise, insert discontinuous node */
+  BT_flistnode *new = calloc(1, sizeof *new);
+  new->lo = lo;
+  new->hi = hi;
+  new->next = *dst;
+  *dst = new;
+  return;
 }
 
 static void
