@@ -14,8 +14,8 @@ static uint64_t *guard_p = 0;
 static uint64_t **stack = 0;
 static uint64_t **alloc = 0;
 static jmp_buf env_buffer;
-
 volatile sig_atomic_t err = guard_sound;
+static void (*prev_sigsegv_handler)(int, siginfo_t *, void *);
 
 
 // Center the guard page.
@@ -65,25 +65,28 @@ _focus_guard()
   return guard_sound;
 }
 
-static guard_err
-_slash_guard(void *addr)
-{
-  if (addr >= (void *)guard_p && addr < (void *)guard_p + GD_PAGESIZE) {
-    fprintf(stderr, "guard: slash in guard\r\n");
-    return _focus_guard();
-  }
-  fprintf(stderr, "guard: slash outside guard\r\n");
-
-  return guard_weird;
-}
-
 static void
 _signal_handler(int sig, siginfo_t *si, void *unused)
 {
   switch (sig) {
     case SIGSEGV:
-      fprintf(stderr, "guard: sigsegv at %p\r\n", si->si_addr);
-      err = _slash_guard(si->si_addr);
+      if (si->si_addr >= (void *)guard_p && 
+          si->si_addr < (void *)guard_p + GD_PAGESIZE)
+      {
+        fprintf(stderr, "guard: fault in guard\r\n");
+        err = _focus_guard();
+        break;
+      }
+      else {
+        fprintf(stderr, "guard: fault outside guard\r\n");
+        if (NULL != prev_sigsegv_handler) {
+          prev_sigsegv_handler(sig, si, unused);
+          break;
+        }
+        else { 
+          err = guard_weird;
+        }
+      }
       break;
     case SIGINT:
       fprintf(stderr, "guard: sigint\r\n");
@@ -95,7 +98,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
 
   if (err != guard_sound) {
     fprintf(stderr, "guard: error %d; long jumping\r\n", err);
-    longjmp(env_buffer, 1);
+    siglongjmp(env_buffer, 1);
   }
 }
 
@@ -103,16 +106,17 @@ static guard_err
 _register_handler()
 {
   struct sigaction sa;
-
+  struct sigaction prev_sa;
   sa.sa_flags = SA_SIGINFO;
   sa.sa_sigaction = _signal_handler;
   sigemptyset(&sa.sa_mask);
+  sigaddset(&(sa.sa_mask), SIGSEGV);
 
-  // if (sigaction(SIGSEGV, &sa, 0) || sigaction(SIGINT, &sa, 0)) {
-  if (sigaction(SIGSEGV, &sa, 0)) {
+  if (sigaction(SIGSEGV, &sa, &prev_sa)) {
     fprintf(stderr, "guard: failed to register handler\r\n");
     return guard_weird;
   }
+  prev_sigsegv_handler = prev_sa.sa_sigaction;
 
   // fprintf(stderr, "guard: registered handler\r\n");
   return guard_sound;
@@ -148,7 +152,7 @@ guard(
   }
 
   void *result;
-  if (setjmp(env_buffer) == 0) {
+  if (sigsetjmp(env_buffer, 1) == 0) {
     result = f(user_data);
   }
   else {
