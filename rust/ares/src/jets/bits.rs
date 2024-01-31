@@ -3,7 +3,7 @@
 use crate::interpreter::Context;
 use crate::jets::util::*;
 use crate::jets::Result;
-use crate::noun::{DirectAtom, IndirectAtom, Noun, D};
+use crate::noun::{IndirectAtom, Noun, D};
 use std::cmp;
 
 crate::gdb!();

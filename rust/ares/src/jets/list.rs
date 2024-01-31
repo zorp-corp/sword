@@ -1,8 +1,8 @@
 /** Text processing jets
  */
-use crate::interpreter::{interpret, Context, Error};
-use crate::jets::util::slot;
-use crate::jets::{JetErr, Result};
+use crate::interpreter::{interpret, Context};
+use crate::jets::util::{slot, BAIL_FAIL};
+use crate::jets::Result;
 use crate::noun::{Cell, Noun, D, T};
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
@@ -82,7 +82,7 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
                 }
             } else {
                 if unsafe { !list.raw_equals(D(0)) } {
-                    return Err(JetErr::Fail(Error::Deterministic(D(0))));
+                    return Err(BAIL_FAIL);
                 }
                 unsafe {
                     *dest = D(0);
@@ -106,7 +106,7 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
                 }
             } else {
                 if unsafe { !list.raw_equals(D(0)) } {
-                    return Err(JetErr::Fail(Error::Deterministic(D(0))));
+                    return Err(BAIL_FAIL);
                 }
                 unsafe {
                     *dest = D(0);
