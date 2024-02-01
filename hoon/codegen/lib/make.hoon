@@ -14,7 +14,7 @@
   =.  sub  (build-sur cg sub %sock)
   =.  sub  (build-lib cg sub %soak)
   =.  sub  (build-sur cg sub %noir)
-  =.  sub  (build-lib cg sub %sack)
+  =.  sub  (build-lib cg sub %skis)
   =.  sub  (build-sur cg sub %gene)
   =.  sub  (build-lib cg sub %line)
   =/  cg-kick
