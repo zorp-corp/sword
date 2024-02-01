@@ -356,6 +356,19 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
             Left(b"two"),
             Left(b"tri"),
             Left(b"qua"),
+            Left(b"plug"),
+        ],
+        1,
+        jet_plug,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
             Left(b"pose"),
         ],
         1,
@@ -373,6 +386,34 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
         ],
         1,
         jet_sfix,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"cold"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_cold,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"cook"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_cook,
     ),
     //
     (
@@ -438,11 +479,53 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
             Left(b"two"),
             Left(b"tri"),
             Left(b"qua"),
+            Left(b"shim"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_shim,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
             Left(b"stag"),
             Left(b"fun"),
         ],
         1,
         jet_stag,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"stew"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_stew,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
+            Left(b"stir"),
+            Left(b"fun"),
+        ],
+        1,
+        jet_stir,
     ),
     //
     (

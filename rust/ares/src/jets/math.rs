@@ -15,7 +15,7 @@
 use crate::interpreter::Context;
 use crate::jets::util::*;
 use crate::jets::Result;
-use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, NO, T, YES};
+use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, T};
 use either::{Left, Right};
 use ibig::ops::DivRem;
 use ibig::UBig;
@@ -120,21 +120,7 @@ pub fn jet_gte(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() >= b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() > b.bit_size() {
-        YES
-    } else if a.bit_size() < b.bit_size() {
-        NO
-    } else if a.as_ubig(stack) >= b.as_ubig(stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(util::gte(stack, a, b))
 }
 
 pub fn jet_gth(context: &mut Context, subject: Noun) -> Result {
@@ -143,21 +129,7 @@ pub fn jet_gth(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() > b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() > b.bit_size() {
-        YES
-    } else if a.bit_size() < b.bit_size() {
-        NO
-    } else if a.as_ubig(stack) > b.as_ubig(stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(util::gth(stack, a, b))
 }
 
 pub fn jet_lte(context: &mut Context, subject: Noun) -> Result {
@@ -166,21 +138,7 @@ pub fn jet_lte(context: &mut Context, subject: Noun) -> Result {
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-        if a.data() <= b.data() {
-            YES
-        } else {
-            NO
-        }
-    } else if a.bit_size() < b.bit_size() {
-        YES
-    } else if a.bit_size() > b.bit_size() {
-        NO
-    } else if a.as_ubig(stack) <= b.as_ubig(stack) {
-        YES
-    } else {
-        NO
-    })
+    Ok(util::lte(stack, a, b))
 }
 
 pub fn jet_lth(context: &mut Context, subject: Noun) -> Result {
@@ -307,19 +265,88 @@ pub mod util {
         }
     }
 
+    /// Greater than or equal to (boolean)
+    pub fn gte_b(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            a.data() >= b.data()
+        } else if a.bit_size() > b.bit_size() {
+            true
+        } else if a.bit_size() < b.bit_size() {
+            false
+        } else {
+            a.as_ubig(stack) >= b.as_ubig(stack)
+        }
+    }
+
+    /// Greater than or equal to
+    pub fn gte(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
+        if gte_b(stack, a, b) {
+            YES
+        } else {
+            NO
+        }
+    }
+
+    /// Greater than (boolean)
+    pub fn gth_b(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            a.data() > b.data()
+        } else if a.bit_size() > b.bit_size() {
+            true
+        } else if a.bit_size() < b.bit_size() {
+            false
+        } else {
+            a.as_ubig(stack) > b.as_ubig(stack)
+        }
+    }
+
+    /// Greater than
+    pub fn gth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
+        if gth_b(stack, a, b) {
+            YES
+        } else {
+            NO
+        }
+    }
+
+    /// Less than or equal to (boolean)
+    pub fn lte_b(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            a.data() <= b.data()
+        } else if a.bit_size() < b.bit_size() {
+            true
+        } else if a.bit_size() > b.bit_size() {
+            false
+        } else {
+            a.as_ubig(stack) <= b.as_ubig(stack)
+        }
+    }
+
+    /// Less than or equal to
+    pub fn lte(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
+        if lte_b(stack, a, b) {
+            YES
+        } else {
+            NO
+        }
+    }
+
+    /// Less than (boolean)
+    pub fn lth_b(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
+        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+            a.data() < b.data()
+        } else if a.bit_size() > b.bit_size() {
+            false
+        } else if a.bit_size() < b.bit_size() {
+            true
+        } else {
+            a.as_ubig(stack) < b.as_ubig(stack)
+        }
+    }
+
     /// Less than
     pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
-            if a.data() < b.data() {
-                YES
-            } else {
-                NO
-            }
-        } else if a.bit_size() < b.bit_size() {
-            YES
-        } else if a.bit_size() > b.bit_size() {
-            NO
-        } else if a.as_ubig(stack) < b.as_ubig(stack) {
+        if lth_b(stack, a, b) {
             YES
         } else {
             NO
