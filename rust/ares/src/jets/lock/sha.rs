@@ -88,23 +88,26 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
     let wid = slot(sam, 2)?.as_atom()?;
     let dat = slot(sam, 3)?.as_atom()?;
 
-    let _width = match wid.as_direct() {
+    let width = match wid.as_direct() {
         Ok(direct) => direct.data() as usize,
         Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
     };
 
-    let msg_len = met(3, dat);
+    // let msg_len = met(3, dat);
 
     unsafe {
+        let msg_bytes = &(dat.as_bytes())[0..width];
         let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        if msg_len > 0 {
-            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
-            msg.copy_from_slice(&dat.as_bytes()[0..msg_len]);
+
+        if width > 0 {
+            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
+            msg.copy_from_slice(msg_bytes);
             ac_shal(msg, out);
         }
         else {
             ac_shal(&mut [], out);
         }
+
         Ok(ida.normalize_as_atom().as_noun())
     }
 }
