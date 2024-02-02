@@ -440,7 +440,7 @@ impl IndirectAtom {
     pub unsafe fn new_raw_mut_bytearray<'a, const N: usize, A: NounAllocator>(
         allocator: &mut A,
     ) -> (Self, &'a mut [u8; N]) {
-        let word_size = (std::mem::size_of::<[u8; N]>() + 7) << 3;
+        let word_size = (std::mem::size_of::<[u8; N]>() + 7) >> 3;
         let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size);
         (noun, &mut *(ptr as *mut [u8; N]))
     }
