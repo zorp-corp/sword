@@ -844,6 +844,110 @@ impl NockStack {
             }
         }
     }
+
+    /**
+     * Debugging
+     * 
+     * The below functions are useful for debugging NockStack issues. */
+
+
+     /**
+      * Walk down the NockStack, printing frames. Absolutely no safety checks are peformed, as the
+      * purpose is to discover garbage data; just print pointers until the bottom of the NockStack
+      * (i.e. a null frame pointer) is encountered. Possible to crash, if a frame pointer gets
+      * written over.
+      */
+    pub fn print_frames(&mut self) {
+        let mut fp = self.frame_pointer;
+        let mut sp = self.stack_pointer;
+        let mut ap = self.alloc_pointer;
+        let mut c = 0u64;
+        
+        eprintln!("\r start = {:p}", self.start);
+        
+        loop {
+            c += 1;
+
+            eprintln!("\r {}:", c);
+            eprintln!("\r frame_pointer = {:p}", fp);
+            eprintln!("\r stack_pointer = {:p}", sp);
+            eprintln!("\r alloc_pointer = {:p}", ap);
+
+            if fp.is_null() {
+                break;
+            }
+
+            unsafe {
+                if fp < ap {
+                    sp = *(fp.sub(STACK + 1) as *mut *mut u64);
+                    ap = *(fp.sub(ALLOC + 1) as *mut *mut u64);
+                    fp = *(fp.sub(FRAME + 1) as *mut *mut u64);
+                } else {
+                    sp = *(fp.add(STACK) as *mut *mut u64);
+                    ap = *(fp.add(ALLOC) as *mut *mut u64);
+                    fp = *(fp.add(FRAME) as *mut *mut u64);
+                }
+            }
+        }
+    }
+
+    /**
+     * Sanity check every frame of the NockStack. Most useful paired with a gdb session set to
+     * catch rust_panic.
+     */
+    pub fn assert_sane(&mut self) {
+        let start = self.start;
+        let limit = unsafe { self.start.add(self.size) };
+        let mut fp = self.frame_pointer;
+        let mut sp = self.stack_pointer;
+        let mut ap = self.alloc_pointer;
+        let mut ought_west: bool = fp < ap;
+
+        loop {
+            // fp is null iff sp is null
+            assert!(!(fp.is_null() ^ sp.is_null()));
+            
+            // ap should never be null
+            assert!(!ap.is_null());
+
+            if fp.is_null() {
+                break;
+            }
+
+            // all pointers must be between start and size
+            assert!(fp as *const u64 >= start);
+            assert!(fp as *const u64 <= limit);
+            assert!(sp as *const u64 >= start);
+            assert!(sp as *const u64 <= limit);
+            assert!(ap as *const u64 >= start);
+            assert!(ap as *const u64 <= limit);
+
+            // frames should flip between east-west correctly
+            assert!((fp < ap) == ought_west);
+
+            // sp should be between fp and ap
+            if ought_west {
+                assert!(sp >= fp);
+                assert!(sp < ap);
+            } else {
+                assert!(sp <= fp);
+                assert!(sp > ap);
+            }
+
+            unsafe {
+                if ought_west {
+                    sp = *(fp.sub(STACK + 1) as *mut *mut u64);
+                    ap = *(fp.sub(ALLOC + 1) as *mut *mut u64);
+                    fp = *(fp.sub(FRAME + 1) as *mut *mut u64);
+                } else {
+                    sp = *(fp.add(STACK) as *mut *mut u64);
+                    ap = *(fp.add(ALLOC) as *mut *mut u64);
+                    fp = *(fp.add(FRAME) as *mut *mut u64);
+                }
+            }
+            ought_west = !ought_west;
+        }
+    }
 }
 
 impl NounAllocator for NockStack {
