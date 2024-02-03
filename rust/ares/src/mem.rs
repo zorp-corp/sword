@@ -147,9 +147,19 @@ impl NockStack {
         self.stack_pointer
     }
 
+    /** Current stack pointer's address */
+    pub fn get_stack_pointer_pointer(&self) -> *const *mut u64 {
+        &self.stack_pointer as *const *mut u64
+    }
+
     /** Current alloc pointer of this NockStack */
     pub fn get_alloc_pointer(&self) -> *const u64 {
         self.alloc_pointer
+    }
+
+    /** Current alloc pointer's address */
+    pub fn get_alloc_pointer_pointer(&self) -> *const *mut u64 {
+        &self.alloc_pointer as *const *mut u64
     }
 
     /** Start of the memory range for this NockStack */
@@ -255,7 +265,7 @@ impl NockStack {
         }
     }
 
-    /** Pointer to where the previous stack pointer is saved in a frame */
+    /** Pointer to where the previous alloc pointer is saved in a frame */
     unsafe fn prev_alloc_pointer_pointer(&self) -> *mut *mut u64 {
         if !self.pc {
             self.slot_pointer(ALLOC) as *mut *mut u64

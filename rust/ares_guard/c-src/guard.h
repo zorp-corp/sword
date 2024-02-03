@@ -42,10 +42,12 @@ typedef enum {
  */
 guard_err
 guard(
-  void *(*f)(void *),
-  void *user_data,
-  void *const *stack_pp,
-  void *const *alloc_pp,
+  void *(*work_f)(void *, void *),
+  void *work_data,
+  const uint64_t *(*low_f)(void *, void *),
+  const uint64_t *(*high_f)(void *, void *),
+  void *bounds_data,
+  void *context_p,
   void *const *ret
 );
 

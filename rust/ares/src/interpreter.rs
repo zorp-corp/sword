@@ -21,7 +21,7 @@ use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters, permit_alloc};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::*;
 use std::convert::TryFrom;
-use std::ffi::c_void;
+use std::ffi::{c_void, c_ulonglong};
 use std::result;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -394,20 +394,61 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
 
 use std::marker::PhantomData;
 
-pub struct CCallback<'closure> {
-    pub function: unsafe extern "C" fn(*mut c_void) -> *mut c_void,
+/// See: https://users.rust-lang.org/t/passing-a-closure-to-an-external-c-ffi-library/100271/2
+pub struct BoundsCallback<'closure> {
+    pub function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong,
+    pub bounds_data: *mut c_void,
+
+    // without this it's too easy to accidentally drop the closure too soon
+    _lifetime: PhantomData<&'closure mut c_void>,
+}
+
+impl<'closure> BoundsCallback<'closure> {
+    pub fn new<F>(closure: &'closure mut F) -> Self
+    where
+        F: FnMut(*mut c_void) -> *const c_ulonglong,
+    {
+        let function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong = Self::call_closure::<F>;
+
+        debug_assert_eq!(
+            std::mem::size_of::<&'closure mut F>(),
+            std::mem::size_of::<*const c_void>()
+        );
+        debug_assert_eq!(
+            std::mem::size_of_val(&function),
+            std::mem::size_of::<*const c_void>()
+        );
+
+        Self {
+            function,
+            bounds_data: closure as *mut F as *mut c_void,
+            _lifetime: PhantomData,
+        }
+    }
+
+    unsafe extern "C" fn call_closure<F>(bounds_data: *mut c_void, context_p: *mut c_void) -> *const c_ulonglong
+    where
+        F: FnMut(*mut c_void) -> *const c_ulonglong,
+    {
+        let cb: &mut F = bounds_data.cast::<F>().as_mut().unwrap();
+        (*cb)(context_p)
+    }
+}
+
+pub struct WorkCallback<'closure> {
+    pub function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
     pub user_data: *mut c_void,
 
     // without this it's too easy to accidentally drop the closure too soon
     _lifetime: PhantomData<&'closure mut c_void>,
 }
 
-impl<'closure> CCallback<'closure> {
+impl<'closure> WorkCallback<'closure> {
     pub fn new<F>(closure: &'closure mut F) -> Self
     where
-        F: FnMut() -> Result,
+        F: FnMut(*mut c_void) -> Result,
     {
-        let function: unsafe extern "C" fn(*mut c_void) -> *mut c_void = Self::call_closure::<F>;
+        let function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void = Self::call_closure::<F>;
 
         debug_assert_eq!(
             std::mem::size_of::<&'closure mut F>(),
@@ -425,12 +466,12 @@ impl<'closure> CCallback<'closure> {
         }
     }
 
-    unsafe extern "C" fn call_closure<F>(user_data: *mut c_void) -> *mut c_void
+    unsafe extern "C" fn call_closure<F>(user_data: *mut c_void, context_p: *mut c_void) -> *mut c_void
     where
-        F: FnMut() -> Result,
+        F: FnMut(*mut c_void) -> Result,
     {
         let cb: &mut F = user_data.cast::<F>().as_mut().unwrap();
-        let v = (*cb)();
+        let v = (*cb)(context_p);
         permit_alloc(|| {
             let v_box = Box::new(v);
             let v_ptr = Box::into_raw(v_box);
@@ -439,22 +480,29 @@ impl<'closure> CCallback<'closure> {
     }
 }
 
-pub fn call_with_guard<F: FnMut() -> Result>(
+pub fn call_with_guard<F: FnMut(*mut c_void) -> Result, G: FnMut(*mut c_void) -> *const c_ulonglong, H: FnMut(*mut c_void) -> *const c_ulonglong>(
     f: &mut F,
-    stack: *const *mut c_void,
-    alloc: *const *mut c_void,
+    low_f: &mut G,
+    high_f: &mut H,
+    context: &mut Context,
 ) -> Result {
-    let c = CCallback::new(f);
+    let work = WorkCallback::new(f);
+    let low = BoundsCallback::new(low_f);
+    let high = BoundsCallback::new(high_f);
+    let context_p = context as *mut Context as *mut c_void;
+
     let mut ret: Result = Ok(D(0));
     let ret_p = &mut ret as *mut _ as *mut c_void;
     let ret_pp = &ret_p as *const *mut c_void;
 
     unsafe {
         let err = guard(
-            Some(c.function as unsafe extern "C" fn(*mut c_void) -> *mut c_void),
-            c.user_data as *mut c_void,
-            stack,
-            alloc,
+            Some(work.function as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void),
+            work.user_data as *mut c_void,
+            Some(low.function as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong),
+            Some(high.function as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong),
+            high.bounds_data as *mut c_void,
+            context_p,
             ret_pp,
         );
 
@@ -488,15 +536,12 @@ pub fn call_with_guard<F: FnMut() -> Result>(
 
 /** Interpret nock */
 pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Result {
+    // print the addresses of the context.stack.stack_pointer and context.stack.alloc_pointer
     let terminator = Arc::clone(&TERMINATOR);
     let orig_subject = subject; // for debugging
     let snapshot = context.save();
     let virtual_frame: *const u64 = context.stack.get_frame_pointer();
     let mut res: Noun = D(0);
-    let stack_p = context.stack.get_stack_pointer() as *mut c_void;
-    let alloc_p = context.stack.get_alloc_pointer() as *mut c_void;
-    let stack_pp = &stack_p as *const *mut c_void;
-    let alloc_pp = &alloc_p as *const *mut c_void;
 
     // Setup stack for Nock computation
     unsafe {
@@ -523,7 +568,24 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     let nock = assert_no_alloc(|| {
         ensure_alloc_counters(|| {
-            let work_closure = &mut || unsafe {
+            let low_f = &mut |context_p: *mut c_void| {
+                let context = unsafe { &mut *(context_p as *mut Context) };
+                if context.stack.is_west() {
+                    context.stack.get_stack_pointer() as *const c_ulonglong
+                } else {
+                    context.stack.get_alloc_pointer() as *const c_ulonglong
+                }
+            };
+            let high_f = &mut |context_p: *mut c_void| {
+                let context = unsafe { &mut *(context_p as *mut Context) };
+                if context.stack.is_west() {
+                    context.stack.get_alloc_pointer() as *const c_ulonglong
+                } else {
+                    context.stack.get_stack_pointer() as *const c_ulonglong
+                }
+            };
+            let work_closure = &mut |context_p: *mut c_void| unsafe {
+                let context = &mut *(context_p as *mut Context);
                 push_formula(&mut context.stack, formula, true)?;
 
                 loop {
@@ -1072,7 +1134,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     };
                 }
             };
-            call_with_guard(work_closure, stack_pp, alloc_pp)
+            call_with_guard(work_closure, low_f, high_f, context)
         })
     });
 
