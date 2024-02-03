@@ -841,11 +841,11 @@ impl NockStack {
      * The below functions are useful for debugging NockStack issues. */
 
     /**
-    * Walk down the NockStack, printing frames. Absolutely no safety checks are peformed, as the
-    * purpose is to discover garbage data; just print pointers until the bottom of the NockStack
-    * (i.e. a null frame pointer) is encountered. Possible to crash, if a frame pointer gets
-    * written over.
-    */
+     * Walk down the NockStack, printing frames. Absolutely no safety checks are peformed, as the
+     * purpose is to discover garbage data; just print pointers until the bottom of the NockStack
+     * (i.e. a null frame pointer) is encountered. Possible to crash, if a frame pointer gets
+     * written over.
+     */
     pub fn print_frames(&mut self) {
         let mut fp = self.frame_pointer;
         let mut sp = self.stack_pointer;
