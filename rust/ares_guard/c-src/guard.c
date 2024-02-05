@@ -50,20 +50,24 @@ _focus_guard()
     }
   }
 
-  // Place the new guard page in the low-aligned center.
+  // Calculate the new center for the guard page.
   guard_p = (uint64_t *)low_p + ((high_p - low_p) / 2);
   guard_p = (uint64_t *)((uintptr_t)guard_p & ~(GD_PAGESIZE - 1));
 
-  // Mark the new guard page.
-  if (guard_p != old_guard_p) {
-    fprintf(stderr, "guard: focused guard page\r\n");
+  // Place the new guard page or return if we're spent.
+  bool spent = false;
+  const bool same = old_guard_p == guard_p;
+  const bool left = (high_p - low_p) > GD_PAGESIZE;
+  if (same && !left) {
+    fprintf(stderr, "guard: spent: %p; left: %u\r\n", guard_p, left);
+    return guard_spent;
+  }
+  else {
+    fprintf(stderr, "guard: high: %p; low: %p\r\n", high_p, low_p);
+    fprintf(stderr, "guard: focused: %p; left: %u\r\n", guard_p, left);
     if (mprotect(guard_p, GD_PAGESIZE, PROT_NONE) == -1) {
       return guard_armor;
     }
-  } else {
-    fprintf(stderr, "guard: spent; exiting\r\n");
-    exit(1);
-    return guard_spent;
   }
 
   return guard_sound;
