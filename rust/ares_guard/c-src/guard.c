@@ -1,6 +1,8 @@
 #include <setjmp.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
@@ -38,11 +40,14 @@ _focus_guard()
     return guard_weird;
   }
 
-  // Unmark the old guard page.
+  // Unmark the old guard page if one exists.
   void *old_guard_p = guard_p;
-  if (old_guard_p != 0
-      && mprotect(old_guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
-    return guard_armor;
+  if (old_guard_p != NULL) {
+    fprintf(stderr, "guard: retiring old guard page\r\n");
+    if (old_guard_p != 0
+        && mprotect(old_guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
+      return guard_armor;
+    }
   }
 
   // Place the new guard page in the low-aligned center.
@@ -51,10 +56,13 @@ _focus_guard()
 
   // Mark the new guard page.
   if (guard_p != old_guard_p) {
+    fprintf(stderr, "guard: focused guard page\r\n");
     if (mprotect(guard_p, GD_PAGESIZE, PROT_NONE) == -1) {
       return guard_armor;
     }
   } else {
+    fprintf(stderr, "guard: spent; exiting\r\n");
+    exit(1);
     return guard_spent;
   }
 
@@ -81,12 +89,12 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
       if (si->si_addr >= (void *)guard_p && 
           si->si_addr < (void *)guard_p + GD_PAGESIZE)
       {
-        fprintf(stderr, "guard: fault in guard: %p\r\n", si->si_addr);
+        fprintf(stderr, "guard: hit: %p\r\n", si->si_addr);
         err = _focus_guard();
         break;
       }
       else {
-        fprintf(stderr, "guard: fault outside guard %p\r\n", si->si_addr);
+        fprintf(stderr, "guard: weird hit: %p\r\n", si->si_addr);
         if (NULL != prev_sigsegv_handler) {
           prev_sigsegv_handler(sig, si, unused);
           break;
@@ -126,7 +134,6 @@ _register_handler()
   }
   prev_sigsegv_handler = prev_sa.sa_sigaction;
 
-  // fprintf(stderr, "guard: registered handler\r\n");
   return guard_sound;
 }
 
@@ -150,16 +157,13 @@ guard(
   const uint64_t *low_p = low_f(bounds_data, context_p);
   const uint64_t *high_p = high_f(bounds_data, context_p);
 
-  // fprintf(stderr, "guard: low: %p high: %p\r\n", (void *)low_p, (void *)high_p);
-
-  // const unsigned long free_mb = (unsigned long)(high_p - low_p) / 1024 / 1024;
-  // fprintf(stderr, "guard: free space: %lu MB\r\n", free_mb);
-
-  guard_err focus_err = _focus_guard();
-  if (focus_err != guard_sound && focus_err != guard_spent) {
-    fprintf(stderr, "guard: failed to install guard page\r\n");
-    err = focus_err;
-    goto fail;
+  if (guard_p == NULL) {
+    guard_err focus_err = _focus_guard();
+    if (focus_err != guard_sound && focus_err != guard_spent) {
+      fprintf(stderr, "guard: failed to install guard page\r\n");
+      err = focus_err;
+      goto fail;
+    }
   }
 
   if (_register_handler() != guard_sound) {
@@ -178,11 +182,6 @@ guard(
   }
 
   *(void **)ret = result;
-
-  if (mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1) {
-    err = guard_armor;
-    goto fail;
-  }
 
   return guard_sound;
 
