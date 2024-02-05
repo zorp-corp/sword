@@ -64,6 +64,18 @@ _focus_guard()
 static void
 _signal_handler(int sig, siginfo_t *si, void *unused)
 {
+  if (guard_p == NULL) {
+    fprintf(stderr, "guard: no guard page\r\n");
+    err = guard_weird;
+    return;
+  }
+
+  if (si == NULL) {
+    fprintf(stderr, "guard: no signal info\r\n");
+    err = guard_weird;
+    return;
+  }
+
   switch (sig) {
     case SIGSEGV:
       if (si->si_addr >= (void *)guard_p && 
@@ -140,7 +152,7 @@ guard(
 
   // fprintf(stderr, "guard: low: %p high: %p\r\n", (void *)low_p, (void *)high_p);
 
-  const unsigned long free_mb = (unsigned long)(high_p - low_p) / 1024 / 1024;
+  // const unsigned long free_mb = (unsigned long)(high_p - low_p) / 1024 / 1024;
   // fprintf(stderr, "guard: free space: %lu MB\r\n", free_mb);
 
   guard_err focus_err = _focus_guard();
