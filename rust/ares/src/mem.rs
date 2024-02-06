@@ -55,11 +55,71 @@ pub struct NockStack {
 }
 
 impl NockStack {
+    /** assert that the stack is sane:
+     *  - pointers are in bounds
+     *  - polarities flip correctly
+     *  - SP and FP both null or not null
+     *  - SP between FP and AP
+     */
+    pub fn debug_assert_sane(&mut self) {
+        let start = self.start;
+        let limit = unsafe { self.start.add(self.size) };
+        let mut fp = self.frame_pointer;
+        let mut sp = self.stack_pointer;
+        let mut ap = self.alloc_pointer;
+        let mut ought_west: bool = fp < ap;
+
+        loop {
+            // fp is null iff sp is null
+            assert!(!(fp.is_null() ^ sp.is_null()));
+            
+            // ap should never be null
+            assert!(!ap.is_null());
+
+            if fp.is_null() {
+                break;
+            }
+
+            // All pointers must be between start and size
+            assert!(fp as *const u64 >= start);
+            assert!(fp as *const u64 <= limit);
+            assert!(sp as *const u64 >= start);
+            assert!(sp as *const u64 <= limit);
+            assert!(ap as *const u64 >= start);
+            assert!(ap as *const u64 <= limit);
+
+            // frames should flip between east-west correctly
+            assert!((fp < ap) == ought_west);
+
+            // sp should be between fp and ap
+            if ought_west {
+                assert!(sp >= fp);
+                assert!(sp < ap);
+            } else {
+                assert!(sp <= fp);
+                assert!(sp > ap);
+            }
+
+            unsafe {
+                if ought_west {
+                    sp = *(fp.sub(STACK + 1) as *mut *mut u64);
+                    ap = *(fp.sub(ALLOC + 1) as *mut *mut u64);
+                    fp = *(fp.sub(FRAME + 1) as *mut *mut u64);
+                } else {
+                    sp = *(fp.add(STACK) as *mut *mut u64);
+                    ap = *(fp.add(ALLOC) as *mut *mut u64);
+                    fp = *(fp.add(FRAME) as *mut *mut u64);
+                }
+            }
+            ought_west = !ought_west;
+        }
+    }
     /**  Initialization
      * The initial frame is a west frame. When the stack is initialized, a number of slots is given.
      * We add three extra slots to store the “previous” frame, stack, and allocation pointer. For the
      * initial frame, the previous allocation pointer is set to the beginning (low boundary) of the
      * arena, the previous frame pointer is set to NULL, and the previous stack pointer is set to NULL */
+
 
     /** size is in 64-bit (i.e. 8-byte) words.
      * top_slots is how many slots to allocate to the top stack frame.
@@ -142,11 +202,23 @@ impl NockStack {
         self.frame_pointer
     }
 
+
+    /**
+     *
+     * WEST
+     * |xxxxxx|     |ASF|nnnnnnnnnnnnnnnnn|aaaaaaa|
+     *       PAP       FP                 AP
+     *
+     * EAST
+     * |aaaaaaaa|     |FSA|           |xxxxxxxxxx|
+     *         AP     FP              PAP
+     *
+     */
     pub unsafe fn get_frame_lowest(&self) -> *mut u64 {
         if self.is_west() {
             *(self.slot_pointer_west(ALLOC)) as *mut u64
         } else {
-            self.stack_pointer
+            self.frame_pointer.add(RESERVED)
         }
     }
 
@@ -173,7 +245,7 @@ impl NockStack {
     /** Checks if the current stack frame has West polarity */
     #[inline]
     pub fn is_west(&self) -> bool {
-        self.stack_pointer < self.alloc_pointer
+        self.frame_pointer < self.alloc_pointer
     }
 
     /** Size **in 64-bit words** of this NockStack */

@@ -65,6 +65,7 @@
   :: outer work loop
   |-  ^-  _thus 
   =*  rout-loop  $
+  ~&  %rout-loop
   ?:  =(~ work)
     ::  no more work, write entries to moan
     =/  flak=(list @hail)  ~[entr]
@@ -89,6 +90,7 @@
         =/  bell  [soot data.fork]
         [`bell this(belt (~(put by belt) h bell))]
       --
+    ~&  %food
     |-  ^-  _thus
     =*  food-loop  $
     ?^  flux
@@ -117,6 +119,7 @@
     thus
   ::  lower entries in work to nomm
   =/  toil  work
+  ~&  %nomm
   |-  ^-  _thus  
   ?^  toil
     =/  brew  (~(got by call) i.toil)
@@ -194,11 +197,13 @@
       ==
     %=  $
       call  (~(put by call) i.toil brew(load `lire))
+      toil  t.toil
     ==
   ::  set up edges for nomm
   =/  toil  work
+  ~&  %edge
   |-  ^-  _thus
-  =/  gen  [gr=gr rain=rain call=call novo=*(list @uvar)]
+  =/  gen  [gr=gr rain=rain call=call maid=maid]
   ?^  toil
     =/  [loud=(unit nomm) less=@uvar more=@uvar]
       [load less more]:(~(got by call) i.toil)
@@ -211,7 +216,7 @@
           ^-  [@uvar _gen]
           ?-  -.goal
               %none
-            =^  nv  gen  [rain gen(rain .+(rain.gen))]
+            =^  nv  gen  [rain.gen gen(rain .+(rain.gen))]
             [nv gen]
           ::
               %this
@@ -220,7 +225,7 @@
               %both
             =^  hv  gen  $(goal l.goal)
             =^  tv  gen  $(goal r.goal)
-            =^  cv  gen  [rain gen(rain .+(rain.gen))]
+            =^  cv  gen  [rain.gen gen(rain .+(rain.gen))]
             =.  gr.gen  (edge:gr.gen [%hed cv hv])
             =.  gr.gen  (edge:gr.gen [%tal cv tv])
             [cv gen]
@@ -245,8 +250,8 @@
           =^  ov  gen  (kerf goal)
           =^  sv  gen  [rain.gen gen(rain .+(rain.gen))]
           =^  fv  gen  [rain.gen gen(rain .+(rain.gen))]
-          =.  novo.gen  [fv novo.gen]
           =.  call.gen  (~(put by call.gen) rail.load [`i.toil sv fv ov ~])
+          =.  maid.gen  (~(put in maid.gen) rail.load)
           =^  sg  gen  $(goal [%this sv], load cost.load)
           =^  fg  gen  $(goal [%this fv], load corn.load)
           (copy sg fg)
@@ -278,7 +283,6 @@
           $(load once.load, goal tg)
         ::
             %ten
-          ::  XX graph construction for ten
           =^  [tg=nick pg=nick]  gen  (diet here.load goal)
           =^  tig  gen  $(load tree.load, goal tg)
           =^  pig  gen  $(load tree.load, goal pg)
@@ -432,7 +436,7 @@
         ^-  _gen
         ?-  -.goal
             %none  gen
-            %this  gen(gr (prem:gr.gen v.goal n), novo [v.goal novo.gen])
+            %this  gen(gr (prem:gr.gen v.goal n))
             %both
           ?@  n  gen
           =.  gen  $(goal l.goal, n -.n)
@@ -441,14 +445,18 @@
       --
     =^  iv  gen  (kerf coal)
     =.  gr.gen  (edge:gr.gen %tis less iv)
-    =.  novo.gen  [less novo.gen]
+    =.  gr.gen  (fork:gr.gen less)
+    =.  gr.gen  (rock:gr.gen more)
+    =.  gr  gr.gen
+    =.  rain  rain.gen
+    =.  call  call.gen
+    =.  maid  maid.gen
     $(toil t.toil)
-  =.  gr  gr.gen
-  =.  rain  rain.gen
-  =.  call  call.gen
   ::  propagate knowledge and needs
-  =.  gr  (push:gr novo.gen)
-  =.  gr  (pull:gr novo.gen)
+  ~&  %push
+  =.  gr  push:gr
+  ~&  %pull
+  =.  gr  pull:gr
   ::  a few things together:
   ::  - rebuild worklist with newly discovered direct calls
   ::  - detect recursive calls and exclude from worklist
@@ -456,6 +464,7 @@
   =/  toil  ~(tap in maid)
   =.  work  ~
   =|  slag=(set @hail)  ::  excluded as finalization roots
+  ~&  %ruin
   |-  ^-  _thus
   =*  ruin-loop  $
   ?^  toil
@@ -494,11 +503,18 @@
         slag  (~(gas in slag) sirs)
         loop  (~(put by loop) i.toil mill)
       ==
+    ~?  =(f gf)  %sock-mismatch
     $(sirs [mill sirs], sire papa)
   rout-loop
 ::
 ::  subject knowledge / need propagation and state
+::
+::  XX TODO
+::  - don't propagate variables if no update
+::  - store pull/push queues in-core and reset after execution
 ++  c
+  =|  fq=(list @uvar)
+  =|  rq=(list @uvar)
   |_  =dish
   ++  this  .
   ::  get current sock at uvar
@@ -519,62 +535,83 @@
     (~(gut by wine.dish) v |)
   ::  pull need capes backward from uvars in queu
   ++  pull
-    |=  queu=(list @uvar)
+    =*  queu  rq
     =|  back=(list @uvar)
     |-  ^-  _this
-    ?~  queu
+    =*  pull-loop  $
+    ?:  =(~ queu)
       ?~  back  this
       $(queu (flop back), back ~)
-    =/  menu  (~(get ja back.dish) i.queu)
+    =/  mane  
+      %~  tap  in
+      %+  roll  queu
+      |=  [v=@uvar m=(set @uvar)]
+      (~(uni in m) (~(get ju back.dish) v))
     |-  ^-  _this
-    ?~  menu  ^$(queu t.queu)
+    =*  mane-loop  $
+    ?~  mane  pull-loop(queu ~)
+    =/  mine=cape  |
+    =/  menu  (~(get ja fore.dish) i.mane)
+    |-  ^-  _this
+    ?~  menu
+      =/  kirk  (dine i.mane)
+      =?  back  ?!(=(kirk mine))  [i.mane back]
+      %=  mane-loop
+        mane  t.mane
+        wine.dish  (~(put by wine.dish) i.mane mine)
+      ==
     ?-  -.i.menu
         %con
       =/  [hc=cape tc=cape]  ~(rip ca (dine d.i.menu))
-      =.  wine.dish  (~(put by wine.dish) h.i.menu (~(uni ca (~(gut by wine.dish) h.i.menu |)) hc))
-      =.  wine.dish  (~(put by wine.dish) t.i.menu (~(uni ca (~(gut by wine.dish) t.i.menu |)) tc))
+      ?:  =(i.mane h.i.menu)
+        =/  hp  (dine h.i.menu)
+        %=  $
+          menu  t.menu
+          mine  (~(uni ca hp) mine)
+        ==
+      ?>  =(i.mane t.i.menu)
+      =/  tp  (dine t.i.menu)
       %=  $
         menu  t.menu
-        back  [t.i.menu h.i.menu back]
+        mine  (~(uni ca tp) mine)
       ==
     ::
         %int
       =/  c  (dine d.i.menu)
-      =.  wine.dish  (~(put by wine.dish) l.i.menu (~(uni ca (~(gut by wine.dish) l.i.menu |)) c))
-      =.  wine.dish  (~(put by wine.dish) r.i.menu (~(uni ca (~(gut by wine.dish) r.i.menu |)) c))
+      ?>  ?|(=(i.mane l.i.menu) =(i.mane r.i.menu))
       %=  $
         menu  t.menu
-        back  [l.i.menu r.i.menu back]
+        mine  (~(uni ca c) mine)
       ==
     ::
         %hed
       =/  c  (~(pat ca (dine d.i.menu)) 2)
-      =.  wine.dish  (~(put by wine.dish) s.i.menu (~(uni ca (~(gut by wine.dish) s.i.menu |)) c))
+      ?>  =(i.mane s.i.menu)
       %=  $
         menu  t.menu
-        back  [s.i.menu back]
+        mine  (~(uni ca c) mine)
       ==
     ::
         %tal
       =/  c  (~(pat ca (dine d.i.menu)) 3)
-      =.  wine.dish  (~(put by wine.dish) s.i.menu (~(uni ca (~(gut by wine.dish) s.i.menu |)) c))
+      ?>  =(i.mane s.i.menu)
       %=  $
         menu  t.menu
-        back  [s.i.menu back]
+        mine  (~(uni ca c) mine)
       ==
     ::
         %tis
       =/  c  (dine d.i.menu)
-      =.  wine.dish  (~(put by wine.dish) s.i.menu (~(uni ca (~(gut by wine.dish) s.i.menu |)) c))
+      ?>  =(i.mane s.i.menu)
       %=  $
         menu  t.menu
-        back  [s.i.menu back]
+        mine  (~(uni ca c) mine)
       ==
     ==
   ::
   ::  propagate knowledge forward starting at variables in queu
   ++  push
-    |=  queu=(list @uvar)
+    =*  queu  fq
     =|  back=(list @uvar)
     |-  ^-  _this
     ?~  queu
@@ -605,7 +642,7 @@
         %hed
       =/  ss  (peek s.i.menu)
       =/  ps  (~(pull so ss) 2)
-      =/  ds
+      =/  ds=sock
         ?~  ps  [| ~]  u.ps
       %=  $
           menu  t.menu
@@ -616,7 +653,7 @@
         %tal
       =/  ss  (peek s.i.menu)
       =/  ps  (~(pull so ss) 3)
-      =/  ds
+      =/  ds=sock
         ?~  ps  [| ~]  u.ps
       %=  $
           menu  t.menu
@@ -632,14 +669,22 @@
           sign.dish  (~(put by sign.dish) d.i.menu ss)
       ==
     ==
+  ::  start next push from this variable
+  ++  fork
+    |=  v=@uvar
+    this(fq [v fq])
+  ::  start next pull from this variable
+  ++  rock
+    |=  v=@uvar
+    this(rq [v rq])
   ::  set a uvar to be equal to a noun
   ++  prem
     |=  [v=@uvar n=*]
-    this(init.dish (~(put by init.dish) v n))
+    this(init.dish (~(put by init.dish) v n), fq [v fq])
   ::  set a uvar to always be needed
   ++  plea
     |=  f=@uvar
-    this(fine.dish (~(put in fine.dish) f))
+    this(fine.dish (~(put in fine.dish) f), rq [f rq])
   ::  add a dataflow edge between uvars
   ++  edge
     |=  =tray
@@ -648,31 +693,31 @@
         %con
       %=  this
           fore.dish  (~(add ja (~(add ja fore.dish) h.tray tray)) t.tray tray)
-          back.dish  (~(add ja back.dish) d.tray tray)
+          back.dish  (~(put ju (~(put ju back.dish) d.tray h.tray)) d.tray t.tray)
       ==
     ::
         %int
       %=  this
           fore.dish  (~(add ja (~(add ja fore.dish) l.tray tray)) r.tray tray)
-          back.dish  (~(add ja back.dish) d.tray tray)
+          back.dish  (~(put ju (~(put ju back.dish) d.tray l.tray)) d.tray r.tray)
       ==
     ::
         %hed
       %=  this
           fore.dish  (~(add ja fore.dish) s.tray tray)
-          back.dish  (~(add ja back.dish) d.tray tray)
+          back.dish  (~(put ju back.dish) d.tray s.tray)
       ==
     ::
         %tal
       %=  this
           fore.dish  (~(add ja fore.dish) s.tray tray)
-          back.dish  (~(add ja back.dish) d.tray tray)
+          back.dish  (~(put ju back.dish) d.tray s.tray)
       ==
     ::
         %tis
       %=  this
           fore.dish  (~(add ja fore.dish) s.tray tray)
-          back.dish  (~(add ja back.dish) d.tray tray)
+          back.dish  (~(put ju back.dish) d.tray s.tray)
       ==
     ==
   ::  get the current dish
@@ -704,7 +749,7 @@
   $:  init=(map @uvar *)     :: immediates
       fine=(set @uvar)       :: needed as formula variables
       fore=(jar @uvar tray)  :: forward-propagation constraints
-      back=(jar @uvar tray)  :: reverse-propagation constraints
+      back=(jug @uvar @uvar)  :: reverse-propagation constraints
       sign=(map @uvar sock)  :: discovered socks
       wine=(map @uvar cape)  :: discovered capes
   ==
