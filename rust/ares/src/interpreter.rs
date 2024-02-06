@@ -21,7 +21,7 @@ use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters, permit_alloc};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::*;
 use std::convert::TryFrom;
-use std::ffi::{c_void, c_ulonglong};
+use std::ffi::{c_ulonglong, c_void};
 use std::result;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -408,7 +408,8 @@ impl<'closure> BoundsCallback<'closure> {
     where
         F: FnMut(*mut c_void) -> *const c_ulonglong,
     {
-        let function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong = Self::call_closure::<F>;
+        let function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong =
+            Self::call_closure::<F>;
 
         debug_assert_eq!(
             std::mem::size_of::<&'closure mut F>(),
@@ -426,7 +427,10 @@ impl<'closure> BoundsCallback<'closure> {
         }
     }
 
-    unsafe extern "C" fn call_closure<F>(bounds_data: *mut c_void, context_p: *mut c_void) -> *const c_ulonglong
+    unsafe extern "C" fn call_closure<F>(
+        bounds_data: *mut c_void,
+        context_p: *mut c_void,
+    ) -> *const c_ulonglong
     where
         F: FnMut(*mut c_void) -> *const c_ulonglong,
     {
@@ -448,7 +452,8 @@ impl<'closure> WorkCallback<'closure> {
     where
         F: FnMut(*mut c_void) -> Result,
     {
-        let function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void = Self::call_closure::<F>;
+        let function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
+            Self::call_closure::<F>;
 
         debug_assert_eq!(
             std::mem::size_of::<&'closure mut F>(),
@@ -466,7 +471,10 @@ impl<'closure> WorkCallback<'closure> {
         }
     }
 
-    unsafe extern "C" fn call_closure<F>(user_data: *mut c_void, context_p: *mut c_void) -> *mut c_void
+    unsafe extern "C" fn call_closure<F>(
+        user_data: *mut c_void,
+        context_p: *mut c_void,
+    ) -> *mut c_void
     where
         F: FnMut(*mut c_void) -> Result,
     {
@@ -480,33 +488,44 @@ impl<'closure> WorkCallback<'closure> {
     }
 }
 
-pub fn call_with_guard<F: FnMut(*mut c_void) -> Result, G: FnMut(*mut c_void) -> *const c_ulonglong, H: FnMut(*mut c_void) -> *const c_ulonglong>(
-    f: &mut F,
+pub fn call_with_guard<
+    F: FnMut(*mut c_void) -> Result,
+    G: FnMut(*mut c_void) -> *const c_ulonglong,
+    H: FnMut(*mut c_void) -> *const c_ulonglong,
+>(
+    work_f: &mut F,
     low_f: &mut G,
     high_f: &mut H,
-    context: &mut Context,
+    context_p: *mut Context,
 ) -> Result {
-    let work = WorkCallback::new(f);
+    let work = WorkCallback::new(work_f);
     let low = BoundsCallback::new(low_f);
     let high = BoundsCallback::new(high_f);
-    let context_p = context as *mut Context as *mut c_void;
 
     let mut ret: Result = Ok(D(0));
     let ret_p = &mut ret as *mut _ as *mut c_void;
     let ret_pp = &ret_p as *const *mut c_void;
 
     unsafe {
-        let err = guard(
+        let guard_error = guard(
             Some(work.function as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void),
             work.user_data as *mut c_void,
-            Some(low.function as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong),
-            Some(high.function as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong),
+            Some(
+                low.function
+                    as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong,
+            ),
+            Some(
+                high.function
+                    as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong,
+            ),
             high.bounds_data as *mut c_void,
-            context_p,
+            context_p as *mut c_void,
             ret_pp,
         );
 
-        if let Ok(err) = GuardError::try_from(err) {
+        eprint!("call_with_guard: error: {}\n", guard_error);
+
+        if let Ok(err) = GuardError::try_from(guard_error) {
             match err {
                 GuardError::GuardSound => {
                     permit_alloc(|| {
@@ -584,7 +603,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     bounds_ctx.stack.get_stack_pointer() as *const c_ulonglong
                 }
             };
-            let work_closure = &mut |context_p: *mut c_void| unsafe {
+            let work_f = &mut |context_p: *mut c_void| unsafe {
                 let work_ctx = &mut *(context_p as *mut Context);
                 push_formula(&mut work_ctx.stack, formula, true)?;
 
@@ -1134,7 +1153,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     };
                 }
             };
-            call_with_guard(work_closure, low_f, high_f, context)
+            call_with_guard(work_f, low_f, high_f, context as *mut Context)
         })
     });
 

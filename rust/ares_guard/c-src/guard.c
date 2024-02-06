@@ -117,7 +117,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
   }
 
   if (err != guard_sound) {
-    fprintf(stderr, "guard: error %d; long jumping\r\n", err);
+    fprintf(stderr, "guard: long jumping\r\n");
     siglongjmp(env_buffer, 1);
   }
 }
@@ -178,6 +178,8 @@ guard(
   void *result;
   if (sigsetjmp(env_buffer, 1) == 0) {
     result = work_f(work_data, context_p);
+    *(void **)ret = result;
+    return guard_sound;
   }
   else {
     if (err != guard_sound) {
@@ -185,16 +187,21 @@ guard(
     }
   }
 
-  *(void **)ret = result;
-
-  return guard_sound;
-
 fail:
   if (guard_p != NULL && 
       mprotect(guard_p, GD_PAGESIZE, PROT_READ | PROT_WRITE) == -1)
   {
     fprintf(stderr, "guard: failed to uninstall guard page\r\n");
   }
+
+  // Restore the previous signal handler.
+  struct sigaction sa;
+  sa.sa_flags = SA_SIGINFO;
+  sa.sa_sigaction = prev_sigsegv_handler;
+  sigemptyset(&sa.sa_mask);
+  sigaddset(&(sa.sa_mask), SIGSEGV);
+  sigaction(SIGSEGV, &sa, NULL);
+  
   switch (err) {
     case guard_armor:
       fprintf(stderr, "guard: armor error\r\n");
