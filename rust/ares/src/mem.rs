@@ -340,56 +340,39 @@ impl NockStack {
         }
     }
 
-    unsafe fn struct_alloc_in_previous_frame_west<T>(&mut self, count: usize) -> *mut T {
+    unsafe fn raw_alloc_in_previous_frame_west(&mut self, words: usize) -> *mut u64 {
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
         let alloc = *self.prev_alloc_pointer_pointer();
-        *(self.prev_alloc_pointer_pointer()) =
-            (*(self.prev_alloc_pointer_pointer())).add(word_size_of::<T>() * count);
-        alloc as *mut T
-    }
-
-    unsafe fn struct_alloc_in_previous_frame_east<T>(&mut self, count: usize) -> *mut T {
-        // note that the allocation is on the east frame, and thus resembles raw_alloc_west
-        *(self.prev_alloc_pointer_pointer()) =
-            (*(self.prev_alloc_pointer_pointer())).sub(word_size_of::<T>() * count);
-        *(self.prev_alloc_pointer_pointer()) as *mut T
-    }
-
-    /** Allocates space in the previous frame for some number of T's. This calls pre_copy()
-     * first to ensure that the stack frame is in cleanup phase, which is the only time we
-     * should be allocating in a previous frame.*/
-    pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
-        self.pre_copy();
-        if self.is_west() {
-            self.struct_alloc_in_previous_frame_west(count)
-        } else {
-            self.struct_alloc_in_previous_frame_east(count)
-        }
-    }
-
-    unsafe fn indirect_alloc_in_previous_frame_west(&mut self, words: usize) -> *mut u64 {
-        let alloc = *self.prev_alloc_pointer_pointer();
-        *(self.prev_alloc_pointer_pointer()) =
-            (*(self.prev_alloc_pointer_pointer())).add(words + 2);
+        *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).add(words);
         alloc
     }
 
-    unsafe fn indirect_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
-        *(self.prev_alloc_pointer_pointer()) =
-            (*(self.prev_alloc_pointer_pointer())).sub(words + 2);
-        *self.prev_alloc_pointer_pointer()
+    unsafe fn raw_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
+        // note that the allocation is on the west frame, and thus resembles raw_alloc_west
+        *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).sub(words);
+        *(self.prev_alloc_pointer_pointer())
     }
 
-    /** Allocate space for an indirect atom in the previous stack frame. This call pre_copy()
-     * first to ensure that the stack frame is in cleanup phase, which is the only time we
-     * should be allocating in a previous frame. */
-    unsafe fn indirect_alloc_in_previous_frame(&mut self, words: usize) -> *mut u64 {
+    /** Allocate space in the previous stack frame. This calls pre_copy() first to ensure that the
+     * stack frame is in cleanup phase, which is the only time we should be allocating in a previous
+     * frame. */
+    unsafe fn raw_alloc_in_previous_frame(&mut self, words: usize) -> *mut u64 {
         self.pre_copy();
         if self.is_west() {
-            self.indirect_alloc_in_previous_frame_west(words)
+            self.raw_alloc_in_previous_frame_west(words)
         } else {
-            self.indirect_alloc_in_previous_frame_east(words)
+            self.raw_alloc_in_previous_frame_east(words)
         }
+    }
+
+    /** Allocates space in the previous frame for some number of T's. */
+    pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
+        self.raw_alloc_in_previous_frame(word_size_of::<T>() * count) as *mut T
+    }
+
+    /** Allocate space for an indirect atom in the previous stack frame. */
+    unsafe fn indirect_alloc_in_previous_frame(&mut self, words: usize) -> *mut u64 {
+        self.raw_alloc_in_previous_frame(words + 2)
     }
 
     /** Allocate space for an alloc::Layout in a stack frame */
@@ -639,6 +622,10 @@ impl NockStack {
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
     pub fn frame_push(&mut self, num_locals: usize) {
+        if self.pc {
+            panic!("frame_push during cleanup phase is prohibited.");
+        }
+
         let current_frame_pointer = self.frame_pointer;
         let current_stack_pointer = self.stack_pointer;
         let current_alloc_pointer = self.alloc_pointer;
@@ -655,8 +642,6 @@ impl NockStack {
             *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
             *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
         }
-
-        self.pc = false;
     }
 
     /** Run a closure inside a frame, popping regardless of the value returned by the closure.
