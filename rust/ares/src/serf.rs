@@ -143,7 +143,7 @@ impl Context {
         snapshot: Option<Snapshot>,
         constant_hot_state: &[HotEntry],
     ) -> Self {
-        let mut stack = NockStack::new(1024 << 10 << 10, 0);
+        let mut stack = NockStack::new(4096 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
 
@@ -419,7 +419,7 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
 }
 
 fn goof(context: &mut Context, traces: Noun) -> Noun {
-    let trace = zing(&mut context.nock_context.stack, traces).unwrap();
+    let trace = zing(&mut context.nock_context.stack, traces).expect("serf: goof: zing failed");
     let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
     let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
