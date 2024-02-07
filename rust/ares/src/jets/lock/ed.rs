@@ -81,8 +81,7 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
             let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
             message.copy_from_slice(&msg.as_bytes()[0..msg_len]);
             ac_ed_sign(message, seed, sig);
-        }
-        else {
+        } else {
             ac_ed_sign(&[0u8; 0], seed, sig);
         }
 
@@ -132,10 +131,7 @@ mod tests {
     fn test_puck() {
         let c = &mut init_context();
 
-        let sam = A(
-            &mut c.stack,
-            &ubig!(_0x0),
-        );
+        let sam = A(&mut c.stack, &ubig!(_0x0));
         let ret = A(
             &mut c.stack,
             &ubig!(_0x29da598ba148c03aa643e21d77153265730d6f2ad0a8a3622da4b6cebc276a3b),
@@ -158,10 +154,7 @@ mod tests {
         let c = &mut init_context();
 
         let sam = T(&mut c.stack, &[D(0), D(0)]);
-        let ret = A(
-            &mut c.stack,
-            &ubig!(_0x0),
-        );
+        let ret = A(&mut c.stack, &ubig!(_0x0));
         assert_jet(c, jet_shar, sam, ret);
 
         let sam = T(&mut c.stack, &[D(234), D(234)]);
