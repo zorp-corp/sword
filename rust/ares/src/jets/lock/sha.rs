@@ -24,7 +24,7 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
         if msg_len > 0 {
             let msg_bytes = &(ruz.as_bytes())[0..msg_len];
             let (_msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
-            msg.copy_from_slice(&msg_bytes);
+            msg.copy_from_slice(msg_bytes);
             ac_shas(msg, salt, out);
         } else {
             ac_shas(&mut [], salt, out);
@@ -46,7 +46,7 @@ pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
         if msg_len > 0 {
             let msg_bytes = &(ruz.as_bytes())[0..msg_len];
             let (_msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
-            msg.copy_from_slice(&msg_bytes);
+            msg.copy_from_slice(msg_bytes);
             ac_shay(msg, out);
         } else {
             ac_shay(&mut [], out);
@@ -79,7 +79,7 @@ pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
         } else {
             let msg_bytes = &(ruz.as_bytes())[0..msg_len];
             let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, length);
-            msg[0..msg_len].copy_from_slice(&msg_bytes);
+            msg[0..msg_len].copy_from_slice(msg_bytes);
             ac_shay(msg, out);
         }
 
@@ -110,7 +110,7 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
         } else {
             let msg_bytes = &(ruz.as_bytes())[0..msg_len];
             let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, length);
-            msg[0..msg_len].copy_from_slice(&msg_bytes);
+            msg[0..msg_len].copy_from_slice(msg_bytes);
             ac_shal(msg, out);
         }
 
@@ -141,7 +141,7 @@ pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
         } else {
             let msg_bytes = &(ruz.as_bytes())[0..msg_len];
             let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, length);
-            msg[0..msg_len].copy_from_slice(&msg_bytes);
+            msg[0..msg_len].copy_from_slice(msg_bytes);
             ac_sha1(msg, out);
         }
 
