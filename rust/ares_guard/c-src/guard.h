@@ -5,11 +5,11 @@
 
 
 typedef enum {
-  guard_sound = 0, // job's done
-  guard_armor = 1, // mprotect
-  guard_weird = 2, // strange state
-  guard_spent = 3, // out of memory (bail:meme)
-  guard_erupt = 4, // sigint
+  guard_start = 0, // setjmp
+  guard_sound = 1, // good/done
+  guard_armor = 2, // mprotect
+  guard_weird = 3, // strange state
+  guard_spent = 4, // out of memory (bail:meme)
 } guard_err;
 
 /**

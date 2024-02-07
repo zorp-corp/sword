@@ -332,7 +332,6 @@ pub enum GuardError {
     GuardArmor = GUARD_ARMOR as isize,
     GuardWeird = GUARD_WEIRD as isize,
     GuardSpent = GUARD_SPENT as isize,
-    GuardErupt = GUARD_ERUPT as isize,
 }
 
 impl TryFrom<u32> for GuardError {
@@ -343,7 +342,6 @@ impl TryFrom<u32> for GuardError {
             GUARD_ARMOR => Ok(GuardError::GuardArmor),
             GUARD_WEIRD => Ok(GuardError::GuardWeird),
             GUARD_SPENT => Ok(GuardError::GuardSpent),
-            GUARD_ERUPT => Ok(GuardError::GuardErupt),
             _ => Err(()),
         }
     }
@@ -523,8 +521,6 @@ pub fn call_with_guard<
             ret_pp,
         );
 
-        eprint!("call_with_guard: error: {}\n", guard_error);
-
         if let Ok(err) = GuardError::try_from(guard_error) {
             match err {
                 GuardError::GuardSound => {
@@ -535,16 +531,14 @@ pub fn call_with_guard<
                     })
                 }
                 GuardError::GuardArmor => {
-                    return Err(Error::Deterministic(Mote::Exit, D(0)));
+                    // XX
+                    panic!("guard: couldn't place guard page\r\n");
                 }
                 GuardError::GuardWeird => {
                     return Err(Error::Deterministic(Mote::Exit, D(0)));
                 }
                 GuardError::GuardSpent => {
                     return Err(Error::NonDeterministic(Mote::Meme, D(0)));
-                }
-                GuardError::GuardErupt => {
-                    return Err(Error::NonDeterministic(Mote::Intr, D(0)));
                 }
             }
         } else {
