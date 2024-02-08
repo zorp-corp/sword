@@ -569,6 +569,23 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
         *((*context).stack.push()) = NockWork::Done;
     };
 
+    let low_f = &mut |context_p: *mut c_void| {
+        let bounds_ctx = unsafe { &mut *(context_p as *mut Context) };
+        if bounds_ctx.stack.is_west() {
+            bounds_ctx.stack.get_stack_pointer() as *const c_ulonglong
+        } else {
+            bounds_ctx.stack.get_alloc_pointer() as *const c_ulonglong
+        }
+    };
+    let high_f = &mut |context_p: *mut c_void| {
+        let bounds_ctx = unsafe { &mut *(context_p as *mut Context) };
+        if bounds_ctx.stack.is_west() {
+            bounds_ctx.stack.get_alloc_pointer() as *const c_ulonglong
+        } else {
+            bounds_ctx.stack.get_stack_pointer() as *const c_ulonglong
+        }
+    };
+
     // DO NOT REMOVE THIS ASSERTION
     //
     // If you need to allocate for debugging, wrap the debugging code in
@@ -582,22 +599,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     let nock = assert_no_alloc(|| {
         ensure_alloc_counters(|| {
-            let low_f = &mut |context_p: *mut c_void| {
-                let bounds_ctx = unsafe { &mut *(context_p as *mut Context) };
-                if bounds_ctx.stack.is_west() {
-                    bounds_ctx.stack.get_stack_pointer() as *const c_ulonglong
-                } else {
-                    bounds_ctx.stack.get_alloc_pointer() as *const c_ulonglong
-                }
-            };
-            let high_f = &mut |context_p: *mut c_void| {
-                let bounds_ctx = unsafe { &mut *(context_p as *mut Context) };
-                if bounds_ctx.stack.is_west() {
-                    bounds_ctx.stack.get_alloc_pointer() as *const c_ulonglong
-                } else {
-                    bounds_ctx.stack.get_stack_pointer() as *const c_ulonglong
-                }
-            };
             let work_f = &mut |context_p: *mut c_void| unsafe {
                 let work_ctx = &mut *(context_p as *mut Context);
                 push_formula(&mut work_ctx.stack, formula, true)?;
@@ -1152,10 +1153,14 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
         })
     });
 
-    match nock {
-        Ok(res) => Ok(res),
-        Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
-    }
+    let match_f = &mut |context_p: *mut c_void| unsafe {
+        let match_ctx = &mut *(context_p as *mut Context);
+        match nock {
+            Ok(res) => Ok(res),
+            Err(err) => Err(exit(match_ctx, &snapshot, virtual_frame, err)),
+        }
+    };
+    call_with_guard(match_f, low_f, high_f, context as *mut Context)
 }
 
 fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result {
