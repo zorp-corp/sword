@@ -42,9 +42,9 @@ _focus_guard()
   guard_p = (uint64_t *)((uintptr_t)guard_p & ~(GD_PAGESIZE - 1));
 
   const bool same = old_guard_p == guard_p;
-  const bool left = (high_p - low_p) > GD_PAGESIZE;
+  const bool left = (uint64_t)(high_p - low_p) > GD_PAGESIZE;
   if (same && !left) {
-    fprintf(stderr, "guard: spent: %p; left: %u\r\n", guard_p, left);
+    fprintf(stderr, "guard: spent: %p; left: %u\r\n", (void *)guard_p, left);
     return guard_spent;
   }
   else {
