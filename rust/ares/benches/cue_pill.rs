@@ -57,7 +57,7 @@ fn main() -> io::Result<()> {
     let f_out = OpenOptions::new()
         .read(true)
         .write(true)
-        .create(true)
+        .truncate(true)
         .open(output_filename)?;
     f_out.set_len((jammed_output.size() << 3) as u64)?;
     unsafe {
