@@ -234,8 +234,7 @@ pub mod util {
     }
 
     pub fn slot(noun: Noun, axis: u64) -> Result {
-        noun.slot(axis)
-            .map_err(|_e| JetErr::Fail(Error::Deterministic(Mote::Exit, D(0))))
+        noun.slot(axis).map_err(|_e| BAIL_EXIT)
     }
 
     /// Extract a bloq and check that it's computable by the current system
