@@ -35,7 +35,6 @@
             pkgs.llvmPackages.clang
             pkgs.pkg-config
             pkgs.urcrypt
-            pkgs.glibc.static
           ] ++
             (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin") pkgs.gdb); # nixpkgs won't build gdb for darwin
         };
