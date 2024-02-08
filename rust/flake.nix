@@ -37,7 +37,7 @@
           ] ++
             (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin") pkgs.gdb) # nixpkgs won't build gdb for darwin
             ++
-            (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin") pkgs.cargo-watch); # nixpkgs won't build gdb for darwin
+            (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin" || parsedSystem.cpu.name != "x86_64") pkgs.cargo-watch); # nixpkgs won't build cargo-watch for darwin-x86
         };
       }
     );
