@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-assert_no_alloc = "1.1.2"
 # use this when debugging requires allocation (e.g. eprintln)
 # assert_no_alloc = {version="1.1.2", features=["warn_debug"]}
+assert_no_alloc = "1.1.2"
 ibig = "0.3.6"
 
 # ed25519
@@ -25,13 +25,14 @@ sha1 = { version = "0.10.6", default-features = false, optional = true }
 sha2 = { version = "0.10.8", default-features = false, optional = true }
 
 # test_vs_urcrypt
+# XX: can be removed once stable
 rand = { version = "0.8.4", default-features = false, features = ["getrandom"], optional = true }
 urcrypt-sys = { version = "0.1.1", optional = true }
 
 [features]
-# XX turn off test_vs_urcrypt after development
 default = ["aes_siv", "ed25519", "sha"]
 aes_siv = ["aes", "aes-siv"]
 ed25519 = ["curve25519-dalek", "ed25519-dalek", "x25519-dalek"]
 sha = ["sha1", "sha2"]
+# XX: can be removed once stable
 test_vs_urcrypt = ["urcrypt-sys", "rand"]
