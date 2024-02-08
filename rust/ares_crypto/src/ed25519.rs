@@ -71,19 +71,6 @@ mod tests {
     #[test]
     fn test_ed_sign() {
         // from https://datatracker.ietf.org/doc/html/rfc8032#section-7.1
-        // let msg: [u8; 0] = [];
-        // let seed_src = &ubig!(_0x9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60)
-        //     .to_le_bytes();
-        // let mut seed: [u8; 32] = [0; 32];
-        // seed.copy_from_slice(seed_src);
-        // let mut signature: [u8; 64] = [0; 64];
-        // ac_ed_sign(&msg, &seed, &mut signature);
-        // let signature_src = &ubig!(_0xe5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b).to_le_bytes();
-        // let mut test_signature: [u8; 64] = [0; 64];
-        // test_signature.copy_from_slice(signature_src);
-        // assert_eq!(signature, test_signature);
-
-        //
         let msg = b"Ares has long exerted a pull on the human imagination.";
         let seed_src = &ubig!(_0x4ccd089b28ff96da9db6c346ec114e0f5b8a319f35aba624da8cf6ed4fb8a6fb)
             .to_le_bytes();

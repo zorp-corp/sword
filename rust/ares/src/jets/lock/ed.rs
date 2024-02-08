@@ -51,7 +51,7 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
         let sec_bytes = sec_key.as_bytes();
 
         public[0..pub_bytes.len()].copy_from_slice(pub_bytes);
-        secret[0..pub_bytes.len()].copy_from_slice(sec_bytes);
+        secret[0..sec_bytes.len()].copy_from_slice(sec_bytes);
 
         let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack);
         ac_ed_shar(public, secret, shar);

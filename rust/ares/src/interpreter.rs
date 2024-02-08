@@ -382,6 +382,7 @@ impl From<cold::Error> for Error {
 pub type Result = result::Result<Noun, Error>;
 
 const BAIL_EXIT: Result = Err(Error::Deterministic(Mote::Exit, D(0)));
+const BAIL_INTR: Result = Err(Error::NonDeterministic(Mote::Intr, D(0)));
 
 #[allow(unused_variables)]
 fn debug_assertions(stack: &mut NockStack, noun: Noun) {
@@ -1300,7 +1301,7 @@ fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result {
                                             return BAIL_EXIT;
                                         }
                                     } else {
-                                        // Heah of argument to Nock 10 must be a cell
+                                        // Head of argument to Nock 10 must be a cell
                                         return BAIL_EXIT;
                                     };
                                 } else {
@@ -1670,7 +1671,7 @@ mod hint {
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
                 let terminator = Arc::clone(&TERMINATOR);
                 if (*terminator).load(Ordering::Relaxed) {
-                    return Some(Err(Error::NonDeterministic(Mote::Intr, D(0))));
+                    return Some(BAIL_INTR);
                 }
 
                 let stack = &mut context.stack;

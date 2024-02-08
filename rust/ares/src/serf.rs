@@ -143,7 +143,7 @@ impl Context {
         snapshot: Option<Snapshot>,
         constant_hot_state: &[HotEntry],
     ) -> Self {
-        let mut stack = NockStack::new(64 << 10 << 10, 0);
+        let mut stack = NockStack::new(4096 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
 
@@ -419,7 +419,7 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
 }
 
 fn goof(context: &mut Context, mote: Mote, traces: Noun) -> Noun {
-    let trace = zing(&mut context.nock_context.stack, traces).unwrap();
+    let trace = zing(&mut context.nock_context.stack, traces).expect("serf: goof: zing failed");
     let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
     let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
@@ -448,8 +448,8 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
     match slam_res {
         Ok(res) => Ok(res),
         Err(error) => match error {
-            Error::Deterministic(mote, trace) | Error::NonDeterministic(mote, trace) => {
-                Err(goof(context, mote, trace))
+            Error::Deterministic(mote, traces) | Error::NonDeterministic(mote, traces) => {
+                Err(goof(context, mote, traces))
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
                 panic!("serf: soft: .^ invalid outside of virtual Nock")
@@ -485,8 +485,8 @@ fn play_life(context: &mut Context, eve: Noun) {
             context.play_done();
         }
         Err(error) => match error {
-            Error::Deterministic(mote, trace) | Error::NonDeterministic(mote, trace) => {
-                let goof = goof(context, mote, trace);
+            Error::Deterministic(mote, traces) | Error::NonDeterministic(mote, traces) => {
+                let goof = goof(context, mote, traces);
                 context.play_bail(goof);
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {

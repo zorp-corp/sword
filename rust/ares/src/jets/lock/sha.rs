@@ -13,18 +13,19 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
     let sal = slot(sam, 2)?.as_atom()?;
     let ruz = slot(sam, 3)?.as_atom()?;
 
-    let sal_bytes = &(sal.as_bytes())[0..met(3, sal)]; // drop trailing zeros
-    let (mut _salt_ida, salt) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len()) };
-    salt.copy_from_slice(sal_bytes);
-
     unsafe {
         let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
 
+        let sal_bytes = &(sal.as_bytes())[0..met(3, sal)]; // drop trailing zeros
+        let (mut _salt_ida, salt) = IndirectAtom::new_raw_mut_bytes(stack, sal_bytes.len());
+        salt.copy_from_slice(sal_bytes);
+
         let msg_len = met(3, ruz);
         if msg_len > 0 {
-            let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
-            message.copy_from_slice(&ruz.as_bytes()[0..msg_len]);
-            ac_shas(message, salt, out);
+            let msg_bytes = &(ruz.as_bytes())[0..msg_len];
+            let (_msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
+            msg.copy_from_slice(msg_bytes);
+            ac_shas(msg, salt, out);
         } else {
             ac_shas(&mut [], salt, out);
         }
@@ -36,16 +37,17 @@ pub fn jet_shas(context: &mut Context, subject: Noun) -> Result {
 pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
-    let msg = sam.as_atom()?;
-    let len = met(3, msg);
+    let ruz = sam.as_atom()?;
+    let msg_len = met(3, ruz);
 
     unsafe {
         let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
 
-        if len > 0 {
-            let (mut _msg_ida, msg_copy) = IndirectAtom::new_raw_mut_bytes(stack, len);
-            msg_copy.copy_from_slice(&msg.as_bytes()[0..len]);
-            ac_shay(&mut (msg_copy)[0..len], out);
+        if msg_len > 0 {
+            let msg_bytes = &(ruz.as_bytes())[0..msg_len];
+            let (_msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
+            msg.copy_from_slice(msg_bytes);
+            ac_shay(msg, out);
         } else {
             ac_shay(&mut [], out);
         }
@@ -57,23 +59,30 @@ pub fn jet_shax(context: &mut Context, subject: Noun) -> Result {
 pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
-    let wid = slot(sam, 2)?.as_atom()?;
-    let dat = slot(sam, 3)?.as_atom()?;
+    let len = slot(sam, 2)?.as_atom()?;
+    let ruz = slot(sam, 3)?.as_atom()?;
 
-    let width = match wid.as_direct() {
+    let length = match len.as_direct() {
         Ok(direct) => direct.data() as usize,
         Err(_) => return Err(BAIL_FAIL),
     };
+    let msg_len = met(3, ruz);
 
     unsafe {
         let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 32);
-        if width > 0 {
-            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, width);
-            msg.copy_from_slice(&dat.as_bytes()[0..width]);
+        if length == 0 {
+            ac_shay(&mut [], out);
+        } else if msg_len >= length {
+            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, length);
+            msg.copy_from_slice(&(ruz.as_bytes())[0..length]);
             ac_shay(msg, out);
         } else {
-            ac_shay(&mut [], out);
+            let msg_bytes = &(ruz.as_bytes())[0..msg_len];
+            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, length);
+            msg[0..msg_len].copy_from_slice(msg_bytes);
+            ac_shay(msg, out);
         }
+
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
@@ -81,47 +90,61 @@ pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
 pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
-    let wid = slot(sam, 2)?.as_atom()?;
-    let dat = slot(sam, 3)?.as_atom()?;
+    let len = slot(sam, 2)?.as_atom()?;
+    let ruz = slot(sam, 3)?.as_atom()?;
 
-    let _width = match wid.as_direct() {
+    let length = match len.as_direct() {
         Ok(direct) => direct.data() as usize,
         Err(_) => return Err(BAIL_FAIL),
     };
-
-    let msg_len = met(3, dat);
+    let msg_len = met(3, ruz);
 
     unsafe {
-        let (mut ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
-        if msg_len > 0 {
-            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
-            msg.copy_from_slice(&dat.as_bytes()[0..msg_len]);
+        let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 64);
+        if length == 0 {
+            ac_shal(&mut [], out);
+        } else if msg_len >= length {
+            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, length);
+            msg.copy_from_slice(&(ruz.as_bytes())[0..length]);
             ac_shal(msg, out);
         } else {
-            ac_shal(&mut [], out);
+            let msg_bytes = &(ruz.as_bytes())[0..msg_len];
+            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, length);
+            msg[0..msg_len].copy_from_slice(msg_bytes);
+            ac_shal(msg, out);
         }
-        Ok(ida.normalize_as_atom().as_noun())
+
+        Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
 
 pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let sam = slot(subject, 6)?;
-    let wid = slot(sam, 2)?.as_atom()?;
-    let dat = slot(sam, 3)?.as_atom()?;
+    let len = slot(sam, 2)?.as_atom()?;
+    let ruz = slot(sam, 3)?.as_atom()?;
 
-    let width = match wid.as_direct() {
+    let length = match len.as_direct() {
         Ok(direct) => direct.data() as usize,
         Err(_) => return Err(BAIL_FAIL),
     };
+    let msg_len = met(3, ruz);
 
     unsafe {
-        let msg_bytes = &(dat.as_bytes())[0..width];
-        let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, msg_bytes.len());
-        msg.copy_from_slice(msg_bytes);
-
         let (mut out_ida, out) = IndirectAtom::new_raw_mut_bytes(stack, 20);
-        ac_sha1(msg, out);
+        if length == 0 {
+            ac_sha1(&mut [], out);
+        } else if msg_len >= length {
+            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, length);
+            msg.copy_from_slice(&(ruz.as_bytes())[0..length]);
+            ac_sha1(msg, out);
+        } else {
+            let msg_bytes = &(ruz.as_bytes())[0..msg_len];
+            let (mut _msg_ida, msg) = IndirectAtom::new_raw_mut_bytes(stack, length);
+            msg[0..msg_len].copy_from_slice(msg_bytes);
+            ac_sha1(msg, out);
+        }
+
         Ok(out_ida.normalize_as_atom().as_noun())
     }
 }
@@ -130,7 +153,6 @@ pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
 mod tests {
     use super::*;
     use crate::jets::util::test::{assert_jet, assert_jet_err, assert_jet_ubig, init_context, A};
-    use crate::jets::JetErr;
     use crate::noun::{D, DIRECT_MAX, T};
     use ibig::ubig;
 
@@ -293,20 +315,20 @@ mod tests {
             ubig!(_0x3eda27f97a3238a5817a4147bd31b9632fec7e87d21883ffb0f2855d3cd1d047cee96cd321a9f483dc15570b05e420d607806dd6502854f1bdb8ef7e35e183cf)
         );
 
-        let sam = T(&mut c.stack, &[D(1), D(1)]);
+        let sam = T(&mut c.stack, &[D(1), D(0)]);
         assert_jet_ubig(
             c,
             jet_shal,
             sam,
-            ubig!(_0x39e3d936c6e31eaac08fcfcfe7bb443460c61c0bd5b74408c8bcc35a6b8d6f5700bdcddeaa4b466ae65f8fb67f67ca62dc34149e1d44d213ddfbc13668b6547b)
+            ubig!(_0xee1069e3f03884c3e5d457253423844a323c29eb4cde70630b58c3712a804a70221d35d9506e242c9414ff192e283dd6caa4eff86a457baf93d68189024d24b8)
         );
 
-        let sam = T(&mut c.stack, &[D(1), D(2)]);
+        let sam = T(&mut c.stack, &[D(0), D(1)]);
         assert_jet_ubig(
             c,
             jet_shal,
             sam,
-            ubig!(_0xcadc698fca01cf2935f760278554b4e61f35453975a5bb45389003159bc8485b7018dd8152d9cc23b6e9dd91b107380b9d14ddbf9cc037ee53a857b6c948b8fa)
+            ubig!(_0x3eda27f97a3238a5817a4147bd31b9632fec7e87d21883ffb0f2855d3cd1d047cee96cd321a9f483dc15570b05e420d607806dd6502854f1bdb8ef7e35e183cf)
         );
 
         let wid = A(
@@ -332,20 +354,28 @@ mod tests {
     fn test_sha1() {
         let c = &mut init_context();
 
-        let sam = T(&mut c.stack, &[D(1), D(1)]);
+        let sam = T(&mut c.stack, &[D(0), D(0)]);
         assert_jet_ubig(
             c,
             jet_sha1,
             sam,
-            ubig!(_0xbf8b4530d8d246dd74ac53a13471bba17941dff7),
+            ubig!(_0xda39a3ee5e6b4b0d3255bfef95601890afd80709),
         );
 
-        let sam = T(&mut c.stack, &[D(1), D(2)]);
+        let sam = T(&mut c.stack, &[D(1), D(0)]);
         assert_jet_ubig(
             c,
             jet_sha1,
             sam,
-            ubig!(_0xc4ea21bb365bbeeaf5f2c654883e56d11e43c44e),
+            ubig!(_0x5ba93c9db0cff93f52b521d7420e43f6eda2784f),
+        );
+
+        let sam = T(&mut c.stack, &[D(0), D(1)]);
+        assert_jet_ubig(
+            c,
+            jet_sha1,
+            sam,
+            ubig!(_0xda39a3ee5e6b4b0d3255bfef95601890afd80709),
         );
 
         let wid = A(
