@@ -1,8 +1,8 @@
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::bits::util::met;
-use crate::jets::util::slot;
-use crate::jets::{JetErr, Result};
-use crate::noun::{IndirectAtom, Noun, D};
+use crate::jets::util::{slot, BAIL_FAIL};
+use crate::jets::Result;
+use crate::noun::{IndirectAtom, Noun};
 use ares_crypto::sha::{ac_sha1, ac_shal, ac_shas, ac_shay};
 
 crate::gdb!();
@@ -64,7 +64,7 @@ pub fn jet_shay(context: &mut Context, subject: Noun) -> Result {
 
     let length = match len.as_direct() {
         Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+        Err(_) => return Err(BAIL_FAIL),
     };
     let msg_len = met(3, ruz);
 
@@ -95,7 +95,7 @@ pub fn jet_shal(context: &mut Context, subject: Noun) -> Result {
 
     let length = match len.as_direct() {
         Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+        Err(_) => return Err(BAIL_FAIL),
     };
     let msg_len = met(3, ruz);
 
@@ -126,7 +126,7 @@ pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
 
     let length = match len.as_direct() {
         Ok(direct) => direct.data() as usize,
-        Err(_) => return Err(JetErr::Fail(Error::NonDeterministic(D(0)))),
+        Err(_) => return Err(BAIL_FAIL),
     };
     let msg_len = met(3, ruz);
 
@@ -153,7 +153,6 @@ pub fn jet_sha1(context: &mut Context, subject: Noun) -> Result {
 mod tests {
     use super::*;
     use crate::jets::util::test::{assert_jet, assert_jet_err, assert_jet_ubig, init_context, A};
-    use crate::jets::JetErr;
     use crate::noun::{D, DIRECT_MAX, T};
     use ibig::ubig;
 
@@ -294,24 +293,14 @@ mod tests {
             IndirectAtom::new_raw_bytes(&mut c.stack, 8, &big as *const u64 as *const u8)
         };
         let sam = T(&mut c.stack, &[ida.as_noun(), D(478560413032)]);
-        assert_jet_err(
-            c,
-            jet_shay,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_shay, sam, BAIL_FAIL);
 
         let big: u128 = (DIRECT_MAX as u128) << 64;
         let ida = unsafe {
             IndirectAtom::new_raw_bytes(&mut c.stack, 8, &big as *const u128 as *const u8)
         };
         let sam = T(&mut c.stack, &[ida.as_noun(), D(478560413032)]);
-        assert_jet_err(
-            c,
-            jet_shay,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_shay, sam, BAIL_FAIL);
     }
 
     #[test]
@@ -351,24 +340,14 @@ mod tests {
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73),
         );
         let sam = T(&mut c.stack, &[wid, dat]);
-        assert_jet_err(
-            c,
-            jet_shal,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_shal, sam, BAIL_FAIL);
 
         let wid = A(
             &mut c.stack,
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
         );
         let sam = T(&mut c.stack, &[wid, D(1)]);
-        assert_jet_err(
-            c,
-            jet_shal,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_shal, sam, BAIL_FAIL);
     }
 
     #[test]
@@ -408,23 +387,13 @@ mod tests {
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73),
         );
         let sam = T(&mut c.stack, &[wid, dat]);
-        assert_jet_err(
-            c,
-            jet_sha1,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_sha1, sam, BAIL_FAIL);
 
         let wid = A(
             &mut c.stack,
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
         );
         let sam = T(&mut c.stack, &[wid, D(1)]);
-        assert_jet_err(
-            c,
-            jet_sha1,
-            sam,
-            JetErr::Fail(Error::NonDeterministic(D(0))),
-        );
+        assert_jet_err(c, jet_sha1, sam, BAIL_FAIL);
     }
 }

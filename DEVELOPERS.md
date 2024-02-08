@@ -42,12 +42,12 @@ bazel-bin/pkg/vere/urbit -F zod
 #### Pills
 
 Ares development and testing, unlike regular development and ship operation, currently requires careful control over what pill is used to launch a ship. Currently, there are several pills available in `resources/pills/`:
-* baby.pill: an extremely minimal Arvo-shaped core and Hoon standard library (`~wicdev-wisryt` [streamed a
+- **baby.pill**: an extremely minimal Arvo-shaped core and Hoon standard library (`~wicdev-wisryt` [streamed a
 video of its development](https://youtu.be/fOVhCx1a-9A))
-* toddler.pill: a slightly more complex Arvo and Hoon than `baby`, which runs slow recursive operations for testing jets
-* azimuth.pill: a pill that processes an Azimuth snapshot
-* full.pill: the complete Urbit `v2.11` pill
-* slim.pill: a slimmed down version of the Urbit `v2.11` pill that has had every desk and agent not necessary for booting to dojo removed
+- **toddler.pill**: a slightly more complex Arvo and Hoon than `baby`, which runs slow recursive operations for testing jets
+- **azimuth.pill**: a pill that processes an Azimuth snapshot
+- **full.pill**: the complete Urbit `v2.11` pill
+- **slim.pill**: a slimmed down version of the Urbit `v2.11` pill that has had every desk and agent not necessary for booting to dojo removed
 
 More information on the pills used by Ares can be found [here](https://github.com/urbit/ares/blob/status/docs/pills.md).
 

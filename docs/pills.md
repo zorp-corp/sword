@@ -4,7 +4,7 @@ Ares development and testing, unlike regular development and ship operation, cur
 
 ## Example: `baby.pill`
 
-`baby.pill` is an extremely minimal Arvo-shaped core and Hoon standard library equipped with `%sham` jets needed to run it. `~wicdev-wisryt`` [streamed a video](https://youtu.be/fOVhCx1a-9A) of its development. You can find the source Hoon for `baby.pill` in `resources/pills/src/baby/baby.hoon`, and the limited version of Hoon that it uses in `resources/pills/src/baby/cradle.hoon`. A pre-compiled `baby.pill` is already available at `resources/pills/baby.pill`. However, the steps to compile it yourself are documented below.
+`baby.pill` is an extremely minimal Arvo-shaped core and Hoon standard library equipped with `%sham` jets needed to run it. `~wicdev-wisryt` [streamed a video](https://youtu.be/fOVhCx1a-9A) of its development. You can find the source Hoon for `baby.pill` in `resources/pills/src/baby/baby.hoon`, and the limited version of Hoon that it uses in `resources/pills/src/baby/cradle.hoon`. A pre-compiled `baby.pill` is already available at `resources/pills/baby.pill`. However, the steps to compile it yourself are documented below.
 
 1. Boot a fake `zod` using an ordinary Urbit executable (not the one you created
 to run Ares as serf)

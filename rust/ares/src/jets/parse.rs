@@ -1,9 +1,9 @@
 /** Parsing jets
  */
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::math::util::{gte_b, lte_b, lth_b};
-use crate::jets::util::{kick, slam, slot};
-use crate::jets::{JetErr, Result};
+use crate::jets::util::{kick, slam, slot, BAIL_FAIL};
+use crate::jets::Result;
 use crate::noun::{Noun, D, T};
 use either::{Left, Right};
 
@@ -406,7 +406,7 @@ pub fn jet_shim(context: &mut Context, subject: Noun) -> Result {
                 util::fail(context, p_tub)
             }
         } else {
-            Err(JetErr::Fail(Error::NonDeterministic(D(0))))
+            Err(BAIL_FAIL)
         }
     }
 }
@@ -447,7 +447,7 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
     let iq_tub = q_tub.as_cell()?.head().as_atom()?;
     if !iq_tub.is_direct() {
         // Character cannot be encoded using 8 bytes = computibilty error
-        return Err(JetErr::Fail(Error::NonDeterministic(D(0))));
+        return Err(BAIL_FAIL);
     }
 
     loop {
@@ -465,7 +465,7 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                     Left(direct) => iq_tub.as_direct()?.data() == direct.data(),
                     Right(_) => {
                         // Character cannot be encoded using 8 bytes = computibilty error
-                        return Err(JetErr::Fail(Error::NonDeterministic(D(0))));
+                        return Err(BAIL_FAIL);
                     }
                 },
                 Right(cell) => {
@@ -480,7 +480,7 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                         _ => {
                             // XX: Fixes jet mismatch in Vere
                             // Character cannot be encoded using 8 bytes = computibilty error
-                            return Err(JetErr::Fail(Error::NonDeterministic(D(0))));
+                            return Err(BAIL_FAIL);
                         }
                     }
                 }

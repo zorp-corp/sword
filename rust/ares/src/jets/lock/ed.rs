@@ -1,9 +1,9 @@
-use crate::interpreter::{Context, Error};
+use crate::interpreter::Context;
 use crate::jets::bits::util::met;
-use crate::jets::util::slot;
+use crate::jets::util::{slot, BAIL_EXIT};
 use crate::jets::{JetErr, Result};
 use crate::mem::NockStack;
-use crate::noun::{IndirectAtom, Noun, D, NO, YES};
+use crate::noun::{IndirectAtom, Noun, NO, YES};
 use ares_crypto::ed25519::{ac_ed_puck, ac_ed_shar, ac_ed_sign, ac_ed_veri};
 
 crate::gdb!();
@@ -14,7 +14,7 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
 
     let sed_len = met(3, sed);
     if sed_len > 32 {
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
+        return Err(BAIL_EXIT);
     }
 
     unsafe {
@@ -35,7 +35,7 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
 
     if met(3, sec_key) > 32 {
         // sek is size checked by +puck via +suck
-        return Err(JetErr::Fail(Error::Deterministic(D(0))));
+        return Err(BAIL_EXIT);
     }
     if met(3, pub_key) > 32 {
         // pub is not size checked in Hoon, but it must be 32 bytes or less for
@@ -69,7 +69,7 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
         let sed_bytes = sed.as_bytes();
         let sed_len = sed_bytes.len();
         if sed_len > 32 {
-            return Err(JetErr::Fail(Error::Deterministic(D(0))));
+            return Err(BAIL_EXIT);
         };
         let seed = &mut [0u8; 32];
         seed[0..sed_len].copy_from_slice(sed_bytes);
@@ -168,7 +168,7 @@ mod tests {
             &mut c.stack,
             &ubig!(_0xfb099b0acc4d1ce37f9982a2ed331245e0cdfdf6979364b7676a142b8233e53b),
         );
-        assert_jet_err(c, jet_shar, sam, JetErr::Fail(Error::Deterministic(D(0))));
+        assert_jet_err(c, jet_shar, sam, BAIL_EXIT);
     }
 
     #[test]

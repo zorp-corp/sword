@@ -1,6 +1,6 @@
 use crate::hamt::Hamt;
 use crate::interpreter;
-use crate::interpreter::{inc, interpret, Error};
+use crate::interpreter::{inc, interpret, Error, Mote};
 use crate::jets::cold::Cold;
 use crate::jets::hot::{Hot, HotEntry};
 use crate::jets::list::util::{lent, zing};
@@ -418,16 +418,13 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
     }
 }
 
-fn goof(context: &mut Context, traces: Noun) -> Noun {
+fn goof(context: &mut Context, mote: Mote, traces: Noun) -> Noun {
     let trace = zing(&mut context.nock_context.stack, traces).expect("serf: goof: zing failed");
     let tone = Cell::new(&mut context.nock_context.stack, D(2), trace);
     let tang = mook(&mut context.nock_context, tone, false)
         .expect("serf: goof: +mook crashed on bail")
         .tail();
-    //  XX: noun::Error should use a bail enum system similar to u3m_bail motes;
-    //      might be able to replace NockErr with mote and map determinism to individual motes;
-    //      for, always set to %exit
-    T(&mut context.nock_context.stack, &[D(tas!(b"exit")), tang])
+    T(&mut context.nock_context.stack, &[D(mote as u64), tang])
 }
 
 /** Run slam; process stack trace to tang if error.
@@ -451,8 +448,8 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
     match slam_res {
         Ok(res) => Ok(res),
         Err(error) => match error {
-            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
-                Err(goof(context, trace))
+            Error::Deterministic(mote, traces) | Error::NonDeterministic(mote, traces) => {
+                Err(goof(context, mote, traces))
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
                 panic!("serf: soft: .^ invalid outside of virtual Nock")
@@ -488,8 +485,8 @@ fn play_life(context: &mut Context, eve: Noun) {
             context.play_done();
         }
         Err(error) => match error {
-            Error::Deterministic(trace) | Error::NonDeterministic(trace) => {
-                let goof = goof(context, trace);
+            Error::Deterministic(mote, traces) | Error::NonDeterministic(mote, traces) => {
+                let goof = goof(context, mote, traces);
                 context.play_bail(goof);
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
