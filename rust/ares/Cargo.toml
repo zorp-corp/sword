@@ -11,6 +11,7 @@ edition = "2018"
 
 # Please keep these alphabetized
 [dependencies]
+ares_crypto = { path = "../ares_crypto" }
 ares_macros = { path = "../ares_macros" }
 # Use this when debugging requires the debug printfs in the PMA
 # ares_pma = { path = "../ares_pma", features=["debug_prints"] }
@@ -32,7 +33,6 @@ num-derive = "0.3"
 num-traits = "0.2"
 signal-hook = "0.3"
 static_assertions = "1.1.0"
-urcrypt-sys = "0.1.1"
 
 [build-dependencies]
 autotools = "0.2.6"
