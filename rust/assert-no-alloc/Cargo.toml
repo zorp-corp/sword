@@ -1,0 +1,32 @@
+[package]
+name = "assert_no_alloc"
+version = "1.1.2"
+authors = ["Florian Jung <flo@windfis.ch>"]
+edition = "2018"
+license = "BSD-1-Clause"
+description = "Custom Rust allocator allowing to temporarily disable memory (de)allocations for a thread. Aborts or prints a warning if allocating although forbidden."
+homepage = "https://github.com/Windfisch/rust-assert-no-alloc"
+repository = "https://github.com/Windfisch/rust-assert-no-alloc"
+readme = "README.md"
+keywords = ["allocator", "real-time", "debug", "audio"]
+categories = ["development-tools::debugging"]
+
+[features]
+default = ["disable_release"]
+warn_debug = []
+warn_release = []
+disable_release = []
+
+# Print a backtrace before aborting the program when an allocation failure happens
+backtrace = ["dep:backtrace"]
+# Use the `log` crate instead of printing to STDERR
+# WARNING: If the allocation failure happens during a logger call, then
+#          depending on the logger's implementation this may block indefinitely
+log = ["dep:log"]
+
+[dependencies]
+backtrace = { version = "0.3", optional = true }
+log = { version = "0.4", optional = true }
+
+[package.metadata.docs.rs]
+features = ["warn_debug"]

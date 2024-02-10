@@ -152,6 +152,16 @@ impl NockStack {
         self.alloc_pointer
     }
 
+    /** Current stack pointer of this NockStack */
+    pub fn get_stack_pointer_pointer(&self) -> *const *mut u64 {
+        &self.stack_pointer
+    }
+
+    /** Current alloc pointer of this NockStack */
+    pub fn get_alloc_pointer_pointer(&self) -> *const *mut u64 {
+        &self.alloc_pointer
+    }
+
     /** Start of the memory range for this NockStack */
     pub fn get_start(&self) -> *const u64 {
         self.start
