@@ -1,5 +1,5 @@
-use crate::interpreter::{Error, Mote, Result};
-use crate::noun::D;
+use crate::interpreter::{interpret, Context, Error, Mote, Result};
+use crate::noun::{Noun, D};
 use ares_guard::*;
 use assert_no_alloc::permit_alloc;
 use std::convert::TryFrom;
@@ -97,4 +97,11 @@ pub fn call_with_guard<F: FnMut() -> Result>(
             }
         }
     }
+}
+
+pub fn interpret_with_guard(context: &mut Context, eve: Noun, lyf: Noun) -> Result {
+    let stack_pp = context.stack.get_stack_pointer_pointer() as *const *const u64;
+    let alloc_pp = context.stack.get_alloc_pointer_pointer() as *const *const u64;
+
+    call_with_guard(stack_pp, alloc_pp, &mut || interpret(context, eve, lyf))
 }

@@ -1,4 +1,5 @@
 use crate::hamt::Hamt;
+use crate::guard::interpret_with_guard;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error, Mote};
 use crate::jets::cold::Cold;
@@ -143,7 +144,7 @@ impl Context {
         snapshot: Option<Snapshot>,
         constant_hot_state: &[HotEntry],
     ) -> Self {
-        let mut stack = NockStack::new(2048 << 10 << 10, 0);
+        let mut stack = NockStack::new(128 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
 
@@ -402,7 +403,7 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
 
-    interpret(&mut context.nock_context, sub, fol)
+    interpret_with_guard(&mut context.nock_context, sub, fol)
 }
 
 fn peek(context: &mut Context, ovo: Noun) -> Noun {
