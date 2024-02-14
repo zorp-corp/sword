@@ -8,8 +8,5 @@ edition = "2021"
 [dependencies]
 
 [build-dependencies]
-bindgen = "0.69.1"
+bindgen = "0.69"
 cc = "1.0"
-
-[provile.dev]
-opt-level = 0

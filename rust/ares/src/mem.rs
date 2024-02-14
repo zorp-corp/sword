@@ -147,19 +147,19 @@ impl NockStack {
         self.stack_pointer
     }
 
-    /** Current stack pointer's address */
-    pub fn get_stack_pointer_pointer(&self) -> *const *mut u64 {
-        &self.stack_pointer as *const *mut u64
-    }
-
     /** Current alloc pointer of this NockStack */
     pub fn get_alloc_pointer(&self) -> *const u64 {
         self.alloc_pointer
     }
 
-    /** Current alloc pointer's address */
+    /** Current stack pointer of this NockStack */
+    pub fn get_stack_pointer_pointer(&self) -> *const *mut u64 {
+        &self.stack_pointer
+    }
+
+    /** Current alloc pointer of this NockStack */
     pub fn get_alloc_pointer_pointer(&self) -> *const *mut u64 {
-        &self.alloc_pointer as *const *mut u64
+        &self.alloc_pointer
     }
 
     /** Start of the memory range for this NockStack */
@@ -288,14 +288,8 @@ impl NockStack {
         if self.pc {
             panic!("Allocation during cleanup phase is prohibited.");
         }
-
-        let alloc = self.alloc_pointer.sub(words);
-        if alloc < self.stack_pointer {
-            ptr::null_mut()
-        } else {
-            self.alloc_pointer = alloc;
-            alloc
-        }
+        self.alloc_pointer = self.alloc_pointer.sub(words);
+        self.alloc_pointer
     }
 
     /** Bump the alloc pointer for an east frame to make space for an allocation */
@@ -303,15 +297,9 @@ impl NockStack {
         if self.pc {
             panic!("Allocation during cleanup phase is prohibited.");
         }
-
         let alloc = self.alloc_pointer;
-        let new_ap = self.alloc_pointer.add(words);
-        if new_ap > self.stack_pointer {
-            ptr::null_mut()
-        } else {
-            self.alloc_pointer = new_ap;
-            alloc
-        }
+        self.alloc_pointer = self.alloc_pointer.add(words);
+        alloc
     }
 
     /** Allocate space for an indirect pointer in a west frame */
@@ -355,24 +343,14 @@ impl NockStack {
     unsafe fn raw_alloc_in_previous_frame_west(&mut self, words: usize) -> *mut u64 {
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
         let alloc = *self.prev_alloc_pointer_pointer();
-        let new_prev_ap = (*(self.prev_alloc_pointer_pointer())).add(words);
-        if new_prev_ap > self.stack_pointer {
-            ptr::null_mut()
-        } else {
-            *(self.prev_alloc_pointer_pointer()) = new_prev_ap;
-            alloc
-        }
+        *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).add(words);
+        alloc
     }
 
     unsafe fn raw_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
         // note that the allocation is on the west frame, and thus resembles raw_alloc_west
-        let alloc = (*(self.prev_alloc_pointer_pointer())).sub(words);
-        if alloc < self.stack_pointer {
-            ptr::null_mut()
-        } else {
-            *(self.prev_alloc_pointer_pointer()) = alloc;
-            alloc
-        }
+        *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).sub(words);
+        *(self.prev_alloc_pointer_pointer())
     }
 
     /** Allocate space in the previous stack frame. This calls pre_copy() first to ensure that the
@@ -437,27 +415,16 @@ impl NockStack {
      * or not pre_copy() has been called.*/
     unsafe fn pre_copy(&mut self) {
         if !self.pc {
-            let old_stack_pointer = self.stack_pointer;
-
-            // Change polarity of lightweight stack.
-            if self.is_west() {
-                self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
-                if self.stack_pointer < old_stack_pointer {
-                    // OOM
-                    std::ptr::null::<usize>().read_volatile();
-                }
-            } else {
-                self.stack_pointer = self.alloc_pointer.add(RESERVED);
-                if self.stack_pointer > old_stack_pointer {
-                    // OOM
-                    std::ptr::null::<usize>().read_volatile();
-                }
-            }
-            self.pc = true;
-
             *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
             *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
             *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
+            self.pc = true;
+            // Change polarity of lightweight stack.
+            if self.is_west() {
+                self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
+            } else {
+                self.stack_pointer = self.alloc_pointer.add(RESERVED);
+            }
         }
     }
 
@@ -662,22 +629,13 @@ impl NockStack {
         let current_stack_pointer = self.stack_pointer;
         let current_alloc_pointer = self.alloc_pointer;
         unsafe {
-            if self.is_west() {
-                self.frame_pointer = current_alloc_pointer.sub(num_locals + RESERVED);
-                if self.frame_pointer <= current_stack_pointer {
-                    // OOM
-                    std::ptr::null::<usize>().read_volatile();
-                }
+            self.frame_pointer = if self.is_west() {
+                current_alloc_pointer.sub(num_locals + RESERVED)
             } else {
-                self.frame_pointer = current_alloc_pointer.add(num_locals + RESERVED);
-                if self.frame_pointer >= current_stack_pointer {
-                    // OOM
-                    std::ptr::null::<usize>().read_volatile();
-                }
-            }
+                current_alloc_pointer.add(num_locals + RESERVED)
+            };
             self.alloc_pointer = current_stack_pointer;
             self.stack_pointer = self.frame_pointer;
-
             *(self.slot_pointer(FRAME)) = current_frame_pointer as u64;
             *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
             *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;

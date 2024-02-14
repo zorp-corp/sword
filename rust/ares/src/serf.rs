@@ -143,7 +143,7 @@ impl Context {
         snapshot: Option<Snapshot>,
         constant_hot_state: &[HotEntry],
     ) -> Self {
-        let mut stack = NockStack::new(4096 << 10 << 10, 0);
+        let mut stack = NockStack::new(2048 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
 
@@ -401,6 +401,7 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let sam = T(stack, &[D(6), D(0), D(7)]);
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
+
     interpret(&mut context.nock_context, sub, fol)
 }
 
@@ -604,16 +605,12 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
             context.work_swap(ovo, fec);
         }
         Err(goof_crud) => {
-            work_bail(context, &[goof_crud, goof]);
+            eprintln!("\r serf: bail");
+            let stack = &mut context.nock_context.stack;
+            let lud = T(stack, &[goof_crud, goof, D(0)]);
+            context.work_bail(lud);
         }
     }
-}
-
-fn work_bail(context: &mut Context, goofs: &[Noun]) {
-    let stack = &mut context.nock_context.stack;
-    let lest = T(stack, goofs);
-    let lud = T(stack, &[lest, D(0)]);
-    context.work_bail(lud);
 }
 
 fn work_trace_name(stack: &mut NockStack, wire: Noun, vent: Atom) -> String {

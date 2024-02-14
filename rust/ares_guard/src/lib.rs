@@ -4,7 +4,9 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-pub const GUARD_SOUND: u32 = guard_err_guard_sound; 
-pub const GUARD_ARMOR: u32 = guard_err_guard_armor; 
-pub const GUARD_WEIRD: u32 = guard_err_guard_weird;
-pub const GUARD_SPENT: u32 = guard_err_guard_spent;
+pub const GUARD_NULL:       u32 = guard_err_guard_null;
+pub const GUARD_SIGNAL:     u32 = guard_err_guard_signal;
+pub const GUARD_OOM:        u32 = guard_err_guard_oom;
+pub const GUARD_MALLOC:     u32 = guard_err_guard_malloc;
+pub const GUARD_MPROTECT:   u32 = guard_err_guard_mprotect;
+pub const GUARD_SIGACTION:  u32 = guard_err_guard_sigaction;

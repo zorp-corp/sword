@@ -1,6 +1,7 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
+use crate::guard::call_with_guard;
 use crate::hamt::Hamt;
 use crate::jets::cold;
 use crate::jets::cold::Cold;
@@ -15,13 +16,10 @@ use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
 use crate::serf::TERMINATOR;
 use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
 use crate::unifying_equality::unifying_equality;
-use ares_guard::*;
 use ares_macros::tas;
-use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters, permit_alloc};
+use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::*;
-use std::convert::TryFrom;
-use std::ffi::{c_ulonglong, c_void};
 use std::result;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -327,26 +325,6 @@ pub enum Error {
     NonDeterministic(Mote, Noun), // mote, trace
 }
 
-pub enum GuardError {
-    GuardSound = GUARD_SOUND as isize,
-    GuardArmor = GUARD_ARMOR as isize,
-    GuardWeird = GUARD_WEIRD as isize,
-    GuardSpent = GUARD_SPENT as isize,
-}
-
-impl TryFrom<u32> for GuardError {
-    type Error = ();
-    fn try_from(value: u32) -> std::result::Result<Self, Self::Error> {
-        match value {
-            GUARD_SOUND => Ok(GuardError::GuardSound),
-            GUARD_ARMOR => Ok(GuardError::GuardArmor),
-            GUARD_WEIRD => Ok(GuardError::GuardWeird),
-            GUARD_SPENT => Ok(GuardError::GuardSpent),
-            _ => Err(()),
-        }
-    }
-}
-
 impl Preserve for Error {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         match self {
@@ -382,6 +360,7 @@ impl From<cold::Error> for Error {
 pub type Result = result::Result<Noun, Error>;
 
 const BAIL_EXIT: Result = Err(Error::Deterministic(Mote::Exit, D(0)));
+const BAIL_FAIL: Result = Err(Error::NonDeterministic(Mote::Fail, D(0)));
 const BAIL_INTR: Result = Err(Error::NonDeterministic(Mote::Intr, D(0)));
 
 #[allow(unused_variables)]
@@ -391,166 +370,8 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
     assert_no_junior_pointers!(stack, noun);
 }
 
-use std::marker::PhantomData;
-
-/// See: https://users.rust-lang.org/t/passing-a-closure-to-an-external-c-ffi-library/100271/2
-pub struct BoundsCallback<'closure> {
-    pub function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong,
-    pub bounds_data: *mut c_void,
-
-    // without this it's too easy to accidentally drop the closure too soon
-    _lifetime: PhantomData<&'closure mut c_void>,
-}
-
-impl<'closure> BoundsCallback<'closure> {
-    pub fn new<F>(closure: &'closure mut F) -> Self
-    where
-        F: FnMut(*mut c_void) -> *const c_ulonglong,
-    {
-        let function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong =
-            Self::call_closure::<F>;
-
-        debug_assert_eq!(
-            std::mem::size_of::<&'closure mut F>(),
-            std::mem::size_of::<*const c_void>()
-        );
-        debug_assert_eq!(
-            std::mem::size_of_val(&function),
-            std::mem::size_of::<*const c_void>()
-        );
-
-        Self {
-            function,
-            bounds_data: closure as *mut F as *mut c_void,
-            _lifetime: PhantomData,
-        }
-    }
-
-    unsafe extern "C" fn call_closure<F>(
-        bounds_data: *mut c_void,
-        context_p: *mut c_void,
-    ) -> *const c_ulonglong
-    where
-        F: FnMut(*mut c_void) -> *const c_ulonglong,
-    {
-        let cb: &mut F = bounds_data.cast::<F>().as_mut().unwrap();
-        (*cb)(context_p)
-    }
-}
-
-pub struct WorkCallback<'closure> {
-    pub function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void,
-    pub user_data: *mut c_void,
-
-    // without this it's too easy to accidentally drop the closure too soon
-    _lifetime: PhantomData<&'closure mut c_void>,
-}
-
-impl<'closure> WorkCallback<'closure> {
-    pub fn new<F>(closure: &'closure mut F) -> Self
-    where
-        F: FnMut(*mut c_void) -> Result,
-    {
-        let function: unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void =
-            Self::call_closure::<F>;
-
-        debug_assert_eq!(
-            std::mem::size_of::<&'closure mut F>(),
-            std::mem::size_of::<*const c_void>()
-        );
-        debug_assert_eq!(
-            std::mem::size_of_val(&function),
-            std::mem::size_of::<*const c_void>()
-        );
-
-        Self {
-            function,
-            user_data: closure as *mut F as *mut c_void,
-            _lifetime: PhantomData,
-        }
-    }
-
-    unsafe extern "C" fn call_closure<F>(
-        user_data: *mut c_void,
-        context_p: *mut c_void,
-    ) -> *mut c_void
-    where
-        F: FnMut(*mut c_void) -> Result,
-    {
-        let cb: &mut F = user_data.cast::<F>().as_mut().unwrap();
-        let v = (*cb)(context_p);
-        permit_alloc(|| {
-            let v_box = Box::new(v);
-            let v_ptr = Box::into_raw(v_box);
-            v_ptr as *mut c_void
-        })
-    }
-}
-
-pub fn call_with_guard<
-    F: FnMut(*mut c_void) -> Result,
-    G: FnMut(*mut c_void) -> *const c_ulonglong,
-    H: FnMut(*mut c_void) -> *const c_ulonglong,
->(
-    work_f: &mut F,
-    low_f: &mut G,
-    high_f: &mut H,
-    context_p: *mut Context,
-) -> Result {
-    let work = WorkCallback::new(work_f);
-    let low = BoundsCallback::new(low_f);
-    let high = BoundsCallback::new(high_f);
-
-    let mut ret: Result = Ok(D(0));
-    let ret_p = &mut ret as *mut _ as *mut c_void;
-    let ret_pp = &ret_p as *const *mut c_void;
-
-    unsafe {
-        let guard_error = guard(
-            Some(work.function as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *mut c_void),
-            work.user_data as *mut c_void,
-            Some(
-                low.function
-                    as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong,
-            ),
-            Some(
-                high.function
-                    as unsafe extern "C" fn(*mut c_void, *mut c_void) -> *const c_ulonglong,
-            ),
-            high.bounds_data as *mut c_void,
-            context_p as *mut c_void,
-            ret_pp,
-        );
-
-        if let Ok(err) = GuardError::try_from(guard_error) {
-            match err {
-                GuardError::GuardSound => {
-                    permit_alloc(|| {
-                        let result_box = Box::from_raw(ret_p as *mut Result);
-                        let result = *result_box;
-                        return result;
-                    })
-                }
-                GuardError::GuardArmor => {
-                    // XX
-                    panic!("guard: couldn't place guard page\r\n");
-                }
-                GuardError::GuardWeird => {
-                    return Err(Error::Deterministic(Mote::Exit, D(0)));
-                }
-                GuardError::GuardSpent => {
-                    return Err(Error::NonDeterministic(Mote::Meme, D(0)));
-                }
-            }
-        } else {
-            return Err(Error::Deterministic(Mote::Exit, D(0)));
-        }
-    }
-}
-
 /** Interpret nock */
 pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Result {
-    // print the addresses of the context.stack.stack_pointer and context.stack.alloc_pointer
     let terminator = Arc::clone(&TERMINATOR);
     let orig_subject = subject; // for debugging
     let snapshot = context.save();
@@ -559,31 +380,14 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
     // Setup stack for Nock computation
     unsafe {
-        (*context).stack.frame_push(2);
+        context.stack.frame_push(2);
 
         // Bottom of mean stack
-        *((*context).stack.local_noun_pointer(0)) = D(0);
+        *(context.stack.local_noun_pointer(0)) = D(0);
         // Bottom of trace stack
-        *((*context).stack.local_noun_pointer(1) as *mut *const TraceStack) = std::ptr::null();
+        *(context.stack.local_noun_pointer(1) as *mut *const TraceStack) = std::ptr::null();
 
-        *((*context).stack.push()) = NockWork::Done;
-    };
-
-    let low_f = &mut |context_p: *mut c_void| {
-        let bounds_ctx = unsafe { &mut *(context_p as *mut Context) };
-        if bounds_ctx.stack.is_west() {
-            bounds_ctx.stack.get_stack_pointer() as *const c_ulonglong
-        } else {
-            bounds_ctx.stack.get_alloc_pointer() as *const c_ulonglong
-        }
-    };
-    let high_f = &mut |context_p: *mut c_void| {
-        let bounds_ctx = unsafe { &mut *(context_p as *mut Context) };
-        if bounds_ctx.stack.is_west() {
-            bounds_ctx.stack.get_alloc_pointer() as *const c_ulonglong
-        } else {
-            bounds_ctx.stack.get_stack_pointer() as *const c_ulonglong
-        }
+        *(context.stack.push()) = NockWork::Done;
     };
 
     // DO NOT REMOVE THIS ASSERTION
@@ -599,23 +403,25 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     let nock = assert_no_alloc(|| {
         ensure_alloc_counters(|| {
-            let work_f = &mut |context_p: *mut c_void| unsafe {
-                let work_ctx = &mut *(context_p as *mut Context);
-                push_formula(&mut work_ctx.stack, formula, true)?;
+            let stack_pp = context.stack.get_stack_pointer_pointer() as *const *const u64;
+            let alloc_pp = context.stack.get_alloc_pointer_pointer() as *const *const u64;
+            let work_f = &mut || unsafe {
+                push_formula(&mut context.stack, formula, true)?;
 
                 loop {
-                    let work: NockWork = *work_ctx.stack.top();
+                    let work: NockWork = *context.stack.top();
                     match work {
                         NockWork::Done => {
-                            write_trace(work_ctx);
+                            write_trace(context);
 
-                            let stack = &mut work_ctx.stack;
+                            let stack = &mut context.stack;
+                            debug_assertions(stack, orig_subject);
                             debug_assertions(stack, subject);
                             debug_assertions(stack, res);
 
-                            stack.preserve(&mut work_ctx.cache);
-                            stack.preserve(&mut work_ctx.cold);
-                            stack.preserve(&mut work_ctx.warm);
+                            stack.preserve(&mut context.cache);
+                            stack.preserve(&mut context.cold);
+                            stack.preserve(&mut context.warm);
                             stack.preserve(&mut res);
                             stack.frame_pop();
 
@@ -625,16 +431,16 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             break Ok(res);
                         }
                         NockWork::Ret => {
-                            write_trace(work_ctx);
+                            write_trace(context);
 
-                            let stack = &mut work_ctx.stack;
+                            let stack = &mut context.stack;
                             debug_assertions(stack, orig_subject);
                             debug_assertions(stack, subject);
                             debug_assertions(stack, res);
 
-                            stack.preserve(&mut work_ctx.cache);
-                            stack.preserve(&mut work_ctx.cold);
-                            stack.preserve(&mut work_ctx.warm);
+                            stack.preserve(&mut context.cache);
+                            stack.preserve(&mut context.cold);
+                            stack.preserve(&mut context.warm);
                             stack.preserve(&mut res);
                             stack.frame_pop();
 
@@ -644,17 +450,17 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         NockWork::WorkCons(mut cons) => match cons.todo {
                             TodoCons::ComputeHead => {
                                 cons.todo = TodoCons::ComputeTail;
-                                *work_ctx.stack.top() = NockWork::WorkCons(cons);
-                                push_formula(&mut work_ctx.stack, cons.head, false)?;
+                                *context.stack.top() = NockWork::WorkCons(cons);
+                                push_formula(&mut context.stack, cons.head, false)?;
                             }
                             TodoCons::ComputeTail => {
                                 cons.todo = TodoCons::Cons;
                                 cons.head = res;
-                                *work_ctx.stack.top() = NockWork::WorkCons(cons);
-                                push_formula(&mut work_ctx.stack, cons.tail, false)?;
+                                *context.stack.top() = NockWork::WorkCons(cons);
+                                push_formula(&mut context.stack, cons.tail, false)?;
                             }
                             TodoCons::Cons => {
-                                let stack = &mut work_ctx.stack;
+                                let stack = &mut context.stack;
                                 res = T(stack, &[cons.head, res]);
                                 stack.pop::<NockWork>();
                             }
@@ -662,7 +468,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         NockWork::Work0(zero) => {
                             if let Ok(noun) = subject.slot_atom(zero.axis) {
                                 res = noun;
-                                work_ctx.stack.pop::<NockWork>();
+                                context.stack.pop::<NockWork>();
                             } else {
                                 // Axis invalid for input Noun
                                 break BAIL_EXIT;
@@ -670,27 +476,27 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         }
                         NockWork::Work1(once) => {
                             res = once.noun;
-                            work_ctx.stack.pop::<NockWork>();
+                            context.stack.pop::<NockWork>();
                         }
                         NockWork::Work2(mut vale) => {
                             if (*terminator).load(Ordering::Relaxed) {
-                                break Err(Error::NonDeterministic(Mote::Intr, D(0)));
+                                break BAIL_INTR;
                             }
 
                             match vale.todo {
                                 Todo2::ComputeSubject => {
                                     vale.todo = Todo2::ComputeFormula;
-                                    *work_ctx.stack.top() = NockWork::Work2(vale);
-                                    push_formula(&mut work_ctx.stack, vale.subject, false)?;
+                                    *context.stack.top() = NockWork::Work2(vale);
+                                    push_formula(&mut context.stack, vale.subject, false)?;
                                 }
                                 Todo2::ComputeFormula => {
                                     vale.todo = Todo2::ComputeResult;
                                     vale.subject = res;
-                                    *work_ctx.stack.top() = NockWork::Work2(vale);
-                                    push_formula(&mut work_ctx.stack, vale.formula, false)?;
+                                    *context.stack.top() = NockWork::Work2(vale);
+                                    push_formula(&mut context.stack, vale.formula, false)?;
                                 }
                                 Todo2::ComputeResult => {
-                                    let stack = &mut work_ctx.stack;
+                                    let stack = &mut context.stack;
                                     if vale.tail {
                                         stack.pop::<NockWork>();
                                         subject = vale.subject;
@@ -710,7 +516,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     }
                                 }
                                 Todo2::RestoreSubject => {
-                                    let stack = &mut work_ctx.stack;
+                                    let stack = &mut context.stack;
 
                                     subject = vale.subject;
                                     stack.pop::<NockWork>();
@@ -724,24 +530,24 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         NockWork::Work3(mut thee) => match thee.todo {
                             Todo3::ComputeChild => {
                                 thee.todo = Todo3::ComputeType;
-                                *work_ctx.stack.top() = NockWork::Work3(thee);
-                                push_formula(&mut work_ctx.stack, thee.child, false)?;
+                                *context.stack.top() = NockWork::Work3(thee);
+                                push_formula(&mut context.stack, thee.child, false)?;
                             }
                             Todo3::ComputeType => {
                                 res = if res.is_cell() { D(0) } else { D(1) };
-                                work_ctx.stack.pop::<NockWork>();
+                                context.stack.pop::<NockWork>();
                             }
                         },
                         NockWork::Work4(mut four) => match four.todo {
                             Todo4::ComputeChild => {
                                 four.todo = Todo4::Increment;
-                                *work_ctx.stack.top() = NockWork::Work4(four);
-                                push_formula(&mut work_ctx.stack, four.child, false)?;
+                                *context.stack.top() = NockWork::Work4(four);
+                                push_formula(&mut context.stack, four.child, false)?;
                             }
                             Todo4::Increment => {
                                 if let Ok(atom) = res.as_atom() {
-                                    res = inc(&mut work_ctx.stack, atom).as_noun();
-                                    work_ctx.stack.pop::<NockWork>();
+                                    res = inc(&mut context.stack, atom).as_noun();
+                                    context.stack.pop::<NockWork>();
                                 } else {
                                     // Cannot increment (Nock 4) a cell
                                     break BAIL_EXIT;
@@ -751,17 +557,17 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         NockWork::Work5(mut five) => match five.todo {
                             Todo5::ComputeLeftChild => {
                                 five.todo = Todo5::ComputeRightChild;
-                                *work_ctx.stack.top() = NockWork::Work5(five);
-                                push_formula(&mut work_ctx.stack, five.left, false)?;
+                                *context.stack.top() = NockWork::Work5(five);
+                                push_formula(&mut context.stack, five.left, false)?;
                             }
                             Todo5::ComputeRightChild => {
                                 five.todo = Todo5::TestEquals;
                                 five.left = res;
-                                *work_ctx.stack.top() = NockWork::Work5(five);
-                                push_formula(&mut work_ctx.stack, five.right, false)?;
+                                *context.stack.top() = NockWork::Work5(five);
+                                push_formula(&mut context.stack, five.right, false)?;
                             }
                             Todo5::TestEquals => {
-                                let stack = &mut work_ctx.stack;
+                                let stack = &mut context.stack;
                                 let saved_value_ptr = &mut five.left;
                                 res = if unifying_equality(stack, &mut res, saved_value_ptr) {
                                     D(0)
@@ -774,11 +580,11 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         NockWork::Work6(mut cond) => match cond.todo {
                             Todo6::ComputeTest => {
                                 cond.todo = Todo6::ComputeBranch;
-                                *work_ctx.stack.top() = NockWork::Work6(cond);
-                                push_formula(&mut work_ctx.stack, cond.test, false)?;
+                                *context.stack.top() = NockWork::Work6(cond);
+                                push_formula(&mut context.stack, cond.test, false)?;
                             }
                             Todo6::ComputeBranch => {
-                                let stack = &mut work_ctx.stack;
+                                let stack = &mut context.stack;
                                 stack.pop::<NockWork>();
                                 if let Left(direct) = res.as_either_direct_allocated() {
                                     if direct.data() == 0 {
@@ -798,11 +604,11 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         NockWork::Work7(mut pose) => match pose.todo {
                             Todo7::ComputeSubject => {
                                 pose.todo = Todo7::ComputeResult;
-                                *work_ctx.stack.top() = NockWork::Work7(pose);
-                                push_formula(&mut work_ctx.stack, pose.subject, false)?;
+                                *context.stack.top() = NockWork::Work7(pose);
+                                push_formula(&mut context.stack, pose.subject, false)?;
                             }
                             Todo7::ComputeResult => {
-                                let stack = &mut work_ctx.stack;
+                                let stack = &mut context.stack;
                                 if pose.tail {
                                     stack.pop::<NockWork>();
                                     subject = res;
@@ -817,17 +623,17 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             }
                             Todo7::RestoreSubject => {
                                 subject = pose.subject;
-                                work_ctx.stack.pop::<NockWork>();
+                                context.stack.pop::<NockWork>();
                             }
                         },
                         NockWork::Work8(mut pins) => match pins.todo {
                             Todo8::ComputeSubject => {
                                 pins.todo = Todo8::ComputeResult;
-                                *work_ctx.stack.top() = NockWork::Work8(pins);
-                                push_formula(&mut work_ctx.stack, pins.pin, false)?;
+                                *context.stack.top() = NockWork::Work8(pins);
+                                push_formula(&mut context.stack, pins.pin, false)?;
                             }
                             Todo8::ComputeResult => {
-                                let stack = &mut work_ctx.stack;
+                                let stack = &mut context.stack;
                                 if pins.tail {
                                     subject = T(stack, &[res, subject]);
                                     stack.pop::<NockWork>();
@@ -842,32 +648,32 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             }
                             Todo8::RestoreSubject => {
                                 subject = pins.pin;
-                                work_ctx.stack.pop::<NockWork>();
+                                context.stack.pop::<NockWork>();
                             }
                         },
                         NockWork::Work9(mut kale) => {
                             if (*terminator).load(Ordering::Relaxed) {
-                                break Err(Error::NonDeterministic(Mote::Intr, D(0)));
+                                break BAIL_INTR;
                             }
 
                             match kale.todo {
                                 Todo9::ComputeCore => {
                                     kale.todo = Todo9::ComputeResult;
-                                    *work_ctx.stack.top() = NockWork::Work9(kale);
-                                    push_formula(&mut work_ctx.stack, kale.core, false)?;
+                                    *context.stack.top() = NockWork::Work9(kale);
+                                    push_formula(&mut context.stack, kale.core, false)?;
                                 }
                                 Todo9::ComputeResult => {
                                     if let Ok(mut formula) = res.slot_atom(kale.axis) {
                                         if !cfg!(feature = "sham_hints") {
-                                            if let Some((jet, _path)) = work_ctx.warm.find_jet(
-                                                &mut work_ctx.stack,
+                                            if let Some((jet, _path)) = context.warm.find_jet(
+                                                &mut context.stack,
                                                 &mut res,
                                                 &mut formula,
                                             ) {
-                                                match jet(work_ctx, res) {
+                                                match jet(context, res) {
                                                     Ok(jet_res) => {
                                                         res = jet_res;
-                                                        work_ctx.stack.pop::<NockWork>();
+                                                        context.stack.pop::<NockWork>();
                                                         continue;
                                                     }
                                                     Err(JetErr::Punt) => {}
@@ -878,16 +684,16 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                             }
                                         };
 
-                                        let stack = &mut work_ctx.stack;
+                                        let stack = &mut context.stack;
                                         if kale.tail {
                                             stack.pop::<NockWork>();
 
                                             // We could trace on 2 as well, but 2 only comes from Hoon via
                                             // '.*', so we can assume it's never directly used to invoke
                                             // jetted code.
-                                            if work_ctx.trace_info.is_some() {
+                                            if context.trace_info.is_some() {
                                                 if let Some(path) =
-                                                    work_ctx.cold.matches(stack, &mut res)
+                                                    context.cold.matches(stack, &mut res)
                                                 {
                                                     append_trace(stack, path);
                                                 };
@@ -912,9 +718,9 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                             // We could trace on 2 as well, but 2 only comes from Hoon via
                                             // '.*', so we can assume it's never directly used to invoke
                                             // jetted code.
-                                            if work_ctx.trace_info.is_some() {
+                                            if context.trace_info.is_some() {
                                                 if let Some(path) =
-                                                    work_ctx.cold.matches(stack, &mut res)
+                                                    context.cold.matches(stack, &mut res)
                                                 {
                                                     append_trace(stack, path);
                                                 };
@@ -926,7 +732,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     }
                                 }
                                 Todo9::RestoreSubject => {
-                                    let stack = &mut work_ctx.stack;
+                                    let stack = &mut context.stack;
 
                                     subject = kale.core;
                                     stack.pop::<NockWork>();
@@ -941,35 +747,35 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             match diet.todo {
                                 Todo10::ComputeTree => {
                                     diet.todo = Todo10::ComputePatch; // should we compute patch then tree?
-                                    *work_ctx.stack.top() = NockWork::Work10(diet);
-                                    push_formula(&mut work_ctx.stack, diet.tree, false)?;
+                                    *context.stack.top() = NockWork::Work10(diet);
+                                    push_formula(&mut context.stack, diet.tree, false)?;
                                 }
                                 Todo10::ComputePatch => {
                                     diet.todo = Todo10::Edit;
                                     diet.tree = res;
-                                    *work_ctx.stack.top() = NockWork::Work10(diet);
-                                    push_formula(&mut work_ctx.stack, diet.patch, false)?;
+                                    *context.stack.top() = NockWork::Work10(diet);
+                                    push_formula(&mut context.stack, diet.patch, false)?;
                                 }
                                 Todo10::Edit => {
                                     res = edit(
-                                        &mut work_ctx.stack,
+                                        &mut context.stack,
                                         diet.axis.as_bitslice(),
                                         res,
                                         diet.tree,
                                     );
-                                    work_ctx.stack.pop::<NockWork>();
+                                    context.stack.pop::<NockWork>();
                                 }
                             }
                         }
                         NockWork::Work11D(mut dint) => match dint.todo {
                             Todo11D::ComputeHint => {
                                 if let Some(ret) = hint::match_pre_hint(
-                                    work_ctx, subject, dint.tag, dint.hint, dint.body,
+                                    context, subject, dint.tag, dint.hint, dint.body,
                                 ) {
                                     match ret {
                                         Ok(found) => {
                                             res = found;
-                                            work_ctx.stack.pop::<NockWork>();
+                                            context.stack.pop::<NockWork>();
                                         }
                                         Err(err) => {
                                             break Err(err);
@@ -977,13 +783,13 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     }
                                 } else {
                                     dint.todo = Todo11D::ComputeResult;
-                                    *work_ctx.stack.top() = NockWork::Work11D(dint);
-                                    push_formula(&mut work_ctx.stack, dint.hint, false)?;
+                                    *context.stack.top() = NockWork::Work11D(dint);
+                                    push_formula(&mut context.stack, dint.hint, false)?;
                                 }
                             }
                             Todo11D::ComputeResult => {
                                 if let Some(ret) = hint::match_pre_nock(
-                                    work_ctx,
+                                    context,
                                     subject,
                                     dint.tag,
                                     Some((dint.hint, res)),
@@ -992,7 +798,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     match ret {
                                         Ok(found) => {
                                             res = found;
-                                            work_ctx.stack.pop::<NockWork>();
+                                            context.stack.pop::<NockWork>();
                                         }
                                         Err(err) => {
                                             break Err(err);
@@ -1000,18 +806,18 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     }
                                 } else {
                                     if dint.tail {
-                                        work_ctx.stack.pop::<NockWork>();
+                                        context.stack.pop::<NockWork>();
                                     } else {
                                         dint.todo = Todo11D::Done;
                                         dint.hint = res;
-                                        *work_ctx.stack.top() = NockWork::Work11D(dint);
+                                        *context.stack.top() = NockWork::Work11D(dint);
                                     }
-                                    push_formula(&mut work_ctx.stack, dint.body, dint.tail)?;
+                                    push_formula(&mut context.stack, dint.body, dint.tail)?;
                                 }
                             }
                             Todo11D::Done => {
                                 if let Some(found) = hint::match_post_nock(
-                                    work_ctx,
+                                    context,
                                     subject,
                                     dint.tag,
                                     Some(dint.hint),
@@ -1020,18 +826,18 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 ) {
                                     res = found;
                                 }
-                                work_ctx.stack.pop::<NockWork>();
+                                context.stack.pop::<NockWork>();
                             }
                         },
                         NockWork::Work11S(mut sint) => match sint.todo {
                             Todo11S::ComputeResult => {
                                 if let Some(ret) = hint::match_pre_nock(
-                                    work_ctx, subject, sint.tag, None, sint.body,
+                                    context, subject, sint.tag, None, sint.body,
                                 ) {
                                     match ret {
                                         Ok(found) => {
                                             res = found;
-                                            work_ctx.stack.pop::<NockWork>();
+                                            context.stack.pop::<NockWork>();
                                         }
                                         Err(err) => {
                                             break Err(err);
@@ -1039,46 +845,46 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     }
                                 } else {
                                     if sint.tail {
-                                        work_ctx.stack.pop::<NockWork>();
+                                        context.stack.pop::<NockWork>();
                                     } else {
                                         sint.todo = Todo11S::Done;
-                                        *work_ctx.stack.top() = NockWork::Work11S(sint);
+                                        *context.stack.top() = NockWork::Work11S(sint);
                                     }
-                                    push_formula(&mut work_ctx.stack, sint.body, sint.tail)?;
+                                    push_formula(&mut context.stack, sint.body, sint.tail)?;
                                 }
                             }
                             Todo11S::Done => {
                                 if let Some(found) = hint::match_post_nock(
-                                    work_ctx, subject, sint.tag, None, sint.body, res,
+                                    context, subject, sint.tag, None, sint.body, res,
                                 ) {
                                     res = found;
                                 }
-                                work_ctx.stack.pop::<NockWork>();
+                                context.stack.pop::<NockWork>();
                             }
                         },
                         NockWork::Work12(mut scry) => match scry.todo {
                             Todo12::ComputeReff => {
-                                let stack = &mut work_ctx.stack;
+                                let stack = &mut context.stack;
                                 scry.todo = Todo12::ComputePath;
                                 *stack.top() = NockWork::Work12(scry);
                                 push_formula(stack, scry.reff, false)?;
                             }
                             Todo12::ComputePath => {
-                                let stack = &mut work_ctx.stack;
+                                let stack = &mut context.stack;
                                 scry.todo = Todo12::Scry;
                                 scry.reff = res;
                                 *stack.top() = NockWork::Work12(scry);
                                 push_formula(stack, scry.path, false)?;
                             }
                             Todo12::Scry => {
-                                if let Some(cell) = work_ctx.scry_stack.cell() {
+                                if let Some(cell) = context.scry_stack.cell() {
                                     scry.path = res;
-                                    let scry_stack = work_ctx.scry_stack;
+                                    let scry_stack = context.scry_stack;
                                     let scry_handler = cell.head();
                                     let scry_gate = scry_handler.as_cell()?;
-                                    let payload = T(&mut work_ctx.stack, &[scry.reff, res]);
+                                    let payload = T(&mut context.stack, &[scry.reff, res]);
                                     let scry_core = T(
-                                        &mut work_ctx.stack,
+                                        &mut context.stack,
                                         &[
                                             scry_gate.head(),
                                             payload,
@@ -1086,13 +892,13 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                         ],
                                     );
                                     let scry_form =
-                                        T(&mut work_ctx.stack, &[D(9), D(2), D(1), scry_core]);
+                                        T(&mut context.stack, &[D(9), D(2), D(1), scry_core]);
 
-                                    work_ctx.scry_stack = cell.tail();
+                                    context.scry_stack = cell.tail();
                                     // Alternately, we could use scry_core as the subject and [9 2 0 1] as
                                     // the formula. It's unclear if performance will be better with a purely
                                     // static formula.
-                                    match interpret(work_ctx, D(0), scry_form) {
+                                    match interpret(context, D(0), scry_form) {
                                         Ok(noun) => match noun.as_either_atom_cell() {
                                             Left(atom) => {
                                                 if atom.as_noun().raw_equals(D(0)) {
@@ -1104,7 +910,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                             Right(cell) => {
                                                 match cell.tail().as_either_atom_cell() {
                                                     Left(_) => {
-                                                        let stack = &mut work_ctx.stack;
+                                                        let stack = &mut context.stack;
                                                         let hunk = T(
                                                             stack,
                                                             &[
@@ -1118,8 +924,8 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                                     }
                                                     Right(cell) => {
                                                         res = cell.tail();
-                                                        work_ctx.scry_stack = scry_stack;
-                                                        work_ctx.stack.pop::<NockWork>();
+                                                        context.scry_stack = scry_stack;
+                                                        context.stack.pop::<NockWork>();
                                                     }
                                                 }
                                             }
@@ -1133,10 +939,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                                 break Err(error);
                                             }
                                             Error::ScryBlocked(_) => {
-                                                break Err(Error::NonDeterministic(
-                                                    Mote::Fail,
-                                                    D(0),
-                                                ));
+                                                break BAIL_FAIL;
                                             }
                                         },
                                     }
@@ -1149,18 +952,15 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                     };
                 }
             };
-            call_with_guard(work_f, low_f, high_f, context as *mut Context)
+
+            call_with_guard(stack_pp, alloc_pp, work_f)
         })
     });
 
-    let match_f = &mut |context_p: *mut c_void| unsafe {
-        let match_ctx = &mut *(context_p as *mut Context);
-        match nock {
-            Ok(res) => Ok(res),
-            Err(err) => Err(exit(match_ctx, &snapshot, virtual_frame, err)),
-        }
-    };
-    call_with_guard(match_f, low_f, high_f, context as *mut Context)
+    match nock {
+        Ok(res) => Ok(res),
+        Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
+    }
 }
 
 fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result {

@@ -36,18 +36,18 @@ signal-hook = "0.3"
 static_assertions = "1.1.0"
 
 [build-dependencies]
-autotools = "0.2.6"
-cc = "1.0.79"
+autotools = "0.2"
+cc = "1.0"
 
 [[bin]]
 name = "ares"
 path = "src/main.rs"
 
 [profile.dev]
-opt-level = 0
+opt-level = 3
 
 [profile.dev.package."*"]
-opt-level = 0
+opt-level = 3
 
 # run with e.g. 'cargo build --features check_forwarding,check_acyclic'
 [features]

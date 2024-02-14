@@ -149,6 +149,14 @@ pub fn reset_violation_count() {
 	ALLOC_VIOLATION_COUNT.with(|c| c.set(0));
 }
 
+pub fn reset_counters() {
+	ALLOC_FORBID_COUNT.with(|c| c.set(0));
+	ALLOC_PERMIT_COUNT.with(|c| c.set(0));
+
+	#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))]
+	ALLOC_VIOLATION_COUNT.with(|c| c.set(0));
+}
+
 
 
 
