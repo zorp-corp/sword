@@ -92,6 +92,23 @@ pub fn assert_no_alloc<T, F: FnOnce() -> T> (func: F) -> T {
 }
 
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
+/// Calls the `func` closure, but ensures that the forbid and permit counters
+/// are maintained accurately even if a longjmp originates and terminates
+/// within the closure. If you longjmp over this function, we can't fix
+/// anything about it.
+pub fn ensure_alloc_counters<T, F: FnOnce() -> T> (func: F) -> T {
+	let forbid_counter = ALLOC_FORBID_COUNT.with(|c| c.get());
+	let permit_counter = ALLOC_PERMIT_COUNT.with(|c| c.get());
+
+	let ret = func();
+
+	ALLOC_FORBID_COUNT.with(|c| c.set(forbid_counter));
+	ALLOC_PERMIT_COUNT.with(|c| c.set(permit_counter));
+
+	return ret;
+}
+
+#[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
 /// Calls the `func` closure. Allocations are temporarily allowed, even if this
 /// code runs inside of assert_no_alloc.
 pub fn permit_alloc<T, F: FnOnce() -> T> (func: F) -> T {
@@ -139,6 +156,7 @@ pub fn reset_counters() {
 	#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))]
 	ALLOC_VIOLATION_COUNT.with(|c| c.set(0));
 }
+
 
 
 

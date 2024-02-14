@@ -15,19 +15,11 @@
 #define GD_PAGE_MASK              (GD_PAGE_SIZE - 1)
 #define GD_PAGE_ROUND_DOWN(foo)   (foo & (~GD_PAGE_MASK))
 
-/**
- *  XX: documentation
- */
-typedef struct _gs {
-  uintptr_t         guard_p;
-  const uintptr_t  *stack_pp;
-  const uintptr_t  *alloc_pp;
-  jmp_buf           env_buffer;
-  struct sigaction  prev_sa;
-} GuardState;
-
-static GuardState *_guard_state = NULL;
-
+static uintptr_t         guard_p;
+static const uintptr_t  *stack_pp;
+static const uintptr_t  *alloc_pp;
+static jmp_buf           env_buffer;
+static struct sigaction  prev_sa;
 
 static int32_t
 _prot_page(void *address, int prot)
@@ -53,18 +45,21 @@ _unmark_page(void *address)
   return _prot_page(address, PROT_READ | PROT_WRITE);
 }
 
-/**
- * Center the guard page.
- */
+// Center the guard page.
+// XX: could be a false positive if the new frame results in exact same guard page
+//     solution: we only re-center from the signal handler
 static int32_t
-_focus_guard(
-  uintptr_t        *guard_pp,
-  const uintptr_t   stack_p,
-  const uintptr_t   alloc_p
-) {
-  // Check for strange situations.
+_focus_guard()
+{
+  uintptr_t stack_p = *stack_pp;
+  uintptr_t alloc_p = *alloc_pp;
+  uintptr_t old_guard_p = guard_p;
+  uintptr_t new_guard_p;
+  int32_t   err = 0;
+
   fprintf(stderr, "guard: focus: stack pointer at %p\r\n", (void *)stack_p);
   fprintf(stderr, "guard: focus: alloc pointer at %p\r\n", (void *)alloc_p);
+
   if (stack_p == 0 || alloc_p == 0) {
     fprintf(stderr, "guard: focus: stack or alloc pointer is null\r\n");
     return guard_null;
@@ -73,19 +68,7 @@ _focus_guard(
     return guard_oom;
   }
 
-  uintptr_t old_guard_p = *guard_pp;
-  uintptr_t new_guard_p;
-  int32_t   err = 0;
-
   fprintf(stderr, "guard: focus: old guard = %p\r\n", (void *)old_guard_p);
-
-  // Unmark the old guard page (if there is one)
-  if (old_guard_p) {
-    if ((err = _unmark_page((void *)old_guard_p))) {
-      fprintf(stderr, "guard: focus: unmark error\r\n");
-      return err;
-    }
-  }
 
   // Compute new guard page
   // XX:  Should we also check for new_guard_p < min(stack_p, alloc_p)?
@@ -104,45 +87,50 @@ _focus_guard(
 
   // Update guard page tracker
   fprintf(stderr, "guard: focus: installed guard page at %p\r\n", (void *)new_guard_p);
-  *guard_pp = new_guard_p;
-  
+  guard_p = new_guard_p;
+
+  // Unmark the old guard page (if there is one)
+  if (old_guard_p) {
+    if ((err = _unmark_page((void *)old_guard_p))) {
+      fprintf(stderr, "guard: focus: unmark error\r\n");
+      return err;
+    }
+  }
+
   return 0;
 }
 
-void
+static void
 _signal_handler(int sig, siginfo_t *si, void *unused)
 {
   uintptr_t sig_addr;
   int32_t   err = 0;
 
+  assert(guard_p);
+
   fprintf(stderr, "guard: sig_handle: %d received\r\n", sig);
 
   if (sig != SIGSEGV) {
     fprintf(stderr, "guard: sig_handle: invalid signal\r\n");
-    siglongjmp(_guard_state->env_buffer, guard_signal);
+    // XX: do we even want to jump? if this is fatal error, maybe just die now
+    siglongjmp(env_buffer, guard_signal);
   }
 
   sig_addr = (uintptr_t)si->si_addr;
   fprintf(stderr, "guard: SIGSEGV address = %p\r\n", (void *)sig_addr);
 
-  fprintf(stderr, "guard: sig_handle: %p \r\n", _guard_state);
-  if (
-    sig_addr >= _guard_state->guard_p && 
-    sig_addr <  (_guard_state->guard_p + GD_PAGE_SIZE))
+  if (sig_addr >= guard_p &&
+      sig_addr <  guard_p + GD_PAGE_SIZE)
   {
-    fprintf(stderr, "guard: page at %p hit\r\n", (void *)_guard_state->guard_p);
-    err = _focus_guard(
-      &(_guard_state->guard_p),
-      *(_guard_state->stack_pp),
-      *(_guard_state->alloc_pp));
+    fprintf(stderr, "guard: hit: %p\r\n", si->si_addr);
+    err = _focus_guard();
     if (err) {
       fprintf(stderr, "guard: sig_handle: focus error\r\n");
-      siglongjmp(_guard_state->env_buffer, err);
+      siglongjmp(env_buffer, err);
     }
-  } else {
-    struct sigaction prev_sa = _guard_state->prev_sa;
-
-    fprintf(stderr, "guard: page at %p miss\r\n", (void *)_guard_state->guard_p);
+  }
+  else {
+    fprintf(stderr, "guard: page at %p miss\r\n", (void *)guard_p);
 
     if (prev_sa.sa_sigaction != NULL) {
       prev_sa.sa_sigaction(sig, si, unused);
@@ -155,8 +143,8 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
   }
 }
 
-int32_t
-_register_handler(struct sigaction *prev_sa)
+static int32_t
+_register_handler()
 {
   struct sigaction sa;
 
@@ -171,8 +159,8 @@ _register_handler(struct sigaction *prev_sa)
   // sigemptyset(&sa.sa_mask);
   // sigaddset(&(sa.sa_mask), SIGSEGV);
 
-  // Set the new SIGSEGV handler, and save the old SIGSEGV handler (if any)
-  if (sigaction(SIGSEGV, &sa, prev_sa)) {
+  // XX: should assert that prev_sa doesn't have a handler in it, but it's not a pointer so non-trivial
+  if (sigaction(SIGSEGV, &sa, &prev_sa)) {
     fprintf(stderr, "guard: register: sigaction error\r\n");
     fprintf(stderr, "%s\r\n", strerror(errno));
     return guard_sigaction | errno;
@@ -182,106 +170,58 @@ _register_handler(struct sigaction *prev_sa)
 }
 
 int32_t
-_setup(
-  GuardState **gs_p,
-  const uintptr_t *const stack_pp,
-  const uintptr_t *const alloc_pp
-) {
-  GuardState *gs;
-  int32_t     err = 0;
-
-  assert(*gs_p == NULL);
-  fprintf(stderr, "guard: setup: stack pointer at %p\r\n", (void *)(*stack_pp));
-  fprintf(stderr, "guard: setup: alloc pointer at %p\r\n", (void *)(*alloc_pp));
-
-  // Setup guard page state
-  *gs_p = (GuardState *)malloc(sizeof(GuardState));
-  gs = *gs_p;
-  if (gs == NULL) {
-    fprintf(stderr, "guard: malloc error\r\n");
-    fprintf(stderr, "%s\r\n", strerror(errno));
-    return guard_malloc | errno;
-  }
-  fprintf(stderr, "guard: state allocated to %p \r\n", gs);
-
-  gs->guard_p = 0;
-  gs->stack_pp = stack_pp;
-  gs->alloc_pp = alloc_pp;
-
-  // Initialize the guard page
-  if ((err = _focus_guard(&(gs->guard_p), *stack_pp, *alloc_pp))) {
-    fprintf(stderr, "guard: setup: _focus_guard error\r\n");
-    return err;
-  }
-
-  // Register guard page signal handler
-  if ((err = _register_handler(&(gs->prev_sa)))) {
-    fprintf(stderr, "guard: setup: _register_handler error\r\n");
-    return err;
-  }
-
-  return 0;
-}
-
-int32_t
-_teardown(GuardState** gs_p)
-{
-  int32_t err = 0;
-
-  if (*gs_p != NULL) {
-    GuardState *gs = *gs_p;
-
-    if (gs->guard_p != 0) {
-      err = _unmark_page((void *)gs->guard_p);
-    }
-
-    if (sigaction(SIGSEGV, &(gs->prev_sa), NULL)) {
-      fprintf(stderr, "guard: teardown: sigaction error\r\n");
-      fprintf(stderr, "%s\r\n", strerror(errno));
-      err = guard_sigaction | errno;
-    }
-
-    free(gs);
-    *gs_p = NULL;
-  }
-
-  return err;
-}
-
-int32_t
 guard(
   callback f,
   void *closure,
-  const uintptr_t *const stack_pp,
-  const uintptr_t *const alloc_pp,
+  const uintptr_t *const s_pp,
+  const uintptr_t *const a_pp,
   void ** ret
 ) {
   int32_t err = 0;
+  int32_t td_err;
 
-  // Setup the guard page
-  fprintf(stderr, "guard: setup\r\n");
-  if ((err = _setup(&_guard_state, stack_pp, alloc_pp))) {
+  assert(guard_p == 0);
+  fprintf(stderr, "guard: setup: stack pointer at %p\r\n", (void *)(*stack_pp));
+  fprintf(stderr, "guard: setup: alloc pointer at %p\r\n", (void *)(*alloc_pp));
+
+  guard_p = 0;
+  stack_pp = s_pp;
+  alloc_pp = a_pp;
+
+  // Initialize the guard page
+  if ((err = _focus_guard())) {
+    fprintf(stderr, "guard: setup: _focus_guard error\r\n");
+    goto done;
+  }
+
+  // Register guard page signal handler
+  if ((err = _register_handler())) {
+    fprintf(stderr, "guard: setup: _register_handler error\r\n");
     goto done;
   }
 
   // Run given closure
   fprintf(stderr, "guard: run\r\n");
-  if (!(err = sigsetjmp(_guard_state->env_buffer, 1))) {
+  if (!(err = sigsetjmp(env_buffer, 1))) {
     *ret = f(closure);
-
-    // Clean up
-    fprintf(stderr, "guard: teardown\r\n");
-    err = _teardown(&_guard_state);
-
-    fprintf(stderr, "guard: return\r\n");
-    return err;
-  } else {
-done:
-    // Clean up
-    fprintf(stderr, "guard: teardown\r\n");
-    _teardown(&_guard_state);
-
-    fprintf(stderr, "guard: return\r\n");
-    return err;
   }
+
+done:
+  // Clean up
+  if (guard_p != 0) {
+    td_err = _unmark_page((void *)guard_p);
+  }
+
+  if (sigaction(SIGSEGV, &prev_sa, NULL)) {
+    fprintf(stderr, "guard: teardown: sigaction error\r\n");
+    fprintf(stderr, "%s\r\n", strerror(errno));
+    td_err = guard_sigaction | errno;
+  }
+
+  if (!err) {
+    err = td_err;
+  }
+
+  fprintf(stderr, "guard: return\r\n");
+  return err;
 }

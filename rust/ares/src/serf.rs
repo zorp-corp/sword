@@ -1,4 +1,3 @@
-use crate::guard::call_with_guard;
 use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error, Mote};
@@ -403,27 +402,7 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
 
-    let frame_p = stack.get_frame_pointer();
-    let stack_pp = stack.get_stack_pointer_pointer();
-    let alloc_pp = stack.get_alloc_pointer_pointer();
-
-    let res = call_with_guard(
-        stack_pp as *const *const u64,
-        alloc_pp as *const *const u64,
-        &mut || interpret(&mut context.nock_context, sub, fol),
-    );
-
-    if let Err(Error::NonDeterministic(Mote::Meme, _)) = res {
-        unsafe {
-            let stack = &mut context.nock_context.stack;
-            assert_no_alloc::reset_counters();
-            while stack.get_frame_pointer() != frame_p {
-                stack.frame_pop();
-            }
-        }
-    }
-
-    res
+    interpret(&mut context.nock_context, sub, fol)
 }
 
 fn peek(context: &mut Context, ovo: Noun) -> Noun {

@@ -1567,6 +1567,7 @@ _flist_grow(BT_state *state, size_t pages)
 /* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
    flist */
 {
+  exit(1);
   /* grow the backing file by at least PMA_GROW_SIZE_p */
   pages = MAX(pages, PMA_GROW_SIZE_p);
   off_t bytes = P2BYTES(pages);

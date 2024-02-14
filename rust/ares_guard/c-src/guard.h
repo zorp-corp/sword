@@ -5,7 +5,7 @@
 
 /**
  * Error codes and flags.
- * 
+ *
  * The flags are bitwise added to the errno of their respective errors.
  */
 typedef enum {
@@ -51,9 +51,9 @@ int32_t
 guard(
   callback f,
   void *closure,
-  const uintptr_t *const stack_pp,
-  const uintptr_t *const alloc_pp,
-  void ** ret
+  const uintptr_t *const s_pp,
+  const uintptr_t *const a_pp,
+  void **ret
 );
 
 #endif  // __GUARD_H__
