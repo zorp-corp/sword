@@ -29,14 +29,15 @@
               "rustfmt"
               "rust-src"
             ])
-            pkgs.cargo-watch
             pkgs.bacon
             pkgs.iconv
             pkgs.llvmPackages.clang
             pkgs.pkg-config
             pkgs.urcrypt
           ] ++
-            (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin") pkgs.gdb); # nixpkgs won't build gdb for darwin
+            (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin") pkgs.gdb) # nixpkgs won't build gdb for darwin
+            ++
+            (nixpkgs.lib.lists.optional (parsedSystem.kernel.name != "darwin" || parsedSystem.cpu.name != "x86_64") pkgs.cargo-watch); # nixpkgs won't build cargo-watch for darwin-x86
         };
       }
     );
