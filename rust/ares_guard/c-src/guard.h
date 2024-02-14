@@ -1,7 +1,16 @@
 #ifndef __GUARD_H__
 #define __GUARD_H__
 
+#include <setjmp.h>
 #include <stdint.h>
+
+/**
+ * 
+ */
+typedef struct _buf_list_node {
+  jmp_buf                 buffer;
+  struct _buf_list_node  *next;
+} BufListNode;
 
 /**
  * Error codes and flags.

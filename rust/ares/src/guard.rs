@@ -43,15 +43,6 @@ impl<'closure> CCallback<'closure> {
     {
         let function: unsafe extern "C" fn(*mut c_void) -> *mut c_void = Self::call_closure::<F>;
 
-        // debug_assert_eq!(
-        //     std::mem::size_of::<&'closure mut F>(),
-        //     std::mem::size_of::<*const c_void>()
-        // );
-        // debug_assert_eq!(
-        //     std::mem::size_of_val(&function),
-        //     std::mem::size_of::<*const c_void>()
-        // );
-
         Self {
             function,
             input: closure as *mut F as *mut c_void,
@@ -91,12 +82,7 @@ pub fn call_with_guard<F: FnMut() -> Result>(
             ret_pp,
         );
 
-        // eprintln!("\r BEFORE:");
-        // eprintln!("\r ret = {:?}", ret);
-        // eprintln!("\r ret_p = {:p}, {:?}", ret_p as *mut Result, *(ret_p as *mut Result));
-        // eprintln!("\r ret_pp = {:p}, {:p}, {:?}", ret_pp, *ret_pp, **(ret_pp as *mut *mut Result));
         if res == 0 {
-            // TODO: come back to this
             permit_alloc(|| {
                 let result_box = Box::from_raw(ret_p as *mut Result);
                 *result_box

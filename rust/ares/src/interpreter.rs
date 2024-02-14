@@ -1191,6 +1191,7 @@ fn exit(
             Error::Deterministic(_, t) | Error::NonDeterministic(_, t) | Error::ScryCrashed(t) => {
                 // Return $tang of traces
                 let h = *(stack.local_noun_pointer(0));
+                // XX: Small chance of clobbering something important after OOM?
                 T(stack, &[h, t])
             }
         };

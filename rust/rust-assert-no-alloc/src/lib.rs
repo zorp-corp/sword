@@ -91,7 +91,6 @@ pub fn assert_no_alloc<T, F: FnOnce() -> T> (func: F) -> T {
 	return ret;
 }
 
-#[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
 /// Calls the `func` closure, but ensures that the forbid and permit counters
 /// are maintained accurately even if a longjmp originates and terminates
 /// within the closure. If you longjmp over this function, we can't fix
@@ -146,14 +145,6 @@ pub fn violation_count() -> u32 {
 ///
 /// Only available when the `warn_debug` or `warn release` features are enabled.
 pub fn reset_violation_count() {
-	ALLOC_VIOLATION_COUNT.with(|c| c.set(0));
-}
-
-pub fn reset_counters() {
-	ALLOC_FORBID_COUNT.with(|c| c.set(0));
-	ALLOC_PERMIT_COUNT.with(|c| c.set(0));
-
-	#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))]
 	ALLOC_VIOLATION_COUNT.with(|c| c.set(0));
 }
 
