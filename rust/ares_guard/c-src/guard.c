@@ -18,7 +18,7 @@
 static uintptr_t         guard_p = 0;
 static const uintptr_t  *stack_pp = NULL;
 static const uintptr_t  *alloc_pp = NULL;
-static BufListNode      *buffer_list = NULL;
+static jmp_buf          env_buffer;
 static struct sigaction  prev_sa;
 
 static int32_t
@@ -113,7 +113,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
   if (sig != SIGSEGV) {
     fprintf(stderr, "guard: sig_handle: invalid signal\r\n");
     // XX: do we even want to jump? if this is fatal error, maybe just die now
-    siglongjmp(buffer_list->buffer, guard_signal);
+    siglongjmp(env_buffer, guard_signal);
   }
 
   sig_addr = (uintptr_t)si->si_addr;
@@ -126,7 +126,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
     err = _focus_guard();
     if (err) {
       fprintf(stderr, "guard: sig_handle: focus error\r\n");
-      siglongjmp(buffer_list->buffer, err);
+      siglongjmp(env_buffer, err);
     }
   }
   else {
@@ -173,11 +173,10 @@ int32_t
 guard(
   callback f,
   void *closure,
-  const uintptr_t *const s_pp,
-  const uintptr_t *const a_pp,
+  const uintptr_t *s_pp,
+  const uintptr_t *a_pp,
   void ** ret
 ) {
-  BufListNode  *new_buffer;
   int32_t       err = 0;
   int32_t       td_err = 0;
 
@@ -185,8 +184,6 @@ guard(
   fprintf(stderr, "guard: setup: alloc pointer at %p\r\n", (void *)(*a_pp));
 
   if (guard_p == 0) {
-    assert(buffer_list == NULL);
-
     stack_pp = s_pp;
     alloc_pp = a_pp;
 
@@ -201,58 +198,26 @@ guard(
       fprintf(stderr, "guard: setup _register_handler error\r\n");
       goto clean;
     }
-  } else {
-    assert(buffer_list != NULL);
   }
-
-  // Setup new longjmp buffer
-  new_buffer = (BufListNode *)malloc(sizeof(BufListNode));
-  if (new_buffer == NULL) {
-    fprintf(stderr, "guard: malloc error\r\n");
-    fprintf(stderr, "%s\r\n", strerror(errno));
-    err = guard_malloc | errno;
-    goto skip;
-  }
-  new_buffer->next = buffer_list;
-  buffer_list = new_buffer;
 
   // Run given closure
   fprintf(stderr, "guard: run\r\n");
-  if (!(err = sigsetjmp(buffer_list->buffer, 1))) {
+  if (!(err = sigsetjmp(env_buffer, 1))) {
     *ret = f(closure);
   }
 
-  // Restore previous longjmp buffer
-  buffer_list = buffer_list->next;
-  free((void *)new_buffer);
-
-skip:
-  // If no more guarded closures, then...
-  if (buffer_list == NULL) {
-    // Remove new signal handler
-    if (sigaction(SIGSEGV, &prev_sa, NULL)) {
-      fprintf(stderr, "guard: sigaction error\r\n");
-      fprintf(stderr, "%s\r\n", strerror(errno));
-      td_err = guard_sigaction | errno;
-
-      if (!err) {
-        err = td_err;
-      }
-    }
-
 clean:
-    // Unmark guard page
-    assert(guard_p != 0);
-    td_err = _unmark_page((void *)guard_p);
-    if (td_err) {
-      fprintf(stderr, "guard: unmark error\r\n");
-      fprintf(stderr, "%s\r\n", strerror(errno));
-      if (!err) {
-        err = td_err;
-      }
+  // Unmark guard page
+  assert(guard_p != 0);
+  td_err = _unmark_page((void *)guard_p);
+  if (td_err) {
+    fprintf(stderr, "guard: unmark error\r\n");
+    fprintf(stderr, "%s\r\n", strerror(errno));
+    if (!err) {
+      err = td_err;
     }
-    guard_p = 0;
   }
+  guard_p = 0;
 
 exit:
   fprintf(stderr, "guard: return\r\n");

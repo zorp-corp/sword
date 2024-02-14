@@ -32,6 +32,13 @@ fn indirect_raw_size(atom: IndirectAtom) -> usize {
     atom.size() + 2
 }
 
+#[allow(dead_code)]
+pub struct NockStackSnapshot {
+    frame_pointer: *mut u64,
+    stack_pointer: *mut u64,
+    alloc_pointer: *mut u64,
+}
+
 /** A stack for Nock computation, which supports stack allocation and delimited copying collection
  * for returned nouns
  */
@@ -85,6 +92,20 @@ impl NockStack {
             memory,
             pc: false,
         }
+    }
+
+    pub fn save(&self) -> NockStackSnapshot {
+        NockStackSnapshot {
+            frame_pointer: self.frame_pointer,
+            stack_pointer: self.stack_pointer,
+            alloc_pointer: self.alloc_pointer,
+        }
+    }
+
+    pub fn restore(&mut self, saved: &NockStackSnapshot) {
+        self.frame_pointer = saved.frame_pointer;
+        self.stack_pointer = saved.stack_pointer;
+        self.alloc_pointer = saved.alloc_pointer;
     }
 
     /** Resets the NockStack but flipping the top-frame polarity and unsetting PC. Sets the alloc
