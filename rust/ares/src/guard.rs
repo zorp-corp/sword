@@ -65,8 +65,8 @@ impl<'closure> CCallback<'closure> {
 }
 
 pub fn call_with_guard<F: FnMut() -> Result>(
-    stack_pp: *const *mut u64,
-    alloc_pp: *const *mut u64,
+    stack_pp: *const *const u64,
+    alloc_pp: *const *const u64,
     closure: &mut F,
 ) -> Result {
     let cb = CCallback::new(closure);
@@ -100,7 +100,8 @@ pub fn call_with_guard<F: FnMut() -> Result>(
 }
 
 pub fn interpret_with_guard(context: &mut Context, eve: Noun, lyf: Noun) -> Result {
-    let stack_pp = context.stack.get_stack_pointer_pointer() as *const *mut u64;
-    let alloc_pp = context.stack.get_alloc_pointer_pointer() as *const *mut u64;
+    let stack_pp = context.stack.get_stack_pointer_pointer() as *const *const u64;
+    let alloc_pp = context.stack.get_alloc_pointer_pointer() as *const *const u64;
+
     call_with_guard(stack_pp, alloc_pp, &mut || interpret(context, eve, lyf))
 }

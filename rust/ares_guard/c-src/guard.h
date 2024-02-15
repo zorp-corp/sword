@@ -5,6 +5,14 @@
 #include <stdint.h>
 
 /**
+ * 
+ */
+typedef struct _buf_list_node {
+  jmp_buf                 buffer;
+  struct _buf_list_node  *next;
+} BufListNode;
+
+/**
  * Error codes and flags.
  *
  * The flags are bitwise added to the errno of their respective errors.
@@ -52,8 +60,8 @@ int32_t
 guard(
   callback f,
   void *closure,
-  const uintptr_t *s_pp,
-  const uintptr_t *a_pp,
+  const uintptr_t *const s_pp,
+  const uintptr_t *const a_pp,
   void **ret
 );
 
