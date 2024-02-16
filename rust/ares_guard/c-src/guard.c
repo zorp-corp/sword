@@ -18,10 +18,10 @@
 static uintptr_t         guard_p = 0;
 static const uintptr_t  *stack_pp = NULL;
 static const uintptr_t  *alloc_pp = NULL;
-static BufListNode      *buffer_list = NULL;
+static GD_buflistnode      *buffer_list = NULL;
 static struct sigaction  prev_sa;
 
-static int32_t
+static guard_result
 _prot_page(void *address, int prot)
 {
   if (mprotect(address, GD_PAGE_SIZE, prot)) {
@@ -33,13 +33,13 @@ _prot_page(void *address, int prot)
   return 0;
 }
 
-static int32_t
+static guard_result
 _mark_page(void *address)
 {
   return _prot_page(address, PROT_NONE);
 }
 
-static int32_t
+static guard_result
 _unmark_page(void *address)
 {
   return _prot_page(address, PROT_READ | PROT_WRITE);
@@ -48,14 +48,14 @@ _unmark_page(void *address)
 // Center the guard page.
 // XX: could be a false positive if the new frame results in exact same guard page
 //     solution: we only re-center from the signal handler
-static int32_t
+static guard_result
 _focus_guard()
 {
   uintptr_t stack_p = *stack_pp;
   uintptr_t alloc_p = *alloc_pp;
   uintptr_t old_guard_p = guard_p;
   uintptr_t new_guard_p;
-  int32_t   err = 0;
+  guard_result   err = 0;
 
   fprintf(stderr, "guard: focus: stack pointer at %p\r\n", (void *)stack_p);
   fprintf(stderr, "guard: focus: alloc pointer at %p\r\n", (void *)alloc_p);
@@ -104,7 +104,7 @@ static void
 _signal_handler(int sig, siginfo_t *si, void *unused)
 {
   uintptr_t sig_addr;
-  int32_t   err = 0;
+  guard_result   err = 0;
 
   assert(guard_p);
 
@@ -112,8 +112,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
 
   if (sig != SIGSEGV) {
     fprintf(stderr, "guard: sig_handle: invalid signal\r\n");
-    // XX: do we even want to jump? if this is fatal error, maybe just die now
-    siglongjmp(buffer_list->buffer, guard_signal);
+    assert(0);
   }
 
   sig_addr = (uintptr_t)si->si_addr;
@@ -143,7 +142,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
   }
 }
 
-static int32_t
+static guard_result
 _register_handler()
 {
   struct sigaction sa;
@@ -169,17 +168,17 @@ _register_handler()
   return 0;
 }
 
-int32_t
+guard_result
 guard(
-  callback f,
+  void *(*f)(void *),
   void *closure,
   const uintptr_t *const s_pp,
   const uintptr_t *const a_pp,
   void ** ret
 ) {
-  BufListNode  *new_buffer;
-  int32_t       err = 0;
-  int32_t       td_err = 0;
+  GD_buflistnode  *new_buffer;
+  guard_result err = 0;
+  guard_result td_err = 0;
 
   fprintf(stderr, "guard: setup: stack pointer at %p\r\n", (void *)(*s_pp));
   fprintf(stderr, "guard: setup: alloc pointer at %p\r\n", (void *)(*a_pp));
@@ -206,7 +205,7 @@ guard(
   }
 
   // Setup new longjmp buffer
-  new_buffer = (BufListNode *)malloc(sizeof(BufListNode));
+  new_buffer = (GD_buflistnode *)malloc(sizeof(GD_buflistnode));
   if (new_buffer == NULL) {
     fprintf(stderr, "guard: malloc error\r\n");
     fprintf(stderr, "%s\r\n", strerror(errno));
