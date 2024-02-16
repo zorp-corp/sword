@@ -2,7 +2,6 @@ use crate::interpreter::{Error, Mote, Result};
 use crate::noun::D;
 use ares_guard::*;
 use assert_no_alloc::permit_alloc;
-use std::convert::TryFrom;
 use std::ffi::c_void;
 use std::marker::PhantomData;
 
@@ -88,7 +87,7 @@ pub fn call_with_guard<F: FnMut() -> Result>(
                 *result_box
             })
         } else {
-            let err = GuardError::from(u32::try_from(res).unwrap());
+            let err = GuardError::from(res);
             match err {
                 GuardError::OutOfMemory => Err(Error::NonDeterministic(Mote::Meme, D(0))),
                 _ => {
