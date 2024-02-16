@@ -124,7 +124,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
     // fprintf(stderr, "guard: hit: %p\r\n", si->si_addr);
     err = _focus_guard();
     if (err) {
-      fprintf(stderr, "guard: handler: focus error\r\n");
+      // fprintf(stderr, "guard: handler: focus error\r\n");
       siglongjmp(buffer_list->buffer, err);
     }
   }

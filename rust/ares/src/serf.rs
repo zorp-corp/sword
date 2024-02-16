@@ -605,7 +605,7 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
             context.work_swap(ovo, fec);
         }
         Err(goof_crud) => {
-            eprintln!("\r serf: bail");
+            eprintln!("\rserf: bail");
             let stack = &mut context.nock_context.stack;
             let lud = T(stack, &[goof_crud, goof, D(0)]);
             context.work_bail(lud);
