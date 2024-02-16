@@ -10,4 +10,4 @@
 ;<  now=@da  bind:m  get-time:strandio
 =/  cg=path  /(scot %p p.bec)/[q.bec]/(scot %da now)
 ~&  "cg desk: {<cg>}"
-(pure:m $:(make-codegen-trap:make cg))
+(pure:m (make-eval-vase:make cg))

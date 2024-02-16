@@ -7,4 +7,4 @@
 =/  cg=path
   /(scot %p p.bec)/[q.bec]/(scot %da now)
 ~&  "cg desk path: {<cg>}"
-(make-codegen-core:make cg)
+(make-codegen-noun:make cg)

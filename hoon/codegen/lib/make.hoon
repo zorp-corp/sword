@@ -5,9 +5,16 @@
 ::
 ::  This trap can be built and included in Ares, where it will be run if
 ::  an Ares instance does not have an existing codegen core
-++  make-codegen-core
+++  make-codegen-noun
   |=  cg=path
   ^-  [%cg * (trap vase)]
+  =/  sub  (make-codegen-trap cg)
+  =/  cg-kick
+    =>  sub  !=  !:  q:$
+  [%cg cg-kick sub]
+++  make-codegen-trap
+  |=  cg=path
+  ^-  (trap vase)
   =|  sub=(trap vase)
   =.  sub  (build-lib cg sub %hoon)
   ::  this should follow the order of the ford runes in the files
@@ -17,9 +24,12 @@
   =.  sub  (build-lib cg sub %skis)
   =.  sub  (build-sur cg sub %gene)
   =.  sub  (build-lib cg sub %line)
-  =/  cg-kick
-    =>  sub  !=  !:  q:$
-  [%cg cg-kick sub]
+  sub
+++  make-eval-vase
+  |=  cg=path
+  =/  sub  (make-codegen-trap cg)
+  =.  sub  (build-lib cg sub %eval)
+  $:sub
 ::  build a library file
 ++  build-lib
   |=  [cg=path sub=(trap vase) nam=term]  ^-  (trap vase)

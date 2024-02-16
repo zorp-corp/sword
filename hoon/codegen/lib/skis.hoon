@@ -65,7 +65,6 @@
   :: outer work loop
   |-  ^-  _thus 
   =*  rout-loop  $
-  ~&  %rout-loop
   ?:  =(~ work)
     ::  no more work, write entries to moan
     =/  flak=(list @hail)  ~[entr]
@@ -90,7 +89,6 @@
         =/  bell  [soot data.fork]
         [`bell this(belt (~(put by belt) h bell))]
       --
-    ~&  %food
     |-  ^-  _thus
     =*  food-loop  $
     ?^  flux
@@ -119,7 +117,6 @@
     thus
   ::  lower entries in work to nomm
   =/  toil  work
-  ~&  %nomm
   |-  ^-  _thus  
   ?^  toil
     =/  brew  (~(got by call) i.toil)
@@ -201,7 +198,6 @@
     ==
   ::  set up edges for nomm
   =/  toil  work
-  ~&  %edge
   |-  ^-  _thus
   =/  gen  [gr=gr rain=rain call=call maid=maid]
   ?^  toil
@@ -252,6 +248,7 @@
           =^  fv  gen  [rain.gen gen(rain .+(rain.gen))]
           =.  call.gen  (~(put by call.gen) rail.load [`i.toil sv fv ov ~])
           =.  maid.gen  (~(put in maid.gen) rail.load)
+          =.  gr.gen  (plea:gr.gen fv)
           =^  sg  gen  $(goal [%this sv], load cost.load)
           =^  fg  gen  $(goal [%this fv], load corn.load)
           (copy sg fg)
@@ -453,9 +450,7 @@
     =.  maid  maid.gen
     $(toil t.toil)
   ::  propagate knowledge and needs
-  ~&  %push
   =.  gr  push:gr
-  ~&  %pull
   =.  gr  pull:gr
   ::  a few things together:
   ::  - rebuild worklist with newly discovered direct calls
@@ -464,7 +459,6 @@
   =/  toil  ~(tap in maid)
   =.  work  ~
   =|  slag=(set @hail)  ::  excluded as finalization roots
-  ~&  %ruin
   |-  ^-  _thus
   =*  ruin-loop  $
   ?^  toil
@@ -503,7 +497,6 @@
         slag  (~(gas in slag) sirs)
         loop  (~(put by loop) i.toil mill)
       ==
-    ~?  =(f gf)  %sock-mismatch
     $(sirs [mill sirs], sire papa)
   rout-loop
 ::
@@ -515,6 +508,8 @@
 ++  c
   =|  fq=(list @uvar)
   =|  rq=(list @uvar)
+  =|  fn=(set @uvar)
+  =|  rn=(set @uvar)
   |_  =dish
   ++  this  .
   ::  get current sock at uvar
@@ -524,7 +519,7 @@
     =/  suck  (~(get by sign.dish) v)
     ?:  ?=(^ suck)  u.suck
     =/  nuon  (~(get by init.dish) v)
-    ?~  nuon  [| ~]
+    ?~  nuon  [| ~]  
     [& u.nuon]
   ::  get current cape at uvar
   ++  dine
@@ -540,7 +535,7 @@
     |-  ^-  _this
     =*  pull-loop  $
     ?:  =(~ queu)
-      ?~  back  this
+      ?~  back  this(rn ~)
       $(queu (flop back), back ~)
     =/  mane  
       %~  tap  in
@@ -555,7 +550,8 @@
     |-  ^-  _this
     ?~  menu
       =/  kirk  (dine i.mane)
-      =?  back  ?!(=(kirk mine))  [i.mane back]
+      =/  beck  (~(int in (~(get ju back.dish) i.mane)) rn)
+      =?  back  ?!(?&(=(kirk mine) =(~ beck)))  [i.mane back]
       %=  mane-loop
         mane  t.mane
         wine.dish  (~(put by wine.dish) i.mane mine)
@@ -564,16 +560,14 @@
         %con
       =/  [hc=cape tc=cape]  ~(rip ca (dine d.i.menu))
       ?:  =(i.mane h.i.menu)
-        =/  hp  (dine h.i.menu)
         %=  $
           menu  t.menu
-          mine  (~(uni ca hp) mine)
+          mine  (~(uni ca hc) mine)
         ==
       ?>  =(i.mane t.i.menu)
-      =/  tp  (dine t.i.menu)
       %=  $
         menu  t.menu
-        mine  (~(uni ca tp) mine)
+        mine  (~(uni ca tc) mine)
       ==
     ::
         %int
@@ -615,7 +609,7 @@
     =|  back=(list @uvar)
     |-  ^-  _this
     ?~  queu
-      ?~  back  this
+      ?~  back  this(fn ~)
       $(queu (flop back), back ~)
     =/  menu  (~(get ja fore.dish) i.queu)
     |-  ^-  _this
@@ -694,30 +688,40 @@
       %=  this
           fore.dish  (~(add ja (~(add ja fore.dish) h.tray tray)) t.tray tray)
           back.dish  (~(put ju (~(put ju back.dish) d.tray h.tray)) d.tray t.tray)
+          fn  (~(put in fn) d.tray)
+          rn  (~(gas in rn) ~[h t]:tray)
       ==
     ::
         %int
       %=  this
           fore.dish  (~(add ja (~(add ja fore.dish) l.tray tray)) r.tray tray)
           back.dish  (~(put ju (~(put ju back.dish) d.tray l.tray)) d.tray r.tray)
+          fn  (~(put in fn) d.tray)
+          rn  (~(gas in rn) ~[l r]:tray)
       ==
     ::
         %hed
       %=  this
           fore.dish  (~(add ja fore.dish) s.tray tray)
           back.dish  (~(put ju back.dish) d.tray s.tray)
+          fn  (~(put in fn) d.tray)
+          rn  (~(put in rn) s.tray)
       ==
     ::
         %tal
       %=  this
           fore.dish  (~(add ja fore.dish) s.tray tray)
           back.dish  (~(put ju back.dish) d.tray s.tray)
+          fn  (~(put in fn) d.tray)
+          rn  (~(put in rn) s.tray)
       ==
     ::
         %tis
       %=  this
           fore.dish  (~(add ja fore.dish) s.tray tray)
           back.dish  (~(put ju back.dish) d.tray s.tray)
+          fn  (~(put in fn) d.tray)
+          rn  (~(put in rn) s.tray)
       ==
     ==
   ::  get the current dish

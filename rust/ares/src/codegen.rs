@@ -16,7 +16,7 @@ use crate::codegen::types::PileMem;
 use assert_no_alloc::permit_alloc;
 use types::{ActualError, Frame, Pile, JetEntry};
 
-use self::util::{comp, do_call, do_goto, do_return, do_tail_call, part_peek, peek, poke};
+use self::util::{comp, do_call, do_goto, do_return, do_tail_call, part_peek, peek, poke, do_rack};
 
 #[derive(Copy, Clone)]
 pub struct Hill(crate::hamt::Hamt<Pile>);
@@ -87,8 +87,7 @@ fn cg_pull_peek(context: &mut Context, subject: Noun, formula: Noun) -> Noun {
     let pek = peek(context, subject, formula);
     let bell = if unsafe { pek.raw_equals(D(0)) } {
         let comp = comp(context, subject, formula);
-        let line = slot(poke(context, comp), 7).unwrap();
-        context.cg_context.line = Some(line);
+        let (_new, _old) = poke(context, comp);
         let good_peek = peek(context, subject, formula);
         let (bell, hill) = part_peek(&mut context.stack, good_peek);
         context.cg_context.hill = hill;
@@ -141,12 +140,13 @@ unsafe fn new_frame(context: &mut Context, pile: Pile, tail: bool) {
             );
             context.stack.debug_assert_sane();
             let frame = frame_ptr(context);
+            let frame_u64 = frame as *mut u64;
             // save old poison size and old poison and registers for new call setup
-            *(frame.add(FRAME_WORD_SIZE + poison_size + sans) as *mut usize) = old_poison_size;
+            *(frame_u64.add(FRAME_WORD_SIZE + poison_size + sans) as *mut usize) = old_poison_size;
             context.stack.debug_assert_sane();
             std::ptr::copy(
-                frame.add(FRAME_WORD_SIZE),
-                frame.add(FRAME_WORD_SIZE + poison_size + sans + 1),
+                frame_u64.add(FRAME_WORD_SIZE),
+                frame_u64.add(FRAME_WORD_SIZE + poison_size + sans + 1),
                 old_poison_size + old_sans,
             );
             (*frame).pile = pile;
@@ -227,6 +227,9 @@ fn cg_interpret_inner(
 ) -> Result<Noun, ActualError> {
     context.stack.debug_assert_sane();
     let pile = cg_pull_pile(context, subject, formula);
+
+    // do_rack(context, subject, formula);
+
     context.stack.debug_assert_sane();
     {
         unsafe {assert!((*pile.0).will.lookup(&mut context.stack, &mut (*pile.0).wish).is_some()); }
@@ -261,11 +264,11 @@ fn cg_interpret_inner(
         if !unsafe { body.raw_equals(D(0)) } {
             let pole = slot(body, 2).unwrap();
             body = slot(body, 3).unwrap();
-            // let pole_h = slot(pole, 2).unwrap().as_direct().unwrap().data().to_le_bytes();
-            // permit_alloc(|| {
-            //     let ins = std::str::from_utf8(&pole_h[..]).unwrap();
-            //     eprintln!("x: {}", ins);
-            // });
+            let pole_h = slot(pole, 2).unwrap().as_direct().unwrap().data().to_le_bytes();
+            permit_alloc(|| {
+                let ins = std::str::from_utf8(&pole_h[..]).unwrap();
+                eprintln!("x: {}", ins);
+            });
             match slot(pole, 2).unwrap().as_direct().unwrap().data() {
                 tas!(b"imm") => unsafe {
                     let local = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
@@ -469,11 +472,11 @@ fn cg_interpret_inner(
                 }
             }
         } else {
-            // let bend_h = slot(bend, 2).unwrap().as_direct().unwrap().data().to_le_bytes();
-            // permit_alloc(|| {
-            //     let ins = std::str::from_utf8(&bend_h[..]).unwrap();
-            //     eprintln!("x: {}", ins);
-            // });
+            let bend_h = slot(bend, 2).unwrap().as_direct().unwrap().data().to_le_bytes();
+            permit_alloc(|| {
+                let ins = std::str::from_utf8(&bend_h[..]).unwrap();
+                eprintln!("x: {}", ins);
+            });
             match slot(bend, 2).unwrap().as_direct().unwrap().data() {
                 tas!(b"clq") => unsafe {
                     let s = slot(bend, 6).unwrap().as_direct().unwrap().data() as usize;
@@ -573,6 +576,9 @@ fn cg_interpret_inner(
                         let pile = cg_pull_pile(context, subject, formula);
                         new_frame(context, pile, false);
                     }
+                    
+                    // debugging: print out IR
+                    // do_rack(context, subject, formula);
 
                     {
                         let sire = { (*pile_mem_ptr(context)).sire };
@@ -674,6 +680,8 @@ fn cg_interpret_inner(
                         let pile = cg_pull_pile(context, subject, formula);
                         new_frame(context, pile, true);
                     }
+
+                    do_rack(context, subject, formula);
 
                     {
                         let sire = (*pile_mem_ptr(context)).sire;
@@ -1040,14 +1048,14 @@ pub mod types {
     impl Preserve for Pile {
         unsafe fn preserve(&mut self, stack: &mut NockStack) {
             if stack.is_in_frame(self.0) {
-                let mut pile_mem = *(self.0);
-                pile_mem.long.preserve(stack);
-                pile_mem.bait.preserve(stack);
-                pile_mem.walt.preserve(stack);
-                pile_mem.wish.preserve(stack);
-                pile_mem.will.preserve(stack);
+                (*self.0).long.preserve(stack);
+                (*self.0).bait.preserve(stack);
+                (*self.0).walt.preserve(stack);
+                (*self.0).wish.preserve(stack);
+                (*self.0).will.preserve(stack);
                 let dest_mem: *mut PileMem = stack.struct_alloc_in_previous_frame(1);
                 copy_nonoverlapping(self.0, dest_mem, 1);
+                self.0 = dest_mem;
             }
         }
 
@@ -1106,6 +1114,9 @@ mod util {
     use super::pile_mem_ptr;
     use super::Pile;
     use super::{new_frame, Hill};
+    use super::FRAME_WORD_SIZE;
+    
+    use assert_no_alloc::permit_alloc;
 
     /// +peek slot in line core is 4
     const PEEK_AXIS: u64 = 4;
@@ -1114,7 +1125,7 @@ mod util {
     const POKE_AXIS: u64 = 46;
 
     /// +rake slot in line core is 95
-    const RAKE_AXIS: u64 = 95;
+    const RACK_AXIS: u64 = 10;
 
     pub type NounResult = Result<Noun, Error>;
 
@@ -1127,10 +1138,15 @@ mod util {
     }
 
     /// returns [(set bell) (set bell) _line]
-    pub fn poke(context: &mut Context, gist: Noun) -> Noun {
+    pub fn poke(context: &mut Context, gist: Noun) -> (Noun, Noun) {
         let line = context.cg_context.line.unwrap();
         let pok = kick(context, line, D(POKE_AXIS)).unwrap();
-        slam(context, pok, gist).unwrap()
+        let res = slam(context, pok, gist).unwrap();
+        let new = slot(res, 2).unwrap();
+        let old = slot(res, 6).unwrap();
+        assert!(unsafe{old.raw_equals(D(0))});
+        context.cg_context.line = Some(slot(res, 7).unwrap());
+        (new, old)
     }
 
     pub fn tap(stack: &mut NockStack, map: Noun) -> NounResult {
@@ -1293,14 +1309,14 @@ mod util {
 
             let frame = frame_ptr(context);
 
-            let sans = (*(pile.0)).sans;
+            let sans = (*pile.0).sans;
             let poison_size = (*frame).pois_sz;
 
-            let mut bait = (*pile_mem_ptr(context)).bait;
-            let mut walt = (*pile_mem_ptr(context)).walt;
+            let mut bait = (*pile.0).bait;
+            let mut walt = (*pile.0).walt;
 
-            let old_poison_sz = *(frame as *const usize).add(sans + poison_size);
-            let old_poison_ptr = (frame as *const u64).add(sans + poison_size + 1);
+            let old_poison_sz = *(frame as *const usize).add(FRAME_WORD_SIZE + sans + poison_size);
+            let old_poison_ptr = (frame as *const u64).add(FRAME_WORD_SIZE + sans + poison_size + 1);
 
             loop {
                 if b.raw_equals(D(0)) {
@@ -1336,7 +1352,7 @@ mod util {
 
                 let v_i = slot(v, 2).unwrap().as_direct().unwrap().data();
                 v = slot(v, 3).unwrap();
-                let walt_i = slot(v, 2).unwrap().as_direct().unwrap().data();
+                let walt_i = slot(walt, 2).unwrap().as_direct().unwrap().data();
                 walt = slot(walt, 3).unwrap();
                 // XX we should also store the old reg size and assert this doesn't read
                 // past it
@@ -1392,8 +1408,8 @@ mod util {
             if context.stack.get_frame_pointer() == base_frame {
                 return Some(ret_value);
             }
-
-            register_set(frame_ptr(context), (*frame).dest, ret_value);
+            permit_alloc(|| { eprintln!("Return to register {}", (*frame).dest) });
+            register_set(frame, (*frame).dest, ret_value);
 
             let will = (*pile_mem_ptr(context)).will;
             let blob = will
@@ -1403,5 +1419,18 @@ mod util {
             *bend = slot(blob, 7).unwrap();
         }
         None
+    }
+
+    /** slog the IR for an arm */
+    pub fn do_rack(
+        context: &mut Context,
+        sub: Noun,
+        form: Noun,
+    ) {
+        let line = context.cg_context.line.unwrap();
+        let gat = kick(context, line, D(RACK_AXIS)).unwrap();
+        let sf_cel = T(&mut context.stack, &[sub, form]);
+        let _res = slam(context, gat, sf_cel);
+        ()
     }
 }

@@ -27,7 +27,7 @@
 ::    internal label
 ::
 ::  labels a basic block within generated code for an arm
-+$  bile  [%bile axe=@ thus=@tas bell]
++$  bile  [%bile axe=@ thus=@tas =bell]
 ::    noun shape
 ::
 ::  labels axes of an abstract noun with SSA registers, possibly

@@ -619,23 +619,38 @@
   ++  kerf
     |=  [thus=@tas =next]
     ^-  [[bile @uvre] _gen]
-    =/  tack=(list need)  ~[what.next]
-    =|  pose=(list pole)
-    =/  ui  (sass what.next)
+    =^  ir  gen  (kern ~ what.next)
+    ?~  pose.ir
+      [[then.next out.ir] gen]
+    =^  thin  gen  (emit thus ~ (flop pose.ir) %hop then.next)
+    [[thin out.ir] gen]
+  ::    split register to need (instruction list)
+  :: 
+  ::  like +kerf but return (reversed) instruction list instead of emitting basic block
+  ++  kern
+    |=  [pose=(list pole) =need]
+    ^-  [[pose=(list pole) out=@uvre] _gen]
+    =/  tack=(list _need)  ~[need]
+    =/  ui  (sass need)
     ?~  ui
       =^  crap  gen  rain
-      [[then.next crap] gen]
-    |-  ^-  [[bile @uvre] _gen]
+      [[~ crap] gen]
+    |-  ^-  [[pose=(list pole) out=@uvre] _gen]
     ?~  tack
-      =^  thin  gen  (emit thus ~ (flop pose) %hop then.next)
-      [[thin u.ui] gen]
-    =*  need  i.tack 
-    ?:  ?=(%both -.need)
-      =/  lure  (sass left.need)
-      =/  rule  (sass rite.need)
-      =?  pose  ?=(^ lure)  [[%hed sass.need u.lure] pose]
-      =?  pose  ?=(^ rule)  [[%tal sass.need u.rule] pose]
-      $(tack [left.need rite.need t.tack])
+      [[pose u.ui] gen]
+    =*  n  i.tack
+    ?:  ?=(%both -.n)
+      =/  lure  (sass left.n)
+      =/  rule  (sass rite.n)
+      =?  pose  ?=(^ lure)
+        ?:  (~(has in sick.gen) u.lure)
+          [[%hci sass.n u.lure] pose]
+        [[%hed sass.n u.lure] pose]
+      =?  pose  ?=(^ rule)
+        ?:  (~(has in sick.gen) u.rule)
+          [[%tci sass.n u.rule] pose]
+        [[%tal sass.n u.rule] pose]
+      $(tack [left.n rite.n t.tack])
     $(tack t.tack)
   ::    emit basic block
   ::
@@ -734,11 +749,21 @@
     ::
         %|
       ?:  ?=(%none -.z.p.i.tack)
-        $(tack t.tack, salt [o.p.i.tack salt])
+        :: z side has no requirements
+        :: so we should do no splitting outside conditional
+        =^  rr  gen  (kern rose o.p.i.tack) 
+        =.  rose  pose.rr
+        $(tack t.tack, salt [[%this out.rr] salt])
       ?:  ?=(%none -.o.p.i.tack)
-        $(tack t.tack, salt [z.p.i.tack salt])
+        :: o side has no requirements
+        :: so we should do no splitting outside conditional
+        =^  lr  gen  (kern lose z.p.i.tack)
+        =.  lose  pose.lr
+        $(tack t.tack, salt [[%this out.lr] salt])
       ?:  ?=(%both -.z.p.i.tack)
+        ::  z side splits
         ?:  ?=(%both -.o.p.i.tack)
+          ::  both sides split, recursively build need
           %=  $
               tack
             :*  [%| left.z.p.i.tack left.o.p.i.tack]
@@ -749,39 +774,18 @@
           ::
               rose  [[%pol sass.z.p.i.tack sass.o.p.i.tack] rose]
           ==
-        =.  lose  [[%mov sass.o.p.i.tack sass.z.p.i.tack] lose]
-        =/  lack=(list need)  ~[z.p.i.tack]
-        |-  ^-  [[need bile bile] _gen]
-        ?~  lack
-          ^$(tack t.tack, salt [o.p.i.tack salt])
-        ?:  ?=(%both -.i.lack)
-          =/  rl  (sass left.i.lack)
-          =?  lose  ?=(^ rl)
-            :-  ?:((~(has in sick.gen) u.rl) [%hci sass.i.lack u.rl] [%hed sass.i.lack u.rl])
-            lose
-          =/  rr  (sass rite.i.lack)
-          =?  lose  ?=(^ rr)
-            :-  ?:((~(has in sick.gen) u.rr) [%tci sass.i.lack u.rr] [%tal sass.i.lack u.rr])
-            lose
-          $(lack [left.i.lack rite.i.lack t.lack])
-        $(lack t.lack)
+        ::  z side splits, o side this
+        =^  lr  gen  (kern lose z.p.i.tack)
+        =.  lose  pose.lr
+        =.  lose  [[%mov sass.o.p.i.tack out.lr] lose]
+        $(tack t.tack, salt [o.p.i.tack salt])
       ?:  ?=(%both -.o.p.i.tack)
-        =.  rose  [[%mov sass.z.p.i.tack sass.o.p.i.tack] rose]
-        =/  rack=(list need)  ~[o.p.i.tack]
-        |-  ^-  [[need bile bile] _gen]
-        ?~  rack
-          ^$(tack t.tack, salt [z.p.i.tack salt])
-        ?:  ?=(%both -.i.rack)
-          =/  rl  (sass left.i.rack)
-          =?  rose  ?=(^ rl)
-            :-  ?:((~(has in sick.gen) u.rl) [%hci sass.i.rack u.rl] [%hed sass.i.rack u.rl])
-            rose
-          =/  rr  (sass rite.i.rack)
-          =?  rose  ?=(^ rr)
-            :-  ?:((~(has in sick.gen) u.rr) [%tci sass.i.rack u.rr] [%hed sass.i.rack u.rr])
-            rose
-          $(rack [left.i.rack rite.i.rack t.rack])
-        $(rack t.rack)
+        ::  z side this, o side splits
+        =^  rr  gen  (kern rose o.p.i.tack)
+        =.  rose  pose.rr
+        =.  rose  [[%mov sass.z.p.i.tack out.rr] rose]
+        $(tack t.tack, salt [z.p.i.tack salt])
+      ::  both sides this
       =.  rose  [[%mov sass.z.p.i.tack sass.o.p.i.tack] rose]
       $(tack t.tack, salt [z.p.i.tack salt])
     ==
@@ -988,15 +992,24 @@
     ?~  cn
       =^  s  gen  rain
       [[~ ~[s] [%this s] &] gen]
+    =^  s  gen  (scar u.cn)
+    [[b v n |]:s gen]
+  ::
+  ::    generate fresh parameter lists
+  ::
+  ::  generate fresh parameter variables and provide them both in
+  ::  argument list and need form
+  ++  scar
+    |=  n=need
     =|  rb=(list @uvre)
     =|  rv=(list @uvre)
-    =/  tack=(list (each @uvre need))  [%| u.cn]~
+    =/  tack=(list (each @uvre need))  [%| n]~
     =|  salt=(list need)
-    |-  ^-  [[b=(list @uvre) v=(list @uvre) n=need r=?] _gen]
+    |-  ^-  [[b=(list @uvre) v=(list @uvre) n=need] _gen]
     ?~  tack
       ?>  ?=(^ salt)
       ?>  ?=(~ t.salt)
-      [[(flop rb) (flop rv) i.salt |] gen]
+      [[(flop rb) (flop rv) i.salt] gen]
     ?-  -.i.tack
         %&
       ?>  ?=(^ salt)
@@ -1183,7 +1196,7 @@
   =|  todo=(list [=bell dire=next =gen])
   =|  like=(map bell need)
   =/  toil  work 
-  ~&  [%mill-work-len (lent toil)]
+  :: ~&  [%mill-work-len (lent toil)]
   |-  ^-  _hill
   ?^  toil
     =/  [dire=next =gen]  ~(cuts jean i.toil *gen like)
@@ -1231,7 +1244,7 @@
       =/  blob  (~(got by will.pile) i.queu)
       ?-  -.bend.blob
           %hip
-        =/  movs  
+        =/  movs
           %+  turn  ~(tap by biff:(~(got by will.pile) t.bend.blob))
           |=  [out=@uvre bin=(map bile @uvre)]
           [%mov (~(got by bin) c.bend.blob) out]
@@ -1286,6 +1299,7 @@
         $(queu t.queu, will (~(put by will) i.queu blob))
       ==
     ==
+  :: ~&  [%hill-key ~(key by hill)]
   hill
 --
 ::    codegen interface
@@ -1319,7 +1333,7 @@
   ^-  [new=(set bell) old=(set bell) =_this]
   ::  %comp is the only case
   ::  analyze
-  =.  sack  (rout:sack [& s.gist] f.gist)
+  =.  sack  (rout:sack s.gist f.gist)
   ?<  =(~ moan)
   ::  save old codegen table keys
   =/  hole  ~(key by hill)
@@ -1331,27 +1345,33 @@
     ?>  ?=(^ peep)
     bell.u.peep
   ::  update slow table and drop old bells from moan
-  =.  rots  (drub slow.gist bell)
-  =.  sack  burn
+  ::  =.  rots  (drub slow.gist bell)
+  ::  =.  sack  burn
   ::  drop old bells from hill
-  =.  hill  wipe
+  ::  =.  hill  wipe
   =/  heck  ~(key by hill) 
-  [(~(dif by heck) hole) (~(dif by hole) heck) this]
+  [(~(dif in heck) hole) (~(dif in hole) heck) this]
 ::    pretty-printing door
 ++  xray
   |_  will=(map bile blob)
   ::
-  ::    print a bell as an @q-ed mug
+  ::    print a bell as an @ux-ed mug
   ++  ring
     |=  a=bell
     ^-  tank
-    >`@q`(mug a)<
+    >`@ux`(mug a)<
+  ::
+  ::    print a bell as an @ux-ed mug + formula
+  ++  rang
+    |=  a=bell
+    ^-  tank
+    [%rose ["-" "" ""] (ring a) >form.a< ~]
   ::
   ::    print a bile as thus and axe + a pretty bell
   ++  rung
     |=  b=bile
     ^-  tank
-    [%rose ["." "|" "|"] >thus.b< >axe.b< (ring +>+.b) ~]
+    [%rose ["." "[" "]"] >thus.b< >axe.b< (ring +>+.b) ~]
   ::
   ::  print a register
   ++  near
@@ -1499,11 +1519,53 @@
     ^-  tank
     [%rose [";" "" ""] (snoc (turn body.blob ping) (pine bend.blob))]
   ::
+  ::  topo-sort code in execution order, from an entry point
+  ++  sore
+    |=  tart=bile
+    =/  queu=(list bile)  ~[tart]
+    =|  back=(list bile)
+    =|  code=(list [bile blob])
+    =|  done=(set bile)
+    |-  ^-  (list [bile blob])
+    ?~  queu
+      ?~  back
+        (flop code)
+      $(queu (flop back), back ~)
+    ?:  (~(has in done) i.queu)
+      $(queu t.queu)
+    =/  blub  (~(got by will) i.queu)
+    =/  ouch=(list bile)
+      ?-  -.bend.blub
+        %clq  ~[z o]:bend.blub
+        %eqq  ~[z o]:bend.blub
+        %brn  ~[z o]:bend.blub
+        %hop  ~[t]:bend.blub
+        %hip  ~[t]:bend.blub
+        %lnk  ~[t]:bend.blub
+        %cal  ~[t]:bend.blub
+        %caf  ~[t]:bend.blub
+        %lnt  ~
+        %jmp  ~
+        %jmf  ~
+        %spy  ~[t]:bend.blub
+        %mer  ~[i m]:bend.blub
+        %don  ~
+        %bom  ~
+      ==
+    %=  $
+      queu  t.queu
+      back  (weld ouch back)
+      code  [[i.queu blub] code]
+      done  (~(put in done) i.queu)
+    ==
+  ::
   ::   print the whole code for this arm
   ++  parm
+    |=  tart=bile
     ^-  tank
     :*  %rose  [" " "" ""]
-        %+  turn  ~(tap in will)
+        (rang bell.tart)
+        %+  turn  (sore tart)
         |=  [l=bile b=blob]
         [%palm ["" "" "->" ""] (rung l) (plop b) ~]
     ==
@@ -1531,7 +1593,8 @@
   ^-  tank
   =/  a  (peek s f)
   ?~  a  [%leaf "no code generated for arm"]
-  ~(parm xray will:(~(got by hall.u.a) bell.u.a))
+  =/  pile  (~(got by hall.u.a) bell.u.a)
+  (~(parm xray will.pile) wish.pile)
 ::
 ::   debug-print code for an arm, if it exists
 ++  rack

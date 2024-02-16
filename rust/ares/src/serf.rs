@@ -351,6 +351,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     let line_res = interpret(&mut context.nock_context, cg_trap, cg_formula)
         .expect("Failed to produce codegen noun");
     unsafe {
+        // codegen version check
         assert!(slot(line_res, 2).expect("Codegen noun should be a cell").raw_equals(D(1)));
     };
     let line = slot(line_res, 3).expect("Codegen noun should be a cell");
