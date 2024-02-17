@@ -57,11 +57,11 @@ _unmark_page(void *address)
  * Center the guard page.
  */
 static int32_t
-_focus_guard(
-  uintptr_t        *guard_pp,
-  const uintptr_t   stack_p,
-  const uintptr_t   alloc_p
-) {
+_focus_guard(GuardState *gs) {
+  uintptr_t  *guard_pp = &(gs->guard_p);
+  uintptr_t   stack_p = *(gs->stack_pp);
+  uintptr_t   alloc_p = *(gs->alloc_pp);
+
   // Check anomalous arguments
   if (stack_p == 0 || alloc_p == 0) {
     fprintf(stderr, "guard: focus: stack or alloc pointer is null\r\n");
@@ -114,10 +114,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
     sig_addr >= _guard_state->guard_p && 
     sig_addr <  (_guard_state->guard_p + GD_PAGE_SIZE))
   {
-    err = _focus_guard(
-      &(_guard_state->guard_p),
-      *(_guard_state->stack_pp),
-      *(_guard_state->alloc_pp));
+    err = _focus_guard(_guard_state);
     if (err) {
       siglongjmp(_guard_state->env_buffer, err);
     }
@@ -136,7 +133,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
 }
 
 int32_t
-_register_handler(struct sigaction *prev_sa)
+_register_handler(GuardState *gs)
 {
   struct sigaction sa;
 
@@ -152,7 +149,7 @@ _register_handler(struct sigaction *prev_sa)
   // sigaddset(&(sa.sa_mask), SIGSEGV);
 
   // Set the new SIGSEGV handler, and save the old SIGSEGV handler (if any)
-  if (sigaction(SIGSEGV, &sa, prev_sa)) {
+  if (sigaction(SIGSEGV, &sa, &(gs->prev_sa))) {
     fprintf(stderr, "guard: register: sigaction error\r\n");
     fprintf(stderr, "%s\r\n", strerror(errno));
     return guard_sigaction | errno;
@@ -190,12 +187,12 @@ guard(
   _guard_state->alloc_pp = alloc_pp;
 
   // Initialize the guard page
-  if ((err = _focus_guard(&(_guard_state->guard_p), *stack_pp, *alloc_pp))) {
+  if ((err = _focus_guard(_guard_state))) {
     goto clear;
   }
 
   // Register guard page signal handler
-  if ((err = _register_handler(&(_guard_state->prev_sa)))) {
+  if ((err = _register_handler(_guard_state))) {
     goto unmark;
   }
 
