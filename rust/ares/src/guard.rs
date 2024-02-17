@@ -91,12 +91,7 @@ pub fn call_with_guard<F: FnMut() -> Result>(
             ret_pp,
         );
 
-        // eprintln!("\r BEFORE:");
-        // eprintln!("\r ret = {:?}", ret);
-        // eprintln!("\r ret_p = {:p}, {:?}", ret_p as *mut Result, *(ret_p as *mut Result));
-        // eprintln!("\r ret_pp = {:p}, {:p}, {:?}", ret_pp, *ret_pp, **(ret_pp as *mut *mut Result));
         if res == 0 {
-            // TODO: come back to this
             permit_alloc(|| {
                 let result_box = Box::from_raw(ret_p as *mut Result);
                 *result_box
