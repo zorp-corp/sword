@@ -101,7 +101,7 @@ pub fn call_with_guard<F: FnMut() -> Result>(
             match err {
                 GuardError::OutOfMemory => Err(Error::NonDeterministic(Mote::Meme, D(0))),
                 _ => {
-                    panic!("serf: guard: unexpected error {:?}", err);
+                    panic!("serf: guard: unexpected error {:?} {}", err, res);
                 }
             }
         }
