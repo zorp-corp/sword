@@ -8,7 +8,6 @@ use std::marker::PhantomData;
 
 #[derive(Debug)]
 pub enum GuardError {
-    InvalidSignal,
     MemoryProtection,
     NullPointer,
     OutOfMemory,
@@ -20,7 +19,6 @@ impl From<u32> for GuardError {
     fn from(value: u32) -> Self {
         match value {
             GUARD_NULL => Self::NullPointer,
-            GUARD_SIGNAL => Self::InvalidSignal,
             GUARD_OOM => Self::OutOfMemory,
             x if (x & GUARD_MPROTECT) != 0 => Self::MemoryProtection,
             x if (x & (GUARD_MALLOC | GUARD_SIGACTION)) != 0 => Self::Setup,

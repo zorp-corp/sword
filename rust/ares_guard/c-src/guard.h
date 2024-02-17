@@ -10,7 +10,6 @@
  */
 typedef enum {
   guard_null      = 1,          // null stack or alloc pointer
-  guard_signal,                 // invalid signal
   guard_oom,                    // OOM
   guard_malloc    = 0x10000000, // malloc error flag
   guard_mprotect  = 0x20000000, // mprotect error flag

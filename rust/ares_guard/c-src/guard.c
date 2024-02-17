@@ -107,9 +107,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
   uintptr_t sig_addr;
   int32_t   err = 0;
 
-  if (sig != SIGSEGV) {
-    siglongjmp(_guard_state->env_buffer, guard_signal);
-  }
+  assert(sig == SIGSEGV);
 
   sig_addr = (uintptr_t)si->si_addr;
   if (
