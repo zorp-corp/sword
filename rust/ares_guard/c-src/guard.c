@@ -74,14 +74,6 @@ _focus_guard(GuardState *gs) {
   uintptr_t new_guard_p;
   int32_t   err = 0;
 
-  // Unmark the old guard page (if there is one)
-  if (old_guard_p) {
-    if ((err = _unmark_page((void *)old_guard_p))) {
-      fprintf(stderr, "guard: focus: unmark error, %p\r\n", (void *)old_guard_p);
-      return err;
-    }
-  }
-
   // Compute new guard page
   // XX:  Should we also check for new_guard_p < min(stack_p, alloc_p)?
   new_guard_p = GD_PAGE_ROUND_DOWN((stack_p + alloc_p) / 2);
@@ -97,6 +89,14 @@ _focus_guard(GuardState *gs) {
 
   // Update guard page tracker
   *guard_pp = new_guard_p;
+
+  // Unmark the old guard page (if there is one)
+  if (old_guard_p) {
+    if ((err = _unmark_page((void *)old_guard_p))) {
+      fprintf(stderr, "guard: focus: unmark error, %p\r\n", (void *)old_guard_p);
+      return err;
+    }
+  }
   
   return 0;
 }
