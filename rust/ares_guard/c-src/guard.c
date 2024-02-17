@@ -162,68 +162,6 @@ _register_handler(struct sigaction *prev_sa)
 }
 
 int32_t
-_setup(
-  GuardState **gs_p,
-  const uintptr_t *const stack_pp,
-  const uintptr_t *const alloc_pp
-) {
-  GuardState *gs;
-  int32_t     err = 0;
-
-  assert(*gs_p == NULL);
-
-  // Setup guard page state
-  *gs_p = (GuardState *)malloc(sizeof(GuardState));
-  gs = *gs_p;
-  if (gs == NULL) {
-    fprintf(stderr, "guard: malloc error\r\n");
-    fprintf(stderr, "%s\r\n", strerror(errno));
-    return guard_malloc | errno;
-  }
-
-  gs->guard_p = 0;
-  gs->stack_pp = stack_pp;
-  gs->alloc_pp = alloc_pp;
-
-  // Initialize the guard page
-  if ((err = _focus_guard(&(gs->guard_p), *stack_pp, *alloc_pp))) {
-    return err;
-  }
-
-  // Register guard page signal handler
-  if ((err = _register_handler(&(gs->prev_sa)))) {
-    return err;
-  }
-
-  return 0;
-}
-
-int32_t
-_teardown(GuardState** gs_p)
-{
-  int32_t err = 0;
-
-  if (*gs_p != NULL) {
-    GuardState *gs = *gs_p;
-
-    if (gs->guard_p != 0) {
-      err = _unmark_page((void *)gs->guard_p);
-    }
-
-    if (sigaction(SIGSEGV, &(gs->prev_sa), NULL)) {
-      fprintf(stderr, "guard: teardown: sigaction error\r\n");
-      fprintf(stderr, "%s\r\n", strerror(errno));
-      err = guard_sigaction | errno;
-    }
-
-    free(gs);
-    *gs_p = NULL;
-  }
-
-  return err;
-}
-
-int32_t
 guard(
   callback f,
   void *closure,
@@ -232,25 +170,59 @@ guard(
   void ** ret
 ) {
   int32_t err = 0;
+  int32_t err_c = 0;
 
-  // Setup the guard page
-  if ((err = _setup(&_guard_state, stack_pp, alloc_pp))) {
-    goto done;
+  //
+  // Setup guard page state
+  //
+
+  // guard() presumes that it is only ever called once at a time
+  assert(_guard_state == NULL);
+
+  _guard_state = (GuardState *)malloc(sizeof(GuardState));
+  if (_guard_state == NULL) {
+    fprintf(stderr, "guard: malloc error\r\n");
+    fprintf(stderr, "%s\r\n", strerror(errno));
+    return guard_malloc | errno;
+  }
+  _guard_state->guard_p = 0;
+  _guard_state->stack_pp = stack_pp;
+  _guard_state->alloc_pp = alloc_pp;
+
+  // Initialize the guard page
+  if ((err = _focus_guard(&(_guard_state->guard_p), *stack_pp, *alloc_pp))) {
+    goto clear;
   }
 
-  // Run given closure
+  // Register guard page signal handler
+  if ((err = _register_handler(&(_guard_state->prev_sa)))) {
+    goto unmark;
+  }
+
+  //
+  // Run closure
+  //
+
   if (!(err = sigsetjmp(_guard_state->env_buffer, 1))) {
     *ret = f(closure);
-
-    // Clean up
-    err = _teardown(&_guard_state);
-
-    return err;
-  } else {
-done:
-    // Clean up
-    _teardown(&_guard_state);
-
-    return err;
   }
+
+  //
+  // Clean up guard page state
+  //
+
+  if (sigaction(SIGSEGV, &(_guard_state->prev_sa), NULL)) {
+    fprintf(stderr, "guard: sigaction error\r\n");
+    fprintf(stderr, "%s\r\n", strerror(errno));
+    err_c = guard_sigaction | errno;
+  }
+
+unmark:
+  err_c = _unmark_page((void *)_guard_state->guard_p);
+
+clear:
+  free(_guard_state);
+  _guard_state = NULL;
+
+  return err ? err : err_c;
 }
