@@ -19,7 +19,8 @@ static uintptr_t         guard_p = 0;
 static const uintptr_t  *stack_pp = NULL;
 static const uintptr_t  *alloc_pp = NULL;
 static GD_buflistnode   *buffer_list = NULL;
-static struct sigaction  prev_sa;
+static struct sigaction  prev_sigsegv_sa;
+static struct sigaction  prev_sigbus_sa;
 
 static guard_result
 _prot_page(void *address, int prot)
@@ -110,8 +111,8 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
 
   // fprintf(stderr, "guard: handler: %d received\r\n", sig);
 
-  if (sig != SIGSEGV) {
-    fprintf(stderr, "guard: handler: invalid signal\r\n");
+  if (sig != SIGSEGV && sig != SIGBUS) {
+    fprintf(stderr, "guard: handler: invalid signal: %d\r\n", sig);
     assert(0);
   }
 
@@ -130,14 +131,26 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
   }
   else {
     // fprintf(stderr, "guard: page at %p miss\r\n", (void *)guard_p);
-
-    if (prev_sa.sa_sigaction != NULL) {
-      prev_sa.sa_sigaction(sig, si, unused);
-    } else if (prev_sa.sa_handler != NULL) {
-      prev_sa.sa_handler(sig);
-    } else {
-      // There should always be a default SIGSEGV handler
-      assert(0);
+    switch (sig) {
+      case SIGSEGV: {
+        if (prev_sigsegv_sa.sa_sigaction != NULL) {
+          prev_sigsegv_sa.sa_sigaction(sig, si, unused);
+        } else if (prev_sigsegv_sa.sa_handler != NULL) {
+          prev_sigsegv_sa.sa_handler(sig);
+        } else {
+          assert(0);
+        }
+        break;
+      }
+      case SIGBUS: {
+        if (prev_sigbus_sa.sa_sigaction != NULL) {
+          prev_sigbus_sa.sa_sigaction(sig, si, unused);
+        } else if (prev_sigbus_sa.sa_handler != NULL) {
+          prev_sigbus_sa.sa_handler(sig);
+        } else {
+          assert(0);
+        }
+      }
     }
   }
 }
@@ -146,20 +159,17 @@ static guard_result
 _register_handler()
 {
   struct sigaction sa;
-
-  // Flag to use sa_sigaction
   sa.sa_flags = SA_SIGINFO;
-  // Must use sa_sigaction; sa-handler takes signal handler as its only argument
   sa.sa_sigaction = _signal_handler;
-  // Set mask of signals to ignore while running signal handler
-  // TODO:  By default the signal that triggered the signal handler is automatically added to the
-  //        mask while it's being handled, so unless we plan to add more signals to this then I
-  //        don't think it's necessary.
-  // sigemptyset(&sa.sa_mask);
-  // sigaddset(&(sa.sa_mask), SIGSEGV);
 
-  // XX: should assert that prev_sa is uninitialized, but it's not a pointer so non-trivial
-  if (sigaction(SIGSEGV, &sa, &prev_sa)) {
+  // XX should assert that prev_sigsegv_sa is uninitialized, but it's non-trivial
+  if (sigaction(SIGSEGV, &sa, &prev_sigsegv_sa)) {
+    fprintf(stderr, "guard: register: sigaction error\r\n");
+    fprintf(stderr, "%s\r\n", strerror(errno));
+    return guard_sigaction | errno;
+  }
+
+  if (sigaction(SIGBUS, &sa, &prev_sigbus_sa)) {
     fprintf(stderr, "guard: register: sigaction error\r\n");
     fprintf(stderr, "%s\r\n", strerror(errno));
     return guard_sigaction | errno;
@@ -228,8 +238,17 @@ guard(
 skip:
   // If no more guarded closures, then...
   if (buffer_list == NULL) {
-    // Remove new signal handler
-    if (sigaction(SIGSEGV, &prev_sa, NULL)) {
+    // Remove new signal handlers
+    if (sigaction(SIGSEGV, &prev_sigsegv_sa, NULL)) {
+      fprintf(stderr, "guard: sigaction error\r\n");
+      fprintf(stderr, "%s\r\n", strerror(errno));
+      td_err = guard_sigaction | errno;
+
+      if (!err) {
+        err = td_err;
+      }
+    }
+    if (sigaction(SIGBUS, &prev_sigbus_sa, NULL)) {
       fprintf(stderr, "guard: sigaction error\r\n");
       fprintf(stderr, "%s\r\n", strerror(errno));
       td_err = guard_sigaction | errno;
