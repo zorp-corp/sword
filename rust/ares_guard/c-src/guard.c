@@ -60,7 +60,6 @@ _focus_guard()
     fprintf(stderr, "guard: focus: stack or alloc pointer is null\r\n");
     return guard_null;
   } else if (stack_p == alloc_p) {
-    fprintf(stderr, "guard: focus: stack and alloc pointers equal\r\n");
     return guard_oom;
   }
 
