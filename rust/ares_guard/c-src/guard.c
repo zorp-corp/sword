@@ -35,7 +35,7 @@ static GD_state gd = {
 };
 
 static guard_result
-_prot_page(void *address, int prot)
+_protect_page(void *address, int prot)
 {
   if (mprotect(address, GD_PAGE_SIZE, prot)) {
     fprintf(stderr, "guard: prot: mprotect error %d\r\n", errno);
@@ -44,18 +44,6 @@ _prot_page(void *address, int prot)
   }
 
   return guard_success;
-}
-
-static guard_result
-_mark_page(void *address)
-{
-  return _prot_page(address, PROT_NONE);
-}
-
-static guard_result
-_unmark_page(void *address)
-{
-  return _prot_page(address, PROT_READ | PROT_WRITE);
 }
 
 // Center the guard page.
@@ -82,7 +70,7 @@ _focus_guard()
   }
 
   // Mark new guard page.
-  if ((err = _mark_page((void *)new_guard_p))) {
+  if ((err = _protect_page((void *)new_guard_p, PROT_NONE))) {
     fprintf(stderr, "guard: focus: mark error\r\n");
     return err;
   }
@@ -92,7 +80,7 @@ _focus_guard()
 
   // Unmark the old guard page if there is one.
   if (old_guard_p) {
-    if ((err = _unmark_page((void *)old_guard_p))) {
+    if ((err = _protect_page((void *)old_guard_p, PROT_READ | PROT_WRITE))) {
       fprintf(stderr, "guard: focus: unmark error\r\n");
       return err;
     }
@@ -249,7 +237,7 @@ skip:
 clean:
     // Unmark guard page.
     assert(gd.guard_p != 0);
-    td_err = _unmark_page((void *)gd.guard_p);
+    td_err = _protect_page((void *)gd.guard_p, PROT_READ | PROT_WRITE);
     if (td_err) {
       fprintf(stderr, "guard: unmark error\r\n");
       fprintf(stderr, "%s\r\n", strerror(errno));
