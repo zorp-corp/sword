@@ -66,7 +66,7 @@ _focus_guard()
   uintptr_t alloc_p = *gd.alloc_pp;
   uintptr_t old_guard_p = gd.guard_p;
   uintptr_t new_guard_p;
-  guard_result   err = 0;
+  guard_result   err = guard_success;
 
   if (stack_p == 0 || alloc_p == 0) {
     fprintf(stderr, "guard: focus: stack or alloc pointer is null\r\n");
@@ -105,7 +105,7 @@ static void
 _signal_handler(int sig, siginfo_t *si, void *unused)
 {
   uintptr_t sig_addr;
-  guard_result   err = 0;
+  guard_result err = guard_success;
 
   assert(gd.guard_p);
 
@@ -181,8 +181,8 @@ guard(
   void **ret
 ) {
   GD_buflistnode  *new_buffer;
-  guard_result err = 0;
-  guard_result td_err = 0;
+  guard_result err = guard_success;
+  guard_result td_err = guard_success;
 
   if (gd.guard_p == 0) {
     assert(gd.buffer_list == NULL);
