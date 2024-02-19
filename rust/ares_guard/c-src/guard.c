@@ -25,7 +25,14 @@ struct GD_state {
   struct sigaction  prev_sigbus_sa;
 };
 
-static GD_state gd = { 0 , NULL, NULL, NULL, NULL, 0 };
+static GD_state gd = { 
+  .guard_p = 0,
+  .stack_pp = NULL,
+  .alloc_pp = NULL,
+  .buffer_list = NULL,
+  .prev_sigsegv_sa = { .sa_sigaction = NULL, .sa_flags = 0 },
+  .prev_sigbus_sa = { .sa_sigaction = NULL, .sa_flags = 0 },
+};
 
 static guard_result
 _prot_page(void *address, int prot)
