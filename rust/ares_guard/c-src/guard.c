@@ -18,15 +18,16 @@
 /**
  *  XX: documentation
  */
-typedef struct _gs {
+typedef struct _GD_state GD_state;
+struct _GD_state {
   uintptr_t         guard_p;
   const uintptr_t  *stack_pp;
   const uintptr_t  *alloc_pp;
   jmp_buf           env_buffer;
   struct sigaction  prev_sa;
-} GuardState;
+};
 
-static GuardState *_guard_state = NULL;
+static GD_state *_guard_state = NULL;
 
 
 static int32_t
@@ -57,7 +58,7 @@ _unmark_page(void *address)
  * Center the guard page.
  */
 static int32_t
-_focus_guard(GuardState *gs) {
+_focus_guard(GD_state *gs) {
   uintptr_t  *guard_pp = &(gs->guard_p);
   uintptr_t   stack_p = *(gs->stack_pp);
   uintptr_t   alloc_p = *(gs->alloc_pp);
@@ -133,7 +134,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
 }
 
 int32_t
-_register_handler(GuardState *gs)
+_register_handler(GD_state *gs)
 {
   struct sigaction sa;
 
@@ -176,7 +177,7 @@ guard(
   // guard() presumes that it is only ever called once at a time
   assert(_guard_state == NULL);
 
-  _guard_state = (GuardState *)malloc(sizeof(GuardState));
+  _guard_state = (GD_state *)malloc(sizeof(GD_state));
   if (_guard_state == NULL) {
     fprintf(stderr, "guard: malloc error\r\n");
     fprintf(stderr, "%s\r\n", strerror(errno));
