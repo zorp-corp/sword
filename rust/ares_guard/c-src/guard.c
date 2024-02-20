@@ -34,7 +34,7 @@ static GD_state gd = {
   .prev_sigbus_sa = { .sa_sigaction = NULL, .sa_flags = 0 },
 };
 
-static guard_result
+static guard_err
 _protect_page(void *address, int prot)
 {
   if (mprotect(address, GD_PAGE_SIZE, prot)) {
@@ -43,18 +43,18 @@ _protect_page(void *address, int prot)
     return guard_mprotect | errno;
   }
 
-  return guard_success;
+  return 0;
 }
 
 // Center the guard page.
-static guard_result
+static guard_err
 _focus_guard()
 {
   uintptr_t stack_p = *gd.stack_pp;
   uintptr_t alloc_p = *gd.alloc_pp;
   uintptr_t old_guard_p = gd.guard_p;
   uintptr_t new_guard_p;
-  guard_result   err = guard_success;
+  guard_err   err = 0;
 
   if (stack_p == 0 || alloc_p == 0) {
     fprintf(stderr, "guard: focus: stack or alloc pointer is null\r\n");
@@ -86,14 +86,14 @@ _focus_guard()
     }
   }
 
-  return guard_success;
+  return 0;
 }
 
 static void
 _signal_handler(int sig, siginfo_t *si, void *unused)
 {
   uintptr_t sig_addr;
-  guard_result err = guard_success;
+  guard_err err = 0;
 
   assert(gd.guard_p);
 
@@ -138,7 +138,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
 }
 
 // Registers the same handler function for SIGSEGV and SIGBUS.
-static guard_result
+static guard_err
 _register_handlers()
 {
   struct sigaction sa;
@@ -157,10 +157,10 @@ _register_handlers()
     return guard_sigaction | errno;
   }
 
-  return guard_success;
+  return 0;
 }
 
-guard_result
+guard_err
 guard(
   void *(*f)(void *),
   void *closure,
@@ -169,8 +169,8 @@ guard(
   void **ret
 ) {
   GD_buflistnode  *new_buffer;
-  guard_result err = guard_success;
-  guard_result td_err = guard_success;
+  guard_err err = 0;
+  guard_err td_err = 0;
 
   if (gd.guard_p == 0) {
     assert(gd.buffer_list == NULL);

@@ -4,7 +4,6 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-pub const GUARD_SUCCESS:   u32 = guard_result_guard_success;
 pub const GUARD_NULL:      u32 = guard_result_guard_null;
 pub const GUARD_SIGNAL:    u32 = guard_result_guard_signal;
 pub const GUARD_OOM:       u32 = guard_result_guard_oom;
