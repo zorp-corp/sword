@@ -15,24 +15,23 @@
 #define GD_PAGE_MASK              (GD_PAGE_SIZE - 1)
 #define GD_PAGE_ROUND_DOWN(foo)   (foo & (~GD_PAGE_MASK))
 
-typedef struct GD_state GD_state;
-struct GD_state {
+#ifdef __APPLE__
+  #define GD_SIGNAL   SIGBUS
+#else
+  #define GD_SIGNAL   SIGSEGV
+#endif
+
+typedef struct _GD_state GD_state;
+struct _GD_state {
   uintptr_t         guard_p;
   const uintptr_t  *stack_pp;
   const uintptr_t  *alloc_pp;
   GD_buflistnode   *buffer_list;
-  struct sigaction  prev_sigsegv_sa;
-  struct sigaction  prev_sigbus_sa;
+  struct sigaction  prev_sa;
 };
 
-static GD_state gd = { 
-  .guard_p = 0,
-  .stack_pp = NULL,
-  .alloc_pp = NULL,
-  .buffer_list = NULL,
-  .prev_sigsegv_sa = { .sa_sigaction = NULL, .sa_flags = 0 },
-  .prev_sigbus_sa = { .sa_sigaction = NULL, .sa_flags = 0 },
-};
+static GD_state *_guard_state = NULL;
+
 
 static guard_err
 _protect_page(void *address, int prot)
@@ -40,7 +39,7 @@ _protect_page(void *address, int prot)
   if (mprotect(address, GD_PAGE_SIZE, prot)) {
     fprintf(stderr, "guard: prot: mprotect error %d\r\n", errno);
     fprintf(stderr, "%s\r\n", strerror(errno));
-    return guard_mprotect | errno;
+    return guard_mprotect;
   }
 
   return 0;
@@ -48,14 +47,14 @@ _protect_page(void *address, int prot)
 
 // Center the guard page.
 static guard_err
-_focus_guard()
-{
-  uintptr_t stack_p = *gd.stack_pp;
-  uintptr_t alloc_p = *gd.alloc_pp;
-  uintptr_t old_guard_p = gd.guard_p;
+_focus_guard(GD_state *gs) {
+  uintptr_t stack_p = *(gs->stack_pp);
+  uintptr_t alloc_p = *(gs->alloc_pp);
+  uintptr_t old_guard_p = _guard_state->guard_p;
   uintptr_t new_guard_p;
-  guard_err   err = 0;
+  guard_err err = 0;
 
+  // Check anomalous arguments.
   if (stack_p == 0 || alloc_p == 0) {
     fprintf(stderr, "guard: focus: stack or alloc pointer is null\r\n");
     return guard_null;
@@ -76,7 +75,7 @@ _focus_guard()
   }
 
   // Update guard page tracker.
-  gd.guard_p = new_guard_p;
+  gs->guard_p = new_guard_p;
 
   // Unmark the old guard page if there is one.
   if (old_guard_p) {
@@ -95,66 +94,48 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
   uintptr_t sig_addr;
   guard_err err = 0;
 
-  assert(gd.guard_p);
+  assert(_guard_state->guard_p);
 
-  if (sig != SIGSEGV && sig != SIGBUS) {
+  if (sig != GD_SIGNAL) {
     fprintf(stderr, "guard: handler: invalid signal: %d\r\n", sig);
     assert(0);
   }
+  assert(sig == GD_SIGNAL);
 
   sig_addr = (uintptr_t)si->si_addr;
 
-  if (sig_addr >= gd.guard_p &&
-      sig_addr <  gd.guard_p + GD_PAGE_SIZE)
+  if (sig_addr >= _guard_state->guard_p &&
+      sig_addr <  _guard_state->guard_p + GD_PAGE_SIZE)
   {
-    err = _focus_guard();
+    err = _focus_guard(_guard_state);
     if (err) {
-      siglongjmp(gd.buffer_list->buffer, err);
+      siglongjmp(_guard_state->buffer_list->buffer, err);
     }
   }
   else {
-    switch (sig) {
-      case SIGSEGV: {
-        if (gd.prev_sigsegv_sa.sa_sigaction != NULL) {
-          gd.prev_sigsegv_sa.sa_sigaction(sig, si, unused);
-        } else if (gd.prev_sigsegv_sa.sa_handler != NULL) {
-          gd.prev_sigsegv_sa.sa_handler(sig);
-        } else {
-          assert(0);
-        }
-        break;
-      }
-      case SIGBUS: {
-        if (gd.prev_sigbus_sa.sa_sigaction != NULL) {
-          gd.prev_sigbus_sa.sa_sigaction(sig, si, unused);
-        } else if (gd.prev_sigbus_sa.sa_handler != NULL) {
-          gd.prev_sigbus_sa.sa_handler(sig);
-        } else {
-          assert(0);
-        }
-      }
+    if (_guard_state->prev_sa.sa_sigaction != NULL) {
+      _guard_state->prev_sa.sa_sigaction(sig, si, unused);
+    } else if (_guard_state->prev_sa.sa_handler != NULL) {
+      _guard_state->prev_sa.sa_handler(sig);
+    } else {
+      assert(0);
     }
   }
 }
 
-// Registers the same handler function for SIGSEGV and SIGBUS.
+// Registers the handler function for GD_SIGNAL.
 static guard_err
-_register_handlers()
+_register_handler(GD_state *gs)
 {
   struct sigaction sa;
   sa.sa_flags = SA_SIGINFO;
   sa.sa_sigaction = _signal_handler;
 
-  if (sigaction(SIGSEGV, &sa, &gd.prev_sigsegv_sa)) {
+  // Set the new handler and save the old if it exists.
+  if (sigaction(GD_SIGNAL, &sa, &(gs->prev_sa))) {
     fprintf(stderr, "guard: register: sigaction error\r\n");
     fprintf(stderr, "%s\r\n", strerror(errno));
-    return guard_sigaction | errno;
-  }
-
-  if (sigaction(SIGBUS, &sa, &gd.prev_sigbus_sa)) {
-    fprintf(stderr, "guard: register: sigaction error\r\n");
-    fprintf(stderr, "%s\r\n", strerror(errno));
-    return guard_sigaction | errno;
+    return guard_sigaction;
   }
 
   return 0;
@@ -172,25 +153,36 @@ guard(
   guard_err err = 0;
   guard_err td_err = 0;
 
-  if (gd.guard_p == 0) {
-    assert(gd.buffer_list == NULL);
-
-    gd.stack_pp = s_pp;
-    gd.alloc_pp = a_pp;
+  // Setup guard state.
+  if (_guard_state == NULL) {
+    _guard_state = (GD_state *)malloc(sizeof(GD_state));
+    if (_guard_state == NULL) {
+      fprintf(stderr, "guard: malloc error\r\n");
+      fprintf(stderr, "%s\r\n", strerror(errno));
+      err = guard_malloc;
+      goto skip;
+    }
+    _guard_state->guard_p = 0;
+    _guard_state->stack_pp = s_pp;
+    _guard_state->alloc_pp = a_pp;
+  }
+  
+  if (_guard_state->guard_p == 0) {
+    assert(_guard_state->buffer_list == NULL);
 
     // Initialize the guard page.
-    if ((err = _focus_guard())) {
+    if ((err = _focus_guard(_guard_state))) {
       fprintf(stderr, "guard: initial focus error\r\n");
       goto exit;
     }
 
     // Register guard page signal handler.
-    if ((err = _register_handlers())) {
+    if ((err = _register_handler(_guard_state))) {
       fprintf(stderr, "guard: registration error\r\n");
       goto clean;
     }
   } else {
-    assert(gd.buffer_list != NULL);
+    assert(_guard_state->buffer_list != NULL);
   }
 
   // Setup new longjmp buffer.
@@ -198,36 +190,27 @@ guard(
   if (new_buffer == NULL) {
     fprintf(stderr, "guard: malloc error\r\n");
     fprintf(stderr, "%s\r\n", strerror(errno));
-    err = guard_malloc | errno;
+    err = guard_malloc;
     goto skip;
   }
-  new_buffer->next = gd.buffer_list;
-  gd.buffer_list = new_buffer;
+  new_buffer->next = _guard_state->buffer_list;
+  _guard_state->buffer_list = new_buffer;
 
   // Run given closure.
-  if (!(err = sigsetjmp(gd.buffer_list->buffer, 1))) {
+  if (!(err = sigsetjmp(_guard_state->buffer_list->buffer, 1))) {
     *ret = f(closure);
   }
 
   // Restore previous longjmp buffer.
-  gd.buffer_list = gd.buffer_list->next;
+  _guard_state->buffer_list = _guard_state->buffer_list->next;
   free((void *)new_buffer);
 
 skip:
-  if (gd.buffer_list == NULL) {
-    if (sigaction(SIGSEGV, &gd.prev_sigsegv_sa, NULL)) {
-      fprintf(stderr, "guard: error replacing sigsegv handler\r\n");
+  if (_guard_state->buffer_list == NULL) {
+    if (sigaction(GD_SIGNAL, &_guard_state->prev_sa, NULL)) {
+      fprintf(stderr, "guard: error replacing previous handler\r\n");
       fprintf(stderr, "%s\r\n", strerror(errno));
-      td_err = guard_sigaction | errno;
-
-      if (!err) {
-        err = td_err;
-      }
-    }
-    if (sigaction(SIGBUS, &gd.prev_sigbus_sa, NULL)) {
-      fprintf(stderr, "guard: error replacing sigbus handler\r\n");
-      fprintf(stderr, "%s\r\n", strerror(errno));
-      td_err = guard_sigaction | errno;
+      td_err = guard_sigaction;
 
       if (!err) {
         err = td_err;
@@ -236,8 +219,8 @@ skip:
 
 clean:
     // Unmark guard page.
-    assert(gd.guard_p != 0);
-    td_err = _protect_page((void *)gd.guard_p, PROT_READ | PROT_WRITE);
+    assert(_guard_state->guard_p != 0);
+    td_err = _protect_page((void *)_guard_state->guard_p, PROT_READ | PROT_WRITE);
     if (td_err) {
       fprintf(stderr, "guard: unmark error\r\n");
       fprintf(stderr, "%s\r\n", strerror(errno));
@@ -245,7 +228,8 @@ clean:
         err = td_err;
       }
     }
-    gd.guard_p = 0;
+    _guard_state->guard_p = 0;
+    // free(_guard_state);
   }
 
 exit:

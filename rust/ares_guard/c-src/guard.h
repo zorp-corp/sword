@@ -9,7 +9,7 @@
  */
 typedef struct GD_buflistnode GD_buflistnode;
 struct GD_buflistnode {
-  jmp_buf               buffer;
+  jmp_buf buffer;
   GD_buflistnode *next;
 };
 
@@ -22,9 +22,9 @@ typedef enum {
   guard_null      = 1,          // null stack or alloc pointer
   guard_signal    = 2,          // invalid signal
   guard_oom       = 3,          // out of memory
-  guard_malloc    = 0x10000000, // malloc error flag
-  guard_mprotect  = 0x20000000, // mprotect error flag
-  guard_sigaction = 0x40000000, // sigaction error flag
+  guard_malloc    = 4, // malloc error flag
+  guard_mprotect  = 5, // mprotect error flag
+  guard_sigaction = 6, // sigaction error flag
 } guard_err;
 
 /**
