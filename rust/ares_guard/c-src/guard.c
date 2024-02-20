@@ -156,7 +156,7 @@ _register_handler(GD_state *gs)
   // sigaddset(&(sa.sa_mask), SIGSEGV);
 
   // Set the new SIGSEGV handler, and save the old SIGSEGV handler (if any)
-  if (sigaction(SIGSEGV, &sa, &(gs->prev_sa))) {
+  if (sigaction(GD_SIGNAL, &sa, &(gs->prev_sa))) {
     fprintf(stderr, "guard: register: sigaction error\r\n");
     fprintf(stderr, "%s\r\n", strerror(errno));
     return guard_sigaction | errno;
@@ -215,7 +215,7 @@ guard(
   // Clean up guard page state
   //
 
-  if (sigaction(SIGSEGV, &(_guard_state->prev_sa), NULL)) {
+  if (sigaction(GD_SIGNAL, &(_guard_state->prev_sa), NULL)) {
     fprintf(stderr, "guard: sigaction error\r\n");
     fprintf(stderr, "%s\r\n", strerror(errno));
     err_c = guard_sigaction | errno;
