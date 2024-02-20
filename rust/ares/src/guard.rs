@@ -41,15 +41,6 @@ impl<'closure> CCallback<'closure> {
     {
         let function: unsafe extern "C" fn(*mut c_void) -> *mut c_void = Self::call_closure::<F>;
 
-        // debug_assert_eq!(
-        //     std::mem::size_of::<&'closure mut F>(),
-        //     std::mem::size_of::<*const c_void>()
-        // );
-        // debug_assert_eq!(
-        //     std::mem::size_of_val(&function),
-        //     std::mem::size_of::<*const c_void>()
-        // );
-
         Self {
             function,
             input: closure as *mut F as *mut c_void,
