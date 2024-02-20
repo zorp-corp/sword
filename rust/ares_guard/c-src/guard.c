@@ -36,7 +36,7 @@ struct _GD_state {
 static GD_state *_guard_state = NULL;
 
 
-static int32_t
+static uint32_t
 _prot_page(void *address, int prot)
 {
   if (mprotect(address, GD_PAGE_SIZE, prot)) {
@@ -48,13 +48,13 @@ _prot_page(void *address, int prot)
   return 0;
 }
 
-static int32_t
+static uint32_t
 _mark_page(void *address)
 {
   return _prot_page(address, PROT_NONE);
 }
 
-static int32_t
+static uint32_t
 _unmark_page(void *address)
 {
   return _prot_page(address, PROT_READ | PROT_WRITE);
@@ -63,7 +63,7 @@ _unmark_page(void *address)
 /**
  * Center the guard page.
  */
-static int32_t
+static uint32_t
 _focus_guard(GD_state *gs) {
   uintptr_t  *guard_pp = &(gs->guard_p);
   uintptr_t   stack_p = *(gs->stack_pp);
@@ -139,7 +139,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
   }
 }
 
-int32_t
+uint32_t
 _register_handler(GD_state *gs)
 {
   struct sigaction sa;
@@ -165,7 +165,7 @@ _register_handler(GD_state *gs)
   return 0;
 }
 
-int32_t
+uint32_t
 guard(
   callback f,
   void *closure,

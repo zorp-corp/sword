@@ -46,7 +46,7 @@ typedef void *(*callback)(void *);
  * error will be written to the `ret` pointer. The caller is then responsible
  * for handling this error and aborting with a `bail:meme`.
  */
-int32_t
+uint32_t
 guard(
   callback f,
   void *closure,
