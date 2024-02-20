@@ -15,6 +15,12 @@
 #define GD_PAGE_MASK              (GD_PAGE_SIZE - 1)
 #define GD_PAGE_ROUND_DOWN(foo)   (foo & (~GD_PAGE_MASK))
 
+#ifdef __APPLE__
+  #define GD_SIGNAL   SIGBUS
+#else
+  #define GD_SIGNAL   SIGSEGV
+#endif
+
 /**
  *  XX: documentation
  */
@@ -108,7 +114,7 @@ _signal_handler(int sig, siginfo_t *si, void *unused)
   uintptr_t sig_addr;
   int32_t   err = 0;
 
-  assert(sig == SIGSEGV);
+  assert(sig == GD_SIGNAL);
 
   sig_addr = (uintptr_t)si->si_addr;
   if (
