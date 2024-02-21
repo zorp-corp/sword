@@ -12,6 +12,7 @@ keywords = ["allocator", "real-time", "debug", "audio"]
 categories = ["development-tools::debugging"]
 
 [features]
+default = []
 warn_debug = []
 warn_release = []
 disable_release = []
