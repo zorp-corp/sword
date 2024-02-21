@@ -5,26 +5,15 @@
 #include <stdint.h>
 
 /**
- * Linked list stack of jump buffers.
- */
-typedef struct GD_buflistnode GD_buflistnode;
-struct GD_buflistnode {
-  jmp_buf               buffer;
-  GD_buflistnode *next;
-};
-
-/**
- * Return codes and flags.
- *
- * The flags are bitwise added to the errno of their respective errors.
+ * Error codes.
  */
 typedef enum {
-  guard_null      = 1,          // null stack or alloc pointer
-  guard_signal    = 2,          // invalid signal
-  guard_oom       = 3,          // out of memory
-  guard_malloc    = 0x10000000, // malloc error flag
-  guard_mprotect  = 0x20000000, // mprotect error flag
-  guard_sigaction = 0x40000000, // sigaction error flag
+  guard_null,       // null stack or alloc pointer
+  guard_signal,     // invalid signal
+  guard_oom,        // out of memory
+  guard_malloc,     // malloc error
+  guard_mprotect,   // mprotect error
+  guard_sigaction,  // sigaction error
 } guard_err;
 
 /**
@@ -49,13 +38,14 @@ typedef enum {
  *   function may mutate.
  * - The callback function may be interrupted in the case of memory exhaustion
  *   or other `guard_err` error (failure to `mprotect`, `malloc`, etc.).
- * - `SIGSEGV` signals are expected to be raised only on guard page accesses.
+ * - `SIGSEGV` (`SIGBUS` on macOS) signals are expected to be raised only on
+ *    guard page accesses.
  *
  * Invariants:
  * - A single guard page is installed and maintained in the approximate center
  *   until `crate::guard::call_with_guard` returns.
  * - A return value is only written to `*ret` on successful callback execution.
- * - A `guard_err` is returned, excepting panics or negative assertions.
+ * - A `guard_err` is returned.
  *
  * Enhancements:
  * - Use only a single, static jump buffer variable instead of a linked list.
@@ -69,9 +59,9 @@ typedef enum {
  * @param a_pp A pointer to the allocation pointer location.
  * @param ret A pointer to a location where the callback's result can be stored.
  * 
- * @return A `guard_err` error code.
+ * @return 0 on callback success; otherwise `guard_err` error code.
  */
-guard_err
+uint32_t
 guard(
   void *(*f)(void *),
   void *closure,
