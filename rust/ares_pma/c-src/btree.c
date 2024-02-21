@@ -76,6 +76,7 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 /* the opposite of P2BYTES */
 #define B2PAGES(x) ((size_t)(x) >> BT_PAGEBITS)
 
+
 #define __packed        __attribute__((__packed__))
 #define UNUSED(x) ((void)(x))
 
@@ -94,6 +95,7 @@ STATIC_ASSERT(0, "debugger break instruction unimplemented");
 /* given a pointer p returns the low page-aligned addr */
 #define LO_ALIGN_PAGE(p) ((BT_page *)(((uintptr_t)p) & ~(BT_PAGESIZE - 1)))
 
+
 #define BT_MAPADDR  ((BYTE *) S(0x1000,0000,0000))
 
 static inline vaof_t
@@ -339,6 +341,7 @@ struct BT_state {
 
 /*
 
+
 //// ===========================================================================
 ////                            btree internal routines
 
@@ -1567,7 +1570,6 @@ _flist_grow(BT_state *state, size_t pages)
 /* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
    flist */
 {
-  exit(1);
   /* grow the backing file by at least PMA_GROW_SIZE_p */
   pages = MAX(pages, PMA_GROW_SIZE_p);
   off_t bytes = P2BYTES(pages);
