@@ -147,15 +147,8 @@ _register_handler(GD_state *gd)
 {
   struct sigaction sa;
 
-  // Flag to use sa_sigaction instead of sa_handler
   sa.sa_flags = SA_SIGINFO;
-// Must use sa_sigaction; sa-handler takes signal handler as its only argument
   sa.sa_sigaction = _signal_handler;
-  // XX:  By default the signal that triggered the signal handler is automatically added to the
-  //      mask while it's being handled, so unless we plan to add more signals to this then I don't
-  //      think it's necessary.
-  // sigemptyset(&sa.sa_mask);
-  // sigaddset(&(sa.sa_mask), GD_SIGNAL);
 
   if (sigaction(GD_SIGNAL, &sa, &(gd->prev_sa))) {
     fprintf(stderr, "guard: register: sigaction error\r\n");
@@ -193,7 +186,7 @@ guard(
     // Register guard page signal handler.
     if ((err = _register_handler(&_gd_state))) {
       fprintf(stderr, "guard: registration error\r\n");
-      goto clean;
+      goto tidy;
     }
   } else {
     assert(_gd_state.buffer_list != NULL);
@@ -231,7 +224,7 @@ skip:
       }
     }
 
-clean:
+tidy:
     // Unmark guard page.
     assert(_gd_state.guard_p != 0);
     td_err = _protect_page((void *)_gd_state.guard_p, PROT_READ | PROT_WRITE);
