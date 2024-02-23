@@ -93,41 +93,23 @@
 ::  calls) first
 ++  work
   ^-  (list bell)
-  =/  new  noob
-  =/  wurk  ~(tap in new)
-  =|  nose=(set bell)
-  =|  kids=(jug bell bell)
+  =/  wurk  ~(tap in noob) :: arms in moan not in hill
+  =|  toil=(list bell) :: accumulator for sorted list
+  =|  done=(set bell) :: sorted list but as set for fast membership
+  =|  back=(list bell) :: arms that need to be re-checked
   |-  ^-  (list bell)
   ?^  wurk
     =/  hues  (puck i.wurk)
     ?<  ?=(~ hues)
-    =/  cads
-      %-  ~(dif in (~(gas in *(set bell)) ~(val by ices.norm.u.hues)))
-      loop.norm.u.hues
-    =.  kids
-      ?:  (~(has by kids) i.wurk)
-        (~(jab by kids) i.wurk |=(a=(set bell bell) (~(uni in a) cads)))
-      (~(put by kids) i.wurk cads)
-    =.  nose  (~(uni by nose) cads)
-    $(wurk t.wurk)
-  =/  queu  ~(tap in (~(dif in new) nose))
-  =|  back=(list bell)
-  =|  done=(set bell)
-  =|  toil=(list bell)
-  |-  ^-  (list bell)
-  ?^  queu
-    ?:  (~(has in done) i.queu)  $(queu t.queu)
-    =/  punk  (puck i.queu)
-    ?.  ?=(^ punk)  ~|  punk+i.queu  !!
-    %=  $
-      queu  t.queu
-      toil  [i.queu toil]
-      done  (~(put in done) i.queu)
-      back  (weld ~(tap in (~(get ju kids) i.queu)) back)
-    ==
+    =/  kids  (~(gas in *(set bell)) ~(val by ices.norm.u.hues))
+    =.  kids  (~(dif in kids) loop.norm.u.hues)
+    =.  kids  (~(dif in kids) done)
+    ?~  kids  $(toil [i.wurk toil], wurk t.wurk, done (~(put in done) i.wurk))
+    $(back [i.wurk back], wurk t.wurk)
   ?^  back
-    $(queu (flop back), back ~)
-  toil
+    $(wurk (flop back), back ~)
+  ?>  =(~ (~(dif in noob) done))
+  (flop toil)
 ::
 ::    internal state
 ::

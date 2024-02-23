@@ -220,6 +220,7 @@ impl Context {
         let stack = &mut self.nock_context.stack;
         stack.preserve(&mut self.nock_context.warm);
         stack.preserve(&mut self.nock_context.hot);
+        stack.preserve(&mut self.nock_context.cg_context);
         stack.flip_top_frame(0);
     }
 
