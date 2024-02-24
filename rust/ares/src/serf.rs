@@ -1,4 +1,4 @@
-use crate::codegen::{cg_interpret, types::CGContext};
+use crate::codegen::{cg_interpret, types::CGContext, Hill};
 use crate::hamt::Hamt;
 use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error};
@@ -42,9 +42,13 @@ impl Persist for Snapshot {
     unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
         let mut arvo = (*(self.0)).arvo;
         let mut cold = (*(self.0)).cold;
+        let mut line = (*(self.0)).line;
+        let mut hill = (*(self.0)).hill;
         let arvo_space_needed = arvo.space_needed(stack);
         let cold_space_needed = cold.space_needed(stack);
-        (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed
+        let line_space_needed = line.space_needed(stack);
+        let hill_space_needed = hill.space_needed(stack);
+        size_of::<SnapshotMem>() + arvo_space_needed + cold_space_needed + line_space_needed + hill_space_needed
     }
 
     unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
@@ -60,6 +64,14 @@ impl Persist for Snapshot {
         let mut cold = (*snapshot_buffer).cold;
         cold.copy_to_buffer(stack, buffer);
         (*snapshot_buffer).cold = cold;
+
+        let mut line = (*snapshot_buffer).line;
+        line.copy_to_buffer(stack, buffer);
+        (*snapshot_buffer).line = line;
+
+        let mut hill = (*snapshot_buffer).hill;
+        hill.copy_to_buffer(stack, buffer);
+        (*snapshot_buffer).hill = hill;
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
@@ -78,7 +90,11 @@ struct SnapshotMem {
     pub event_num: u64,
     pub arvo: Noun,
     pub cold: Cold,
+    pub line: Noun,
+    pub hill: Hill
 }
+
+static_assertions::const_assert_eq!(0, size_of::<SnapshotMem>() % size_of::<u64>());
 
 const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
 
@@ -122,6 +138,8 @@ impl Context {
                 (*snapshot_mem_ptr).event_num = self.event_num;
                 (*snapshot_mem_ptr).arvo = self.arvo;
                 (*snapshot_mem_ptr).cold = self.nock_context.cold;
+                (*snapshot_mem_ptr).line = self.nock_context.cg_context.line.expect("Line core should be set up before snapshot");
+                (*snapshot_mem_ptr).hill = self.nock_context.cg_context.hill;
                 snapshot_mem_ptr
             });
 
@@ -131,6 +149,8 @@ impl Context {
             self.arvo = (*snapshot.0).arvo;
             self.event_num = (*snapshot.0).event_num;
             self.nock_context.cold = (*snapshot.0).cold;
+            self.nock_context.cg_context.line = Some((*snapshot.0).line);
+            self.nock_context.cg_context.hill = (*snapshot.0).hill;
 
             handle
         };
@@ -220,7 +240,7 @@ impl Context {
         let stack = &mut self.nock_context.stack;
         stack.preserve(&mut self.nock_context.warm);
         stack.preserve(&mut self.nock_context.hot);
-        stack.preserve(&mut self.nock_context.cg_context);
+        stack.preserve(&mut self.nock_context.cg_context.hot_hamt);
         stack.flip_top_frame(0);
     }
 

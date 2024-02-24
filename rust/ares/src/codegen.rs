@@ -14,6 +14,7 @@ use crate::noun::{Noun, D, NO, T, YES};
 use crate::trace::TraceStack;
 use crate::codegen::types::PileMem;
 use assert_no_alloc::permit_alloc;
+use crate::persist::Persist;
 use types::{ActualError, Frame, Pile, JetEntry};
 
 use self::util::{comp, do_call, do_goto, do_return, do_tail_call, part_peek, peek, poke, do_rack};
@@ -34,6 +35,24 @@ impl Preserve for Hill {
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         self.0.assert_in_stack(stack);
+    }
+}
+
+impl Persist for Hill {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+        self.0.space_needed(stack)
+    }
+
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+        self.0.copy_to_buffer(stack, buffer)
+    }
+
+    unsafe fn handle_to_u64(&self) -> u64 {
+        self.0.handle_to_u64()
+    }
+
+    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+        Hill(Hamt::<Pile>::handle_from_u64(meta_handle))
     }
 }
 
@@ -945,6 +964,7 @@ fn poison_get(frame: *const Frame, local: usize) -> bool {
 
 pub mod types {
     use std::ptr::copy_nonoverlapping;
+    use std::mem::size_of;
 
     use crate::{
         hamt::Hamt,
@@ -955,6 +975,7 @@ pub mod types {
         mem::{NockStack, Preserve},
         noun::{Noun, T},
         trace::TraceStack,
+        persist::Persist,
     };
 
     use super::Hill;
@@ -1033,6 +1054,8 @@ pub mod types {
     }
 
     #[derive(Copy, Clone)]
+    //#[repr(packed)]
+    //#[repr(C)]
     pub struct PileMem {
         pub long: Noun,
         pub bait: Noun,
@@ -1042,6 +1065,8 @@ pub mod types {
         pub will: Hamt<Noun>,
         pub sans: usize,
     }
+
+    const_assert_eq!(0, size_of::<PileMem>() % size_of::<u64>());
 
     #[derive(Copy, Clone)]
     pub struct Pile(pub *mut PileMem);
@@ -1066,6 +1091,43 @@ pub mod types {
             (*(self.0)).walt.assert_in_stack(stack);
             (*(self.0)).wish.assert_in_stack(stack);
             (*(self.0)).will.assert_in_stack(stack);
+        }
+    }
+
+    impl Persist for Pile {
+        unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+            let long_space_needed = (*(self.0)).long.space_needed(stack);
+            let bait_space_needed = (*(self.0)).bait.space_needed(stack);
+            let walt_space_needed = (*(self.0)).walt.space_needed(stack);
+            let wish_space_needed = (*(self.0)).wish.space_needed(stack);
+            let will_space_needed = (*(self.0)).will.space_needed(stack);
+            size_of::<PileMem>() // see assert of size_of above
+              + long_space_needed
+              + bait_space_needed
+              + walt_space_needed
+              + wish_space_needed
+              + will_space_needed
+        }
+
+        unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+            let pile_buffer: *mut PileMem = *buffer as *mut PileMem;
+            std::ptr::copy_nonoverlapping(self.0, pile_buffer, 1);
+            *self = Pile(pile_buffer);
+            *buffer = pile_buffer.add(1) as *mut u8;
+
+            (*pile_buffer).long.copy_to_buffer(stack, buffer);
+            (*pile_buffer).bait.copy_to_buffer(stack, buffer);
+            (*pile_buffer).walt.copy_to_buffer(stack, buffer);
+            (*pile_buffer).wish.copy_to_buffer(stack, buffer);
+            (*pile_buffer).will.copy_to_buffer(stack, buffer);
+        }
+
+        unsafe fn handle_to_u64(&self) -> u64 {
+            self.0 as u64
+        }
+
+        unsafe fn handle_from_u64(meta_handle: u64) -> Self {
+            Pile(meta_handle as *mut PileMem)
         }
     }
 
