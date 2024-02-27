@@ -93,16 +93,19 @@
 ::  calls) first
 ++  work
   ^-  (list bell)
-  =/  wurk  ~(tap in noob) :: arms in moan not in hill
+  =/  news  noob
+  =/  wurk  ~(tap in news) :: arms in moan not in hill
   =|  toil=(list bell) :: accumulator for sorted list
   =|  done=(set bell) :: sorted list but as set for fast membership
   =|  back=(list bell) :: arms that need to be re-checked
   |-  ^-  (list bell)
   ?^  wurk
+    ~&  [%wurk-loop (mug i.wurk)]
     =/  hues  (puck i.wurk)
     ?<  ?=(~ hues)
     =/  kids  (~(gas in *(set bell)) ~(val by ices.norm.u.hues))
     =.  kids  (~(dif in kids) loop.norm.u.hues)
+    =.  kids  (~(int in kids) news)
     =.  kids  (~(dif in kids) done)
     ?~  kids  $(toil [i.wurk toil], wurk t.wurk, done (~(put in done) i.wurk))
     $(back [i.wurk back], wurk t.wurk)
