@@ -733,6 +733,19 @@ _bt_dirtychild(BT_page *parent, size_t child_idx)
 }
 
 static int
+_bt_dirtydata(BT_page *leaf, size_t child_idx)
+/* effectively the same as _bt_dirtychild (setting the dirty bit at child_idx in
+   the given node), with the exception that we don't assert the dirty bit isn't
+   set. (Data may be written to the same fileoffset multiple times (a
+   malloc-free-malloc cycle) */
+{
+  assert(child_idx < 2048);
+  uint8_t *flag = &leaf->head.dirty[child_idx >> 3];
+  *flag |= 1 << (child_idx & 0x7);
+  return BT_SUCC;
+}
+
+static int
 _bt_cleanchild(BT_page *parent, size_t child_idx)
 {
   assert(_bt_ischilddirty(parent, child_idx));
@@ -1100,6 +1113,14 @@ _flist_insert(BT_flistnode **dst, pgno_t lo, pgno_t hi)
     *dst = new;
     return;
   }
+
+  /* otherwise, insert discontinuous node */
+  BT_flistnode *new = calloc(1, sizeof *new);
+  new->lo = lo;
+  new->hi = hi;
+  new->next = *dst;
+  *dst = new;
+  return;
 }
 
 static void
@@ -1417,6 +1438,8 @@ _bt_insert2(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo,
 
   /* nullcond: node is a leaf */
   if (meta->depth == depth) {
+    /* dirty the data range */
+    _bt_dirtydata(node, childidx);
     /* guaranteed non-full and dirty by n-1 recursive call, so just insert */
     return _bt_insertdat(lo, hi, fo, node, childidx);
   }
@@ -2731,8 +2754,6 @@ bt_free(BT_state *state, void *lo, void *hi)
     abort();
   }
 
-  /* insert null into btree */
-  _bt_insert(state, looff, hioff, 0);
   /* insert freed range into mlist */
   _mlist_insert(state, lo, hi);
   /* insert freed range into flist */
@@ -2742,7 +2763,11 @@ bt_free(BT_state *state, void *lo, void *hi)
   BT_kv kv = leaf->datk[childidx];
   vaof_t offset = looff - kv.va;
   lopg = kv.fo + offset;
-  hipg = lopg + (looff - hioff);
+  hipg = lopg + (hioff - looff);
+
+  /* insert null into btree */
+  _bt_insert(state, looff, hioff, 0);
+
   if (isdirty) {
     _flist_insert(&state->flist, lopg, hipg);
   }
