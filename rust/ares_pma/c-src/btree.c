@@ -1563,7 +1563,8 @@ _bt_insert2(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo,
   /* do we need to CoW the child node? */
   if (!_bt_ischilddirty(node, childidx)) {
     pgno_t pgno;
-    _node_cow(state, node, &pgno);
+    BT_page *child = _node_get(state, node->datk[childidx].fo);
+    _node_cow(state, child, &pgno);
     node->datk[childidx].fo = pgno;
     _bt_dirtychild(node, childidx);
   }
