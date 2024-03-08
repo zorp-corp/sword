@@ -26,8 +26,8 @@ sha2 = { version = "0.10.8", default-features = false, optional = true }
 
 # test_vs_urcrypt
 # XX: can be removed once stable
-rand = { version = "0.8.4", default-features = false, features = ["getrandom"], optional = true }
-urcrypt-sys = { version = "0.1.1", optional = true }
+# rand = { version = "0.8.4", default-features = false, features = ["getrandom"], optional = true }
+# urcrypt-sys = { version = "0.1.1", optional = true }
 
 [features]
 default = ["aes_siv", "ed25519", "sha"]
@@ -35,4 +35,4 @@ aes_siv = ["aes", "aes-siv"]
 ed25519 = ["curve25519-dalek", "ed25519-dalek", "x25519-dalek"]
 sha = ["sha1", "sha2"]
 # XX: can be removed once stable
-test_vs_urcrypt = ["urcrypt-sys", "rand"]
+# test_vs_urcrypt = ["urcrypt-sys", "rand"]
