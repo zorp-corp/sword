@@ -2,6 +2,7 @@
 use ares_macros::tas;
 use either::Either::{Left, Right};
 use std::mem::size_of;
+use std::time::Instant;
 
 use crate::hamt::Hamt;
 use crate::jets::JetErr;
@@ -15,7 +16,8 @@ use crate::trace::TraceStack;
 use crate::codegen::types::PileMem;
 use assert_no_alloc::permit_alloc;
 use crate::persist::Persist;
-use types::{ActualError, Frame, Pile, JetEntry};
+use types::{ActualError, Frame, Pile, JetEntry, Timer, TimerMem};
+use crate::flog;
 
 use self::util::{comp, do_call, do_goto, do_return, do_tail_call, part_peek, peek, poke, do_rack};
 
@@ -183,6 +185,7 @@ unsafe fn new_frame(context: &mut Context, pile: Pile, tail: bool) {
             *frame = Frame {
                 mean: D(0),
                 traz: std::ptr::null::<TraceStack>() as *mut *const TraceStack,
+                time: Timer(std::ptr::null::<TimerMem>()),
                 slow: D(0),
 
                 pile: pile,
@@ -284,10 +287,6 @@ fn cg_interpret_inner(
             let pole = slot(body, 2).unwrap();
             body = slot(body, 3).unwrap();
             let pole_h = slot(pole, 2).unwrap().as_direct().unwrap().data().to_le_bytes();
-            permit_alloc(|| {
-                let ins = std::str::from_utf8(&pole_h[..]).unwrap();
-                eprintln!("x: {}", ins);
-            });
             match slot(pole, 2).unwrap().as_direct().unwrap().data() {
                 tas!(b"imm") => unsafe {
                     let local = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
@@ -445,13 +444,21 @@ fn cg_interpret_inner(
 
                     context.cache = context.cache.insert(&mut context.stack, &mut key, r_value);
                 }
-                tas!(b"tim") => {
-                    // XX push a timer onto the stack and start it
-                    todo!("tim")
+                tas!(b"tim") => unsafe {
+                    let timer_mem = context.stack.struct_alloc::<TimerMem>(1);
+                    (*timer_mem).prev = (*frame_ptr(context)).time;
+                    (*timer_mem).start = Instant::now();
+                    (*frame_ptr(context)).time = Timer(timer_mem);
                 }
-                tas!(b"tom") => {
-                    // XX pop a timer from the stack, stop it, and print elapsed
-                    todo!("tom")
+                tas!(b"tom") => unsafe {
+                    let timer_mem = (*frame_ptr(context)).time.0;
+                    if timer_mem.is_null() {
+                        panic!("Tried to pop an empty timer stack");
+                    }
+                    let time = (*timer_mem).start.elapsed();
+                    (*frame_ptr(context)).time = (*timer_mem).prev;
+                    
+                    flog!(context, "bout {:.9}", time.as_secs_f64());
                 }
                 tas!(b"mem") => {
                     // XX print memory usage
@@ -492,10 +499,6 @@ fn cg_interpret_inner(
             }
         } else {
             let bend_h = slot(bend, 2).unwrap().as_direct().unwrap().data().to_le_bytes();
-            permit_alloc(|| {
-                let ins = std::str::from_utf8(&bend_h[..]).unwrap();
-                eprintln!("x: {}", ins);
-            });
             match slot(bend, 2).unwrap().as_direct().unwrap().data() {
                 tas!(b"clq") => unsafe {
                     let s = slot(bend, 6).unwrap().as_direct().unwrap().data() as usize;
@@ -965,6 +968,7 @@ fn poison_get(frame: *const Frame, local: usize) -> bool {
 pub mod types {
     use std::ptr::copy_nonoverlapping;
     use std::mem::size_of;
+    use std::time::Instant;
 
     use crate::{
         hamt::Hamt,
@@ -1044,6 +1048,7 @@ pub mod types {
     pub struct Frame {
         pub mean: Noun,
         pub traz: *mut *const TraceStack,
+        pub time: Timer,
         pub slow: Noun,
         pub pile: Pile,
         pub dest: usize,
@@ -1051,6 +1056,15 @@ pub mod types {
         pub pois_sz: usize, // length of poison vector
                             // poison: Vec<u64>,     // variable size
                             // registers: Vec<Noun>, // variable size
+    }
+
+    #[derive(Copy, Clone)]
+    pub struct Timer(pub *const TimerMem);
+
+    #[derive(Copy, Clone)]
+    pub struct TimerMem {
+        pub start: Instant,
+        pub prev: Timer
     }
 
     #[derive(Copy, Clone)]
@@ -1470,7 +1484,6 @@ mod util {
             if context.stack.get_frame_pointer() == base_frame {
                 return Some(ret_value);
             }
-            permit_alloc(|| { eprintln!("Return to register {}", (*frame).dest) });
             register_set(frame, (*frame).dest, ret_value);
 
             let will = (*pile_mem_ptr(context)).will;
