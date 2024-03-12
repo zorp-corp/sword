@@ -564,7 +564,8 @@ static int
 _node_cow(BT_state *state, BT_page *node, pgno_t *pgno)
 {
   BT_page *ret = _bt_nalloc(state); /* ;;: todo: assert node has no dirty entries */
-  memcpy(ret->datk, node->datk, sizeof node->datk[0] * BT_DAT_MAXKEYS);
+  memcpy(ret, node, sizeof *node);
+  ZERO(&ret->head.dirty[0], 256);
   *pgno = _fo_get(state, ret);
   return BT_SUCC;
 }
