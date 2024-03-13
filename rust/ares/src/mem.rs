@@ -137,6 +137,10 @@ impl NockStack {
         };
     }
 
+    pub fn copying(&self) -> bool {
+        self.pc
+    }
+
     /** Current frame pointer of this NockStack */
     pub fn get_frame_pointer(&self) -> *const u64 {
         self.frame_pointer
