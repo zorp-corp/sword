@@ -122,7 +122,7 @@ off2addr(vaof_t off)
 #define BT_NUMMETAS 2                     /* 2 metapages */
 #define BT_META_SECTION_WIDTH (BT_NUMMETAS * BT_PAGESIZE)
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
-#define PMA_GROW_SIZE_p (10000000)
+#define PMA_GROW_SIZE_p (1024)
 #define PMA_GROW_SIZE_b (BT_PAGESIZE * PMA_GROW_SIZE_p)
 
 #define BT_NOPAGE 0
