@@ -3,8 +3,8 @@ extern crate num_derive;
 extern crate lazy_static;
 #[macro_use]
 extern crate static_assertions;
-pub mod guard;
 pub mod flog;
+pub mod guard;
 pub mod hamt;
 pub mod interpreter;
 pub mod jets;
