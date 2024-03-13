@@ -10,4 +10,9 @@
 #undef BT_DAT_MAXKEYS
 #define BT_DAT_MAXKEYS 10
 
+/* maxdepth expanded because when BT_DAT_MAXKEYS is shrunk, the depth of the
+   btree can grow higher than usual */
+#undef BT_MAXDEPTH
+#define BT_MAXDEPTH 10
+
 #endif

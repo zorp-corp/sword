@@ -367,7 +367,10 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
 static int _bt_flip_meta(BT_state *);
 
 
-#define BT_MAXDEPTH 4           /* ;;: todo derive it */
+/* TODO: derive BT_MAXDEPTH */
+#ifndef BT_MAXDEPTH
+#define BT_MAXDEPTH 4
+#endif
 typedef struct BT_findpath BT_findpath;
 struct BT_findpath {
   BT_page *path[BT_MAXDEPTH];
