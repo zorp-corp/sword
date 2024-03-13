@@ -1175,6 +1175,7 @@ _pending_nlist_merge(BT_state *state)
     src_head = src_head->next;
     free(prev);
   }
+  state->pending_nlist = 0;
 }
 
 static void
