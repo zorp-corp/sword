@@ -286,15 +286,15 @@ static_assert(sizeof(BT_meta) <= BT_DAT_MAXBYTES);
 #define BLK_BASE_LEN5_b ((size_t)BLK_BASE_LEN4_b * 4)
 #define BLK_BASE_LEN6_b ((size_t)BLK_BASE_LEN5_b * 4)
 #define BLK_BASE_LEN7_b ((size_t)BLK_BASE_LEN6_b * 4)
-#define BLK_BASE_LEN_TOTAL (                            \
-                             BT_META_SECTION_WIDTH +    \
-                             BLK_BASE_LEN0_b +            \
-                             BLK_BASE_LEN1_b +            \
-                             BLK_BASE_LEN2_b +            \
-                             BLK_BASE_LEN3_b +            \
-                             BLK_BASE_LEN4_b +            \
-                             BLK_BASE_LEN5_b +            \
-                             BLK_BASE_LEN6_b +            \
+#define BLK_BASE_LEN_TOTAL (                         \
+                             BT_META_SECTION_WIDTH + \
+                             BLK_BASE_LEN0_b +       \
+                             BLK_BASE_LEN1_b +       \
+                             BLK_BASE_LEN2_b +       \
+                             BLK_BASE_LEN3_b +       \
+                             BLK_BASE_LEN4_b +       \
+                             BLK_BASE_LEN5_b +       \
+                             BLK_BASE_LEN6_b +       \
                              BLK_BASE_LEN7_b)
 
 static const size_t BLK_BASE_LENS_b[BT_NUMPARTS] = {
@@ -382,9 +382,8 @@ struct BT_findpath {
 static BT_page *
 _node_get(BT_state *state, pgno_t pgno)
 {
-  /* TODO: wrap in DEBUG macro a looping assert to confirm the given pgno is
-     contained within a node partition */
   assert(pgno >= BT_NUMMETAS);
+  assert(pgno < B2PAGES(BLK_BASE_LEN_TOTAL));
   return FO2PA(state->map, pgno);
 }
 
