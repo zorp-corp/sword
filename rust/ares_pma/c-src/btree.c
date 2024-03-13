@@ -353,13 +353,13 @@ struct BT_state {
   BT_nlistnode *pending_nlist;
 };
 
-/*
 
 
 //// ===========================================================================
 ////                            btree internal routines
 
 static void _bt_printnode(BT_page *node) __attribute__((unused)); /* ;;: tmp */
+
 static int
 _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
               BT_page *parent, size_t childidx); /* ;;: tmp */
