@@ -1185,6 +1185,11 @@ fn exit(
     unsafe {
         context.restore(snapshot);
 
+        if context.stack.copying() {
+            assert!(context.stack.get_frame_pointer() != virtual_frame);
+            context.stack.frame_pop();
+        }
+
         let stack = &mut context.stack;
         let mut preserve = match error {
             Error::ScryBlocked(path) => path,
@@ -1192,6 +1197,7 @@ fn exit(
                 // Return $tang of traces
                 let h = *(stack.local_noun_pointer(0));
                 // XX: Small chance of clobbering something important after OOM?
+                // XX: what if we OOM while making a stack trace
                 T(stack, &[h, t])
             }
         };
