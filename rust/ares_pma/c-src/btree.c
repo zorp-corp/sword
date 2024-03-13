@@ -1134,6 +1134,7 @@ _pending_flist_merge(BT_state *state)
     src_head = src_head->next;
     free(prev);
   }
+  state->pending_flist = 0;
 }
 
 
