@@ -341,7 +341,7 @@ struct BT_state {
   int           data_fd;
   char         *path;
   void         *fixaddr;
-  /* ;;: TODO: refactor ->map to be a (BT_page *) */
+  /* TODO: refactor ->map to be a (BT_page *) */
   BYTE         *map;
   BT_meta      *meta_pages[2];  /* double buffered */
   pgno_t        file_size_p;    /* the size of the pma file in pages */
@@ -379,62 +379,9 @@ struct BT_findpath {
 static BT_page *
 _node_get(BT_state *state, pgno_t pgno)
 {
-  /* TODO: eventually, once we can store more than 2M of nodes, this will need
-     to reference the meta page's blk_base array to determine where a node is
-     mapped. i.e:
-
-  - receive pgno
-  - find first pgno in blk_base that exceeds pgno : i
-  - sector that contains node is i-1
-  - appropriately offset into i-1th fixed size partition: 2M, 8M, 16M, ...
-
-  */
-
-  /* for now, this works because the 2M sector is at the beginning of both the
-     memory arena and pma file
-  */
+  /* TODO: wrap in DEBUG macro a looping assert to confirm the given pgno is
+     contained within a node partition */
   assert(pgno >= BT_NUMMETAS);
-
-#if 0
-  BT_meta *meta = state->meta_pages[state->which];
-
-  /* find the partition that contains pgno */
-  size_t partition_idx = 0;
-  for (;; partition_idx++) {
-    assert(partition_idx < BT_NUMPARTS);
-    pgno_t partition_beg = meta->blk_base[partition_idx];
-    pgno_t partition_end = partition_beg + B2PAGES(BLK_BASE_LENS_b[partition_idx]);
-    if (partition_end > pgno) {
-      assert(partition_beg <= pgno);
-      break;
-    }
-  }
-
-  /* ;;: hmm. is there something wrong here? No, I don't think so.
-
-     On resume (reading a persistent file):
-
-     1) mmap the node partitions.
-       - (read the offset stored in meta->blk_base)
-       - mmap the offset + corresponding length of the pma file next to the end
-         of the last partition in the memory arena. (in memory, nodes are all
-         stored at the lowest addresses)
-
-    calls to _node_get are given a pgno in the persistent file:
-
-    1) find the partition that contains this pgno
-
-    2) Do math on the pgno + found partition to find the memory address it's
-    mapped to and return that as a BT_page *
-
-
-    *** We do, however, need to be sure we aren't cheating anywhere and using a
-    *** page offset into the memory arena and calling _node_get on it. That
-    *** would technically work for the first partition. It will NOT work for any
-    *** other partition. Not sure if we are doing that anywhere currently.
-
- */
-#endif
   return FO2PA(state->map, pgno);
 }
 
@@ -442,7 +389,6 @@ _node_get(BT_state *state, pgno_t pgno)
 static pgno_t
 _fo_get(BT_state *state, BT_page *node)
 {
-  /* ;;: This may need to be fixed to accommodate partition striping */
   uintptr_t vaddr = (uintptr_t)node;
   uintptr_t start = (uintptr_t)state->map;
   return BY2FO(vaddr - start);
@@ -535,8 +481,6 @@ _nlist_grow(BT_state *state)
   }
 
   pgno_t memoff_p = B2PAGES(targ - BT_MAPADDR);
-  /* ;;: tmp assert. debugging. */
-  assert(&((BT_page *)state->map)[memoff_p] == (BT_page *)targ);
 
   /* add the partition to the nlist */
   _nlist_insertn(state,
@@ -659,7 +603,7 @@ _bt_nalloc(BT_state *state)
   /* make node writable */
   if (mprotect(ret, sizeof(BT_page), BT_PROT_DIRTY) != 0) {
     DPRINTF("mprotect of node: %p failed with %s", ret, strerror(errno));
-    abort(); /* ;;: https://stackoverflow.com/questions/6862825/getting-cannot-allocate-memory-error */
+    abort();
   }
 
   return ret;
@@ -1078,7 +1022,6 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
       continue;
     }
 
-    /* ;;: i think this chunk can replace the below "found end of list" chunk */
     /* otherwise, insert discontinuous node */
     BT_mlistnode *new = calloc(1, sizeof *new);
     new->lo = lob;
@@ -1088,6 +1031,8 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
     return;
   }
 
+  /* TODO: confirm whether this is redundant given discontinuous node insertion
+     above */
   /* found end of list */
   BT_mlistnode *new = calloc(1, sizeof *new);
   new->lo = lob;
@@ -1101,7 +1046,7 @@ _nlist_insert2(BT_state *state, BT_nlistnode **dst, BT_page *lo, BT_page *hi)
 {
   BT_nlistnode **prev_dst = 0;
 
-  while(*dst) {                 /* ;;: this is a problem */
+  while(*dst) {
     if (hi == (*dst)->lo) {
       (*dst)->lo = lo;
       /* check if we can coalesce with left neighbor */
@@ -1137,9 +1082,19 @@ _nlist_insert2(BT_state *state, BT_nlistnode **dst, BT_page *lo, BT_page *hi)
       dst = &(*dst)->next;
       continue;
     }
+
+    /* otherwise, insert discontinuous node */
+    BT_nlistnode *new = calloc(1, sizeof *new);
+    new->lo = lo;
+    new->hi = hi;
+    new->next = *dst;
+    *dst = new;
+    return;
   }
 
-  /* otherwise, insert discontinuous node */
+  /* TODO: confirm whether this is redundant given discontinuous node insertion
+     above */
+  /* found end of list */
   BT_nlistnode *new = calloc(1, sizeof *new);
   new->lo = lo;
   new->hi = hi;
@@ -2546,7 +2501,7 @@ _bt_state_load(BT_state *state)
   }
 
   /* map the node segment */
-  _bt_state_map_node_segment(state); /* ;;: this should follow a call to  _bt_state_meta_new. hmm... but that leads to a bad dependency graph. We may need to separately initialize the first partition and only call map_node_segment on restore. */
+  _bt_state_map_node_segment(state);
 
   /* new db, so populate metadata */
   if (new) {
@@ -3326,37 +3281,3 @@ _bt_printnode(BT_page *node)
     fprintf(stderr, "[%5zu] %10x %10x\n", i, node->datk[i].va, node->datk[i].fo);
   }
 }
-
-
-/*
-
-  re: partition striping, I find the following somewhat confusing.
-
-  A pgno for a node could be either:
-
-  1) Its actual pgno in the persistent file
-
-  2) merely a page offset into the memory arena
-
-  The pgno that a parent node stores for a child need not be (1) if the memory
-  maps are properly restored from the blk_base array in the metapage. Right?
-
-  So, on startup:
-
-  before traversing nodes, restore the memory map by mapping each partition
-  successively after the other. Do this for all non-zero page offsets in
-  blk_base.
-
-  If this is done, then _node_get and _fo_get can remain largely unchanged
-
-  Is there any reason this won't work?
-
----------------------------
-
-  If we have to do (2) for some reason. Then _node_get and _fo_get /will/ have
-  to read the blk_base array and appropriately translate using the offsets and
-  partition sizes.
-
-  is _bt_data_cow a problem?
-
-*/
