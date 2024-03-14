@@ -1661,11 +1661,9 @@ _mlist_new(BT_state *state)
   return BT_SUCC;
 }
 
-/* ;;: todo: we could remove the hifreepg param if we can derive the highest
-     page (alloced or not) in the persistent file. */
 static void
 _flist_grow(BT_state *state, size_t pages)
-/* grows the backing file by maximally `pages' or minimally PMA_GROW_SIZE_p and
+/* grows the backing file by the maximum of `pages' or PMA_GROW_SIZE_p and
    appends this freespace to the flist */
 {
   /* grow the backing file by at least PMA_GROW_SIZE_p */
