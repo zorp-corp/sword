@@ -692,8 +692,8 @@ impl Slots for Cell {}
 impl private::RawSlots for Cell {
     fn raw_slot(&self, axis: &BitSlice<u64, Lsb0>) -> Result<Noun> {
         let mut noun: Noun = self.as_noun();
-        // Panic because all of the logic to guard against this is in Noun::RawSlots, Noun::Slots
-        let mut cursor = axis.last_one().expect("raw_slot somehow by-passed 0 check");
+        // Axis cannot be 0
+        let mut cursor = axis.last_one().ok_or(Error::NotRepresentable)?;
 
         while cursor != 0 {
             cursor -= 1;
@@ -1296,12 +1296,7 @@ pub trait Slots: private::RawSlots {
      * Retrieve component Noun at given axis, or fail with descriptive error
      */
     fn slot(&self, axis: u64) -> Result<Noun> {
-        if axis == 0 {
-            // 0 is not allowed as an axis
-            Err(Error::NotRepresentable)
-        } else {
-            self.raw_slot(BitSlice::from_element(&axis))
-        }
+        self.raw_slot(BitSlice::from_element(&axis))
     }
 
     /**
