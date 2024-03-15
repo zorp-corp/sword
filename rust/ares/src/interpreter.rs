@@ -1,6 +1,7 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
+use crate::flog;
 use crate::guard::call_with_guard;
 use crate::hamt::Hamt;
 use crate::jets::cold;
@@ -390,7 +391,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
         *(context.stack.push()) = NockWork::Done;
     };
 
-    // DO NOT REMOVE THIS ASSERTION
+    // DO NOT REMOVE THIS COMMENT
     //
     // If you need to allocate for debugging, wrap the debugging code in
     //
@@ -1339,8 +1340,11 @@ unsafe fn write_trace(context: &mut Context) {
         // Abort writing to trace file if we encountered an error. This should
         // result in a well-formed partial trace file.
         if let Err(_e) = write_nock_trace(&mut context.stack, info, trace_stack) {
-            //  XX: need NockStack allocated string interpolation
-            // eprintln!("\rserf: error writing nock trace to file: {:?}", e);
+            flog!(
+                context,
+                "\rserf: error writing nock trace to file: {:?}",
+                _e
+            );
             context.trace_info = None;
         }
     }
@@ -1387,7 +1391,7 @@ mod hint {
                     // XX: what is the head here?
                     let jet_name = jet_formula.tail();
 
-                    if let Some(jet) = jets::get_jet(jet_name) {
+                    if let Some(jet) = jets::get_jet(context, jet_name) {
                         match jet(context, subject) {
                             Ok(mut jet_res) => {
                                 //  XX: simplify this by moving jet test mode into the 11 code in interpret, or into its own function?

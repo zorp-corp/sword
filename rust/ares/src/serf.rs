@@ -332,6 +332,8 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     if let Some(ref mut info) = trace_info.as_mut() {
         if let Err(_e) = write_metadata(info) {
             //  XX: need NockStack allocated string interpolation
+            //  XX: chicken/egg problem with flog bc it requires context
+            //      before we've initialized it, and context needs trace_info
             // eprintln!("\rError initializing trace file: {:?}", e);
             trace_info = None;
         }
@@ -411,7 +413,7 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
         let trace_name = "peek";
         let start = Instant::now();
         let slam_res = slam(context, PEEK_AXIS, ovo);
-        write_serf_trace_safe(&mut context.nock_context.trace_info, trace_name, start);
+        write_serf_trace_safe(&mut context.nock_context, trace_name, start);
 
         slam_res.expect("peek error handling unimplemented")
     } else {
@@ -436,7 +438,7 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
         let start = Instant::now();
         let slam_res = slam(context, POKE_AXIS, ovo);
         write_serf_trace_safe(
-            &mut context.nock_context.trace_info,
+            &mut context.nock_context,
             trace_name.as_ref().unwrap(),
             start,
         );
@@ -467,7 +469,7 @@ fn play_life(context: &mut Context, eve: Noun) {
         let trace_name = "boot";
         let start = Instant::now();
         let boot_res = interpret(&mut context.nock_context, eve, lyf);
-        write_serf_trace_safe(&mut context.nock_context.trace_info, trace_name, start);
+        write_serf_trace_safe(&mut context.nock_context, trace_name, start);
 
         boot_res
     } else {
