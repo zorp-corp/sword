@@ -68,6 +68,6 @@ pub fn flog_fmt(context: &mut Context, fmt: Arguments<'_>) -> Result<()> {
 #[macro_export]
 macro_rules! flog {
     ($ctx:expr, $($arg:tt)*) => {
-        $crate::flog::flog_fmt($ctx, std::format_args!($($arg)*))
+        let _ = $crate::flog::flog_fmt($ctx, std::format_args!($($arg)*));
     }
 }

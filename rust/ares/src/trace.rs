@@ -106,7 +106,8 @@ pub fn write_serf_trace_safe(context: &mut Context, name: &str, start: Instant) 
             "\rserf: error writing event trace to file: {:?}",
             e
         );
-        *(&mut context.trace_info) = None;
+        let info = &mut context.trace_info;
+        *info = None;
     }
 }
 
