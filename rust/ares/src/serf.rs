@@ -1,5 +1,5 @@
 use crate::hamt::Hamt;
-use crate::interpreter;
+use crate::{flog, interpreter};
 use crate::interpreter::{inc, interpret, Error, Mote};
 use crate::jets::cold::Cold;
 use crate::jets::hot::{Hot, HotEntry};
@@ -353,18 +353,18 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
             tas!(b"live") => {
                 let inner = slot(writ, 6)?.as_direct().unwrap();
                 match inner.data() {
-                    tas!(b"cram") => eprintln!("\r %cram: not implemented"),
+                    tas!(b"cram") => flog!(&mut context.nock_context, "\r %cram: not implemented"),
                     tas!(b"exit") => {
-                        eprintln!("\r %exit");
+                        flog!(&mut context.nock_context, "\r %exit");
                         std::process::exit(0);
                     }
                     tas!(b"save") => {
                         // XX what is eve for?
                         pma_sync();
                     }
-                    tas!(b"meld") => eprintln!("\r %meld: not implemented"),
-                    tas!(b"pack") => eprintln!("\r %pack: not implemented"),
-                    _ => eprintln!("unknown live"),
+                    tas!(b"meld") => flog!(&mut context.nock_context, "\r %meld: not implemented"),
+                    tas!(b"pack") => flog!(&mut context.nock_context, "\r %pack: not implemented"),
+                    _ => flog!(&mut context.nock_context, "unknown live"),
                 }
                 context.live();
             }
@@ -607,7 +607,7 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
             context.work_swap(ovo, fec);
         }
         Err(goof_crud) => {
-            eprintln!("\rserf: bail");
+            flog!(&mut context.nock_context, "\rserf: bail");
             let stack = &mut context.nock_context.stack;
             let lud = T(stack, &[goof_crud, goof, D(0)]);
             context.work_bail(lud);
