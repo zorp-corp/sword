@@ -1,5 +1,4 @@
 use crate::hamt::Hamt;
-use crate::{flog, interpreter};
 use crate::interpreter::{inc, interpret, Error, Mote};
 use crate::jets::cold::Cold;
 use crate::jets::hot::{Hot, HotEntry};
@@ -13,6 +12,7 @@ use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
 use crate::persist::pma_meta_set;
 use crate::persist::{pma_meta_get, pma_open, pma_sync, Persist};
 use crate::trace::*;
+use crate::{flog, interpreter};
 use ares_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;
@@ -353,7 +353,9 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
             tas!(b"live") => {
                 let inner = slot(writ, 6)?.as_direct().unwrap();
                 match inner.data() {
-                    tas!(b"cram") => flog!(&mut context.nock_context, "\r %cram: not implemented"),
+                    tas!(b"cram") => {
+                        flog!(&mut context.nock_context, "\r %cram: not implemented");
+                    }
                     tas!(b"exit") => {
                         flog!(&mut context.nock_context, "\r %exit");
                         std::process::exit(0);
@@ -362,9 +364,15 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
                         // XX what is eve for?
                         pma_sync();
                     }
-                    tas!(b"meld") => flog!(&mut context.nock_context, "\r %meld: not implemented"),
-                    tas!(b"pack") => flog!(&mut context.nock_context, "\r %pack: not implemented"),
-                    _ => flog!(&mut context.nock_context, "unknown live"),
+                    tas!(b"meld") => {
+                        flog!(&mut context.nock_context, "\r %meld: not implemented");
+                    }
+                    tas!(b"pack") => {
+                        flog!(&mut context.nock_context, "\r %pack: not implemented");
+                    }
+                    _ => {
+                        flog!(&mut context.nock_context, "unknown live");
+                    }
                 }
                 context.live();
             }
