@@ -122,7 +122,7 @@ off2addr(vaof_t off)
 #define BT_NUMMETAS 2                     /* 2 metapages */
 #define BT_META_SECTION_WIDTH (BT_NUMMETAS * BT_PAGESIZE)
 #define BT_ADDRSIZE (BT_PAGESIZE << BT_PAGEWORD)
-#define PMA_GROW_SIZE_p (10000000)
+#define PMA_GROW_SIZE_p (1024)
 #define PMA_GROW_SIZE_b (BT_PAGESIZE * PMA_GROW_SIZE_p)
 
 #define BT_NOPAGE 0
@@ -224,8 +224,9 @@ struct BT_kv {
 
 #define BT_DAT_MAXBYTES (BT_PAGESIZE - sizeof(BT_pageheader))
 #define BT_DAT_MAXENTRIES  (BT_DAT_MAXBYTES / sizeof(BT_dat))
+#ifndef BT_DAT_MAXKEYS
 #define BT_DAT_MAXKEYS (BT_DAT_MAXENTRIES / 2)
-/* #define BT_DAT_MAXKEYS 10 */
+#endif
 #define BT_DAT_MAXVALS BT_DAT_MAXKEYS
 static_assert(BT_DAT_MAXENTRIES % 2 == 0);
 /* we assume off_t is 64 bit */
@@ -252,50 +253,62 @@ static_assert(BT_DAT_MAXBYTES % sizeof(BT_dat) == 0);
    a meta page is like any other page, but the data section is used to store
    additional information
 */
-#define BLK_BASE_LEN0 (MBYTES(2) - BT_META_SECTION_WIDTH)
-#define BLK_BASE_LEN1 (MBYTES(8))
-#define BLK_BASE_LEN2 (BLK_BASE_LEN1 * 4)
-#define BLK_BASE_LEN3 (BLK_BASE_LEN2 * 4)
-#define BLK_BASE_LEN4 (BLK_BASE_LEN3 * 4)
-#define BLK_BASE_LEN5 (BLK_BASE_LEN4 * 4)
-#define BLK_BASE_LEN6 (BLK_BASE_LEN5 * 4)
-#define BLK_BASE_LEN7 (BLK_BASE_LEN6 * 4)
-#define BLK_BASE_LEN_TOTAL (                            \
-                             BT_META_SECTION_WIDTH +    \
-                             BLK_BASE_LEN0 +            \
-                             BLK_BASE_LEN1 +            \
-                             BLK_BASE_LEN2 +            \
-                             BLK_BASE_LEN3 +            \
-                             BLK_BASE_LEN4 +            \
-                             BLK_BASE_LEN5 +            \
-                             BLK_BASE_LEN6 +            \
-                             BLK_BASE_LEN7)
 typedef struct BT_meta BT_meta;
 struct BT_meta {
 #define BT_NUMROOTS 32
+#define BT_NUMPARTS 8
   uint32_t  magic;
   uint32_t  version;
-  pgno_t    last_pg;            /* last page used in file */
+  pgno_t    last_pg;               /* last page used in file */
   uint32_t  _pad0;
   uint64_t  txnid;
-  void     *fix_addr;           /* fixed addr of btree */
-  pgno_t   blk_base[8];         /* block base array for striped node partition */
-  /* ;;: for the blk_base array, code may be simpler if this were an array of
-       BT_page *. */
-  uint8_t  blk_cnt;             /* currently highest valid block base */
-  uint8_t  depth;               /* tree depth */
-#define BP_META  ((uint8_t)0x02)
-  uint8_t  flags;
-  uint8_t  _pad1;
-  pgno_t   root;
+  void     *fix_addr;              /* fixed addr of btree */
+  pgno_t    blk_base[BT_NUMPARTS]; /* stores pg offsets of node partitions */
+  uint8_t   depth;                 /* tree depth */
+#define BP_META     ((uint8_t)0x02)
+  uint8_t   flags;
+  uint16_t  _pad1;
+  pgno_t    root;
   /* 64bit alignment manually checked - 72 bytes total above */
-  uint64_t roots[BT_NUMROOTS];  /* for usage by ares */
-  uint32_t chk;                 /* checksum */
+  uint64_t  roots[BT_NUMROOTS];    /* for usage by ares */
+  uint32_t  chk;                   /* checksum */
 } __packed;
 static_assert(sizeof(BT_meta) <= BT_DAT_MAXBYTES);
 
 /* the length of the metapage up to but excluding the checksum */
-#define BT_META_LEN (offsetof(BT_meta, chk))
+#define BT_META_LEN_b (offsetof(BT_meta, chk))
+
+#define BLK_BASE_LEN0_b ((size_t)MBYTES(2) - BT_META_SECTION_WIDTH)
+#define BLK_BASE_LEN1_b ((size_t)MBYTES(8))
+#define BLK_BASE_LEN2_b ((size_t)BLK_BASE_LEN1_b * 4)
+#define BLK_BASE_LEN3_b ((size_t)BLK_BASE_LEN2_b * 4)
+#define BLK_BASE_LEN4_b ((size_t)BLK_BASE_LEN3_b * 4)
+#define BLK_BASE_LEN5_b ((size_t)BLK_BASE_LEN4_b * 4)
+#define BLK_BASE_LEN6_b ((size_t)BLK_BASE_LEN5_b * 4)
+#define BLK_BASE_LEN7_b ((size_t)BLK_BASE_LEN6_b * 4)
+#define BLK_BASE_LEN_TOTAL (                         \
+                             BT_META_SECTION_WIDTH + \
+                             BLK_BASE_LEN0_b +       \
+                             BLK_BASE_LEN1_b +       \
+                             BLK_BASE_LEN2_b +       \
+                             BLK_BASE_LEN3_b +       \
+                             BLK_BASE_LEN4_b +       \
+                             BLK_BASE_LEN5_b +       \
+                             BLK_BASE_LEN6_b +       \
+                             BLK_BASE_LEN7_b)
+
+static const size_t BLK_BASE_LENS_b[BT_NUMPARTS] = {
+  BLK_BASE_LEN0_b,
+  BLK_BASE_LEN1_b,
+  BLK_BASE_LEN2_b,
+  BLK_BASE_LEN3_b,
+  BLK_BASE_LEN4_b,
+  BLK_BASE_LEN5_b,
+  BLK_BASE_LEN6_b,
+  BLK_BASE_LEN7_b,
+};
+
+static_assert(PMA_GROW_SIZE_b >= (BLK_BASE_LEN0_b + BT_META_LEN_b));
 
 typedef struct BT_mlistnode BT_mlistnode;
 struct BT_mlistnode {
@@ -328,6 +341,7 @@ struct BT_state {
   int           data_fd;
   char         *path;
   void         *fixaddr;
+  /* TODO: refactor ->map to be a (BT_page *) */
   BYTE         *map;
   BT_meta      *meta_pages[2];  /* double buffered */
   pgno_t        file_size_p;    /* the size of the pma file in pages */
@@ -339,13 +353,13 @@ struct BT_state {
   BT_nlistnode *pending_nlist;
 };
 
-/*
 
 
 //// ===========================================================================
 ////                            btree internal routines
 
 static void _bt_printnode(BT_page *node) __attribute__((unused)); /* ;;: tmp */
+
 static int
 _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
               BT_page *parent, size_t childidx); /* ;;: tmp */
@@ -353,7 +367,10 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
 static int _bt_flip_meta(BT_state *);
 
 
-#define BT_MAXDEPTH 4           /* ;;: todo derive it */
+/* TODO: derive BT_MAXDEPTH */
+#ifndef BT_MAXDEPTH
+#define BT_MAXDEPTH 4
+#endif
 typedef struct BT_findpath BT_findpath;
 struct BT_findpath {
   BT_page *path[BT_MAXDEPTH];
@@ -365,24 +382,8 @@ struct BT_findpath {
 static BT_page *
 _node_get(BT_state *state, pgno_t pgno)
 {
-  /* TODO: eventually, once we can store more than 2M of nodes, this will need
-     to reference the meta page's blk_base array to determine where a node is
-     mapped. i.e:
-
-  - receive pgno
-  - find first pgno in blk_base that exceeds pgno : i
-  - sector that contains node is i-1
-  - appropriately offset into i-1th fixed size partition: 2M, 8M, 16M, ...
-
-  */
-
-  /* for now, this works because the 2M sector is at the beginning of both the
-     memory arena and pma file
-  */
-  if (pgno <= 1) return 0;      /* no nodes stored at 0 and 1 (metapages) */
-  /* TODO: when partition striping is implemented, a call beyond the furthest
-     block base should result in the allocation of a new block base */
-  assert((pgno * BT_PAGESIZE) < MBYTES(2));
+  assert(pgno >= BT_NUMMETAS);
+  assert(pgno < B2PAGES(BLK_BASE_LEN_TOTAL));
   return FO2PA(state->map, pgno);
 }
 
@@ -436,13 +437,58 @@ _mlist_record_alloc(BT_state *state, void *lo, void *hi)
   }
 }
 
+/* ;;: tmp. forward declared. move shit around */
+static pgno_t
+_bt_falloc(BT_state *state, size_t pages);
+static void
+_nlist_insertn(BT_state *state, BT_nlistnode **dst, pgno_t lo, pgno_t hi);
+
 static void
 _nlist_grow(BT_state *state)
 /* grows the nlist by allocating the next sized stripe from the block base
    array. Handles storing the offset of this stripe in state->blk_base */
 {
-  /* ;;: i believe this will also need to appropriately modify the flist so
-       that we don't store general allocation data in node partitions */
+  BT_meta *meta = state->meta_pages[state->which];
+
+  /* find the next block (zero pgno) */
+  size_t next_block = 0;
+  for (; meta->blk_base[next_block] != 0; next_block++)
+    assert(next_block < BT_NUMPARTS);
+
+  /* falloc the node partition and store its offset in the metapage */
+  size_t block_len_b = BLK_BASE_LENS_b[next_block];
+  size_t block_len_p = B2PAGES(block_len_b);
+  DPRINTF("Adding a new node stripe of size (pages): 0x%zX", block_len_p);
+  pgno_t partition_pg = _bt_falloc(state, block_len_p);
+  size_t partoff_b = P2BYTES(partition_pg);
+  meta->blk_base[next_block] = partition_pg;
+
+  /* calculate the target memory address of the mmap call (the length of all
+     partitions preceding it) */
+  BYTE *targ = BT_MAPADDR + BT_META_SECTION_WIDTH;
+  for (size_t i = 0; i < next_block; i++) {
+    targ += BLK_BASE_LENS_b[i];
+  }
+
+  /* map the newly alloced node partition */
+  if (targ != mmap(targ,
+                   block_len_b,
+                   BT_PROT_CLEAN,
+                   BT_FLAG_CLEAN,
+                   state->data_fd,
+                   partoff_b)) {
+    DPRINTF("mmap: failed to map node stripe %zu, addr: 0x%p, file offset (bytes): 0x%zX, errno: %s",
+            next_block, targ, partoff_b, strerror(errno));
+    abort();
+  }
+
+  pgno_t memoff_p = B2PAGES(targ - BT_MAPADDR);
+
+  /* add the partition to the nlist */
+  _nlist_insertn(state,
+                 &state->nlist,
+                 memoff_p,
+                 memoff_p + block_len_p);
 }
 
 static void
@@ -531,8 +577,12 @@ _bt_nalloc(BT_state *state)
   /* TODO: maybe change _bt_nalloc to return both a file and a node offset as
      params to the function and make actual return value an error code. This is
      to avoid forcing some callers to immediately use _fo_get */
-  BT_nlistnode **n = &state->nlist;
-  BT_page *ret = 0;
+  BT_nlistnode **n;
+  BT_page *ret;
+
+ start:
+  n = &state->nlist;
+  ret = 0;
 
   for (; *n; n = &(*n)->next) {
     size_t sz_p = (*n)->hi - (*n)->lo;
@@ -546,9 +596,10 @@ _bt_nalloc(BT_state *state)
   }
 
   if (ret == 0) {
-    /* ;;: todo: insert a grow call */
-    DPUTS("nlist out of mem!");
-    return 0;
+    DPUTS("nlist out of mem. allocating a new block.");
+    _nlist_grow(state);
+    /* restart the find procedure */
+    goto start;
   }
 
   /* make node writable */
@@ -982,6 +1033,8 @@ _mlist_insert(BT_state *state, void *lo, void *hi)
     return;
   }
 
+  /* TODO: confirm whether this is redundant given discontinuous node insertion
+     above */
   /* found end of list */
   BT_mlistnode *new = calloc(1, sizeof *new);
   new->lo = lob;
@@ -1040,6 +1093,15 @@ _nlist_insert2(BT_state *state, BT_nlistnode **dst, BT_page *lo, BT_page *hi)
     *dst = new;
     return;
   }
+
+  /* TODO: confirm whether this is redundant given discontinuous node insertion
+     above */
+  /* found end of list */
+  BT_nlistnode *new = calloc(1, sizeof *new);
+  new->lo = lo;
+  new->hi = hi;
+  new->next = *dst;
+  *dst = new;
 }
 
 static void
@@ -1048,6 +1110,15 @@ _nlist_insert(BT_state *state, BT_nlistnode **dst, pgno_t nodepg)
   BT_page *lo = _node_get(state, nodepg);
   BT_page *hi = _node_get(state, nodepg+1);
   _nlist_insert2(state, dst, lo, hi);
+}
+
+static void
+_nlist_insertn(BT_state *state, BT_nlistnode **dst, pgno_t lo, pgno_t hi)
+{
+  _nlist_insert2(state,
+                 dst,
+                 _node_get(state, lo),
+                 _node_get(state, hi));
 }
 
 static void
@@ -1061,6 +1132,7 @@ _pending_nlist_merge(BT_state *state)
     src_head = src_head->next;
     free(prev);
   }
+  state->pending_nlist = 0;
 }
 
 static void
@@ -1098,6 +1170,7 @@ _flist_insert(BT_flistnode **dst, pgno_t lo, pgno_t hi)
       return;
     }
     if (hi > (*dst)->lo) {
+      /* advance to next freeblock and retry */
       assert(lo > (*dst)->hi);
       assert(hi > (*dst)->hi);
       prev_dst = dst;
@@ -1448,7 +1521,8 @@ _bt_insert2(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo,
   /* do we need to CoW the child node? */
   if (!_bt_ischilddirty(node, childidx)) {
     pgno_t pgno;
-    _node_cow(state, node, &pgno);
+    BT_page *child = _node_get(state, node->datk[childidx].fo);
+    _node_cow(state, child, &pgno);
     node->datk[childidx].fo = pgno;
     _bt_dirtychild(node, childidx);
   }
@@ -1587,12 +1661,10 @@ _mlist_new(BT_state *state)
   return BT_SUCC;
 }
 
-/* ;;: todo: we could remove the hifreepg param if we can derive the highest
-     page (alloced or not) in the persistent file. */
 static void
 _flist_grow(BT_state *state, size_t pages)
-/* grows the backing file by PMA_GROW_SIZE_p and appends this freespace to the
-   flist */
+/* grows the backing file by the maximum of `pages' or PMA_GROW_SIZE_p and
+   appends this freespace to the flist */
 {
   /* grow the backing file by at least PMA_GROW_SIZE_p */
   pages = MAX(pages, PMA_GROW_SIZE_p);
@@ -1614,7 +1686,7 @@ _flist_grow(BT_state *state, size_t pages)
 static int
 _flist_new(BT_state *state, size_t size_p)
 #define FLIST_PG_START (BT_META_SECTION_WIDTH / BT_PAGESIZE)
-/* #define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0) / BT_PAGESIZE) */
+/* #define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0_b) / BT_PAGESIZE) */
 {
   BT_flistnode *head = calloc(1, sizeof *head);
   head->next = 0;
@@ -1626,28 +1698,51 @@ _flist_new(BT_state *state, size_t size_p)
 }
 #undef FLIST_PG_START
 
-/* ;;: tmp. forward declared. move shit around */
-static pgno_t
-_bt_falloc(BT_state *state, size_t pages);
-
 static int
-_nlist_new(BT_state *state)
+_nlist_creat(BT_state *state, BT_page *start, size_t len_p)
+/* create a new nlist in `state' */
 {
   BT_nlistnode *head = calloc(1, sizeof *head);
-
-  pgno_t partition_0_pg = _bt_falloc(state, BLK_BASE_LEN0 / BT_PAGESIZE);
-  BT_page *partition_0 = _node_get(state, partition_0_pg);
-  /* ;;: tmp. assert. for debugging changes */
-  assert(partition_0 == &((BT_page *)state->map)[BT_NUMMETAS]);
-
-  /* the size of a new node freelist is just the first stripe length */
-  head->lo = partition_0;
-  head->hi = head->lo + B2PAGES(BLK_BASE_LEN0);
+  head->lo = start;
+  head->hi = head->lo + len_p;
   head->next = 0;
 
   state->nlist = head;
 
   return BT_SUCC;
+}
+
+static int
+_nlist_new(BT_state *state)
+/* create a new nlist */
+{
+  pgno_t partition_0_pg = _bt_falloc(state, BLK_BASE_LEN0_b / BT_PAGESIZE);
+  BT_page *partition_0 = _node_get(state, partition_0_pg);
+  /* ;;: tmp. assert. for debugging changes */
+  assert(partition_0 == &((BT_page *)state->map)[BT_NUMMETAS]);
+
+  /* the size of a new node freelist is just the first stripe length */
+  return _nlist_creat(state, partition_0, B2PAGES(BLK_BASE_LEN0_b));
+}
+
+static int
+_nlist_load(BT_state *state)
+/* create new nlist from persistent state. Doesn't call _bt_falloc */
+{
+  BT_meta *meta = state->meta_pages[state->which];
+  size_t len_p = 0;
+  BT_page *partition_0 = _node_get(state, meta->blk_base[0]);
+  /* ;;: tmp. assert. for debugging changes */
+  assert(partition_0 == &((BT_page *)state->map)[BT_NUMMETAS]);
+
+  /* calculate total size */
+  for (size_t i = 0
+         ; meta->blk_base[i] != 0 && i < BT_NUMPARTS
+         ; i++) {
+    len_p += B2PAGES(BLK_BASE_LENS_b[i]);
+  }
+
+  return _nlist_creat(state, partition_0, len_p);
 }
 
 static int
@@ -1791,7 +1886,7 @@ _nlist_read(BT_state *state)
   /* ;;: since partition striping isn't implemented yet, simplifying code by
      assuming all nodes reside in the 2M region */
   BT_nlistnode *head = calloc(1, sizeof *head);
-  head->sz = BLK_BASE_LEN0;
+  head->sz = BLK_BASE_LEN0_b;
   head->va = &((BT_page *)state->map)[BT_NUMMETAS];
   head->next = 0;
 
@@ -2142,7 +2237,7 @@ _bt_state_meta_which(BT_state *state)
 
   /* checksum the metapage found and abort if checksum doesn't match */
   BT_meta *meta = state->meta_pages[which];
-  uint32_t chk = nonzero_crc_32(meta, BT_META_LEN);
+  uint32_t chk = nonzero_crc_32(meta, BT_META_LEN_b);
   if (chk != meta->chk) {
     abort();
   }
@@ -2227,7 +2322,7 @@ _bt_state_meta_new(BT_state *state)
   }
 
   /* initialize the block base array */
-  meta.blk_base[0] = BT_PAGESIZE * BT_NUMMETAS;
+  meta.blk_base[0] = BT_NUMMETAS;
 
   root = _bt_nalloc(state);
   _bt_root_new(&meta, root);
@@ -2238,7 +2333,6 @@ _bt_state_meta_new(BT_state *state)
   meta.last_pg = 1;
   meta.txnid = 0;
   meta.fix_addr = BT_MAPADDR;
-  meta.blk_cnt = 1;
   meta.depth = 1;
   meta.flags = BP_META;
   meta.root = _fo_get(state, root);
@@ -2314,11 +2408,59 @@ _freelist_restore(BT_state *state)
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
   assert(SUCC(_flist_new(state, state->file_size_p)));
-  assert(SUCC(_nlist_new(state)));
+  assert(SUCC(_nlist_load(state)));
   assert(SUCC(_mlist_new(state)));
   /* first record root's allocation */
   _nlist_record_alloc(state, root);
   _freelist_restore2(state, root, 1, meta->depth);
+}
+
+static void
+_bt_state_map_node_segment(BT_state *state)
+{
+  BT_meta *meta = state->meta_pages[state->which];
+  BYTE *targ = BT_MAPADDR + BT_META_SECTION_WIDTH;
+  size_t i;
+
+  /* map all allocated node stripes as clean */
+  for (i = 0
+         ; i < BT_NUMPARTS && meta->blk_base[i] != 0
+         ; i++) {
+    pgno_t partoff_p = meta->blk_base[i];
+    size_t partoff_b = P2BYTES(partoff_p);
+    size_t partlen_b = BLK_BASE_LENS_b[i];
+
+    if (targ != mmap(targ,
+                     partlen_b,
+                     BT_PROT_CLEAN,
+                     BT_FLAG_CLEAN,
+                     state->data_fd,
+                     partoff_b)) {
+      DPRINTF("mmap: failed to map node stripe %zu, addr: 0x%p, file offset (bytes): 0x%zX, errno: %s",
+              i, targ, partoff_b, strerror(errno));
+      abort();
+    }
+
+    /* move the target address ahead of the mapped partition */
+    targ += partlen_b;
+  }
+
+  /* map the rest of the node segment as free */
+  for (; i < BT_NUMPARTS; i++) {
+    assert(meta->blk_base[i] == 0);
+    size_t partlen_b = BLK_BASE_LENS_b[i];
+    if (targ != mmap (targ,
+                      partlen_b,
+                      BT_PROT_FREE,
+                      BT_FLAG_FREE,
+                      0, 0)) {
+      DPRINTF("mmap: failed to map unallocated node segment, addr: 0x%p, errno: %s",
+              targ, strerror(errno));
+      abort();
+    }
+
+    targ += partlen_b;
+  }
 }
 
 static int
@@ -2331,15 +2473,18 @@ _bt_state_load(BT_state *state)
 
   TRACE();
 
-  /* map first node stripe (along with metapages) as read only */
-  /* ;;: todo: after handling the first node stripe which always exists, read
-       the current metapage's blk_base and appropriately mmap each partition */
+  /* map the metapages */
   state->map = mmap(BT_MAPADDR,
-                    BT_META_SECTION_WIDTH + BLK_BASE_LEN0,
+                    BT_META_SECTION_WIDTH,
                     BT_PROT_CLEAN,
                     BT_FLAG_CLEAN,
                     state->data_fd,
                     0);
+
+  if (state->map != BT_MAPADDR) {
+    DPRINTF("mmap: failed to map at addr %p, errno: %s", BT_MAPADDR, strerror(errno));
+    abort();
+  }
 
   p = (BT_page *)state->map;
   state->meta_pages[0] = METADATA(p);
@@ -2355,21 +2500,8 @@ _bt_state_load(BT_state *state)
     }
   }
 
-  if (state->map != BT_MAPADDR) {
-    DPRINTF("mmap: failed to map at addr %p, errno: %s", BT_MAPADDR, strerror(errno));
-    abort();
-  }
-
-  BYTE *nullspace_addr = BT_MAPADDR + (BT_META_SECTION_WIDTH + BLK_BASE_LEN0);
-  size_t nullspace_len = BLK_BASE_LEN_TOTAL - (BT_META_SECTION_WIDTH + BLK_BASE_LEN0);
-  if (nullspace_addr != mmap(nullspace_addr,
-                             nullspace_len,
-                             BT_PROT_FREE,
-                             BT_FLAG_FREE,
-                             0, 0)) {
-    DPRINTF("mmap: failed to map at addr %p, errno: %s", nullspace_addr, strerror(errno));
-    abort();
-  }
+  /* map the node segment */
+  _bt_state_map_node_segment(state);
 
   /* new db, so populate metadata */
   if (new) {
@@ -2522,7 +2654,7 @@ _bt_sync_meta(BT_state *state)
   meta->txnid += 1;
 
   /* checksum the metapage */
-  chk = nonzero_crc_32(meta, BT_META_LEN);
+  chk = nonzero_crc_32(meta, BT_META_LEN_b);
   /* ;;: todo: guarantee the chk cannot be zero */
 
   meta->chk = chk;
@@ -2563,7 +2695,7 @@ static int _bt_flip_meta(BT_state *state) {
   newmeta->chk = 0;
 
   /* copy over metapage to new metapage excluding the checksum */
-  memcpy(newmeta, meta, BT_META_LEN);
+  memcpy(newmeta, meta, BT_META_LEN_b);
 
   /* CoW a new root since the root referred to by the metapage should always be
      dirty */
@@ -2633,8 +2765,6 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
 int
 bt_state_new(BT_state **state)
 {
-  // TRACE();
-
   BT_state *s = calloc(1, sizeof *s);
   s->data_fd = -1;
   s->fixaddr = BT_MAPADDR;
@@ -3136,7 +3266,7 @@ _sham_sync(BT_state *state)
   /* walk the tree and unset the dirty bit from all pages */
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
-  meta->chk = nonzero_crc_32(meta, BT_META_LEN);
+  meta->chk = nonzero_crc_32(meta, BT_META_LEN_b);
   _sham_sync2(state, root, 1, meta->depth);
 }
 
