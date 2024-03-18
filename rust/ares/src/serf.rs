@@ -1,5 +1,4 @@
 use crate::hamt::Hamt;
-use crate::interpreter;
 use crate::interpreter::{inc, interpret, Error, Mote};
 use crate::jets::cold::Cold;
 use crate::jets::hot::{Hot, HotEntry};
@@ -13,6 +12,7 @@ use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
 use crate::persist::pma_meta_set;
 use crate::persist::{pma_meta_get, pma_open, pma_sync, Persist};
 use crate::trace::*;
+use crate::{flog, interpreter};
 use ares_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;
@@ -332,6 +332,8 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     if let Some(ref mut info) = trace_info.as_mut() {
         if let Err(_e) = write_metadata(info) {
             //  XX: need NockStack allocated string interpolation
+            //  XX: chicken/egg problem with flog bc it requires context
+            //      before we've initialized it, and context needs trace_info
             // eprintln!("\rError initializing trace file: {:?}", e);
             trace_info = None;
         }
@@ -351,18 +353,26 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
             tas!(b"live") => {
                 let inner = slot(writ, 6)?.as_direct().unwrap();
                 match inner.data() {
-                    tas!(b"cram") => eprintln!("\r %cram: not implemented"),
+                    tas!(b"cram") => {
+                        flog!(&mut context.nock_context, "\r %cram: not implemented");
+                    }
                     tas!(b"exit") => {
-                        eprintln!("\r %exit");
+                        flog!(&mut context.nock_context, "\r %exit");
                         std::process::exit(0);
                     }
                     tas!(b"save") => {
                         // XX what is eve for?
                         pma_sync();
                     }
-                    tas!(b"meld") => eprintln!("\r %meld: not implemented"),
-                    tas!(b"pack") => eprintln!("\r %pack: not implemented"),
-                    _ => eprintln!("unknown live"),
+                    tas!(b"meld") => {
+                        flog!(&mut context.nock_context, "\r %meld: not implemented");
+                    }
+                    tas!(b"pack") => {
+                        flog!(&mut context.nock_context, "\r %pack: not implemented");
+                    }
+                    _ => {
+                        flog!(&mut context.nock_context, "unknown live");
+                    }
                 }
                 context.live();
             }
@@ -411,7 +421,7 @@ fn peek(context: &mut Context, ovo: Noun) -> Noun {
         let trace_name = "peek";
         let start = Instant::now();
         let slam_res = slam(context, PEEK_AXIS, ovo);
-        write_serf_trace_safe(&mut context.nock_context.trace_info, trace_name, start);
+        write_serf_trace_safe(&mut context.nock_context, trace_name, start);
 
         slam_res.expect("peek error handling unimplemented")
     } else {
@@ -436,7 +446,7 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
         let start = Instant::now();
         let slam_res = slam(context, POKE_AXIS, ovo);
         write_serf_trace_safe(
-            &mut context.nock_context.trace_info,
+            &mut context.nock_context,
             trace_name.as_ref().unwrap(),
             start,
         );
@@ -467,7 +477,7 @@ fn play_life(context: &mut Context, eve: Noun) {
         let trace_name = "boot";
         let start = Instant::now();
         let boot_res = interpret(&mut context.nock_context, eve, lyf);
-        write_serf_trace_safe(&mut context.nock_context.trace_info, trace_name, start);
+        write_serf_trace_safe(&mut context.nock_context, trace_name, start);
 
         boot_res
     } else {
@@ -605,7 +615,7 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
             context.work_swap(ovo, fec);
         }
         Err(goof_crud) => {
-            eprintln!("\rserf: bail");
+            flog!(&mut context.nock_context, "\rserf: bail");
             let stack = &mut context.nock_context.stack;
             let lud = T(stack, &[goof_crud, goof, D(0)]);
             context.work_bail(lud);

@@ -1,3 +1,5 @@
+use crate::flog;
+use crate::interpreter::Context;
 use crate::jets::bits::util::rap;
 use crate::jets::form::util::scow;
 use crate::mem::NockStack;
@@ -97,10 +99,14 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
 /// Abort writing to trace file if an error is encountered.
 ///
 /// This should result in a well-formed partial trace file.
-pub fn write_serf_trace_safe(info: &mut Option<TraceInfo>, name: &str, start: Instant) {
-    if let Err(_e) = write_serf_trace(info.as_mut().unwrap(), name, start) {
-        //  XX: need NockStack allocated string interpolation
-        // eprintln!("\rserf: error writing event trace to file: {:?}", e);
+pub fn write_serf_trace_safe(context: &mut Context, name: &str, start: Instant) {
+    if let Err(e) = write_serf_trace(context.trace_info.as_mut().unwrap(), name, start) {
+        flog!(
+            context,
+            "\rserf: error writing event trace to file: {:?}",
+            e
+        );
+        let info = &mut context.trace_info;
         *info = None;
     }
 }

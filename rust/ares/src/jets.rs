@@ -15,6 +15,7 @@ pub mod serial;
 pub mod sort;
 pub mod tree;
 
+use crate::flog;
 use crate::interpreter::{Context, Error, Mote};
 use crate::jets::bits::*;
 use crate::jets::cold::Cold;
@@ -96,7 +97,7 @@ impl From<JetErr> for Error {
     }
 }
 
-pub fn get_jet(jet_name: Noun) -> Option<Jet> {
+pub fn get_jet(context: &mut Context, jet_name: Noun) -> Option<Jet> {
     match jet_name.as_direct().ok()?.data() {
         tas!(b"add") => Some(jet_add),
         tas!(b"dec") => Some(jet_dec),
@@ -166,8 +167,7 @@ pub fn get_jet(jet_name: Noun) -> Option<Jet> {
         tas!(b"sivc_de") => Some(jet_sivc_de),
         //
         _ => {
-            //  XX: need NockStack allocated string interpolation
-            // eprintln!("Unknown jet: {:?}", jet_name);
+            flog!(context, "unknown jet: {:?}", jet_name);
             None
         }
     }
