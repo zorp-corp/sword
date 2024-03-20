@@ -259,6 +259,23 @@
     ?^  data.two  [| ~]
     ?>  ?=(@ cape.two)
     ?:  =(data.one data.two)  one  [| ~]
+  ::    union
+  ::
+  ::  take the union of two socks, but crash if they disagree on a known
+  ::  axis
+  ++  pack
+    |=  two=sock
+    |-  ^-  sock
+    ?:  ?=(%| cape.one)  two
+    ?:  ?=(%| cape.two)  one
+    ?:  ?=(%& cape.one)  ?>((~(huge so one) two) one)
+    ?:  ?=(%& cape.two)  ?>((~(huge so two) one) two)
+    ?>  ?=(^ data.one)
+    ?>  ?=(^ data.two)
+    %-
+      %~  knit  so
+      (pack(one [-.cape.one -.data.one]) [-.cape.two -.data.two]) 
+    (pack(one [-.cape.one -.data.one]) [-.cape.two -.data.two])
   ::    edit
   ::
   ::  update mask and data at an axis into a sock

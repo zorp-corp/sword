@@ -100,7 +100,6 @@
   =|  back=(list bell) :: arms that need to be re-checked
   |-  ^-  (list bell)
   ?^  wurk
-    ~&  [%wurk-loop (mug i.wurk)]
     =/  hues  (puck i.wurk)
     ?<  ?=(~ hues)
     =/  kids  (~(gas in *(set bell)) ~(val by ices.norm.u.hues))
@@ -219,7 +218,8 @@
           =^  cost  gen  $(nomm cost.nomm, fax (peg fax 6), goal [%next [%this s] then.corn])
           (copy then.cost what.cost what.corn)
         ==
-      =/  hope  (~(get by back.cole) u.bull)
+      ~!  u.bull
+      =/  hope  (~(get by call.cole) u.bull)
       =^  a  gen  (args u.bull)
       =,  a
       ?-  -.goal
@@ -227,9 +227,10 @@
         =^  [dire=bile seed=need]  gen
           ?~  hope
             =^  dike  gen  (emit %dike ~ ~ %jmp u.bull b v)
-            =?  redo.gen  r  [dike redo.gen]
+            =?  redo.gen  r  [dike redo.gen]  
             [[dike n] gen]
           =^  s  gen  rain
+          ~!  u.hope
           =^  dial  gen  (emit %dial ~ ~ %jmf u.bull b v s u.hope)
           =?  redo.gen  r  [dial redo.gen]
           =^  nest  gen  (copy dial n [%this s])
@@ -1181,7 +1182,6 @@
   =|  todo=(list [=bell dire=next =gen])
   =|  like=(map bell need)
   =/  toil  work 
-  :: ~&  [%mill-work-len (lent toil)]
   |-  ^-  _hill
   ?^  toil
     =/  [dire=next =gen]  ~(cuts jean i.toil *gen like)
@@ -1284,7 +1284,6 @@
         $(queu t.queu, will (~(put by will) i.queu blob))
       ==
     ==
-  :: ~&  [%hill-key ~(key by hill)]
   hill
 --
 ::    codegen interface

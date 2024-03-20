@@ -17,13 +17,15 @@
 ::
 ::   core: nested batteries by path
 ::   batt: paths by outer batteries
-::   call: arms to exact call label
-::   back: path/axis labels by bell
+::   root: paths by roots
+::   call: path/axis labels by bell
+::   back: bells by path/axis label
 +$  cool
   $:  core=(jug path sock)         
+      root=(jug * path)
       batt=(jug ^ path)            
-      call=(jug [path @] [sock *]) 
-      back=(map [sock *] [path @]) 
+      call=(map [sock *] [path @]) 
+      back=(jug [path @] [sock *])
   ==
 ::    hint table entry
 ::
@@ -52,7 +54,7 @@
       [%eve once=nomm then=nomm]                   :: Nock 7
       [%ten here=@ twig=nomm tree=nomm]            :: Nock 10
       [%sip hint=@ then=nomm]                      :: Nock 11 (static)
-      [%tip hint=@ vice=nomm then=nomm rail=@hail] :: Nock 11 (dynamic)
+      [%tip hint=@ vice=nomm then=nomm hare=@hint] :: Nock 11 (dynamic)
       [%elf rent=nomm walk=nomm]                   :: "Nock 12"
       [%not here=@]                                :: Nock 0
   ==

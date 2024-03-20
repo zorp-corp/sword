@@ -1,6 +1,6 @@
 /-  spider
 /+  make, strand, strandio
-!.
+!:
 =,  strand=strand:spider
 ^-  thread:spider
 |=  arg=vase
@@ -10,4 +10,6 @@
 ;<  now=@da  bind:m  get-time:strandio
 =/  cg=path  /(scot %p p.bec)/[q.bec]/(scot %da now)
 ~&  "cg desk: {<cg>}"
-(pure:m $:(make-codegen-trap:make cg))
+~!  cg
+~!  make-codegen-trap:make
+(pure:m (make-codegen-vase:make cg))

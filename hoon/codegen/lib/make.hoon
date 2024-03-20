@@ -1,4 +1,5 @@
 /+  hoon
+!:
 =>  hoon
 |%
 ::  emits a trap that will produce the Ares codegen core.
@@ -25,8 +26,14 @@
   =.  sub  (build-sur cg sub %gene)
   =.  sub  (build-lib cg sub %line)
   sub
+++  make-codegen-vase
+  |=  cg=path
+  ^-  vase
+  =/  sub  (make-codegen-trap cg)
+  $:sub
 ++  make-eval-vase
   |=  cg=path
+  ^-  vase
   =/  sub  (make-codegen-trap cg)
   =.  sub  (build-lib cg sub %eval)
   $:sub
