@@ -1,3 +1,10 @@
+:: XX
+::  - generate ipb tests at 0/10 sites (done)
+::  - make copy pessimize %this/%both case (not %both/%this) (done)
+::  - do not ipb at mean entry/exit (done)
+::  - no crash-immediate instructions, they could incorrectly skip over
+::    other crashes (done)
+::  - we don't actually need to track sick registers (done)
 !:
 =*  sack  +3
 =*  moan  moan.sack
@@ -120,7 +127,7 @@
 ::  sans: next SSA register
 ::  sick: registers which should be checked for crashing at next mean
 ::    boundary
-+$  gen  [redo=(list bile) will=(map bile blob) sans=@uvre sick=(set @uvre)]
++$  gen  [redo=(list bile) will=(map bile blob) sans=@uvre]
 ::    codegen
 ::
 ::  door containing core codegen operations
@@ -170,8 +177,7 @@
         $(goal [%next [%this cove] cozy])
       ::
          %next
-        =^  seed  gen  (from here.nomm what.goal)
-        [[%next seed then.goal] gen]
+        (from here.nomm goal)
       ==
     ::
         %one
@@ -261,7 +267,7 @@
           %done
         =^  last  gen  rain
         =^  hasp  gen  rain
-        =^  barf  gen  rein
+        =^  barf  gen  rain
         =^  tear  gen  (emit %tear ~ [%imm 0 last]~ %don last)
         =^  fear  gen  (emit %fear ~ [%imm 1 hasp]~ %don hasp)
         $(goal [%pick barf tear fear])
@@ -269,7 +275,7 @@
           %next
         ?:  ?=(%both -.what.goal)  (mine sass.what.goal then.goal)
         ?:  ?=(%none -.what.goal)
-          =^  barf  gen  rein
+          =^  barf  gen  rain
           $(goal [%pick barf then.goal then.goal])
         =^  tare  gen  rain
         =/  tile  (vial %tile)
@@ -287,7 +293,7 @@
           ==
         =^  tear  gen  (come tile thin)
         =^  fear  gen  (come file thin)
-        =^  barf  gen  rein
+        =^  barf  gen  rain
         $(goal [%pick barf tear fear])
       ::
           %pick
@@ -330,7 +336,7 @@
         =^  hasp  gen  rain
         =^  reek  gen  (emit %reek ~ [%imm 0 last]~ %don last)
         =^  riff  gen  (emit %riff ~ [%imm 1 hasp]~ %don hasp)
-        =^  crap  gen  rein
+        =^  crap  gen  rain
         $(goal [%pick crap reek riff])
       ::
           %next
@@ -359,7 +365,7 @@
         =^  mere  gen  (come fill ward)
         =^  ware  gen  (emit %ware ~ [%imm 0 tare]~ %hop weir)
         =^  mare  gen  (emit %mare ~ [%imm 1 fare]~ %hop mere)
-        =^  crap  gen  rein
+        =^  crap  gen  rain
         $(goal [%pick crap ware mare])
       ::
           %pick
@@ -376,16 +382,12 @@
         %six
       ?:  ?=(%next -.goal)
         =^  [teal=next feel=next]  gen  (phil goal)
-        =/  sick  sick.gen :: both branches should start with the same sick set
         =^  fest  gen
           $(nomm else.nomm, fax (peg fax 15), goal feel)
-        =/  nick  sick.gen
-        =.  sick.gen  sick
         =^  zest  gen
           $(nomm then.nomm, fax (peg fax 14), goal teal)
-        =.  sick.gen  (~(uni in sick.gen) nick) :: unify sick set from both branches
         =^  [bead=need tile=bile file=bile]  gen  (sect zest fest)
-        =^  lead  gen  rein
+        =^  lead  gen  rain
         =^  cond  gen
           $(nomm what.nomm, fax (peg fax 6), goal [%pick lead tile file])
         (copy then.cond what.cond bead)
@@ -394,7 +396,7 @@
       =^  zest  gen
         $(nomm then.nomm, fax (peg fax 14))
       =^  [bead=need tile=bile file=bile]  gen  (sect zest fest)
-      =^  barf  gen  rein
+      =^  barf  gen  rain
       =^  cond  gen
         $(nomm what.nomm, fax (peg fax 6), goal [%pick barf tile file])
       (copy then.cond what.cond bead)
@@ -468,36 +470,29 @@
         ?-  -.goal
             %done
           =^  real  gen  $(nomm then.nomm, fax (peg fax 7))
-          =^  rags  gen  (wash then.real)
           =^  dint  gen
-            (emit %dint ~ [%men hint.nomm mane]~ %hop rags)
+            (emit %dint ~ [%men hint.nomm mane]~ %hop then.real)
           =^  fake  gen
             $(nomm vice.nomm, fax (peg fax 14), goal [%next [%this mane] dint])
           (copy then.fake what.fake what.real)
         ::
             %pick
-          =/  sick  sick.gen
-          =^  tosh  gen  (wash zero.goal)
-          =.  sick.gen  sick
-          =^  bosh  gen  (wash once.goal)
-          =^  tame  gen  (emit %tame ~ [%man ~]~ %hop tosh)
-          =^  fame  gen  (emit %fame ~ [%man ~]~ %hop bosh)
+          =^  tame  gen  (emit %tame ~ [%man ~]~ %hop zero.goal)
+          =^  fame  gen  (emit %fame ~ [%man ~]~ %hop once.goal)
           =^  real  gen
             $(nomm then.nomm, fax (peg fax 7), goal [%pick sass.goal tame fame])
-          =^  rags  gen  (wash then.real)
           =^  dint  gen
-            (emit %dint ~ [%men hint.nomm mane]~ %hop rags)
+            (emit %dint ~ [%men hint.nomm mane]~ %hop then.real)
           =^  fake  gen
             $(nomm vice.nomm, fax (peg fax 13), goal [%next [%this mane] dint])
           (copy then.fake what.fake what.real)
         ::
             %next
-          =^  rugs  gen  (wash then.goal)
+          =^  rugs  gen  (emit %rugs ~ [%man ~]~ %hop then.goal)
           =^  real  gen
             $(nomm then.nomm, fax (peg fax 7), then.goal rugs)
-          =^  rags  gen  (wash then.real)
           =^  dint  gen
-            (emit %dint ~ [%men hint.nomm mane]~ %hop rags)
+            (emit %dint ~ [%men hint.nomm mane]~ %hop then.real)
           =^  fake  gen
             $(nomm vice.nomm, fax (peg fax 13), goal [%next [%this mane] dint])
           (copy then.fake what.fake what.real)
@@ -629,12 +624,8 @@
       =/  lure  (sass left.n)
       =/  rule  (sass rite.n)
       =?  pose  ?=(^ lure)
-        ?:  (~(has in sick.gen) u.lure)
-          [[%hci sass.n u.lure] pose]
         [[%hed sass.n u.lure] pose]
       =?  pose  ?=(^ rule)
-        ?:  (~(has in sick.gen) u.rule)
-          [[%tci sass.n u.rule] pose]
         [[%tal sass.n u.rule] pose]
       $(tack [left.n rite.n t.tack])
     $(tack t.tack)
@@ -663,15 +654,6 @@
   ++  rain
     ^-  [@uvre _gen]
     [sans.gen gen(sans .+(sans.gen))]
-  ::  
-  ::    generate a poisonable register
-  ::
-  ::  rain, but add the register to sick: the set of possibly poisoned
-  ::  registers
-  ++  rein
-    =^  r  gen  rain
-    =.  sick.gen  (~(put in sick.gen) r)
-    [r gen(sick (~(put in sick.gen) r))]
   ::
   ::    split need
   ::
@@ -680,7 +662,7 @@
     |=  =next
     ^-  [[bile need need] _gen]
     ?-  -.what.next
-        %both
+        %both :: discards sick flag which is OK since we know we will fulfill the need
       [[then.next left.what.next rite.what.next] gen]
     ::
         %none
@@ -718,7 +700,7 @@
     |=  [zero=next once=next]
     =|  lose=(list pole)
     =|  rose=(list pole)
-    =/  tack=(list (each @uvre [z=need o=need]))  [%| what.zero what.once]~
+    =/  tack=(list (each r=@uvre [z=need o=need]))  [%| what.zero what.once]~
     =|  salt=(list need)
     |-  ^-  [[need bile bile] _gen]
     ?~  tack
@@ -737,6 +719,8 @@
       ?:  ?=(%none -.z.p.i.tack)
         :: z side has no requirements
         :: so we should do no splitting outside conditional
+        ?:  ?=(%none -.o.p.i.tack)
+          $(tack t.tack, salt [[%none ~] salt])
         =^  rr  gen  (kern rose o.p.i.tack) 
         =.  rose  pose.rr
         $(tack t.tack, salt [[%this out.rr] salt])
@@ -758,17 +742,17 @@
                 t.tack
             ==
           ::
-              rose  [[%pol sass.z.p.i.tack sass.o.p.i.tack] rose]
+            rose  [[%pol sass.z.p.i.tack sass.o.p.i.tack] rose]
           ==
         ::  z side splits, o side this
         =^  lr  gen  (kern lose z.p.i.tack)
-        =.  lose  pose.lr
+        =.  lose  (weld pose.lr lose)
         =.  lose  [[%mov sass.o.p.i.tack out.lr] lose]
         $(tack t.tack, salt [o.p.i.tack salt])
       ?:  ?=(%both -.o.p.i.tack)
         ::  z side this, o side splits
         =^  rr  gen  (kern rose o.p.i.tack)
-        =.  rose  pose.rr
+        =.  rose  (weld pose.rr rose)
         =.  rose  [[%mov sass.z.p.i.tack out.rr] rose]
         $(tack t.tack, salt [z.p.i.tack salt])
       ::  both sides this
@@ -781,6 +765,11 @@
   ::  generate a need split as far as either input need is split,
   ::  generating cons code for less-split need. This is used when two
   ::  sequential subformulas read from the same subject
+  ::
+  ::  for correctness in crash handling it is vital that the needs are
+  ::  ordered by the evaluation order of the computations, so that the
+  ::  first need is from the first computation and the second need from
+  ::  the second.
   ++  copy
     |=  [then=bile feed=need seed=need]
     =|  pose=(list pole)
@@ -805,19 +794,14 @@
           [[%mov sass.l.p.i.tack sass.r.p.i.tack] pose]
         $(rack [l.p.i.tack rack], tack t.tack)
       :: left this, right both
-      =/  lu  (sass left.r.p.i.tack)
-      =/  ru  (sass rite.r.p.i.tack)
-      =^  l  gen  ?~(lu rain [u.lu gen])
-      =^  r  gen  ?~(ru rain [u.ru gen])
-      %=  $
-          pose  [[%con l r sass.l.p.i.tack] pose]
-          tack
-        :*  [%| [%this l] left.r.p.i.tack]
-            [%| [%this r] rite.r.p.i.tack]
-            [%& sass.r.p.i.tack]
-            t.tack
-        ==
-      ==
+      :: 
+      :: this case must be handled this way in case the code that needs
+      :: l.p.i.tack will crash explicitly in some way.
+      =^  rr  gen  (kern ~ r.p.i.tack)
+      =?  pose  ?!(=(sass.l.p.i.tack out.rr))
+        [[%mov sass.l.p.i.tack out.rr] pose]
+      =.  pose  (weld (flop pose.rr) pose)
+      $(tack t.tack, rack [[%this sass.l.p.i.tack] rack])
     ?:  ?=(%both -.r.p.i.tack)
       :: both both
       %=  $
@@ -857,27 +841,17 @@
   ++  boom
     (emit %boom ~ ~ %bom ~)
   ::  
-  ::    possibly defer crash
+  ::    Defer crash
   ::
-  ::  if a the given register is in sick, then generate an immediate
-  ::  crash. Otherwise, unconditionally poison the register.
+  ::  Unconditionally poison the register.
   ::
   ::  This used when a value is known to not match the expectation of a
   ::  need
   ++  mine
     |=  [r=@uvre t=bile]
     ^-  [next _gen]
-    ?:  (~(has in sick.gen) r)
-      =.  sick.gen  (~(del in sick.gen) r)
-      bomb
     =^  mile  gen  (emit %mine ~ [%poi r]~ %hop t)
     [[%next [%none ~] t] gen]
-  ++  wash
-    |=  =bile
-    =/  sick  ~(tap in sick.gen)
-    =.  sick.gen  ~
-    ?~  sick  [bile gen]
-    (emit %wash ~ [%ipb sick]~ %hop bile)
   ::  
   ::    create label
   ::
@@ -944,8 +918,8 @@
         ==
       ::
           %both
-        =^  hurl  gen  rein
-        =^  barf  gen  rein
+        =^  hurl  gen  rain
+        =^  barf  gen  rain
         =/  phi  (~(gas by *(map bile @uvre)) ~[[zb hurl] [ob barf]])
         %=  $
             biff  (~(put by biff) sass.p.i.tack phi)
@@ -1005,7 +979,7 @@
         %|
       ?-  -.p.i.tack
           %both
-        =^  br  gen  rein
+        =^  br  gen  rain
         %=  $
             rb  [br rb]
             tack
@@ -1027,20 +1001,23 @@
   ::  push a need down by adding %both cases along the path described by
   ::  the axis. Used for nock 0 / %not.
   ++  from
-    |=  [axe=@ =need]
+    |=  [axe=@ =next]
     ?<  =(0 axe)
-    |-  ^-  [_need _gen]
-    ?:  =(1 axe)  [need gen]
-    =^  barf  gen  rein
-    ?-  (cap axe)
-        %2
-      =^  l  gen  $(axe (mas axe))
-      [[%both barf l %none ~] gen]
-    ::
-        %3
-      =^  r  gen  $(axe (mas axe))
-      [[%both barf [%none ~] r] gen]
-    ==
+    =|  bait=(list [r=@uvre c=?(%2 %3)])
+    |-  ^-  [_next _gen]
+    ?.  =(1 axe)
+      =^  barf  gen  rain
+      $(bait [[barf (cap axe)] bait], axe (mas axe))
+    =/  bits  (turn bait |=([r=@uvre *] r))
+    =^  fram  gen  (emit %fram ~ [%ipb bits]~ %hop then.next)
+    =/  feed
+      %+  roll  bait
+      |=  [[r=@uvre c=?(%2 %3)] n=_what.next]
+      ?-  c
+        %2  [%both r n %none ~]
+        %3  [%both r [%none ~] n]
+      ==
+    [[%next feed fram] gen]
   ::
   ::    split need at axis
   ::
@@ -1055,7 +1032,7 @@
     ?<  =(0 axe)
     |-  ^-  [[need need bile] _gen]
     ?.  =(1 axe)
-      =^  p  gen  rein
+      =^  p  gen  rain
       ?-  (cap axe)
           %2
         ?-  -.twig
@@ -1068,8 +1045,8 @@
           ==
         ::
             %this
-          =^  l  gen  rein
-          =^  r  gen  rein
+          =^  l  gen  rain
+          =^  r  gen  rain
           %=  $
             tres  [[%2 p %this r] tres]
             twig  [%this l]
@@ -1095,8 +1072,8 @@
           ==
         ::
             %this
-          =^  l  gen  rein
-          =^  r  gen  rein
+          =^  l  gen  rain
+          =^  r  gen  rain
           %=  $
             tres  [[%3 p %this l] tres]
             twig  [%this r]
@@ -1112,16 +1089,17 @@
         ==
       ==
     =/  tree=need  [%none ~]
+    =|  bait=(list @uvre)
     |-  ^-  [[need need bile] _gen]
     ?~  tres 
-      =^  tint  gen  (emit %into ~ pose %hop then.next)
+      =^  tint  gen  (emit %into ~ [[%ipb bait] pose] %hop then.next)
       [[twig tree tint] gen]
     ?-  lr.i.tres
         %2
-      $(tres t.tres, tree [%both p.i.tres tree need.i.tres])
+      $(tres t.tres, tree [%both p.i.tres tree need.i.tres], bait [p.i.tres bait])
     ::
         %3
-      $(tres t.tres, tree [%both p.i.tres need.i.tres tree])
+      $(tres t.tres, tree [%both p.i.tres need.i.tres tree], bait [p.i.tres bait])
     ==
   ::
   ::    split immediate
@@ -1140,8 +1118,6 @@
         %this  $(todo [[%imm n.i.tack sass.need.i.tack] todo], tack t.tack)
         %both
       ?@  n.i.tack
-        ?:  (~(has in sick.gen) sass.need.i.tack)
-          boom
         $(todo [[%poi sass.need.i.tack] todo], tack t.tack)
       $(tack [[+.n.i.tack rite.need.i.tack] [-.n.i.tack left.need.i.tack] t.tack])
     ==
