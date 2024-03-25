@@ -35,19 +35,23 @@ struct GD_buflistnode {
  */
 typedef struct GD_state GD_state;
 struct GD_state {
-  uintptr_t         guard_p;
-  const uintptr_t  *stack_pp;
-  const uintptr_t  *alloc_pp;
-  GD_buflistnode   *buffer_list;
-  struct sigaction  prev_sa;
+  uintptr_t         guard_p;      // address of guard page
+  uintptr_t         start_p;      // address of beginning of memory arena
+  uintptr_t         end_p;        // address of end of memory arena
+  const uintptr_t  *stack_pp;     // ptr to stack ptr
+  const uintptr_t  *alloc_pp;     // ptr to alloc ptr
+  GD_buflistnode   *buffer_list;  // linked list of longjmp buffers
+  struct sigaction  prev_sa;      // original signal handler
 };
 
 static GD_state _gd_state = { 
-  .guard_p = 0,
-  .stack_pp = NULL,
-  .alloc_pp = NULL,
-  .buffer_list = NULL,
-  .prev_sa = { .sa_sigaction = NULL, .sa_flags = 0 },
+  .guard_p      = 0,
+  .start_p      = 0,
+  .end_p        = 0,
+  .stack_pp     = NULL,
+  .alloc_pp     = NULL,
+  .buffer_list  = NULL,
+  .prev_sa      = { .sa_sigaction = NULL, .sa_flags = 0 },
 };
 
 static uint32_t
@@ -159,12 +163,23 @@ _register_handler(GD_state *gd)
   return 0;
 }
 
+void
+init(
+  const uintptr_t         start_p,
+  const uintptr_t         end_p,
+  const uintptr_t *const  stack_pp,
+  const uintptr_t *const  alloc_pp
+) {
+  _gd_state.start_p = start_p;
+  _gd_state.end_p = end_p;
+  _gd_state.stack_pp = stack_pp;
+  _gd_state.alloc_pp = alloc_pp;
+}
+
 uint32_t
 guard(
   void *(*f)(void *),
   void *closure,
-  const uintptr_t *const s_pp,
-  const uintptr_t *const a_pp,
   void **ret
 ) {
   GD_buflistnode *new_buffer;
@@ -173,9 +188,6 @@ guard(
 
   if (_gd_state.guard_p == 0) {
     assert(_gd_state.buffer_list == NULL);
-
-    _gd_state.stack_pp = s_pp;
-    _gd_state.alloc_pp = a_pp;
 
     // Initialize the guard page.
     if ((err = _focus_guard(&_gd_state))) {

@@ -404,8 +404,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     let nock = assert_no_alloc(|| {
         ensure_alloc_counters(|| {
-            let stack_pp = context.stack.get_stack_pointer_pointer() as *const *const u64;
-            let alloc_pp = context.stack.get_alloc_pointer_pointer() as *const *const u64;
             let work_f = &mut || unsafe {
                 push_formula(&mut context.stack, formula, true)?;
 
@@ -954,7 +952,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                 }
             };
 
-            call_with_guard(stack_pp, alloc_pp, work_f)
+            call_with_guard(work_f)
         })
     });
 

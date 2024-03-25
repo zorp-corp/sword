@@ -17,8 +17,25 @@ typedef enum {
 } guard_err;
 
 /**
+ * @brief Initializes the guard page state with information about the memory
+ * arena, which is later used to setup signal handlers for detecting OOM errors
+ * and gracefully ceasing execution during interrupts.
+ *
+ * @param start_p   A pointer to the start of the memory arena
+ * @param end_p     A pointer to the end of the memory arena
+ * @param stack_pp  A pointer to the memory arena stack pointer location
+ * @param alloc_pp  A pointer to the memory arena allocation pointer location
+ */
+void
+init(
+  const uintptr_t         start_p,
+  const uintptr_t         end_p,
+  const uintptr_t *const  stack_pp,
+  const uintptr_t *const  alloc_pp
+);
+
+/**
  * @brief Executes the given callback function `f` within the memory arena 
- * between the stack and allocation pointers pointed to by `s_pp` and `a_pp`,
  * with guard page protection. If `f`'s execution succeeds, its result is 
  * written to the return pointer `*ret`. If `f`'s execution triggers an
  * out of memory error or any other `guard_err`, the `guard_err` is
@@ -55,8 +72,6 @@ typedef enum {
  *
  * @param f The callback function to execute.
  * @param closure A pointer to the closure data for the callback function.
- * @param s_pp A pointer to the stack pointer location.
- * @param a_pp A pointer to the allocation pointer location.
  * @param ret A pointer to a location where the callback's result can be stored.
  * 
  * @return 0 on callback success; otherwise `guard_err` error code.
@@ -65,8 +80,6 @@ uint32_t
 guard(
   void *(*f)(void *),
   void *closure,
-  const uintptr_t *const s_pp,
-  const uintptr_t *const a_pp,
   void **ret
 );
 

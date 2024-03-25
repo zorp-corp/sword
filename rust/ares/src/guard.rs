@@ -1,4 +1,5 @@
 use crate::interpreter::{Error, Mote, Result};
+use crate::mem::NockStack;
 use crate::noun::D;
 use ares_guard::*;
 use assert_no_alloc::permit_alloc;
@@ -61,9 +62,21 @@ impl<'closure> CCallback<'closure> {
     }
 }
 
+pub fn init_guard(stack: &NockStack) {
+    unsafe {
+        let start = stack.get_start();
+        let end = start.add(stack.get_size());
+
+        init(
+            start as usize,
+            end as usize,
+            stack.get_stack_pointer_pointer() as *const usize,
+            stack.get_alloc_pointer_pointer() as *const usize
+        );
+    }
+}
+
 pub fn call_with_guard<F: FnMut() -> Result>(
-    stack_pp: *const *const u64,
-    alloc_pp: *const *const u64,
     closure: &mut F,
 ) -> Result {
     let cb = CCallback::new(closure);
@@ -74,8 +87,6 @@ pub fn call_with_guard<F: FnMut() -> Result>(
         let res = guard(
             Some(cb.function as unsafe extern "C" fn(*mut c_void) -> *mut c_void),
             cb.input,
-            stack_pp as *const usize,
-            alloc_pp as *const usize,
             ret_pp,
         );
 

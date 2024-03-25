@@ -1,5 +1,6 @@
 use crate::hamt::Hamt;
 use crate::interpreter::{inc, interpret, Error, Mote};
+use crate::guard::init_guard;
 use crate::jets::cold::Cold;
 use crate::jets::hot::{Hot, HotEntry};
 use crate::jets::list::util::{lent, zing};
@@ -341,6 +342,9 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
 
     let mut context = Context::load(snap_path, trace_info, constant_hot_state);
     context.ripe();
+
+    // Initialize guard page state with NockStack memory arena info
+    init_guard(&context.nock_context.stack);
 
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {
