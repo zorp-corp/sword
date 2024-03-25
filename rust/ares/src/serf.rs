@@ -143,7 +143,7 @@ impl Context {
         snapshot: Option<Snapshot>,
         constant_hot_state: &[HotEntry],
     ) -> Self {
-        let mut stack = NockStack::new(2048 << 10 << 10, 0);
+        let mut stack = NockStack::new(1048 << 10 << 10, 0);
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
 
