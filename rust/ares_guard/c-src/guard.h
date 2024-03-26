@@ -9,8 +9,6 @@
  */
 typedef enum {
   guard_intr        = 1,          // user interrupt
-  // XX
-  guard_intr_err,                 // interrupt memory arena error
   guard_null,                     // null stack or alloc pointer
   guard_oom,                      // out of memory
   guard_signal,                   // invalid signal

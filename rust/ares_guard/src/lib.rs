@@ -5,7 +5,6 @@
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 pub const GUARD_INTR:       u32 = guard_err_guard_intr;
-pub const GUARD_INTR_ERR:   u32 = guard_err_guard_intr_err;
 pub const GUARD_NULL:       u32 = guard_err_guard_null;
 pub const GUARD_OOM:        u32 = guard_err_guard_oom;
 pub const GUARD_SIGNAL:     u32 = guard_err_guard_signal;

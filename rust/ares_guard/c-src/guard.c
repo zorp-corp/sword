@@ -87,15 +87,21 @@ _register_handler(
 }
 
 static uint32_t
-_protect_page(void *address, int prot)
+_protect_range(void *address, size_t len, int prot)
 {
-  if (mprotect(address, GD_PAGE_SIZE, prot)) {
+  if (mprotect(address, len, prot)) {
     fprintf(stderr, "guard: prot: mprotect error %d\r\n", errno);
     fprintf(stderr, "%s\r\n", strerror(errno));
     return guard_mprotect;
   }
 
   return 0;
+}
+
+static uint32_t
+_protect_page(void *address, int prot)
+{
+  return _protect_range(address, GD_PAGE_SIZE, prot);
 }
 
 // Center the guard page.
@@ -193,7 +199,7 @@ _intr_exit_signal_handler(int sig, siginfo_t *si, void *unused)
       sig_addr <  _gd_state.end_p)
   {
     // Unlock the entire memory arena
-    err = mprotect(
+    err = _protect_range(
       (void *)_gd_state.start_p,
       (_gd_state.end_p - _gd_state.start_p),
       GD_PROT_OPEN);
@@ -236,18 +242,18 @@ _intr_signal_handler(int sig, siginfo_t *si, void *unused)
     NULL);
   if (err) {
     fprintf(stderr, "guard: intr: fault registration error\r\n");
-    siglongjmp(_gd_state.buffer_list->buffer, guard_intr_err);
+    siglongjmp(_gd_state.buffer_list->buffer, err);
   }
 
   // Protect the entire memory arena
-  err = mprotect(
+  err = _protect_range(
     (void *)_gd_state.start_p,
     (_gd_state.end_p - _gd_state.start_p),
     GD_PROT_LOCKED);
   if (err) {
     fprintf(stderr, "guard: intr: mprotect error %d\r\n", errno);
     fprintf(stderr, "%s\r\n", strerror(errno));
-    siglongjmp(_gd_state.buffer_list->buffer, guard_intr_err);
+    siglongjmp(_gd_state.buffer_list->buffer, err);
   }
 }
 
