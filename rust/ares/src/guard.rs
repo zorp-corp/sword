@@ -101,6 +101,7 @@ pub fn call_with_guard<F: FnMut() -> Result>(closure: &mut F) -> Result {
                 GuardError::Interrupt => Err(Error::NonDeterministic(Mote::Intr, D(0))),
                 GuardError::OutOfMemory => Err(Error::NonDeterministic(Mote::Meme, D(0))),
                 _ => {
+                    // XX: crashes before printing anything useful due to allocation
                     panic!("serf: guard: unexpected error {:?} {}", err, res);
                 }
             }
