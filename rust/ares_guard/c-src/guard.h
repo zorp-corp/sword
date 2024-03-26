@@ -37,18 +37,20 @@ init(
 );
 
 /**
- * @brief Executes the given callback function `f` within the memory arena 
- * with guard page protection. If `f`'s execution succeeds, its result is 
- * written to the return pointer `*ret`. If `f`'s execution triggers an
- * out of memory error or any other `guard_err`, the `guard_err` is
- * returned and `*ret` is left empty. In either case, cleanup is performed
- * before returning.
+ * @brief Executes the given callback function `f` within the memory arena with
+ * guard page protection. If `f`'s execution succeeds, its result is written to
+ * the return pointer `*ret`. If `f`'s execution triggers an out of memory error
+ * or any other `guard_err`, the `guard_err` is returned and `*ret` is left
+ * empty. In either case, cleanup is performed before returning. Optionally,
+ * will also handle user interrupts using SIGINT. Receiving a SIGINT signal will
+ * protect the entire memory arena and add a new signal handler to gracefully
+ * exit on the resulting memory arena fault.
  * 
  * Definitions:
  * - A guard page is marked `PROT_NONE`.
  *
  * Assumptions:
- * - `NockStack` pages are marked `PROT_READ|PROT_WRITE` by default.
+ * - `NockStack` pages are marked `PROT_READ | PROT_WRITE` by default.
  * - All memory access patterns are outside-in.
  * - Callback functions are compatible with the C ABI.
  * - `NockStack` stack and allocation pointer locations are fixed.
@@ -57,14 +59,14 @@ init(
  *   function may mutate.
  * - The callback function may be interrupted in the case of memory exhaustion
  *   or other `guard_err` error (failure to `mprotect`, `malloc`, etc.).
- * - `SIGSEGV` (`SIGBUS` on macOS) signals are expected to be raised only on
- *    guard page accesses.
  *
  * Invariants:
  * - A single guard page is installed and maintained in the approximate center
  *   until `crate::guard::call_with_guard` returns.
  * - A return value is only written to `*ret` on successful callback execution.
  * - A `guard_err` is returned.
+ * - Receiving a second SIGINT while processing the first will abort the
+ *   process.
  *
  * Enhancements:
  * - Use only a single, static jump buffer variable instead of a linked list.
@@ -75,33 +77,16 @@ init(
  * @param f The callback function to execute.
  * @param closure A pointer to the closure data for the callback function.
  * @param ret A pointer to a location where the callback's result can be stored.
+ * @param intr_flag A flag to enable handling SIGINT interrupts as well.
  * 
  * @return 0 on callback success; otherwise `guard_err` error code.
  */
 uint32_t
 guard(
-  void *(*f)(void *),
-  void *closure,
-  void **ret
-);
-
-/**
- * @brief Identical to guard, but also includes a signal handler for manual user
- * interrupts using SIGINT. Receiving a SIGINT signal will protect the entire
- * memory arena and add a new signal handler that will gracefully exit on the
- * fault as a result of touching the protected memory arena.
- *
- * @param f The callback function to execute.
- * @param closure A pointer to the closure data for the callback function.
- * @param ret A pointer to a location where the callback's result can be stored.
- * 
- * @return 0 on callback success; otherwise `guard_err` error code.
- */
-uint32_t
-guard_and_interrupt(
-  void *(*f)(void *),
-  void *closure,
-  void **ret
+  void     *(*f)(void *),
+  void     *closure,
+  void    **ret,
+  uint8_t   intr_flag
 );
 
 #endif  // __GUARD_H__

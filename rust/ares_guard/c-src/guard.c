@@ -281,9 +281,10 @@ init(
 
 uint32_t
 guard(
-  void *(*f)(void *),
-  void *closure,
-  void **ret
+  void     *(*f)(void *),
+  void     *closure,
+  void    **ret,
+  uint8_t   intr_flag
 ) {
   GD_buflistnode *new_buffer;
   uint32_t        err = 0;
@@ -294,89 +295,7 @@ guard(
 
     // Initialize the guard page.
     if ((err = _focus_guard(&_gd_state))) {
-      fprintf(stderr, "guard: initial focus error\r\n");
-      goto exit;
-    }
-
-    // Register guard page signal handler.
-    err = _register_handler(
-      GD_FAULT,
-      _fault_signal_handler,
-      &(_gd_state.prev_fault_sa));
-    if (err) {
-      fprintf(stderr, "guard: registration error\r\n");
-      goto tidy;
-    }
-  } else {
-    assert(_gd_state.buffer_list != NULL);
-  }
-
-  // Setup new longjmp buffer.
-  new_buffer = (GD_buflistnode *)malloc(sizeof(GD_buflistnode));
-  if (new_buffer == NULL) {
-    fprintf(stderr, "guard: malloc error\r\n");
-    fprintf(stderr, "%s\r\n", strerror(errno));
-    err = guard_malloc;
-    goto skip;
-  }
-  new_buffer->next = _gd_state.buffer_list;
-  _gd_state.buffer_list = new_buffer;
-
-  // Run given closure.
-  if (!(err = sigsetjmp(_gd_state.buffer_list->buffer, 1))) {
-    *ret = f(closure);
-  }
-
-  // Restore previous longjmp buffer.
-  _gd_state.buffer_list = _gd_state.buffer_list->next;
-  free((void *)new_buffer);
-
-skip:
-  if (_gd_state.buffer_list == NULL) {
-    if (sigaction(GD_FAULT, &_gd_state.prev_fault_sa, NULL)) {
-      fprintf(stderr, "guard: error replacing fault handler\r\n");
-      fprintf(stderr, "%s\r\n", strerror(errno));
-      td_err = guard_sigaction;
-
-      if (!err) {
-        err = td_err;
-      }
-    }
-
-tidy:
-    // Unmark guard page.
-    assert(_gd_state.guard_p != 0);
-    td_err = _protect_page((void *)_gd_state.guard_p, PROT_READ | PROT_WRITE);
-    if (td_err) {
-      fprintf(stderr, "guard: unmark error\r\n");
-      fprintf(stderr, "%s\r\n", strerror(errno));
-      if (!err) {
-        err = td_err;
-      }
-    }
-    _gd_state.guard_p = 0;
-  }
-
-exit:
-  return err;
-}
-
-uint32_t
-guard_and_interrupt(
-  void *(*f)(void *),
-  void *closure,
-  void **ret
-) {
-  GD_buflistnode *new_buffer;
-  uint32_t        err = 0;
-  uint32_t        td_err = 0;
-
-  if (_gd_state.guard_p == 0) {
-    assert(_gd_state.buffer_list == NULL);
-
-    // Initialize the guard page.
-    if ((err = _focus_guard(&_gd_state))) {
-      fprintf(stderr, "gni: initial guard focus error\r\n");
+      fprintf(stderr, "guard: initial guard focus error\r\n");
       goto exit;
     }
 
@@ -391,13 +310,15 @@ guard_and_interrupt(
     }
 
     // Register SIGINT signal handler.
-    err = _register_handler(
-      GD_INTR,
-      _intr_signal_handler,
-      &(_gd_state.prev_intr_sa));
-    if (err) {
-      fprintf(stderr, "guard: intr registration error\r\n");
-      goto tidy;
+    if (intr_flag) {
+      err = _register_handler(
+        GD_INTR,
+        _intr_signal_handler,
+        &(_gd_state.prev_intr_sa));
+      if (err) {
+        fprintf(stderr, "guard: intr registration error\r\n");
+        goto tidy;
+      }
     }
   } else {
     assert(_gd_state.buffer_list != NULL);

@@ -84,10 +84,11 @@ pub fn call_with_guard<F: FnMut() -> Result>(closure: &mut F) -> Result {
     let ret_pp = &mut ret_p as *mut *mut c_void;
 
     unsafe {
-        let res = guard_and_interrupt(
+        let res = guard(
             Some(cb.function as unsafe extern "C" fn(*mut c_void) -> *mut c_void),
             cb.input,
             ret_pp,
+            true as u8,
         );
 
         if res == 0 {
