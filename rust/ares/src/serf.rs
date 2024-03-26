@@ -1,6 +1,6 @@
+use crate::guard::init_guard;
 use crate::hamt::Hamt;
 use crate::interpreter::{inc, interpret, Error, Mote};
-use crate::guard::init_guard;
 use crate::jets::cold::Cold;
 use crate::jets::hot::{Hot, HotEntry};
 use crate::jets::list::util::{lent, zing};
@@ -15,15 +15,11 @@ use crate::persist::{pma_meta_get, pma_open, pma_sync, Persist};
 use crate::trace::*;
 use crate::{flog, interpreter};
 use ares_macros::tas;
-use signal_hook;
-use signal_hook::consts::SIGINT;
 use std::fs::create_dir_all;
 use std::io;
 use std::mem::size_of;
 use std::path::PathBuf;
 use std::result::Result;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::time::Instant;
 
 crate::gdb!();
@@ -293,20 +289,11 @@ const POKE_AXIS: u64 = 23;
 #[allow(dead_code)]
 const WISH_AXIS: u64 = 10;
 
-// Necessary because Arc::new is not const
-lazy_static! {
-    pub static ref TERMINATOR: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
-}
-
 /**
  * This is suitable for talking to the king process.  To test, change the arg_c[0] line in
  * u3_lord_init in vere to point at this binary and start vere like normal.
  */
 pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
-    // Register SIGINT signal hook to set flag first time, shutdown second time
-    signal_hook::flag::register_conditional_shutdown(SIGINT, 1, Arc::clone(&TERMINATOR))?;
-    signal_hook::flag::register(SIGINT, Arc::clone(&TERMINATOR))?;
-
     let pier_path_string = std::env::args()
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
@@ -401,8 +388,6 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
             }
             _ => panic!("got message with unknown tag {}", tag),
         };
-
-        clear_interrupt();
     }
 
     Ok(())
@@ -583,8 +568,6 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) {
     //  possible, without rendering stack trace or injecting crud event.  See
     //  c3__evil in vere.
 
-    clear_interrupt();
-
     let stack = &mut context.nock_context.stack;
     context.nock_context.cache = Hamt::<Noun>::new(stack);
     //  crud ovo = [+(now) [%$ %arvo ~] [%crud goof ovo]]
@@ -655,8 +638,4 @@ fn work_trace_name(stack: &mut NockStack, wire: Noun, vent: Atom) -> String {
 fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
     noun.slot(axis)
         .map_err(|_e| io::Error::new(io::ErrorKind::InvalidInput, "Bad axis"))
-}
-
-fn clear_interrupt() {
-    (*TERMINATOR).store(false, Ordering::Relaxed);
 }

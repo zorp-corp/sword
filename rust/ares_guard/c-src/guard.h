@@ -8,12 +8,16 @@
  * Error codes.
  */
 typedef enum {
-  guard_null,       // null stack or alloc pointer
-  guard_signal,     // invalid signal
-  guard_oom,        // out of memory
-  guard_malloc,     // malloc error
-  guard_mprotect,   // mprotect error
-  guard_sigaction,  // sigaction error
+  guard_intr        = 1,          // user interrupt
+  // XX
+  guard_intr_err,                 // interrupt memory arena error
+  guard_null,                     // null stack or alloc pointer
+  guard_oom,                      // out of memory
+  guard_signal,                   // invalid signal
+
+  guard_malloc      = 0x10000000, // malloc error
+  guard_mprotect    = 0x20000000, // mprotect error
+  guard_sigaction   = 0x40000000, // sigaction error
 } guard_err;
 
 /**
@@ -78,6 +82,25 @@ init(
  */
 uint32_t
 guard(
+  void *(*f)(void *),
+  void *closure,
+  void **ret
+);
+
+/**
+ * @brief Identical to guard, but also includes a signal handler for manual user
+ * interrupts using SIGINT. Receiving a SIGINT signal will protect the entire
+ * memory arena and add a new signal handler that will gracefully exit on the
+ * fault as a result of touching the protected memory arena.
+ *
+ * @param f The callback function to execute.
+ * @param closure A pointer to the closure data for the callback function.
+ * @param ret A pointer to a location where the callback's result can be stored.
+ * 
+ * @return 0 on callback success; otherwise `guard_err` error code.
+ */
+uint32_t
+guard_and_interrupt(
   void *(*f)(void *),
   void *closure,
   void **ret

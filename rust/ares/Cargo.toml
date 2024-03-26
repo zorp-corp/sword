@@ -26,13 +26,11 @@ either = "1.9.0"
 ibig = { path = "../ibig-rs" }
 intmap = "1.1.0"
 json = "0.12.4"
-lazy_static = "1.4.0"
 libc = "0.2.126"
 memmap = "0.7.0"
 murmur3 = { git = "https://github.com/tloncorp/murmur3", rev = "7878a0f" }
 num-derive = "0.3"
 num-traits = "0.2"
-signal-hook = "0.3"
 static_assertions = "1.1.0"
 
 [build-dependencies]

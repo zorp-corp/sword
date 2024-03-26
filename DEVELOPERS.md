@@ -62,11 +62,11 @@ bazel-bin/pkg/vere/urbit -F zod -B /path/to/ares/repo/resources/pills/baby.pill
 The command to run the Ares suite of unit tests is:
 
 ```bash
-cargo test --verbose -- --test-threads=1
+cargo test --verbose
 ```
 
-The tests must be run with `-- --test-threads=1` because Rust does not have any way to specify test setup / teardown functions, nor does it have any way to
-specify ordered test dependencies. Therefore, the only way to ensure that tests that share resources don't clobber each other **and** that tests setup / teardown in the right order is to force all unit tests to be single-threaded.
+Previously, tests had to be run with `-- --test-threads=1` because Rust does not have any way to specify test setup / teardown functions, nor does it have any way to
+specify ordered test dependencies, therefore the only way to ensure that tests that shared resources did't clobber each other **and** that tests were setup / cleaned up in the correct order was to force all unit tests to be single-threaded. This may need to be done again in the future.
 
 ### Style
 
