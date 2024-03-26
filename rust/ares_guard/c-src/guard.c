@@ -50,8 +50,9 @@ struct GD_state {
   const uintptr_t  *stack_pp;       // ptr to stack ptr
   const uintptr_t  *alloc_pp;       // ptr to alloc ptr
   GD_buflistnode   *buffer_list;    // linked list of longjmp buffers
-  struct sigaction  prev_fault_sa;  // original segfault signal handler
+  struct sigaction  prev_fault_sa;  // original fault signal handler
   struct sigaction  prev_intr_sa;   // original SIGINT signal handler
+  uint8_t           interrupt_f;    // SIGINT flag
 };
 
 static GD_state _gd_state = { 
@@ -63,6 +64,7 @@ static GD_state _gd_state = {
   .buffer_list    = NULL,
   .prev_fault_sa  = { .sa_sigaction = NULL, .sa_flags = 0 },
   .prev_intr_sa   = { .sa_sigaction = NULL, .sa_flags = 0 },
+  .interrupt_f    = 0,
 };
 
 // Register a signal handler function.
@@ -232,6 +234,13 @@ _intr_signal_handler(int sig, siginfo_t *si, void *unused)
   if (sig != GD_INTR) {
     fprintf(stderr, "guard: intr: invalid signal: %d\r\n", sig);
     assert(0);
+  }
+
+  // Second SIGINT received while still processing the first
+  if (_gd_state.interrupt_f) {
+    abort();
+  } else {
+    _gd_state.interrupt_f = 1;
   }
 
   // Register new fault signal handler to gracefully exit on next memory arena
@@ -451,7 +460,9 @@ tidy:
         err = td_err;
       }
     }
+
     _gd_state.guard_p = 0;
+    _gd_state.interrupt_f = 0;
   }
 
 exit:
