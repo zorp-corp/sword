@@ -157,30 +157,6 @@ int main(int argc, char *argv[])
   BT_findpath path = {0};
   int rc = 0;
 
-  /* broken with recent changes. Maybe because we aren't mmapping the data
-     ranges (pure _bt_insert) */
-#if 0
-
-  DPUTS("== test 1: insert");
-
-  bt_state_new(&state1);
-  if (mkdir("./pmatest1", 0774) == -1)
-    return errno;
-  assert(SUCC(bt_state_open(state1, "./pmatest1", 0, 0644)));
-
-#define LOWEST_ADDR 0x2aaa80;
-  vaof_t lo = LOWEST_ADDR;
-  vaof_t hi = 0xDEADBEEF;
-  pgno_t pg = 1;                /* dummy value */
-  for (size_t i = 0; i < BT_DAT_MAXKEYS * 4; ++i) {
-    _bt_insert(state1, lo, hi, pg);
-    _test_nodeinteg(state1, &path, lo, hi, pg);
-    lo++; pg++;
-  }
-
-  bt_state_close(state1);
-#endif
-
 
   DPUTS("== test 2: malloc");
   BT_state *state2;
@@ -340,7 +316,7 @@ int main(int argc, char *argv[])
   assert(SUCC(bt_state_open(state4, "./pmatest4", 0, 0644)));
 
   assert(state4->file_size_p == PMA_INITIAL_SIZE_p + PMA_GROW_SIZE_p * 2);
-  assert(state4->flist->hi == state4->file_size_p);
+  assert(state4->flist->next->hi == state4->file_size_p);
 
 
   DPUTS("== test 5: partition striping");
