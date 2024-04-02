@@ -299,6 +299,7 @@ int main(int argc, char *argv[])
 
 #define PMA_INITIAL_SIZE_p PMA_GROW_SIZE_p
   BYTE *t4a = bt_malloc(state4, PMA_GROW_SIZE_p * 2);
+  BYTE *t4a_copy = malloc(PMA_GROW_SIZE_b * 2);
   BYTE *t4b = t4a;
   for (size_t i = 0; i < PMA_GROW_SIZE_b * 2; i++) {
     *t4b++ = rand();
@@ -309,6 +310,7 @@ int main(int argc, char *argv[])
      tail. The hi page here should match the file size */
   assert(state4->flist->hi == state4->file_size_p);
 
+  memcpy(t4a_copy, t4a, PMA_GROW_SIZE_b * 2);
   bt_state_close(state4);
 
   bt_state_new(&state4);
@@ -317,6 +319,17 @@ int main(int argc, char *argv[])
 
   assert(state4->file_size_p == PMA_INITIAL_SIZE_p + PMA_GROW_SIZE_p * 2);
   assert(state4->flist->next->hi == state4->file_size_p);
+
+  for (size_t i = 0; i < PMA_GROW_SIZE_b * 2; i++)
+    assert(t4a_copy[i] == t4a[i]);
+
+  void *t4c = bt_malloc(state4, 10);
+  bt_sync(state4);
+  void *t4d = bt_malloc(state4, 10);
+  bt_sync(state4);
+  void *t4e = bt_malloc(state4, 10);
+  bt_sync(state4);
+
 
 
   DPUTS("== test 5: partition striping");
