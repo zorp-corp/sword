@@ -2311,7 +2311,7 @@ _bt_state_read_header(BT_state *state)
 static int
 _bt_state_meta_new(BT_state *state)
 {
-  BT_page *p1, *p2;
+  BT_page *p1;
   BT_meta meta = {0};
 
   TRACE();
@@ -2335,14 +2335,11 @@ _bt_state_meta_new(BT_state *state)
   meta.depth = 1;
   meta.flags = BP_META;
 
-  /* initialize the metapages */
+  /* initialize the first metapage */
   p1 = &((BT_page *)state->map)[0];
-  p2 = &((BT_page *)state->map)[1];
 
   /* copy the metadata into the metapages */
   memcpy(METADATA(p1), &meta, sizeof meta);
-  /* ;;: writing to the second metapage really isn't necessary and it's probably better to leave it zeroed */
-  /* memcpy(METADATA(p2), &meta, sizeof meta); */
 
   /* only the active metapage should be writable (first page) */
   if (mprotect(BT_MAPADDR, BT_META_SECTION_WIDTH, BT_PROT_CLEAN) != 0) {
