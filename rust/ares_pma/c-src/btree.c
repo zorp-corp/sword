@@ -699,6 +699,9 @@ _bt_root_new(BT_meta *meta, BT_page *root)
   root->datk[0].fo = 0;
   root->datk[1].va = UINT32_MAX;
   root->datk[1].fo = 0;
+  /* though we've modified the data segment, we shouldn't mark these default
+     values dirty because when we attempt to sync them, we'll obviously run into
+     problems since they aren't mapped */
 }
 
 static int
@@ -2307,9 +2310,8 @@ _bt_state_read_header(BT_state *state)
 
 static int
 _bt_state_meta_new(BT_state *state)
-#define INITIAL_ROOTPG 2
 {
-  BT_page *p1, *p2, *root;
+  BT_page *p1;
   BT_meta meta = {0};
 
   TRACE();
@@ -2324,9 +2326,6 @@ _bt_state_meta_new(BT_state *state)
   /* initialize the block base array */
   meta.blk_base[0] = BT_NUMMETAS;
 
-  root = _bt_nalloc(state);
-  _bt_root_new(&meta, root);
-
   /* initialize meta struct */
   meta.magic = BT_MAGIC;
   meta.version = BT_VERSION;
@@ -2335,18 +2334,12 @@ _bt_state_meta_new(BT_state *state)
   meta.fix_addr = BT_MAPADDR;
   meta.depth = 1;
   meta.flags = BP_META;
-  meta.root = _fo_get(state, root);
-  assert(meta.root == INITIAL_ROOTPG); /* ;;: remove?? */
 
-  /* initialize the metapages */
+  /* initialize the first metapage */
   p1 = &((BT_page *)state->map)[0];
-  p2 = &((BT_page *)state->map)[1];
 
   /* copy the metadata into the metapages */
   memcpy(METADATA(p1), &meta, sizeof meta);
-  /* ;;: todo, should the second metapage actually share a .root with the
-       first?? */
-  memcpy(METADATA(p2), &meta, sizeof meta);
 
   /* only the active metapage should be writable (first page) */
   if (mprotect(BT_MAPADDR, BT_META_SECTION_WIDTH, BT_PROT_CLEAN) != 0) {
@@ -2359,6 +2352,19 @@ _bt_state_meta_new(BT_state *state)
     abort();
   }
 
+  return BT_SUCC;
+}
+
+static int
+_bt_state_meta_inject_root(BT_state *state)
+#define INITIAL_ROOTPG 2
+{
+  assert(state->nlist);
+  BT_meta *meta = state->meta_pages[state->which];
+  BT_page *root = _bt_nalloc(state);
+  _bt_root_new(meta, root);
+  meta->root = _fo_get(state, root);
+  assert(meta->root == INITIAL_ROOTPG);
   return BT_SUCC;
 }
 #undef INITIAL_ROOTPG
@@ -2421,6 +2427,8 @@ _bt_state_map_node_segment(BT_state *state)
   BT_meta *meta = state->meta_pages[state->which];
   BYTE *targ = BT_MAPADDR + BT_META_SECTION_WIDTH;
   size_t i;
+
+  assert(meta->blk_base[0] == BT_NUMMETAS);
 
   /* map all allocated node stripes as clean */
   for (i = 0
@@ -2500,6 +2508,10 @@ _bt_state_load(BT_state *state)
     }
   }
 
+  if (new) {
+    assert(SUCC(_bt_state_meta_new(state)));
+  }
+
   /* map the node segment */
   _bt_state_map_node_segment(state);
 
@@ -2507,12 +2519,7 @@ _bt_state_load(BT_state *state)
   if (new) {
     assert(SUCC(_flist_new(state, PMA_GROW_SIZE_p)));
     assert(SUCC(_nlist_new(state)));
-
-    if (!SUCC(rc = _bt_state_meta_new(state))) {
-      munmap(state->map, BT_ADDRSIZE);
-      return rc;
-    }
-
+    assert(SUCC(_bt_state_meta_inject_root(state)));
     assert(SUCC(_mlist_new(state)));
   }
   else {
@@ -2931,8 +2938,15 @@ bt_sync(BT_state *state)
   BT_page *root = _node_get(state, meta->root);
   int rc = 0;
 
+  /* sync root subtrees */
   if ((rc = _bt_sync(state, root, 1, meta->depth)))
     return rc;
+
+  /* sync root page itself */
+  if (msync(root, sizeof(BT_page), MS_SYNC) != 0) {
+    DPRINTF("msync of root node: %p failed with %s", root, strerror(errno));
+    abort();
+  }
 
   /* merge the pending freelists */
   _pending_nlist_merge(state);

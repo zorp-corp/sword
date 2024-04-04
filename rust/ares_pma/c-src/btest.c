@@ -157,30 +157,6 @@ int main(int argc, char *argv[])
   BT_findpath path = {0};
   int rc = 0;
 
-  /* broken with recent changes. Maybe because we aren't mmapping the data
-     ranges (pure _bt_insert) */
-#if 0
-
-  DPUTS("== test 1: insert");
-
-  bt_state_new(&state1);
-  if (mkdir("./pmatest1", 0774) == -1)
-    return errno;
-  assert(SUCC(bt_state_open(state1, "./pmatest1", 0, 0644)));
-
-#define LOWEST_ADDR 0x2aaa80;
-  vaof_t lo = LOWEST_ADDR;
-  vaof_t hi = 0xDEADBEEF;
-  pgno_t pg = 1;                /* dummy value */
-  for (size_t i = 0; i < BT_DAT_MAXKEYS * 4; ++i) {
-    _bt_insert(state1, lo, hi, pg);
-    _test_nodeinteg(state1, &path, lo, hi, pg);
-    lo++; pg++;
-  }
-
-  bt_state_close(state1);
-#endif
-
 
   DPUTS("== test 2: malloc");
   BT_state *state2;
@@ -323,6 +299,7 @@ int main(int argc, char *argv[])
 
 #define PMA_INITIAL_SIZE_p PMA_GROW_SIZE_p
   BYTE *t4a = bt_malloc(state4, PMA_GROW_SIZE_p * 2);
+  BYTE *t4a_copy = malloc(PMA_GROW_SIZE_b * 2);
   BYTE *t4b = t4a;
   for (size_t i = 0; i < PMA_GROW_SIZE_b * 2; i++) {
     *t4b++ = rand();
@@ -333,6 +310,7 @@ int main(int argc, char *argv[])
      tail. The hi page here should match the file size */
   assert(state4->flist->hi == state4->file_size_p);
 
+  memcpy(t4a_copy, t4a, PMA_GROW_SIZE_b * 2);
   bt_state_close(state4);
 
   bt_state_new(&state4);
@@ -340,7 +318,18 @@ int main(int argc, char *argv[])
   assert(SUCC(bt_state_open(state4, "./pmatest4", 0, 0644)));
 
   assert(state4->file_size_p == PMA_INITIAL_SIZE_p + PMA_GROW_SIZE_p * 2);
-  assert(state4->flist->hi == state4->file_size_p);
+  assert(state4->flist->next->hi == state4->file_size_p);
+
+  for (size_t i = 0; i < PMA_GROW_SIZE_b * 2; i++)
+    assert(t4a_copy[i] == t4a[i]);
+
+  void *t4c = bt_malloc(state4, 10);
+  bt_sync(state4);
+  void *t4d = bt_malloc(state4, 10);
+  bt_sync(state4);
+  void *t4e = bt_malloc(state4, 10);
+  bt_sync(state4);
+
 
 
   DPUTS("== test 5: partition striping");
