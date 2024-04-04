@@ -1516,7 +1516,7 @@ _bt_insert2(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo,
   /* nullcond: node is a leaf */
   if (meta->depth == depth) {
     /* dirty the data range */
-    _bt_dirtydata(node, childidx); /* ;;: I believe this is incorrect. We should just directly modify the dirty bitset in _bt_insertdat */
+    _bt_dirtydata(node, childidx);
     /* guaranteed non-full and dirty by n-1 recursive call, so just insert */
     return _bt_insertdat(lo, hi, fo, node, childidx);
   }
@@ -2212,7 +2212,7 @@ _bt_state_restore_maps(BT_state *state)
 
 static int
 _bt_state_meta_which(BT_state *state)
-{                               /* ;;: TODO you need to mprotect writable the current metapage */
+{
   BT_meta *m1 = state->meta_pages[0];
   BT_meta *m2 = state->meta_pages[1];
   int which = -1;
@@ -2513,7 +2513,7 @@ _bt_state_load(BT_state *state)
   }
 
   /* map the node segment */
-  _bt_state_map_node_segment(state); /* ;;: this should follow a call to  _bt_state_meta_new. hmm... but that leads to a bad dependency graph. We may need to separately initialize the first partition and only call map_node_segment on restore. */
+  _bt_state_map_node_segment(state);
 
   /* new db, so populate metadata */
   if (new) {
@@ -2736,7 +2736,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
 
   /* do dfs */
   for (size_t i = 0; i < N-1; i++) {
-    if (!_bt_ischilddirty(node, i)) /* ;;: consider removing case until dirty logic is foolproof */
+    if (!_bt_ischilddirty(node, i))
       continue;                 /* not dirty. nothing to do */
 
     BT_page *child = _node_get(state, node->datk[i].fo);
