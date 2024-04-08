@@ -1034,22 +1034,27 @@ impl Noun {
     }
 
     pub fn is_direct(&self) -> bool {
+        assert!(!self.is_none());
         unsafe { is_direct_atom(self.raw) }
     }
 
     pub fn is_indirect(&self) -> bool {
+        assert!(!self.is_none());
         unsafe { is_indirect_atom(self.raw) }
     }
 
     pub fn is_atom(&self) -> bool {
+        assert!(!self.is_none());
         self.is_direct() || self.is_indirect()
     }
 
     pub fn is_allocated(&self) -> bool {
+        assert!(!self.is_none());
         self.is_indirect() || self.is_cell()
     }
 
     pub fn is_cell(&self) -> bool {
+        assert!(!self.is_none());
         unsafe { is_cell(self.raw) }
     }
 
@@ -1057,6 +1062,7 @@ impl Noun {
         if self.is_direct() {
             unsafe { Ok(self.direct) }
         } else {
+            assert!(!self.is_none());
             Err(Error::NotDirectAtom)
         }
     }
@@ -1065,6 +1071,7 @@ impl Noun {
         if self.is_indirect() {
             unsafe { Ok(self.indirect) }
         } else {
+            assert!(!self.is_none());
             Err(Error::NotIndirectAtom)
         }
     }
@@ -1073,6 +1080,7 @@ impl Noun {
         if self.is_cell() {
             unsafe { Ok(self.cell) }
         } else {
+            assert!(!self.is_none());
             Err(Error::NotCell)
         }
     }
@@ -1081,6 +1089,7 @@ impl Noun {
         if self.is_atom() {
             unsafe { Ok(self.atom) }
         } else {
+            assert!(!self.is_none());
             Err(Error::NotAtom)
         }
     }
@@ -1089,6 +1098,7 @@ impl Noun {
         if self.is_allocated() {
             unsafe { Ok(self.allocated) }
         } else {
+            assert!(!self.is_none());
             Err(Error::NotAllocated)
         }
     }
@@ -1115,6 +1125,7 @@ impl Noun {
         if self.is_atom() {
             unsafe { Some(self.atom) }
         } else {
+            assert!(!self.is_none());
             None
         }
     }
@@ -1123,6 +1134,7 @@ impl Noun {
         if self.is_cell() {
             unsafe { Some(self.cell) }
         } else {
+            assert!(!self.is_none());
             None
         }
     }
@@ -1131,6 +1143,7 @@ impl Noun {
         if self.is_direct() {
             unsafe { Some(self.direct) }
         } else {
+            assert!(!self.is_none());
             None
         }
     }
@@ -1139,6 +1152,7 @@ impl Noun {
         if self.is_indirect() {
             unsafe { Some(self.indirect) }
         } else {
+            assert!(!self.is_none());
             None
         }
     }
@@ -1147,6 +1161,7 @@ impl Noun {
         if self.is_allocated() {
             unsafe { Some(self.allocated) }
         } else {
+            assert!(!self.is_none());
             None
         }
     }
