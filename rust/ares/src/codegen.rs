@@ -214,7 +214,7 @@ struct ContextSnapshot {
     cold: Cold,
     warm: Warm,
     cache: Hamt<Noun>,
-    line: Option<Noun>,
+    line: Noun,
     hill: Hill,
     virtual_frame: *const u64,
 }
@@ -977,7 +977,7 @@ pub mod types {
         jets::Jet,
         jets::hot::Hot,
         mem::{NockStack, Preserve},
-        noun::{Noun, T},
+        noun::{Noun, T, NOUN_NONE},
         trace::TraceStack,
         persist::Persist,
     };
@@ -987,7 +987,7 @@ pub mod types {
 
     pub struct CGContext {
         /// Linearizer core
-        pub line: Option<Noun>,
+        pub line: Noun,
         /// Code table
         pub hill: Hill,
         /// Jet table, as a HAMT for codegen
@@ -1008,7 +1008,7 @@ pub mod types {
                 stack.preserve(&mut hot_hamt);
                 stack.frame_pop();
                 CGContext {
-                    line: None,
+                    line: NOUN_NONE,
                     hill,
                     hot_hamt,
                 }
@@ -1018,17 +1018,13 @@ pub mod types {
 
     impl Preserve for CGContext {
         unsafe fn preserve(&mut self, stack: &mut NockStack) {
-            self.line.as_mut().map(|line_mut| {
-                stack.preserve(line_mut);
-            });
+            stack.preserve(&mut self.line);
             stack.preserve(&mut self.hill);
             stack.preserve(&mut self.hot_hamt);
         }
 
         unsafe fn assert_in_stack(&self, stack: &NockStack) {
-            self.line.as_ref().map(|line_ref| {
-                line_ref.assert_in_stack(stack);
-            });
+            self.line.assert_in_stack(stack);
             self.hill.assert_in_stack(stack);
             self.hot_hamt.assert_in_stack(stack);
         }
@@ -1207,7 +1203,7 @@ mod util {
 
     /// returns (unit [bell hill])
     pub fn peek(context: &mut Context, subject: Noun, formula: Noun) -> Noun {
-        let line = context.cg_context.line.unwrap();
+        let line = context.cg_context.line;
         let pek = kick(context, line, D(PEEK_AXIS)).unwrap();
         let sam = T(&mut context.stack, &[subject, formula]);
         slam(context, pek, sam).unwrap()
@@ -1215,13 +1211,13 @@ mod util {
 
     /// returns [(set bell) (set bell) _line]
     pub fn poke(context: &mut Context, gist: Noun) -> (Noun, Noun) {
-        let line = context.cg_context.line.unwrap();
+        let line = context.cg_context.line;
         let pok = kick(context, line, D(POKE_AXIS)).unwrap();
         let res = slam(context, pok, gist).unwrap();
         let new = slot(res, 2).unwrap();
         let old = slot(res, 6).unwrap();
         assert!(unsafe{old.raw_equals(D(0))});
-        context.cg_context.line = Some(slot(res, 7).unwrap());
+        context.cg_context.line = slot(res, 7).unwrap();
         (new, old)
     }
 
@@ -1502,7 +1498,7 @@ mod util {
         sub: Noun,
         form: Noun,
     ) {
-        let line = context.cg_context.line.unwrap();
+        let line = context.cg_context.line;
         let gat = kick(context, line, D(RACK_AXIS)).unwrap();
         let sf_cel = T(&mut context.stack, &[sub, form]);
         let _res = slam(context, gat, sf_cel);

@@ -23,13 +23,25 @@ pub const DIRECT_MAX: u64 = u64::MAX >> 1;
 const INDIRECT_TAG: u64 = u64::MAX & DIRECT_MASK;
 
 /** Tag mask for an indirect atom. */
-const INDIRECT_MASK: u64 = !(u64::MAX >> 2);
+const INDIRECT_TAG_MASK: u64 = !(u64::MAX >> 3);
 
 /** Tag for a cell. */
-const CELL_TAG: u64 = u64::MAX & INDIRECT_MASK;
+const CELL_TAG: u64 = u64::MAX & INDIRECT_TAG_MASK;
 
 /** Tag mask for a cell. */
-const CELL_MASK: u64 = !(u64::MAX >> 3);
+const CELL_TAG_MASK: u64 = !(u64::MAX >> 3);
+
+/** NONE value, should always cause panic if not checked for explicitly
+ *
+ * Note that this has the same value as FORWARDING_TAG but is used as a value, not a tag.
+ *
+ */
+const NONE_VALUE: u64 = 0b111 << 61;
+
+/**
+ * NONE value, as a noun
+ */
+pub const NOUN_NONE: Noun = Noun { raw: NONE_VALUE };
 
 /*  A note on forwarding pointers:
  *
@@ -50,10 +62,10 @@ const CELL_MASK: u64 = !(u64::MAX >> 3);
  */
 
 /** Tag for a forwarding pointer */
-const FORWARDING_TAG: u64 = u64::MAX & CELL_MASK;
+const FORWARDING_TAG: u64 = u64::MAX & CELL_TAG_MASK;
 
 /** Tag mask for a forwarding pointer */
-const FORWARDING_MASK: u64 = CELL_MASK;
+const FORWARDING_MASK: u64 = CELL_TAG_MASK;
 
 /** Loobeans */
 pub const YES: Noun = D(0);
@@ -140,6 +152,10 @@ pub fn no_forwarding_pointers(noun: Noun) -> bool {
     true
 }
 
+fn is_none(noun: u64) -> bool {
+    noun == NONE_VALUE
+}
+
 /** Test if a noun is a direct atom. */
 fn is_direct_atom(noun: u64) -> bool {
     noun & DIRECT_MASK == DIRECT_TAG
@@ -147,12 +163,12 @@ fn is_direct_atom(noun: u64) -> bool {
 
 /** Test if a noun is an indirect atom. */
 fn is_indirect_atom(noun: u64) -> bool {
-    noun & INDIRECT_MASK == INDIRECT_TAG
+    noun & INDIRECT_TAG_MASK == INDIRECT_TAG
 }
 
 /** Test if a noun is a cell. */
 fn is_cell(noun: u64) -> bool {
-    noun & CELL_MASK == CELL_TAG
+    noun & CELL_TAG_MASK == CELL_TAG
 }
 
 /** A noun-related error. */
@@ -1014,7 +1030,7 @@ pub union Noun {
 
 impl Noun {
     pub fn is_none(self) -> bool {
-        unsafe { self.raw == u64::MAX }
+        unsafe { is_none(self.raw) }
     }
 
     pub fn is_direct(&self) -> bool {
@@ -1081,6 +1097,7 @@ impl Noun {
         if self.is_cell() {
             unsafe { Right(self.cell) }
         } else {
+            assert!(!self.is_none());
             unsafe { Left(self.atom) }
         }
     }
@@ -1089,6 +1106,7 @@ impl Noun {
         if self.is_direct() {
             unsafe { Left(self.direct) }
         } else {
+            assert!(!self.is_none());
             unsafe { Right(self.allocated) }
         }
     }
@@ -1151,6 +1169,7 @@ impl Noun {
      * This counts the total size, see mass_frame() to count the size in the current frame.
      */
     pub fn mass(self) -> usize {
+        assert!(!self.is_none());
         unsafe {
             let res = self.mass_wind(&|_| true);
             self.mass_unwind(&|_| true);

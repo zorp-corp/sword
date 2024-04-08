@@ -138,7 +138,7 @@ impl Context {
                 (*snapshot_mem_ptr).event_num = self.event_num;
                 (*snapshot_mem_ptr).arvo = self.arvo;
                 (*snapshot_mem_ptr).cold = self.nock_context.cold;
-                (*snapshot_mem_ptr).line = self.nock_context.cg_context.line.expect("Line core should be set up before snapshot");
+                (*snapshot_mem_ptr).line = self.nock_context.cg_context.line;
                 (*snapshot_mem_ptr).hill = self.nock_context.cg_context.hill;
                 snapshot_mem_ptr
             });
@@ -149,7 +149,7 @@ impl Context {
             self.arvo = (*snapshot.0).arvo;
             self.event_num = (*snapshot.0).event_num;
             self.nock_context.cold = (*snapshot.0).cold;
-            self.nock_context.cg_context.line = Some((*snapshot.0).line);
+            self.nock_context.cg_context.line = (*snapshot.0).line;
             self.nock_context.cg_context.hill = (*snapshot.0).hill;
 
             handle
@@ -376,7 +376,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         assert!(slot(line_res, 2).expect("Codegen noun should be a cell").raw_equals(D(1)));
     };
     let line = slot(line_res, 3).expect("Codegen noun should be a cell");
-    context.nock_context.cg_context.line = Some(line);
+    context.nock_context.cg_context.line = line;
 
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next() {
