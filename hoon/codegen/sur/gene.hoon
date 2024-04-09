@@ -1,94 +1,224 @@
-/-  *sock
 |%
-+|  %ska
-+$  barn  [sub=sock for=*]
-+$  nomm  :: SKA-analyzed nock
-  $~  [%one **]
-  $%  [%par nomm nomm] 
-      [%zer @ ?]  ::  safety-tagged lookup
-      [%one *]
-      [%two nomm nomm sock (unit *) ?]  ::  subject knowledge and known formula, safety-tag on metaformula
-      [%thr nomm]
-      [%fou nomm ?]  :: safety-tagged increment
-      [%fiv nomm nomm]
-      [%six nomm nomm nomm]
-      [%sev nomm nomm]
-      :: we omit 8, translating it to 7 + autocons
-      :: we omit 9, translating it to 7 + 2
-      [%ten [@ nomm] nomm ?]  ::  safety-tagged edit
-      [%els @ nomm]
-      [%eld [@ nomm] nomm ?]  :: safety-tagged hint formula
-      [%twe nomm nomm]
-  ==
-+$  farm  [yard=(map barn [does=nomm says=boot]) wood=(list barn)]
-+|  %lin
-+$  berm  [sub=sock for=* ax=@ gen=@tas] :: local label
-+$  plow :: noun<->ssa map
-  $%  [%fork left=plow rite=plow safe=?] :: cons of two mappings
-      [%tine @]                          :: use this SSA value at this axis
-      [%disc ~]                          :: no uses here or below
-  ==
-+$  line  :: destination
-  $%  [%moat wher=berm what=plow]  :: place result in SSA values specified by what, go wher
-      [%rift troo=berm fals=berm]  :: branch on result
-      [%pond ~]                    :: tail position, return result in a register
-  ==
-+$  bran :: instructions in a block
-  $%  [%imm * @]                  :: Write a noun to an SSA value
-      [%mov @ @]                  :: Copy an SSA value
-      [%inc @ @]                  :: Define second SSA register as increment of first
-      [%unc @ @]                  :: Define a second SSA register as increment of first, without checking atomicity
-      [%con @ @ @]                :: Construct a cell, first SSA head, second SSA tail, third SSA result
-      [%hed @ @]                  :: Take the head of first SSA and place in second.
-                                  ::  Crash if first SSA not a cell
-      [%hud @ @]                  :: Take the head of the first SSA, known to be a cell
-      [%tal @ @]                  :: Take tail head of first SSA and place in second.
-                                  ::  Crash if first SSA not a cell
-      [%tul @ @]                  :: Take the tail of the first SSA, known to be a cell
-  ==
-:: These instructions end a block.
-:: A block ends either because we need to transfer control
-:: elsewhere (hop), we need to branch (clq, eqq, brn), we need a saved
-:: control point to return to (lnk, call, hnt, spy), or we are done and
-:: transfering control to another arm (jmp, lnt), our caller (don), or
-:: the crash handler (bom). 
 ::
-:: The bec and eye instructions are intermediate forms only, and are
-:: translated into cal and jmp respectively once enough information is
-:: available about their targets. They exist because when linearizing
-:: and registerizing (mutually) recursive arms, there will be some call
-:: targets for which we do not know subject use maps and thus cannot yet
-:: build calls to. Once all arms are registerized, we scan for bec and
-:: eye and replace them with jmp and call with registers appropriately
-:: split.
-+$  germ :: instructions ending a block
-  $%  [%clq @ berm berm]          :: Branch left if the SSA value is a cell, right otherwise
-      [%eqq @ @ berm berm]        :: Branch left if SSA registers are equal, right otherwise
-      [%brn @ berm berm]          :: Branch left if SSA register is 0, right if 1
-      [%hop berm]                 :: Go to berm unconditionally (local direct jump)
-      [%lnk @ @ @ berm]           :: Call formula in first SSA register with subject in second,
-                                  ::   result in third, return to berm
-      [%cal barn (list @) @ berm] :: Call arm given by barn, subject in first SSA register,
-                                  ::   result in second, return to berm
-      [%bec barn @ @ berm]        :: Not quite a call: we need to know the subject registerization of an arm.
-                                  ::   see %eye
-      [%lnt @ @]                  :: Jump to formula in first SSA register with subject in second
-      [%jmp barn (list @)]        :: Jump to the code at the label in tail position,
-                                  ::   with the subject in the SSA register
-      [%eye barn @]               :: Look before you jump: we need to know the subject registerization of an arm
-                                  ::   before we jump to it. Until then, here's a register with
-                                  ::   the whole subject
-      [%spy @ @ @ berm]           :: Scry with the ref/path pair in the first 2 SSA registers
-                                  ::   define the third as the result
-      [%hnt @ berm]               :: Treat the result in the SSA register as a hint and continue to the given label
+::    hot state
+::
+::  faces (per element):
+::  j - jet ID
+::  p - path
+::  a - battery axis
+::  need - how this jet expects the subject
++$  heat
+  (list [p=path a=@ j=@jet =need])
+::
+::   pokes
+::
+::  the codegen core can be updated by asking it to analyze new code
++$  gist  [%comp slow=path s=* f=*]
 
-      [%don @]                    :: Finish the procedure, returning the value in the SSA
-      [%bom ~]                    :: Crash
+::  slow hint tree
++$  shed  $~  [~ ~]  [root=(unit bell) kids=(map @tas shed)]
+::
+::    external label
+::
+::  labels an arm by what is known of its subject paired with its
+::  formula
++$  bell  [text=sock form=*]
+::
+::    internal label
+::
+::  labels a basic block within generated code for an arm
++$  bile  [%bile axe=@ thus=@tas =bell]
+::    noun shape
+::
+::  labels axes of an abstract noun with SSA registers, possibly
+::  ignoring some axes
++$  need
+  $%  [%this sass=@uvre]
+      [%both sass=@uvre left=need rite=need]
+      [%none ~]
   ==
-+$  pool  (list [axe=@ ssa=@ saf=?])    :: entry point subject uses: ordered subject/ssa/safety
-+$  lock  [body=(list bran) bend=germ]  :: basic block: instructions + a terminator or branch
-+$  lake  (map berm lock)               :: code table of basic blocks
-+$  rice  [goes=lake uses=pool lump=@]  :: entry information and code table for an arm
-+$  sack  [does=rice says=boot]         :: code table entry: basic blocks + SKA result for an arm
-+$  town  [land=(map barn sack) lamb=@] :: code table
+::    linear control flow
+::
+::  a label for code for some nock, and the shape of its subject
++$  next  $>(%next goal)
+::
+::    destination
+::
+::  codegen destination
+::
+::  %pick: result will be used as a loobean for Nock 6
+::  %done: nock is in tail position, return result
+::  %next: jump to given label with result in given $need
++$  goal
+  $%  [%pick sass=@uvre zero=bile once=bile]
+      [%done ~]
+      [%next what=need then=bile]
+  ==
+::
+::    instructions in a block
+::
+::  note: the slow and mean stack instructions assume that non-tail
+::  calls ($site cases %lnk %cal %caf) save the current state of the
+::  mean stack, and %don restores it. This allows us to omit %man and
+::  %sld popping instructions after the body of the relevant hints in
+::  tail position, maintaining TCO in the presence of stack traces and
+::  analysis boundary (%slow) hints. An implementation of this VM *must*
+::  conform to this behavior.
+::
+::  faces:
+::  n - noun
+::  d - destination
+::  f - formula
+::  h - head
+::  k - key
+::  l - label
+::  r - result
+::  s - source
+::  t - tail
+::  u - subject
+::
+::  cases:
+::  %imm - write immediate n to d
+::  %mov - copy s to d
+::  %phi - select source based on last %hip, copy to d
+::  %inc - increment s and write to d?
+::  %con - cons h and t into d
+::  %coc - crash immediately if s is an atom
+::  %hed - write head of s to d. Poison s if s is an atom
+::  %tal - write tail of s to d. Poison s if s is an atom
+::  %men - Push s onto the mean stack.
+::  %man - Pop the mean stack
+::  %slo - Push s onto the slow stack.
+::  %sld - Pop from the slow stack
+::  %hit - Increment a profiling hit counter labeled with the noun in s
+::  %slg - Print out s for debugging
+::  %mew - Write r to the memo cache at the triple [k u f]
+::  %tim - Push a timer onto the timer stack and start it
+::  %tom - Pop a timer from the timer stack, stop it, and print elapsed
+::  %mem - Print memory usage
+::  %poi - Poison d
+::  %ibp - If any register in s is poisoned, crash.
++$  pole
+  $%  [%imm n=* d=@uvre]
+      [%mov s=@uvre d=@uvre]
+      [%inc s=@uvre d=@uvre]
+      [%con h=@uvre t=@uvre d=@uvre]
+      [%hed s=@uvre d=@uvre]
+      [%tal s=@uvre d=@uvre]
+      [%men l=@ta s=@uvre]
+      [%man ~]
+      [%slo s=@uvre]
+      [%sld ~]
+      [%hit s=@uvre]
+      [%slg s=@uvre]
+      [%mew k=@uvre u=@uvre f=@uvre r=@uvre]
+      [%tim ~]
+      [%tom ~]
+      [%mem ~]
+      [%poi p=@uvre]
+      [%ipb p=(list @uvre)]
+  ==
+::
+::    origin description
+::
+::  %hed - register is head of given register
+::  %tal - register is tail of given register
++$  pool
+  $%  [%hed s=@uvre]
+      [%tal s=@uvre]
+  ==
+::
+::    instructions ending a block
+::
+::  faces:
+::  a - target arm
+::  b - poisons
+::  c - come-from block
+::  d - destination
+::  e - scry ref
+::  f - formula
+::  i - in cache
+::  k - key
+::  l - left source
+::  m - cache miss
+::  n - fast label and axis into battery
+::  o - "one" / false case
+::  p - scry path
+::  r - right source
+::  s - source
+::  t - target block
+::  u - subject
+::  v - subject but registerized
+::  z - "zero" / true case
+::
+::  cases:
+::  %clq - if s is a cell goto z else goto o
+::  %eqq - if l and r equal goto z else goto o
+::  %brn - if s is 0 goto z, if 1 goto o, else crash
+::  %hop - unconditionally go to t
+::  %hip - set comefrom label to c and goto t
+::  %lnk - evaluate f against u and put the result in d, then goto t
+::  %cal - call the arm a with subject in registers v, poisons in b,
+::         result in d, and then goto t
+::  %caf - like call but with fast label
+::  %lnt - evaluate f against u in tail position
+::  %jmp - call the arm a with subject in registers u, poisons in b, in
+::         tail position
+::  %jmf - like jmp but with fast label
+::  %spy - scry with ref in e and path in p, put result in d, goto t
+::  %mer - check if triple [k u f] is in cache, put result in d if so
+::         and goto i, else goto m
+::  %don - return value in s from current arm
+::  %bom - crash
++$  site
+  $%  [%clq s=@uvre z=bile o=bile]
+      [%eqq l=@uvre r=@uvre z=bile o=bile]
+      [%brn s=@uvre z=bile o=bile]
+      [%hop t=bile]
+      [%hip c=bile t=bile]
+      [%lnk u=@uvre f=@uvre d=@uvre t=bile]
+      [%cal a=bell v=(list @uvre) d=@uvre t=bile]
+      [%caf a=bell v=(list @uvre) d=@uvre t=bile u=@uvre n=[path @]]
+      [%lnt u=@uvre f=@uvre]
+      [%jmp a=bell v=(list @uvre)]
+      [%jmf a=bell v=(list @uvre) u=@uvre n=[path @]]
+      [%spy e=@uvre p=@uvre d=@uvre t=bile]
+      [%mer k=@uvre u=@uvre f=@uvre d=@uvre i=bile m=bile]
+      [%don s=@uvre]
+      [%bom ~]
+  ==
+::    basic block
+::
+::  map of phi-arguments, each of which initializes an @uvre from
+::  another @uvre selected by which label we came from (see %hip control
+::  flow instruction)
+::  zero or more dataflow instructions executed in order, followed by a
+::  single control-flow instruction
++$  blob  [biff=(map @uvre (map bile @uvre)) body=(list pole) bend=site]
+::
+::    compilation unit
+::
+::  basic blocks and entry information for an arm
+::
+::  long: starting label for direct calls    axis 2
+::  want: input registers for direct calls   axis 6
+::  walt: input starting registers LR        axis 30
+::  wish: starting label for indirect calls  axis 62
+::  sire: input register for indirect calls  axis 126
+::  will: code table for arm                 axis 254
+::  sans: next SSA register                  axis 255
++$  pile
+  $:  long=bile
+      want=need
+      walt=(list @uvre)
+      wish=bile
+      sire=@uvre
+      will=(map bile blob)
+      sans=@uvre
+  ==
+::
+::    code table
+::
+::  code entry information for arms
++$  hill  (map bell pile)
 --
