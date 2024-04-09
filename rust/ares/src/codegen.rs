@@ -11,10 +11,9 @@ use crate::jets::cold::Cold;
 use crate::jets::util::slot;
 use crate::jets::warm::Warm;
 use crate::mem::{NockStack, Preserve};
-use crate::noun::{Noun, D, NO, T, YES};
+use crate::noun::{Noun, NOUN_NONE, D, NO, T, YES};
 use crate::trace::TraceStack;
 use crate::codegen::types::PileMem;
-use assert_no_alloc::permit_alloc;
 use crate::persist::Persist;
 use types::{ActualError, Frame, Pile, JetEntry, Timer, TimerMem};
 use crate::flog;
@@ -137,38 +136,31 @@ fn cg_pull_pile(context: &mut Context, subject: Noun, formula: Noun) -> Pile {
 
 const FRAME_WORD_SIZE: usize = (size_of::<Frame>() + 7) >> 3; // Round to u64 words
 
-/**
- * Push a new interpreter frame
- *
- * If tail is false, this will simply set up a new frame.
- *
- * If tail is true, this will set up a new frame in the current stack position, but in addition
- * - resize the frame to hold the old poisons, the old registers, the new poisons, and the new
- *   registers
- * - move the old poisons and registers over
- */
+/// Pushes a new interpreter frame onto the stack.
+///
+/// If `tail` is false, this simply sets up a new frame.
+///
+/// If `tail` is true, this sets up a new frame in the current stack position and:
+/// - Resizes the frame to hold the old registers and the new registers,
+/// - Moves the old registers over.
 unsafe fn new_frame(context: &mut Context, pile: Pile, tail: bool) {
     let sans = unsafe { (*(pile.0)).sans };
-    let poison_size = (sans + 63) >> 6;
     if tail {
         unsafe {
             let old_frame_ptr = context.stack.get_frame_lowest() as *mut Frame;
             let old_sans = (*((*old_frame_ptr).pile.0)).sans;
-            let old_poison_size = (*old_frame_ptr).pois_sz;
             context.stack.debug_assert_sane();
             context.stack.frame_replace(
-                FRAME_WORD_SIZE + poison_size + sans + old_poison_size + old_sans + 1,
+                FRAME_WORD_SIZE + sans + old_sans + 1,
             );
             context.stack.debug_assert_sane();
             let frame = frame_ptr(context);
             let frame_u64 = frame as *mut u64;
-            // save old poison size and old poison and registers for new call setup
-            *(frame_u64.add(FRAME_WORD_SIZE + poison_size + sans) as *mut usize) = old_poison_size;
             context.stack.debug_assert_sane();
             std::ptr::copy(
                 frame_u64.add(FRAME_WORD_SIZE),
-                frame_u64.add(FRAME_WORD_SIZE + poison_size + sans + 1),
-                old_poison_size + old_sans,
+                frame_u64.add(FRAME_WORD_SIZE + sans + 1),
+                old_sans,
             );
             (*frame).pile = pile;
             context.stack.debug_assert_sane();
@@ -178,7 +170,7 @@ unsafe fn new_frame(context: &mut Context, pile: Pile, tail: bool) {
             context.stack.debug_assert_sane();
             context
                 .stack
-                .frame_push(FRAME_WORD_SIZE + poison_size + sans);
+                .frame_push(FRAME_WORD_SIZE + sans);
             context.stack.debug_assert_sane();
             let frame = frame_ptr(context);
 
@@ -192,7 +184,6 @@ unsafe fn new_frame(context: &mut Context, pile: Pile, tail: bool) {
 
                 dest: 0,
                 cont: D(0),
-                pois_sz: poison_size,
             };
             context.stack.debug_assert_sane();
         }
@@ -265,7 +256,7 @@ fn cg_interpret_inner(
         let sire = (*pile_mem_ptr(context)).sire;
         register_set(frame_ptr(context), sire, subject);
         context.stack.debug_assert_sane();
-        unsafe {assert!((*pile.0).will.lookup(&mut context.stack, &mut (*pile.0).wish).is_some()); }
+        assert!((*pile.0).will.lookup(&mut context.stack, &mut (*pile.0).wish).is_some());
     }
 
     // Get the blob, body, and bend nouns from our pile.
@@ -286,7 +277,6 @@ fn cg_interpret_inner(
         if !unsafe { body.raw_equals(D(0)) } {
             let pole = slot(body, 2).unwrap();
             body = slot(body, 3).unwrap();
-            let pole_h = slot(pole, 2).unwrap().as_direct().unwrap().data().to_le_bytes();
             match slot(pole, 2).unwrap().as_direct().unwrap().data() {
                 tas!(b"imm") => unsafe {
                     let local = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
@@ -457,7 +447,7 @@ fn cg_interpret_inner(
                     }
                     let time = (*timer_mem).start.elapsed();
                     (*frame_ptr(context)).time = (*timer_mem).prev;
-                    
+
                     flog!(context, "bout {:.9}", time.as_secs_f64());
                 }
                 tas!(b"mem") => {
@@ -498,7 +488,6 @@ fn cg_interpret_inner(
                 }
             }
         } else {
-            let bend_h = slot(bend, 2).unwrap().as_direct().unwrap().data().to_le_bytes();
             match slot(bend, 2).unwrap().as_direct().unwrap().data() {
                 tas!(b"clq") => unsafe {
                     let s = slot(bend, 6).unwrap().as_direct().unwrap().data() as usize;
@@ -598,7 +587,7 @@ fn cg_interpret_inner(
                         let pile = cg_pull_pile(context, subject, formula);
                         new_frame(context, pile, false);
                     }
-                    
+
                     // debugging: print out IR
                     // do_rack(context, subject, formula);
 
@@ -934,8 +923,7 @@ fn exit(context: &mut Context, context_snapshot: ContextSnapshot, error: ActualE
 fn register_set(frame: *mut Frame, local: usize, value: Noun) {
     unsafe {
         assert!(local < (*(*frame).pile.0).sans);
-        let pois_sz = (*frame).pois_sz;
-        let reg_ptr = (frame as *mut Noun).add(FRAME_WORD_SIZE + pois_sz + local);
+        let reg_ptr = (frame as *mut Noun).add(FRAME_WORD_SIZE + local);
         *reg_ptr = value;
     }
 }
@@ -943,26 +931,17 @@ fn register_set(frame: *mut Frame, local: usize, value: Noun) {
 fn register_get(frame: *const Frame, local: usize) -> Noun {
     unsafe {
         assert!(local < (*(*frame).pile.0).sans);
-        let pois_sz = (*frame).pois_sz;
-        let reg_ptr = (frame as *mut Noun).add(FRAME_WORD_SIZE + pois_sz + local);
+        let reg_ptr = (frame as *mut Noun).add(FRAME_WORD_SIZE + local);
         *reg_ptr
     }
 }
 
 fn poison_set(frame: *mut Frame, local: usize) {
-    let index = local / 64;
-    let offset = local % 64;
-    assert!(index < unsafe { (*frame).pois_sz });
-    let bitmap = unsafe { (frame as *mut u64).add(FRAME_WORD_SIZE + index) };
-    unsafe { *bitmap |= 1 << offset };
+    register_set(frame, local, NOUN_NONE);
 }
 
 fn poison_get(frame: *const Frame, local: usize) -> bool {
-    let index = local / 64;
-    let offset = local % 64;
-    assert!(index < unsafe { (*frame).pois_sz });
-    let bitmap = unsafe { *(frame as *const u64).add(FRAME_WORD_SIZE + index) };
-    bitmap & (1 << offset) != 0
+    register_get(frame, local).is_none()
 }
 
 pub mod types {
@@ -1049,9 +1028,7 @@ pub mod types {
         pub pile: Pile,
         pub dest: usize,
         pub cont: Noun,
-        pub pois_sz: usize, // length of poison vector
-                            // poison: Vec<u64>,     // variable size
-                            // registers: Vec<Noun>, // variable size
+        // registers: Vec<Noun>, // variable size
     }
 
     #[derive(Copy, Clone)]
@@ -1187,8 +1164,6 @@ mod util {
     use super::Pile;
     use super::{new_frame, Hill};
     use super::FRAME_WORD_SIZE;
-    
-    use assert_no_alloc::permit_alloc;
 
     /// +peek slot in line core is 4
     const PEEK_AXIS: u64 = 4;
@@ -1382,13 +1357,9 @@ mod util {
             let frame = frame_ptr(context);
 
             let sans = (*pile.0).sans;
-            let poison_size = (*frame).pois_sz;
 
             let mut bait = (*pile.0).bait;
             let mut walt = (*pile.0).walt;
-
-            let old_poison_sz = *(frame as *const usize).add(FRAME_WORD_SIZE + sans + poison_size);
-            let old_poison_ptr = (frame as *const u64).add(FRAME_WORD_SIZE + sans + poison_size + 1);
 
             loop {
                 if b.raw_equals(D(0)) {
@@ -1398,21 +1369,16 @@ mod util {
                     break;
                 }
 
-                let b_i = slot(b, 2).unwrap().as_direct().unwrap().data();
                 b = slot(b, 3).unwrap();
                 let bait_i = slot(bait, 2).unwrap().as_direct().unwrap().data();
                 bait = slot(bait, 3).unwrap();
 
-                let b_i_offset = b_i / 64;
-                let b_i_bit = b_i % 64;
-                assert!((b_i_offset as usize) < old_poison_sz);
-
-                if *(old_poison_ptr.add(b_i_offset as usize)) & (1 << b_i_bit) != 0 {
+                if bait.is_none() {
                     poison_set(frame_ptr(context), bait_i as usize);
                 }
             }
 
-            let old_reg_ptr = old_poison_ptr.add(old_poison_sz) as *const Noun;
+            let old_reg_ptr = (frame as *const u64).add(FRAME_WORD_SIZE + sans + 1) as *const Noun;
 
             loop {
                 if v.raw_equals(D(0)) {
