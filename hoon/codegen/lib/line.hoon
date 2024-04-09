@@ -224,7 +224,6 @@
           =^  cost  gen  $(nomm cost.nomm, fax (peg fax 6), goal [%next [%this s] then.corn])
           (copy then.cost what.cost what.corn)
         ==
-      ~!  u.bull
       =/  hope  (~(get by call.cole) u.bull)
       =^  a  gen  (args u.bull)
       =,  a
@@ -232,12 +231,12 @@
           %done
         =^  [dire=bile seed=need]  gen
           ?~  hope
-            =^  dike  gen  (emit %dike ~ ~ %jmp u.bull b v)
+            =^  dike  gen  (emit %dike ~ ~ %jmp u.bull v)
             =?  redo.gen  r  [dike redo.gen]  
             [[dike n] gen]
           =^  s  gen  rain
           ~!  u.hope
-          =^  dial  gen  (emit %dial ~ ~ %jmf u.bull b v s u.hope)
+          =^  dial  gen  (emit %dial ~ ~ %jmf u.bull v s u.hope)
           =?  redo.gen  r  [dial redo.gen]
           =^  nest  gen  (copy dial n [%this s])
           [[then.nest what.nest] gen]
@@ -249,11 +248,11 @@
         =^  [post=bile salt=@uvre]  gen  (kerf %post goal)
         =^  [dire=bile seed=need]  gen
           ?~  hope
-            =^  dine  gen  (emit %dine ~ ~ %cal u.bull b v salt post)
+            =^  dine  gen  (emit %dine ~ ~ %cal u.bull v salt post)
             =?  redo.gen  r  [dine redo.gen]
             [[dine n] gen]
           =^  s  gen  rain
-          =^  dime  gen  (emit %dime ~ ~ %caf u.bull b v salt post s u.hope)
+          =^  dime  gen  (emit %dime ~ ~ %caf u.bull v salt post s u.hope)
           =?  redo.gen  r  [dime redo.gen]
           =^  nest  gen  (copy dime n [%this s])
           [[then.nest what.nest] gen]
@@ -397,8 +396,9 @@
         $(nomm then.nomm, fax (peg fax 14))
       =^  [bead=need tile=bile file=bile]  gen  (sect zest fest)
       =^  barf  gen  rain
+      =^  tool  gen  (emit %tool ~ [%ipb ~[barf]]~ %hop tile)
       =^  cond  gen
-        $(nomm what.nomm, fax (peg fax 6), goal [%pick barf tile file])
+        $(nomm what.nomm, fax (peg fax 6), goal [%pick barf tool file])
       (copy then.cond what.cond bead)
     ::
         %eve
@@ -555,40 +555,36 @@
         %cal
       ?>  ?=(^ v.bend.blob)
       ?>  ?=(~ t.v.bend.blob)
-      ?>  ?=(~ b.bend.blob)
       ?>  (~(has by like) a.bend.blob)
       =^  urge  gen  (args a.bend.blob)
-      =^  reed  gen  (emit %reed ~ ~ bend.blob(b b.urge, v v.urge))
+      =^  reed  gen  (emit %reed ~ ~ bend.blob(v v.urge))
       =^  [rush=_bile i=@uvre]  gen  (kerf %rush [%next n.urge reed])
       (emir bile ~ [%mov i.v.bend.blob i]~ %hop rush)
     ::
         %caf
       ?>  ?=(^ v.bend.blob)
       ?>  ?=(~ t.v.bend.blob)
-      ?>  ?=(~ b.bend.blob)
       ?>  (~(has by like) a.bend.blob)
       =^  urge  gen  (args a.bend.blob)
-      =^  reed  gen  (emit %reed ~ ~ bend.blob(b b.urge, v v.urge))
+      =^  reed  gen  (emit %reed ~ ~ bend.blob(v v.urge))
       =^  [rush=_bile i=@uvre]  gen  (kerf %rush [%next n.urge reed])
       (emir bile ~ [%mov i.v.bend.blob i]~ %hop rush)
     ::
         %jmp
       ?>  ?=(^ v.bend.blob)
       ?>  ?=(~ t.v.bend.blob)
-      ?>  ?=(~ b.bend.blob)
       ?>  (~(has by like) a.bend.blob)
       =^  urge  gen  (args a.bend.blob)
-      =^  reed  gen  (emit %reed ~ ~ bend.blob(b b.urge, v v.urge))
+      =^  reed  gen  (emit %reed ~ ~ bend.blob(v v.urge))
       =^  [rush=_bile i=@uvre]  gen  (kerf %rush [%next n.urge reed])
       (emir bile ~ [%mov i.v.bend.blob i]~ %hop rush)
     ::
         %jmf
       ?>  ?=(^ v.bend.blob)
       ?>  ?=(~ t.v.bend.blob)
-      ?>  ?=(~ b.bend.blob)
       ?>  (~(has by like) a.bend.blob)
       =^  urge  gen  (args a.bend.blob)
-      =^  reed  gen  (emit %reed ~ ~ bend.blob(b b.urge, v v.urge))
+      =^  reed  gen  (emit %reed ~ ~ bend.blob(v v.urge))
       =^  [rush=_bile i=@uvre]  gen  (kerf %rush [%next n.urge reed])
       (emir bile ~ [%mov i.v.bend.blob i]~ %hop rush)
     ==
@@ -742,7 +738,7 @@
                 t.tack
             ==
           ::
-            rose  [[%pol sass.z.p.i.tack sass.o.p.i.tack] rose]
+            rose  [[%mov sass.z.p.i.tack sass.o.p.i.tack] rose]
           ==
         ::  z side splits, o side this
         =^  lr  gen  (kern lose z.p.i.tack)
@@ -805,7 +801,7 @@
     ?:  ?=(%both -.r.p.i.tack)
       :: both both
       %=  $
-          pose  [[%pol sass.l.p.i.tack sass.r.p.i.tack] pose]
+          pose  [[%mov sass.l.p.i.tack sass.r.p.i.tack] pose]
           tack
         :*  [%| left.l.p.i.tack left.r.p.i.tack]
             [%| rite.l.p.i.tack rite.r.p.i.tack]
@@ -943,7 +939,7 @@
   ::  registers
   ++  args
     |=  =_bell
-    ^-  [[b=(list @uvre) v=(list @uvre) n=need r=?] _gen]
+    ^-  [[v=(list @uvre) n=need r=?] _gen]
     =/  cn  (~(get by like) bell)
     =?  cn  ?=(~ cn)
       =/  dn  (~(get by hill) bell)
@@ -951,9 +947,9 @@
       `want.u.dn
     ?~  cn
       =^  s  gen  rain
-      [[~ ~[s] [%this s] &] gen]
+      [[~[s] [%this s] &] gen]
     =^  s  gen  (scar u.cn)
-    [[b v n |]:s gen]
+    [[v n |]:s gen]
   ::
   ::    generate fresh parameter lists
   ::
@@ -961,15 +957,14 @@
   ::  argument list and need form
   ++  scar
     |=  n=need
-    =|  rb=(list @uvre)
     =|  rv=(list @uvre)
     =/  tack=(list (each @uvre need))  [%| n]~
     =|  salt=(list need)
-    |-  ^-  [[b=(list @uvre) v=(list @uvre) n=need] _gen]
+    |-  ^-  [[v=(list @uvre) n=need] _gen]
     ?~  tack
       ?>  ?=(^ salt)
       ?>  ?=(~ t.salt)
-      [[(flop rb) (flop rv) i.salt] gen]
+      [[(flop rv) i.salt] gen]
     ?-  -.i.tack
         %&
       ?>  ?=(^ salt)
@@ -981,7 +976,6 @@
           %both
         =^  br  gen  rain
         %=  $
-            rb  [br rb]
             tack
           :*  [%| left.p.i.tack]
               [%| rite.p.i.tack]
@@ -1003,13 +997,18 @@
   ++  from
     |=  [axe=@ =next]
     ?<  =(0 axe)
+    =^  crap  gen
+      =/  crop  (sass what.next)
+      ?~  crop  rain
+      [u.crop gen]
+    =?  what.next  ?=(%none -.what.next)  [%this crap]
     =|  bait=(list [r=@uvre c=?(%2 %3)])
     |-  ^-  [_next _gen]
     ?.  =(1 axe)
       =^  barf  gen  rain
       $(bait [[barf (cap axe)] bait], axe (mas axe))
     =/  bits  (turn bait |=([r=@uvre *] r))
-    =^  fram  gen  (emit %fram ~ [%ipb bits]~ %hop then.next)
+    =^  fram  gen  (emit %fram ~ [%ipb ~[crap]]~ %hop then.next)
     =/  feed
       %+  roll  bait
       |=  [[r=@uvre c=?(%2 %3)] n=_what.next]
@@ -1041,7 +1040,7 @@
             tres  [[%2 p rite.twig] tres]
             twig  left.twig
             axe   (mas axe)
-            pose  [[%pol p sass.twig] pose]
+            pose  [[%mov p sass.twig] pose]
           ==
         ::
             %this
@@ -1068,7 +1067,7 @@
             tres  [[%3 p left.twig] tres]
             twig  rite.twig
             axe   (mas axe)
-            pose  [[%pol p sass.twig] pose]
+            pose  [[%mov p sass.twig] pose]
           ==
         ::
             %this
@@ -1088,18 +1087,18 @@
           ==
         ==
       ==
-    =/  tree=need  [%none ~]
-    =|  bait=(list @uvre)
+    =^  flag  gen  rain
+    =/  tree=need  [%this flag]
     |-  ^-  [[need need bile] _gen]
     ?~  tres 
-      =^  tint  gen  (emit %into ~ [[%ipb bait] pose] %hop then.next)
+      =^  tint  gen  (emit %into ~ [[%ipb ~[flag]] pose] %hop then.next)
       [[twig tree tint] gen]
     ?-  lr.i.tres
         %2
-      $(tres t.tres, tree [%both p.i.tres tree need.i.tres], bait [p.i.tres bait])
+      $(tres t.tres, tree [%both p.i.tres tree need.i.tres])
     ::
         %3
-      $(tres t.tres, tree [%both p.i.tres need.i.tres tree], bait [p.i.tres bait])
+      $(tres t.tres, tree [%both p.i.tres need.i.tres tree])
     ==
   ::
   ::    split immediate
@@ -1109,37 +1108,40 @@
   ++  mede
     |=  [=bile n=* =need]
     =|  todo=(list pole)
-    =/  tack=(list [n=* =_need])  [n need]~
+    =/  tack=(list [n=(unit *) =_need])  [`n need]~
     |-  ^-  [_bile _gen]
     ?~  tack
       (emit %mede ~ todo %hop bile)
     ?-  -.need.i.tack
         %none  $(tack t.tack)
-        %this  $(todo [[%imm n.i.tack sass.need.i.tack] todo], tack t.tack)
-        %both
-      ?@  n.i.tack
+        %this
+      ?~  n.i.tack
         $(todo [[%poi sass.need.i.tack] todo], tack t.tack)
-      $(tack [[+.n.i.tack rite.need.i.tack] [-.n.i.tack left.need.i.tack] t.tack])
+      $(todo [[%imm u.n.i.tack sass.need.i.tack] todo], tack t.tack)
+      ::
+        %both
+      ?~  n.i.tack
+        $(tack [[~ rite.need.i.tack] [~ left.need.i.tack] t.tack])
+      ?@  u.n.i.tack
+        $(tack [[~ rite.need.i.tack] [~ left.need.i.tack] t.tack])
+      $(tack [[`+.u.n.i.tack rite.need.i.tack] [`-.u.n.i.tack left.need.i.tack] t.tack])
     ==
   --
 ::
 ::    lists of registers from a need
 ::  
-::  the first list (bait) is the poison registers in NLR order
 ::  the second list (walt) is the input registers in left-to-right order
 ++  sill
   |=  want=need
-  =|  bart=(list @uvre)
   =|  wart=(list @uvre)
   =/  tack=(list need)  ~[want]
-  |-  ^-  [bait=(list @uvre) walt=(list @uvre)]
-  ?~  tack  [(flop bart) (flop wart)]
+  |-  ^-  (list @uvre)
+  ?~  tack  wart
   ?-  -.i.tack
       %none  $(tack t.tack)
       %both
     %=  $
-      bart  [sass.i.tack bart]
-      tack  [left.i.tack rite.i.tack t.tack]
+      tack  [rite.i.tack left.i.tack t.tack]
     ==
   ::
       %this
@@ -1177,9 +1179,9 @@
     ?.  (~(has by will.gen.i.todo) wish)  ~&  %missing-wish  !!
     %=  ^$
         hill
-      =+  (sill what.dire.i.todo)
+      =/  walt  (sill what.dire.i.todo)
       %+  ~(put by hill)  bell.i.todo
-      [then.dire.i.todo what.dire.i.todo bait walt wish sire [will sans]:gen.i.todo]
+      [then.dire.i.todo what.dire.i.todo walt wish sire [will sans]:gen.i.todo]
     ::
         todo  t.todo
     ==
@@ -1361,25 +1363,10 @@
         %con
       (pink -.i (near h.i) (near t.i) (near d.i) ~)
     ::
-        %cop
-      (pink -.i (near s.i) ~)
-    ::
-        %lop
-      (pink -.i (near s.i) ~)
-    ::
-        %coc
-      (pink -.i (near s.i) ~)
-    ::
         %hed
       (pink -.i (near s.i) (near d.i) ~)
     ::
-        %hci
-      (pink -.i (near s.i) (near d.i) ~)
-    ::
         %tal
-      (pink -.i (near s.i) (near d.i) ~)
-    ::
-        %tci
       (pink -.i (near s.i) (near d.i) ~)
     ::
         %men
@@ -1405,9 +1392,6 @@
     ::
         %mem
       (pink -.i ~)
-    ::
-        %pol
-      (pink -.i (near p.i) (near q.i) ~)
     ::
         %poi
       (pink -.i (near p.i) ~)
@@ -1446,19 +1430,19 @@
       (pink -.i (near u.i) (near f.i) (near d.i) (rung t.i) ~)
     ::
         %cal
-      (pink -.i (ring a.i) [%rose ["," "[" "]"] (turn b.i near)] [%rose ["," "[" "]"] (turn v.i near)] (near d.i) (rung t.i) ~)
+      (pink -.i (ring a.i) [%rose ["," "[" "]"] (turn v.i near)] (near d.i) (rung t.i) ~)
     ::
         %caf
-      (pink -.i (ring a.i) [%rose ["," "[" "]"] (turn b.i near)] [%rose ["," "[" "]"] (turn v.i near)] (near d.i) (rung t.i) (near u.i) >n.i< ~)
+      (pink -.i (ring a.i) [%rose ["," "[" "]"] (turn v.i near)] (near d.i) (rung t.i) (near u.i) >n.i< ~)
     ::
         %lnt
       (pink -.i (near u.i) (near f.i) ~)
     ::
         %jmp
-      (pink -.i (ring a.i) [%rose ["," "[" "]"] (turn b.i near)] [%rose ["," "[" "]"] (turn v.i near)] ~)
+      (pink -.i (ring a.i) [%rose ["," "[" "]"] (turn v.i near)] ~)
     ::
         %jmf
-      (pink -.i (ring a.i) [%rose ["," "[" "]"] (turn b.i near)] [%rose ["," "[" "]"] (turn v.i near)] (near u.i) >n.i< ~)
+      (pink -.i (ring a.i) [%rose ["," "[" "]"] (turn v.i near)] (near u.i) >n.i< ~)
     ::
         %spy
       (pink -.i (near e.i) (near p.i) (near d.i) (rung t.i) ~)

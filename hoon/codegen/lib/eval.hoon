@@ -1,4 +1,5 @@
 =*  line  .
+=/  ip=?  |
 |%
 ++  this  .
 ++  hour
@@ -148,35 +149,33 @@
   |^  ^-  (unit *)
     ?^  body.blob
       =*  i  i.body.blob
-      ~&  i
+      ~?  ip  i
       ?-  -.i
           %imm  $(rasp (p d.i n.i), body.blob t.body.blob)
-          %mov  $(rasp (mov s.i d.i), body.blob t.body.blob)
+          %mov
+        ?:  (~(has in vile) s.i)
+           $(vile (~(put in vile) d.i), body.blob t.body.blob)
+        $(rasp (mov s.i d.i), body.blob t.body.blob)
           %inc
         =/  v  (g s.i)
         ?^  v  ~&  [%inc-cell-crash v]  ~
         $(rasp (p d.i .+(v)), body.blob t.body.blob)
       ::
           %con  $(rasp (p d.i [(g h.i) (g t.i)]), body.blob t.body.blob)
-          %cop  =?(vile ?=(^ (g s.i)) (~(put in vile) s.i) $(body.blob t.body.blob))
-          %lop  =?(vile ?=(? (g s.i)) (~(put in vile) s.i) $(body.blob t.body.blob))
-          %coc  ?@((g s.i) ~ $(body.blob t.body.blob))
           %hed
         =/  c  (g s.i)
         ?@  c
-          ~&  [%poison s.i c]
-          $(vile (~(put in vile) s.i), body.blob t.body.blob)
+          ~?  ip  [%poison d.i c]
+          $(vile (~(put in vile) d.i), body.blob t.body.blob)
         $(rasp (p d.i -.c), body.blob t.body.blob)
       ::
-          %hci  =/(c (g s.i) ?@(c ~ $(rasp (p d.i -.c), body.blob t.body.blob)))
           %tal
         =/  c  (g s.i)
         ?@  c
-          ~&  [%poison s.i c]
-          $(vile (~(put in vile) s.i), body.blob t.body.blob)
+          ~?  ip  [%poison d.i c]
+          $(vile (~(put in vile) d.i), body.blob t.body.blob)
         $(rasp (p d.i +.c), body.blob t.body.blob)
       ::
-          %tci  =/(c (g s.i) ?@(c ~ $(rasp (p d.i +.c), body.blob t.body.blob)))
           %men  ~&  %mean-todo  $(body.blob t.body.blob)
           %man  ~&  %mean-todo  $(body.blob t.body.blob)
           %slo  ~&  %slow-todo  $(body.blob t.body.blob)
@@ -187,7 +186,6 @@
           %tim  ~&  %skip-tim  $(body.blob t.body.blob)
           %tom  ~&  %skip-tom  $(body.blob t.body.blob)
           %mem  ~&  %skip-mem  $(body.blob t.body.blob)
-          %pol  =?(vile (~(has in vile) p.i) (~(put in vile) q.i) $(body.blob t.body.blob))
           %poi  $(vile (~(put in vile) p.i), body.blob t.body.blob)
           %ipb 
         |-  ^-  (unit *)
@@ -196,7 +194,7 @@
         $(p.i t.p.i)
       ==
     =*  i  bend.blob
-    ~&  i
+    ~?  ip  i
     ?-  -.i
         %clq  ?^((g s.i) (goto z.i) (goto o.i))
         %eqq  ?:(=((g l.i) (g r.i)) (goto z.i) (goto o.i))
@@ -226,7 +224,7 @@
           pill  pins
           blob  blub
           rasp  (afar v.i walt.pins)
-          vile  (soil b.i bait.pins)
+          vile  (soil v.i walt.pins)
         ==
       ?~  r  ~
       =.  rasp  (p d.i u.r)
@@ -241,7 +239,7 @@
         pill  pins
         blob  blub
         rasp  (afar v.i walt.pins)
-        vile  (soil b.i bait.pins)
+        vile  (soil v.i walt.pins)
       ==
     ::
         %jmf  ~|  %jmf-todo  !!
@@ -255,14 +253,14 @@
     (~(got by rasp) r)
   ++  p
     |=  [r=@uvre v=*]
-    ~&  [%p r v]
+    ~?  ip  [%p r v]
     (~(put by rasp) r v)
   ++  mov
     |=  [s=@uvre d=@uvre] 
     ^-  _rasp
     =/  mv  (~(get by rasp) s)
     ?~  mv  ~&  [%rasp-miss s (~(has in vile) s)]  rasp
-    ~&  [%p d u.mv]  (~(put by rasp) d u.mv)
+    ~?  ip  [%p d u.mv]  (~(put by rasp) d u.mv)
   ++  goto  |=(b=bile ^$(blob (~(got by will.pill) b)))
   ++  afar
     |=  [v=(list @uvre) walt=(list @uvre)]
@@ -272,7 +270,7 @@
     ?>  ?=(^ walt)
     =/  mv  (~(get by rasp) i.v)
     ?~  mv
-      ~&  [%rasp-miss-afar i.v (~(has in vile) i.v)]
+      ~?  ip  [%rasp-miss-afar i.v (~(has in vile) i.v)]
       $(v t.v, walt t.walt)
     $(m (~(put by m) i.walt u.mv), v t.v, walt t.walt)
   ++  soil

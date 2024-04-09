@@ -83,13 +83,9 @@
 ::  %phi - select source based on last %hip, copy to d
 ::  %inc - increment s and write to d?
 ::  %con - cons h and t into d
-::  %cop - poison s if s is an atom
-::  %lop - poison s if s is not a loobean
 ::  %coc - crash immediately if s is an atom
 ::  %hed - write head of s to d. Poison s if s is an atom
 ::  %tal - write tail of s to d. Poison s if s is an atom
-::  %hci - write head of s to d. Crash if s is an atom
-::  %tci - write tail of s to d. Crash if s is an atom.
 ::  %men - Push s onto the mean stack.
 ::  %man - Pop the mean stack
 ::  %slo - Push s onto the slow stack.
@@ -100,7 +96,6 @@
 ::  %tim - Push a timer onto the timer stack and start it
 ::  %tom - Pop a timer from the timer stack, stop it, and print elapsed
 ::  %mem - Print memory usage
-::  %pol - If s is poisoned, poison d
 ::  %poi - Poison d
 ::  %ibp - If any register in s is poisoned, crash.
 +$  pole
@@ -108,13 +103,8 @@
       [%mov s=@uvre d=@uvre]
       [%inc s=@uvre d=@uvre]
       [%con h=@uvre t=@uvre d=@uvre]
-      [%cop s=@uvre]
-      [%lop s=@uvre]
-      [%coc s=@uvre]
       [%hed s=@uvre d=@uvre]
-      [%hci s=@uvre d=@uvre]
       [%tal s=@uvre d=@uvre]
-      [%tci s=@uvre d=@uvre]
       [%men l=@ta s=@uvre]
       [%man ~]
       [%slo s=@uvre]
@@ -125,7 +115,6 @@
       [%tim ~]
       [%tom ~]
       [%mem ~]
-      [%pol p=@uvre q=@uvre]
       [%poi p=@uvre]
       [%ipb p=(list @uvre)]
   ==
@@ -188,11 +177,11 @@
       [%hop t=bile]
       [%hip c=bile t=bile]
       [%lnk u=@uvre f=@uvre d=@uvre t=bile]
-      [%cal a=bell b=(list @uvre) v=(list @uvre) d=@uvre t=bile]
-      [%caf a=bell b=(list @uvre) v=(list @uvre) d=@uvre t=bile u=@uvre n=[path @]]
+      [%cal a=bell v=(list @uvre) d=@uvre t=bile]
+      [%caf a=bell v=(list @uvre) d=@uvre t=bile u=@uvre n=[path @]]
       [%lnt u=@uvre f=@uvre]
-      [%jmp a=bell b=(list @uvre) v=(list @uvre)]
-      [%jmf a=bell b=(list @uvre) v=(list @uvre) u=@uvre n=[path @]]
+      [%jmp a=bell v=(list @uvre)]
+      [%jmf a=bell v=(list @uvre) u=@uvre n=[path @]]
       [%spy e=@uvre p=@uvre d=@uvre t=bile]
       [%mer k=@uvre u=@uvre f=@uvre d=@uvre i=bile m=bile]
       [%don s=@uvre]
@@ -213,7 +202,6 @@
 ::
 ::  long: starting label for direct calls    axis 2
 ::  want: input registers for direct calls   axis 6
-::  bait: input poison registers NLR         axis 14
 ::  walt: input starting registers LR        axis 30
 ::  wish: starting label for indirect calls  axis 62
 ::  sire: input register for indirect calls  axis 126
@@ -222,7 +210,6 @@
 +$  pile
   $:  long=bile
       want=need
-      bait=(list @uvre)
       walt=(list @uvre)
       wish=bile
       sire=@uvre

@@ -11,7 +11,7 @@ use crate::jets::cold::Cold;
 use crate::jets::util::slot;
 use crate::jets::warm::Warm;
 use crate::mem::{NockStack, Preserve};
-use crate::noun::{Noun, D, NO, T, YES};
+use crate::noun::{Noun, D, NO, T, YES, NOUN_NONE};
 use crate::trace::TraceStack;
 use crate::codegen::types::PileMem;
 use assert_no_alloc::permit_alloc;
@@ -143,32 +143,27 @@ const FRAME_WORD_SIZE: usize = (size_of::<Frame>() + 7) >> 3; // Round to u64 wo
  * If tail is false, this will simply set up a new frame.
  *
  * If tail is true, this will set up a new frame in the current stack position, but in addition
- * - resize the frame to hold the old poisons, the old registers, the new poisons, and the new
- *   registers
- * - move the old poisons and registers over
+ * - resize the frame to hold the old registers and the new registers
+ * - move the old  registers over
  */
 unsafe fn new_frame(context: &mut Context, pile: Pile, tail: bool) {
     let sans = unsafe { (*(pile.0)).sans };
-    let poison_size = (sans + 63) >> 6;
     if tail {
         unsafe {
             let old_frame_ptr = context.stack.get_frame_lowest() as *mut Frame;
             let old_sans = (*((*old_frame_ptr).pile.0)).sans;
-            let old_poison_size = (*old_frame_ptr).pois_sz;
             context.stack.debug_assert_sane();
             context.stack.frame_replace(
-                FRAME_WORD_SIZE + poison_size + sans + old_poison_size + old_sans + 1,
+                FRAME_WORD_SIZE + sans + old_sans,
             );
             context.stack.debug_assert_sane();
             let frame = frame_ptr(context);
             let frame_u64 = frame as *mut u64;
-            // save old poison size and old poison and registers for new call setup
-            *(frame_u64.add(FRAME_WORD_SIZE + poison_size + sans) as *mut usize) = old_poison_size;
             context.stack.debug_assert_sane();
             std::ptr::copy(
                 frame_u64.add(FRAME_WORD_SIZE),
-                frame_u64.add(FRAME_WORD_SIZE + poison_size + sans + 1),
-                old_poison_size + old_sans,
+                frame_u64.add(FRAME_WORD_SIZE + sans),
+                old_sans,
             );
             (*frame).pile = pile;
             context.stack.debug_assert_sane();
@@ -178,7 +173,7 @@ unsafe fn new_frame(context: &mut Context, pile: Pile, tail: bool) {
             context.stack.debug_assert_sane();
             context
                 .stack
-                .frame_push(FRAME_WORD_SIZE + poison_size + sans);
+                .frame_push(FRAME_WORD_SIZE + sans);
             context.stack.debug_assert_sane();
             let frame = frame_ptr(context);
 
@@ -192,7 +187,6 @@ unsafe fn new_frame(context: &mut Context, pile: Pile, tail: bool) {
 
                 dest: 0,
                 cont: D(0),
-                pois_sz: poison_size,
             };
             context.stack.debug_assert_sane();
         }
@@ -319,34 +313,16 @@ fn cg_interpret_inner(
                     let value = T(&mut context.stack, &[h_value, t_value]);
                     register_set(frame_ptr(context), d, value);
                 }
-                tas!(b"cop") => unsafe {
-                    let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
-                    let s_value = register_get(frame_ptr(context), s);
-                    if s_value.is_atom() {
-                        poison_set(frame_ptr(context), s);
-                    }
-                }
-                tas!(b"lop") => unsafe {
-                    let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
-                    let s_value = register_get(frame_ptr(context), s);
-                    if !( s_value.raw_equals(YES) || s_value.raw_equals(NO) ) {
-                        poison_set(frame_ptr(context), s);
-                    }
-                }
-                tas!(b"coc") => unsafe {
-                    let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
-                    let s_value = register_get(frame_ptr(context), s);
-                    if s_value.is_atom() {
-                        break Err(ActualError(Error::Deterministic(D(0))));
-                    }
-                }
                 tas!(b"hed") => unsafe {
                     let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
                     let d = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
                     let s_value = register_get(frame_ptr(context), s);
+                    if s_value.is_none() {
+                        register_set(frame_ptr(context), d, NOUN_NONE)
+                    }
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
-                            poison_set(frame_ptr(context), s);
+                            register_set(frame_ptr(context), d, NOUN_NONE);
                         }
                         Right(cell) => {
                             register_set(frame_ptr(context), d, cell.head());
@@ -357,35 +333,12 @@ fn cg_interpret_inner(
                     let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
                     let d = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
                     let s_value = register_get(frame_ptr(context), s);
+                    if s_value.is_none() {
+                        register_set(frame_ptr(context), d, NOUN_NONE)
+                    }
                     match s_value.as_either_atom_cell() {
                         Left(_atom) => {
-                            poison_set(frame_ptr(context), s);
-                        }
-                        Right(cell) => {
-                            register_set(frame_ptr(context), d, cell.tail());
-                        }
-                    };
-                }
-                tas!(b"hci") => unsafe {
-                    let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
-                    let d = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
-                    let s_value = register_get(frame_ptr(context), s);
-                    match s_value.as_either_atom_cell() {
-                        Left(_atom) => {
-                            break Err(ActualError(Error::Deterministic(D(0))));
-                        }
-                        Right(cell) => {
-                            register_set(frame_ptr(context), d, cell.head());
-                        }
-                    };
-                }
-                tas!(b"tci") => unsafe {
-                    let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
-                    let d = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
-                    let s_value = register_get(frame_ptr(context), s);
-                    match s_value.as_either_atom_cell() {
-                        Left(_atom) => {
-                            break Err(ActualError(Error::Deterministic(D(0))));
+                            register_set(frame_ptr(context), d, NOUN_NONE);
                         }
                         Right(cell) => {
                             register_set(frame_ptr(context), d, cell.tail());
@@ -464,16 +417,9 @@ fn cg_interpret_inner(
                     // XX print memory usage
                     todo!("mem")
                 }
-                tas!(b"pol") => unsafe {
-                    let s = slot(pole, 6).unwrap().as_direct().unwrap().data() as usize;
-                    let d = slot(pole, 7).unwrap().as_direct().unwrap().data() as usize;
-                    if poison_get(frame_ptr(context), s) {
-                        poison_set(frame_ptr(context), d);
-                    }
-                }
                 tas!(b"poi") => unsafe {
-                    let d = slot(pole, 3).unwrap().as_direct().unwrap().data() as usize;
-                    poison_set(frame_ptr(context), d);
+                    let mut d = slot(pole, 3).unwrap().as_direct().unwrap().data() as usize;
+                    register_set(frame_ptr(context), d, NOUN_NONE);
                 }
                 tas!(b"ipb") => unsafe {
                     let mut s = slot(pole, 3).unwrap();
@@ -481,9 +427,8 @@ fn cg_interpret_inner(
                         if s.raw_equals(D(0)) {
                             break false;
                         } else {
-                            let i =
-                                s.as_cell().unwrap().head().as_direct().unwrap().data() as usize;
-                            if poison_get(frame_ptr(context), i) {
+                            let i = s.as_cell().unwrap().head().as_direct().unwrap().data() as usize;
+                            if register_get(frame_ptr(context), i).is_none() {
                                 break true;
                             } else {
                                 s = s.as_cell().unwrap().tail();
@@ -621,17 +566,15 @@ fn cg_interpret_inner(
                     // call the arm a with subject in registers v, poisons in b,
                     // result in d, and then goto t
                     let a = slot(bend, 6).unwrap();
-                    let b = slot(bend, 14).unwrap();
-                    let v = slot(bend, 30).unwrap();
-                    let d = slot(bend, 62).unwrap().as_direct().unwrap().data() as usize;
-                    let t = slot(bend, 63).unwrap();
+                    let v = slot(bend, 14).unwrap();
+                    let d = slot(bend, 30).unwrap().as_direct().unwrap().data() as usize;
+                    let t = slot(bend, 31).unwrap();
 
                     do_call(
                         context,
                         &mut body,
                         &mut bend,
                         a,
-                        b,
                         v,
                         d,
                         t,
@@ -639,12 +582,11 @@ fn cg_interpret_inner(
                 }
                 tas!(b"caf") => unsafe {
                     let a = slot(bend, 6).unwrap();
-                    let b = slot(bend, 14).unwrap();
-                    let v = slot(bend, 30).unwrap();
-                    let d = slot(bend, 62).unwrap().as_direct().unwrap().data() as usize;
-                    let mut t = slot(bend, 126).unwrap();
-                    let u = slot(bend, 254).unwrap().as_direct().unwrap().data() as usize;
-                    let mut n = slot(bend, 255).unwrap();
+                    let v = slot(bend, 14).unwrap();
+                    let d = slot(bend, 30).unwrap().as_direct().unwrap().data() as usize;
+                    let mut t = slot(bend, 62).unwrap();
+                    let u = slot(bend, 126).unwrap().as_direct().unwrap().data() as usize;
+                    let mut n = slot(bend, 127).unwrap();
 
                     if let Some(JetEntry(jet)) = context.cg_context.hot_hamt.lookup(&mut context.stack, &mut n) {
                         let subject = register_get(frame_ptr(context), u);
@@ -669,7 +611,6 @@ fn cg_interpret_inner(
                                     &mut body,
                                     &mut bend,
                                     a,
-                                    b,
                                     v,
                                     d,
                                     t,
@@ -682,7 +623,6 @@ fn cg_interpret_inner(
                             &mut body,
                             &mut bend,
                             a,
-                            b,
                             v,
                             d,
                             t,
@@ -722,17 +662,15 @@ fn cg_interpret_inner(
                 }
                 tas!(b"jmp") => {
                     let a = slot(bend, 6).unwrap();
-                    let b = slot(bend, 14).unwrap();
-                    let v = slot(bend, 15).unwrap();
+                    let v = slot(bend, 7).unwrap();
 
-                    do_tail_call(context, &mut body, &mut bend, a, b, v);
+                    do_tail_call(context, &mut body, &mut bend, a, v);
                 }
                 tas!(b"jmf") => unsafe {
                     let a = slot(bend, 6).unwrap();
-                    let b = slot(bend, 14).unwrap();
-                    let v = slot(bend, 30).unwrap();
-                    let u = slot(bend, 62).unwrap().as_direct().unwrap().data() as usize;
-                    let mut n = slot(bend, 63).unwrap();
+                    let v = slot(bend, 14).unwrap();
+                    let u = slot(bend, 30).unwrap().as_direct().unwrap().data() as usize;
+                    let mut n = slot(bend, 31).unwrap();
 
                     if let Some(JetEntry(jet)) = context.cg_context.hot_hamt.lookup(&mut context.stack, &mut n) {
                         let subject = register_get(frame_ptr(context), u);
@@ -757,13 +695,12 @@ fn cg_interpret_inner(
                                     &mut body,
                                     &mut bend,
                                     a,
-                                    b,
                                     v,
                                 );
                             }
                         }
                     } else {
-                        do_tail_call(context, &mut body, &mut bend, a, b, v);
+                        do_tail_call(context, &mut body, &mut bend, a, v);
                     }
                 }
                 tas!(b"spy") => unsafe {
@@ -934,8 +871,7 @@ fn exit(context: &mut Context, context_snapshot: ContextSnapshot, error: ActualE
 fn register_set(frame: *mut Frame, local: usize, value: Noun) {
     unsafe {
         assert!(local < (*(*frame).pile.0).sans);
-        let pois_sz = (*frame).pois_sz;
-        let reg_ptr = (frame as *mut Noun).add(FRAME_WORD_SIZE + pois_sz + local);
+        let reg_ptr = (frame as *mut Noun).add(FRAME_WORD_SIZE + local);
         *reg_ptr = value;
     }
 }
@@ -943,26 +879,9 @@ fn register_set(frame: *mut Frame, local: usize, value: Noun) {
 fn register_get(frame: *const Frame, local: usize) -> Noun {
     unsafe {
         assert!(local < (*(*frame).pile.0).sans);
-        let pois_sz = (*frame).pois_sz;
-        let reg_ptr = (frame as *mut Noun).add(FRAME_WORD_SIZE + pois_sz + local);
+        let reg_ptr = (frame as *mut Noun).add(FRAME_WORD_SIZE + local);
         *reg_ptr
     }
-}
-
-fn poison_set(frame: *mut Frame, local: usize) {
-    let index = local / 64;
-    let offset = local % 64;
-    assert!(index < unsafe { (*frame).pois_sz });
-    let bitmap = unsafe { (frame as *mut u64).add(FRAME_WORD_SIZE + index) };
-    unsafe { *bitmap |= 1 << offset };
-}
-
-fn poison_get(frame: *const Frame, local: usize) -> bool {
-    let index = local / 64;
-    let offset = local % 64;
-    assert!(index < unsafe { (*frame).pois_sz });
-    let bitmap = unsafe { *(frame as *const u64).add(FRAME_WORD_SIZE + index) };
-    bitmap & (1 << offset) != 0
 }
 
 pub mod types {
@@ -1049,9 +968,6 @@ pub mod types {
         pub pile: Pile,
         pub dest: usize,
         pub cont: Noun,
-        pub pois_sz: usize, // length of poison vector
-                            // poison: Vec<u64>,     // variable size
-                            // registers: Vec<Noun>, // variable size
     }
 
     #[derive(Copy, Clone)]
@@ -1068,7 +984,6 @@ pub mod types {
     //#[repr(C)]
     pub struct PileMem {
         pub long: Noun,
-        pub bait: Noun,
         pub walt: Noun,
         pub wish: Noun,
         pub sire: usize,
@@ -1084,7 +999,6 @@ pub mod types {
         unsafe fn preserve(&mut self, stack: &mut NockStack) {
             if stack.is_in_frame(self.0) {
                 (*self.0).long.preserve(stack);
-                (*self.0).bait.preserve(stack);
                 (*self.0).walt.preserve(stack);
                 (*self.0).wish.preserve(stack);
                 (*self.0).will.preserve(stack);
@@ -1097,7 +1011,6 @@ pub mod types {
         unsafe fn assert_in_stack(&self, stack: &NockStack) {
             stack.assert_struct_is_in(self.0, 1);
             (*(self.0)).long.assert_in_stack(stack);
-            (*(self.0)).bait.assert_in_stack(stack);
             (*(self.0)).walt.assert_in_stack(stack);
             (*(self.0)).wish.assert_in_stack(stack);
             (*(self.0)).will.assert_in_stack(stack);
@@ -1107,13 +1020,11 @@ pub mod types {
     impl Persist for Pile {
         unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
             let long_space_needed = (*(self.0)).long.space_needed(stack);
-            let bait_space_needed = (*(self.0)).bait.space_needed(stack);
             let walt_space_needed = (*(self.0)).walt.space_needed(stack);
             let wish_space_needed = (*(self.0)).wish.space_needed(stack);
             let will_space_needed = (*(self.0)).will.space_needed(stack);
             size_of::<PileMem>() // see assert of size_of above
               + long_space_needed
-              + bait_space_needed
               + walt_space_needed
               + wish_space_needed
               + will_space_needed
@@ -1126,7 +1037,6 @@ pub mod types {
             *buffer = pile_buffer.add(1) as *mut u8;
 
             (*pile_buffer).long.copy_to_buffer(stack, buffer);
-            (*pile_buffer).bait.copy_to_buffer(stack, buffer);
             (*pile_buffer).walt.copy_to_buffer(stack, buffer);
             (*pile_buffer).wish.copy_to_buffer(stack, buffer);
             (*pile_buffer).will.copy_to_buffer(stack, buffer);
@@ -1147,12 +1057,11 @@ pub mod types {
                 let mem: *mut PileMem = stack.struct_alloc(1);
                 *mem = PileMem {
                     long: slot(p, 2).unwrap(),
-                    bait: slot(p, 14).unwrap(),
-                    walt: slot(p, 30).unwrap(),
-                    wish: slot(p, 62).unwrap(),
-                    sire: slot(p, 126).unwrap().as_direct().unwrap().data() as usize,
-                    will: part_will(stack, slot(p, 254).unwrap()),
-                    sans: slot(p, 255).unwrap().as_direct().unwrap().data() as usize,
+                    walt: slot(p, 14).unwrap(),
+                    wish: slot(p, 30).unwrap(),
+                    sire: slot(p, 62).unwrap().as_direct().unwrap().data() as usize,
+                    will: part_will(stack, slot(p, 126).unwrap()),
+                    sans: slot(p, 127).unwrap().as_direct().unwrap().data() as usize,
                 };
                 assert!((*mem).will.lookup(stack, &mut (*mem).wish).is_some());
                 Pile(mem)
@@ -1178,8 +1087,6 @@ mod util {
         noun::{Noun, D, T},
     };
 
-    use super::poison_get;
-    use super::poison_set;
     use super::register_get;
     use super::register_set;
     use super::frame_ptr;
@@ -1296,7 +1203,6 @@ mod util {
         body: &mut Noun,
         bend: &mut Noun,
         mut a: Noun,
-        mut b: Noun,
         mut v: Noun,
         d: usize,
         t: Noun,
@@ -1313,30 +1219,9 @@ mod util {
             new_frame(context, pile, false);
         }
 
-        let mut bait = unsafe { (*pile_mem_ptr(context)).bait };
         let mut walt = unsafe { (*pile_mem_ptr(context)).walt };
 
         let frame = unsafe { frame_ptr(context) };
-
-        loop {
-            unsafe {
-                if b.raw_equals(D(0)) {
-                    if !bait.raw_equals(D(0)) {
-                        panic!("codegen non-deterministic");
-                    }
-                    break;
-                }
-
-                let b_i = slot(b, 2).unwrap().as_direct().unwrap().data() as usize;
-                b = slot(b, 3).unwrap();
-                let bait_i = slot(bait, 2).unwrap().as_direct().unwrap().data() as usize;
-                bait = slot(bait, 3).unwrap();
-
-                if poison_get(parent_frame, b_i) {
-                    poison_set(frame, bait_i);
-                }
-            }
-        }
 
         loop {
             unsafe {
@@ -1372,7 +1257,6 @@ mod util {
         body: &mut Noun,
         bend: &mut Noun,
         mut a: Noun,
-        mut b: Noun,
         mut v: Noun,
     ) {
         unsafe {
@@ -1382,37 +1266,10 @@ mod util {
             let frame = frame_ptr(context);
 
             let sans = (*pile.0).sans;
-            let poison_size = (*frame).pois_sz;
 
-            let mut bait = (*pile.0).bait;
             let mut walt = (*pile.0).walt;
-
-            let old_poison_sz = *(frame as *const usize).add(FRAME_WORD_SIZE + sans + poison_size);
-            let old_poison_ptr = (frame as *const u64).add(FRAME_WORD_SIZE + sans + poison_size + 1);
-
-            loop {
-                if b.raw_equals(D(0)) {
-                    if !bait.raw_equals(D(0)) {
-                        panic!("codegen non-deterministic");
-                    };
-                    break;
-                }
-
-                let b_i = slot(b, 2).unwrap().as_direct().unwrap().data();
-                b = slot(b, 3).unwrap();
-                let bait_i = slot(bait, 2).unwrap().as_direct().unwrap().data();
-                bait = slot(bait, 3).unwrap();
-
-                let b_i_offset = b_i / 64;
-                let b_i_bit = b_i % 64;
-                assert!((b_i_offset as usize) < old_poison_sz);
-
-                if *(old_poison_ptr.add(b_i_offset as usize)) & (1 << b_i_bit) != 0 {
-                    poison_set(frame_ptr(context), bait_i as usize);
-                }
-            }
-
-            let old_reg_ptr = old_poison_ptr.add(old_poison_sz) as *const Noun;
+  
+            let old_reg_ptr = frame.add(sans) as *const Noun;
 
             loop {
                 if v.raw_equals(D(0)) {
