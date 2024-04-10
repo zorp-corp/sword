@@ -11,6 +11,7 @@ pub mod lute;
 pub mod math;
 pub mod nock;
 pub mod parse;
+pub mod seam;
 pub mod serial;
 pub mod sort;
 pub mod tree;
