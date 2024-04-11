@@ -3,6 +3,7 @@ use crate::jets::seam::util::get_by;
 use crate::jets::util::slot;
 use crate::mem::NockStack;
 use crate::noun::{DirectAtom, Noun, D, NOUN_NONE, T};
+use crate::unifying_equality::unifying_equality;
 use ares_macros::tas;
 use std::mem::size_of;
 use std::ptr::write_bytes;
@@ -154,6 +155,7 @@ fn cg_indirect(
     let bell_hill_cell = bell_hill
         .as_cell()
         .expect("Codegen successful peek should return pair");
+    *hill = bell_hill_cell.tail();
     get_by(
         &mut context.stack,
         &mut bell_hill_cell.tail(),
@@ -161,6 +163,12 @@ fn cg_indirect(
     )
     .expect("Codegen bell lookup should succeed.")
     .expect("Codegen peek bell should be in hill")
+}
+
+fn cg_direct(context: &mut Context, hill: &mut Noun, bell: &mut Noun) -> Noun {
+    get_by(&mut context.stack, hill, bell)
+        .expect("Codegen bell lookup should succeed.")
+        .expect("Codegen direct bell should be in hill.")
 }
 
 pub fn cg_interpret(context: &mut Context, slow: Noun, subject: Noun, formula: Noun) -> Result {
@@ -323,24 +331,92 @@ pub fn cg_interpret(context: &mut Context, slow: Noun, subject: Noun, formula: N
                 .expect("codegen instruction tag should convert to u64");
             match inst_tag {
                 tas!(b"clq") => {
-                    todo!("clq")
+                    let clq_cell = inst_cell.tail().as_cell().unwrap();
+                    let clq_s = clq_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let clq_zo = clq_cell.tail().as_cell().unwrap();
+                    let mut clq_z = clq_zo.head();
+                    let mut clq_o = clq_zo.tail();
+
+                    if frame.vars()[clq_s].is_cell() {
+                        goto(context, &mut body, &mut bend, &mut clq_z);
+                    } else {
+                        goto(context, &mut body, &mut bend, &mut clq_o);
+                    }
                 }
                 tas!(b"eqq") => {
-                    todo!("eqq")
+                    let eqq_cell = inst_cell.tail().as_cell().unwrap();
+                    let eqq_l = eqq_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let eqq_rzo = eqq_cell.tail().as_cell().unwrap();
+                    let eqq_r = eqq_rzo.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let eqq_zo = eqq_rzo.tail().as_cell().unwrap();
+                    let mut eqq_z = eqq_zo.head();
+                    let mut eqq_o = eqq_zo.tail();
+                    let l_ref = &mut frame.vars_mut()[eqq_l];
+                    let r_ref = &mut frame.vars_mut()[eqq_r];
+                    if unsafe {
+                        unifying_equality(
+                            &mut context.stack,
+                            l_ref as *mut Noun,
+                            r_ref as *mut Noun,
+                        )
+                    } {
+                        goto(context, &mut body, &mut bend, &mut eqq_z);
+                    } else {
+                        goto(context, &mut body, &mut bend, &mut eqq_o);
+                    }
                 }
                 tas!(b"brn") => {
-                    todo!("brn")
+                    let brn_cell = inst_cell.tail().as_cell().unwrap();
+                    let brn_s = brn_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let brn_zo = brn_cell.tail().as_cell().unwrap();
+                    let mut brn_z = brn_zo.head();
+                    let mut brn_o = brn_zo.tail();
+                    if unsafe { frame.vars()[brn_s].raw_equals(D(0)) } {
+                        goto(context, &mut body, &mut bend, &mut brn_z);
+                    } else if unsafe { frame.vars()[brn_s].raw_equals(D(1)) } {
+                        goto(context, &mut body, &mut bend, &mut brn_o);
+                    } else {
+                        break BAIL_EXIT;
+                    }
                 }
                 tas!(b"hop") => {
-                    todo!("hop")
+                    let mut hop_t = inst_cell.tail();
+                    goto(context, &mut body, &mut bend, &mut hop_t);
                 }
                 tas!(b"hip") => {
-                    todo!("hip")
+                    panic!("hip is unsupported for execution");
                 }
                 tas!(b"lnk") => {
-                    todo!("lnk")
+                    let lnk_cell = inst_cell.tail().as_cell().unwrap();
+                    let lnk_u = lnk_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let lnk_fdt = lnk_cell.tail().as_cell().unwrap();
+                    let lnk_f = lnk_fdt.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let lnk_dt = lnk_fdt.tail().as_cell().unwrap();
+                    let lnk_d = lnk_dt.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let lnk_t = lnk_dt.tail();
+                    let subject = frame.vars()[lnk_u];
+                    let formula = frame.vars()[lnk_f];
+                    frame.salt = lnk_d;
+                    frame.cont = lnk_t;
+                    let new_pile = cg_indirect(context, &mut hill, frame.slow, subject, formula);
+                    let sire = pile_sire(new_pile);
+                    let mut wish = pile_wish(new_pile);
+                    push_interpreter_frame(&mut context.stack, new_pile);
+                    let new_frame = unsafe { Frame::current_mut(&context.stack) };
+                    new_frame.vars_mut()[sire] = subject;
+                    goto(context, &mut body, &mut bend, &mut wish);
                 }
                 tas!(b"cal") => {
+                    let cal_cell = inst_cell.tail().as_cell().unwrap();
+                    let mut cal_a = cal_cell.head();
+                    let cal_vdt = cal_cell.tail().as_cell().unwrap();
+                    let cal_v = cal_vdt.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let cal_dt = cal_vdt.tail().as_cell().unwrap();
+                    let cal_d = cal_dt.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let cal_t = cal_dt.tail();
+                    let new_pile = cg_direct(context, &mut hill, &mut cal_a);
+                    let long = pile_long(new_pile);
+                    let walt = pile_walt(new_pile);
                     todo!("cal")
                 }
                 tas!(b"caf") => {
@@ -365,7 +441,7 @@ pub fn cg_interpret(context: &mut Context, slow: Noun, subject: Noun, formula: N
                     todo!("don")
                 }
                 tas!(b"bom") => {
-                    todo!("bom")
+                    break BAIL_EXIT;
                 }
                 _ => {
                     panic!("Codegen instruction unsupported");
@@ -379,9 +455,16 @@ pub fn cg_interpret(context: &mut Context, slow: Noun, subject: Noun, formula: N
     }
 }
 
-/// Crash with an
+/// Crash with an error, but first unwind the stack
 fn exit(context: &mut Context, err: Error) -> Result {
     todo!("exit")
+}
+
+fn goto(context: &mut Context, body: &mut Noun, bend: &mut Noun, bile: &mut Noun) {
+    let frame = unsafe { Frame::current(&context.stack) };
+    let (o, e) = get_blob(context, frame.pile, bile);
+    *body = o;
+    *bend = e;
 }
 
 fn pile_sans(pile: Noun) -> usize {
@@ -408,6 +491,14 @@ fn pile_sire(pile: Noun) -> usize {
 
 fn pile_will(pile: Noun) -> Noun {
     slot(pile, 126).expect("Codegen pile should have will face")
+}
+
+fn pile_long(pile: Noun) -> Noun {
+    slot(pile, 2).expect("Codegen pile should have long face")
+}
+
+fn pile_walt(pile: Noun) -> Noun {
+    slot(pile, 14).expect("Codegen pile should have walt face")
 }
 
 fn get_blob(context: &mut Context, pile: Noun, bile: &mut Noun) -> (Noun, Noun) {
