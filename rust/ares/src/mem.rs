@@ -9,7 +9,7 @@ use memmap::MmapMut;
 use std::alloc::Layout;
 use std::mem;
 use std::ptr;
-use std::ptr::copy_nonoverlapping;
+use std::ptr::{copy, copy_nonoverlapping};
 
 crate::gdb!();
 
@@ -144,6 +144,45 @@ impl NockStack {
     /** Current frame pointer of this NockStack */
     pub fn get_frame_pointer(&self) -> *const u64 {
         self.frame_pointer
+    }
+
+    pub fn get_frame_base(&self) -> *mut u64 {
+        if self.is_west() {
+            unsafe { *(self.prev_alloc_pointer_pointer()) }
+        } else {
+            unsafe { self.frame_pointer.add(RESERVED) }
+        }
+    }
+
+    pub unsafe fn resize_frame(&mut self, new_size: usize) {
+        // lightweight stack must be empty
+        assert!(self.stack_pointer == self.frame_pointer);
+        let raw_new_size = (new_size + RESERVED) as isize;
+        if self.is_west() {
+            let current_size = self
+                .frame_pointer
+                .offset_from(*(self.prev_alloc_pointer_pointer()));
+            assert!(current_size >= RESERVED as isize);
+            let offset = raw_new_size - current_size;
+            let new_frame_pointer = self.frame_pointer.offset(offset);
+            copy(
+                self.frame_pointer.sub(RESERVED),
+                new_frame_pointer.sub(RESERVED),
+                RESERVED,
+            );
+            self.frame_pointer = new_frame_pointer;
+            self.stack_pointer = new_frame_pointer;
+        } else {
+            let current_size =
+                (*(self.prev_alloc_pointer_pointer())).offset_from(self.frame_pointer);
+            assert!(current_size >= RESERVED as isize);
+            let offset = current_size - raw_new_size;
+            let new_frame_pointer = self.frame_pointer.offset(offset);
+            let copy_size = current_size.min(raw_new_size);
+            copy(self.frame_pointer, new_frame_pointer, RESERVED);
+            self.frame_pointer = new_frame_pointer;
+            self.stack_pointer = new_frame_pointer;
+        }
     }
 
     /** Current stack pointer of this NockStack */

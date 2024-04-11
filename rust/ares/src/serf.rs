@@ -8,7 +8,7 @@ use crate::jets::warm::Warm;
 use crate::mem::NockStack;
 use crate::mug::*;
 use crate::newt::Newt;
-use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, T};
+use crate::noun::{Atom, Cell, DirectAtom, Noun, Slots, D, NOUN_NONE, T};
 use crate::persist::pma_meta_set;
 use crate::persist::{pma_meta_get, pma_open, pma_sync, Persist};
 use crate::trace::*;
@@ -172,6 +172,7 @@ impl Context {
             cache,
             scry_stack: D(0),
             trace_info,
+            line: NOUN_NONE,
         };
 
         Context {

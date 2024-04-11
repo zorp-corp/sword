@@ -5,7 +5,6 @@
 // use crate::jets::util::*;
 // use crate::jets::Result;
 // use crate::noun::{IndirectAtom, Noun, D};
-
 use self::util::*;
 
 crate::gdb!();
@@ -13,14 +12,14 @@ crate::gdb!();
 // XX TODO actual jets
 
 pub mod util {
-    use crate::mug::mug_u32;
-    use crate::unifying_equality::unifying_equality;
-    use crate::mem::NockStack;
     use crate::jets::math::util::lth_b;
     use crate::jets::util::slot;
-    use crate::noun::{Noun, D};
-    use either::Either::*;
     use crate::jets::JetErr;
+    use crate::mem::NockStack;
+    use crate::mug::mug_u32;
+    use crate::noun::{Noun, D};
+    use crate::unifying_equality::unifying_equality;
+    use either::Either::*;
 
     pub fn dor_b(stack: &mut NockStack, a: &mut Noun, b: &mut Noun) -> bool {
         let mut ap = a as *mut Noun;
@@ -38,10 +37,14 @@ pub mod util {
                             } else {
                                 break true;
                             }
-                        },
+                        }
                         Right(a_cell) => {
                             if let Ok(b_cell) = (*bp).as_cell() {
-                                if unifying_equality(stack, a_cell.head_as_mut(), b_cell.head_as_mut()) {
+                                if unifying_equality(
+                                    stack,
+                                    a_cell.head_as_mut(),
+                                    b_cell.head_as_mut(),
+                                ) {
                                     ap = a_cell.tail_as_mut();
                                     bp = b_cell.tail_as_mut();
                                     continue;
@@ -70,7 +73,11 @@ pub mod util {
         }
     }
 
-    pub fn get_by(stack: &mut NockStack, a: &mut Noun, b: &mut Noun) -> Result<Option<Noun>, JetErr> {
+    pub fn get_by(
+        stack: &mut NockStack,
+        a: &mut Noun,
+        b: &mut Noun,
+    ) -> Result<Option<Noun>, JetErr> {
         let mut ap = a as *mut Noun;
         let bp = b as *mut Noun;
         unsafe {

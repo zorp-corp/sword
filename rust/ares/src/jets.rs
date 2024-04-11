@@ -310,7 +310,7 @@ pub mod util {
         use super::*;
         use crate::hamt::Hamt;
         use crate::mem::NockStack;
-        use crate::noun::{Atom, Noun, D, T};
+        use crate::noun::{Atom, Noun, D, NOUN_NONE, T};
         use crate::unifying_equality::unifying_equality;
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
@@ -322,6 +322,7 @@ pub mod util {
             let warm = Warm::new(&mut stack);
             let hot = Hot::init(&mut stack, URBIT_HOT_STATE);
             let cache = Hamt::<Noun>::new(&mut stack);
+            let line = NOUN_NONE;
 
             Context {
                 stack,
@@ -330,6 +331,7 @@ pub mod util {
                 warm,
                 hot,
                 cache,
+                line,
                 scry_stack: D(0),
                 trace_info: None,
             }

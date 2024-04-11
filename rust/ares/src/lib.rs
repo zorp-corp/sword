@@ -3,6 +3,7 @@ extern crate num_derive;
 extern crate lazy_static;
 #[macro_use]
 extern crate static_assertions;
+pub mod codegen;
 pub mod flog;
 pub mod guard;
 pub mod hamt;

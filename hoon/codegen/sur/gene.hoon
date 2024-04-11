@@ -202,11 +202,11 @@
 ::
 ::  long: starting label for direct calls    axis 2
 ::  want: input registers for direct calls   axis 6
-::  walt: input starting registers LR        axis 30
-::  wish: starting label for indirect calls  axis 62
-::  sire: input register for indirect calls  axis 126
-::  will: code table for arm                 axis 254
-::  sans: next SSA register                  axis 255
+::  walt: input starting registers LR        axis 14
+::  wish: starting label for indirect calls  axis 30
+::  sire: input register for indirect calls  axis 62
+::  will: code table for arm                 axis 126
+::  sans: next SSA register                  axis 127
 +$  pile
   $:  long=bile
       want=need

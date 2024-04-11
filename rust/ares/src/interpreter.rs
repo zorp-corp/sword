@@ -268,6 +268,7 @@ pub struct Context {
     pub cold: Cold,
     pub warm: Warm,
     pub hot: Hot,
+    pub line: Noun,
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
@@ -360,7 +361,7 @@ impl From<cold::Error> for Error {
 
 pub type Result = result::Result<Noun, Error>;
 
-const BAIL_EXIT: Result = Err(Error::Deterministic(Mote::Exit, D(0)));
+pub const BAIL_EXIT: Result = Err(Error::Deterministic(Mote::Exit, D(0)));
 const BAIL_FAIL: Result = Err(Error::NonDeterministic(Mote::Fail, D(0)));
 const BAIL_INTR: Result = Err(Error::NonDeterministic(Mote::Intr, D(0)));
 

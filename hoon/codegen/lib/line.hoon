@@ -1265,7 +1265,7 @@
   hill
 --
 ::    codegen interface
-:-  %1
+=+  %1
 |%
 ::  
 ::    core reference
