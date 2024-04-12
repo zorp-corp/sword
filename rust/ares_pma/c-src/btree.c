@@ -2437,7 +2437,7 @@ _freelist_restore(BT_state *state)
 
   /* record root's allocation and then handle subtree */
   _nlist_record_alloc(state, root);
-  _freelist_restore2(state, root, 1, meta->depth); /* ;;: flist restoration is fucked */
+  _freelist_restore2(state, root, 1, meta->depth);
 }
 
 static void
