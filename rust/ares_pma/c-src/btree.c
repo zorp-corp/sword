@@ -1689,7 +1689,6 @@ _flist_grow(BT_state *state, size_t pages)
 static int
 _flist_new(BT_state *state, size_t size_p)
 #define FLIST_PG_START (BT_META_SECTION_WIDTH / BT_PAGESIZE)
-/* #define FLIST_PG_START ((BT_META_SECTION_WIDTH + BLK_BASE_LEN0_b) / BT_PAGESIZE) */
 {
   BT_flistnode *head = calloc(1, sizeof *head);
   head->next = 0;
@@ -2408,6 +2407,22 @@ _freelist_restore2(BT_state *state, BT_page *node,
 }
 
 static void
+_flist_restore_partitions(BT_state *state)
+{
+  BT_meta *meta = state->meta_pages[state->which];
+  assert(meta->blk_base[0] == BT_NUMMETAS);
+
+  for (size_t i = 0
+         ; i < BT_NUMPARTS && meta->blk_base[i] != 0
+         ; i++) {
+    pgno_t partoff_p = meta->blk_base[i];
+    size_t partlen_p = BLK_BASE_LENS_b[i] / BT_PAGESIZE;
+
+    _flist_record_alloc(state, partoff_p, partoff_p + partlen_p);
+  }
+}
+
+static void
 _freelist_restore(BT_state *state)
 /* restores the mlist, nlist, and mlist */
 {
@@ -2416,9 +2431,13 @@ _freelist_restore(BT_state *state)
   assert(SUCC(_flist_new(state, state->file_size_p)));
   assert(SUCC(_nlist_load(state)));
   assert(SUCC(_mlist_new(state)));
-  /* first record root's allocation */
+
+  /* record node partitions in flist */
+  _flist_restore_partitions(state);
+
+  /* record root's allocation and then handle subtree */
   _nlist_record_alloc(state, root);
-  _freelist_restore2(state, root, 1, meta->depth);
+  _freelist_restore2(state, root, 1, meta->depth); /* ;;: flist restoration is fucked */
 }
 
 static void
@@ -2515,7 +2534,6 @@ _bt_state_load(BT_state *state)
   /* map the node segment */
   _bt_state_map_node_segment(state);
 
-  /* new db, so populate metadata */
   if (new) {
     assert(SUCC(_flist_new(state, PMA_GROW_SIZE_p)));
     assert(SUCC(_nlist_new(state)));
