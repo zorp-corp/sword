@@ -1,11 +1,11 @@
-/** Tree jets
+/* map/set jets
  */
 // use crate::interpreter::Context;
 // use crate::jets::bits::util::*;
 // use crate::jets::util::*;
 // use crate::jets::Result;
 // use crate::noun::{IndirectAtom, Noun, D};
-use self::util::*;
+//use self::util::*;
 
 crate::gdb!();
 
@@ -23,7 +23,7 @@ pub mod util {
 
     pub fn dor_b(stack: &mut NockStack, a: &mut Noun, b: &mut Noun) -> bool {
         let mut ap = a as *mut Noun;
-        let mut bp = a as *mut Noun;
+        let mut bp = b as *mut Noun;
 
         unsafe {
             loop {
@@ -90,7 +90,7 @@ pub mod util {
                 if unifying_equality(stack, bp, &mut pna) {
                     break Ok(Some(slot(na, 3)?)); // q.n.a
                 }
-                let lr_cell = slot((*ap), 3)?.as_cell()?;
+                let lr_cell = slot(*ap, 3)?.as_cell()?;
 
                 ap = if gor_b(stack, &mut (*bp), &mut pna) {
                     lr_cell.head_as_mut()

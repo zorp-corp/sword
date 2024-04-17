@@ -1,12 +1,13 @@
-use crate::interpreter::{inc, interpret, Context, Error, Result, BAIL_EXIT};
+use crate::interpreter::{inc, interpret, Context, Error, Result, BAIL_EXIT, ContextSnapshot, WhichInterpreter};
 use crate::jets::seam::util::get_by;
 use crate::jets::util::slot;
+use crate::jets::{Jet, JetErr::*};
 use crate::mem::NockStack;
 use crate::noun::{DirectAtom, Noun, D, NOUN_NONE, T};
 use crate::unifying_equality::unifying_equality;
 use ares_macros::tas;
 use std::mem::size_of;
-use std::ptr::write_bytes;
+use std::ptr::{copy_nonoverlapping, write_bytes};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 #[derive(Copy, Clone)]
@@ -54,29 +55,6 @@ impl Frame {
         unsafe { from_raw_parts_mut((self as *mut Frame).add(1) as *mut Noun, self.vars) }
     }
 
-    fn mean_push(&mut self, stack: &mut NockStack, entry: Noun) {
-        self.mean = T(stack, &[entry, self.mean]);
-    }
-
-    fn mean_pop(&mut self) {
-        self.mean = self
-            .mean
-            .as_cell()
-            .expect("Cannot pop empty mean stack")
-            .tail();
-    }
-
-    fn slow_push(&mut self, stack: &mut NockStack, entry: Noun) {
-        self.slow = T(stack, &[entry, self.slow]);
-    }
-
-    fn slow_pop(&mut self) {
-        self.slow = self
-            .slow
-            .as_cell()
-            .expect("Cannot pop empty slow stack")
-            .tail();
-    }
 }
 
 assert_eq_align!(Frame, u64, usize);
@@ -90,6 +68,7 @@ fn push_interpreter_frame(stack: &mut NockStack, pile: Noun) {
     let frame = unsafe { Frame::current_mut(stack) };
     frame.init(vars, Some(prev));
     frame.pile = pile;
+    frame.vars = vars;
 }
 
 fn push_outer_frame(stack: &mut NockStack, pile: Noun) {
@@ -98,6 +77,28 @@ fn push_outer_frame(stack: &mut NockStack, pile: Noun) {
     let frame = unsafe { Frame::current_mut(stack) };
     frame.init(vars, None);
     frame.pile = pile;
+    frame.vars = vars;
+}
+
+fn tail_frame(stack: &mut NockStack, pile: Noun) {
+    let (old_vars, vars, total_vars) = unsafe {
+        let old_frame = Frame::current(stack);
+        let old_vars = pile_sans(old_frame.pile);
+        let vars = pile_sans(pile);
+        let total_vars = vars + old_vars;
+        stack.resize_frame(FRAME_WORD_SIZE + total_vars);
+        (old_vars, vars, total_vars)
+    };
+    let frame = unsafe { Frame::current_mut(stack) };
+    unsafe {
+        let vars_ptr = (frame as *mut Frame).add(1) as *mut Noun;
+        copy_nonoverlapping(vars_ptr, vars_ptr.add(vars), old_vars);
+        write_bytes(vars_ptr, 0, vars);
+    }
+    frame.pile = pile;
+    frame.vars = total_vars;
+    frame.cont = NOUN_NONE;
+    frame.salt = usize::MAX;
 }
 
 const PEEK_AXIS: u64 = 4;
@@ -172,14 +173,28 @@ fn cg_direct(context: &mut Context, hill: &mut Noun, bell: &mut Noun) -> Noun {
 }
 
 pub fn cg_interpret(context: &mut Context, slow: Noun, subject: Noun, formula: Noun) -> Result {
+    let snapshot = context.save();
+    context.which = WhichInterpreter::CodegenCodegen;
+    cg_interpret_with_snapshot(context, &snapshot, slow, subject, formula)
+}
+
+pub fn cg_interpret_cg(context: &mut Context, slow: Noun, subject: Noun, formula: Noun) -> Result {
+    let snapshot = context.save();
+    context.which = WhichInterpreter::TreeWalkingCodegen;
+    cg_interpret_with_snapshot(context, &snapshot, slow, subject, formula)
+}
+
+
+pub fn cg_interpret_with_snapshot(context: &mut Context, snapshot: &ContextSnapshot, slow: Noun, subject: Noun, formula: Noun) -> Result {
     let mut hill = NOUN_NONE;
     let outer_pile = cg_indirect(context, &mut hill, slow, subject, formula);
     let virtual_frame = context.stack.get_frame_pointer();
     push_outer_frame(&mut context.stack, outer_pile);
-    let mut wish = pile_wish(outer_pile);
-    let (mut body, mut bend) = get_blob(context, outer_pile, &mut wish);
+    let (mut body, mut bend) = (NOUN_NONE, NOUN_NONE);
     let sire = pile_sire(outer_pile);
     (unsafe { Frame::current_mut(&context.stack).vars_mut() })[sire] = subject;
+    let mut wish = pile_wish(outer_pile);
+    goto(context, &mut body, &mut bend, &mut wish);
     let inner_res = 'interpret: loop {
         let frame = unsafe { Frame::current_mut(&context.stack) };
         if let Ok(body_cell) = body.as_cell() {
@@ -273,7 +288,6 @@ pub fn cg_interpret(context: &mut Context, slow: Noun, subject: Noun, formula: N
                 }
                 tas!(b"sld") => {
                     frame.slow = frame.slow.as_cell().unwrap().tail();
-                    todo!("sld")
                 }
                 tas!(b"hit") => {
                     // XX TODO implement
@@ -285,6 +299,7 @@ pub fn cg_interpret(context: &mut Context, slow: Noun, subject: Noun, formula: N
                         .slog(&mut context.stack, 0, frame.vars()[slg_s]);
                 }
                 tas!(b"mew") => {
+                    todo!("mew");
                     // XX TODO implement
                 }
                 tas!(b"tim") => {
@@ -410,35 +425,272 @@ pub fn cg_interpret(context: &mut Context, slow: Noun, subject: Noun, formula: N
                     let cal_cell = inst_cell.tail().as_cell().unwrap();
                     let mut cal_a = cal_cell.head();
                     let cal_vdt = cal_cell.tail().as_cell().unwrap();
-                    let cal_v = cal_vdt.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mut cal_v = cal_vdt.head();
                     let cal_dt = cal_vdt.tail().as_cell().unwrap();
                     let cal_d = cal_dt.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let cal_t = cal_dt.tail();
                     let new_pile = cg_direct(context, &mut hill, &mut cal_a);
-                    let long = pile_long(new_pile);
-                    let walt = pile_walt(new_pile);
-                    todo!("cal")
+                    let mut long = pile_long(new_pile);
+                    let mut walt = pile_walt(new_pile);
+                    frame.salt = cal_d;
+                    frame.cont = cal_t;
+                    push_interpreter_frame(&mut context.stack, new_pile);
+                    let new_frame = unsafe { Frame::current_mut(&context.stack) };
+                    'args: loop {
+                        if unsafe { cal_v.raw_equals(D(0)) } {
+                            assert!(unsafe { walt.raw_equals(D(0)) });
+                            break 'args;
+                        } else {
+                            let v_cell = cal_v.as_cell().unwrap();
+                            let walt_cell = walt.as_cell().unwrap();
+                            cal_v = v_cell.tail();
+                            walt = walt_cell.tail();
+                            let v_i = v_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                            let walt_i =
+                                walt_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                            new_frame.vars_mut()[walt_i] = frame.vars()[v_i];
+                        }
+                    }
+                    goto(context, &mut body, &mut bend, &mut long);
                 }
                 tas!(b"caf") => {
-                    todo!("caf")
+                    let caf_cell = inst_cell.tail().as_cell().unwrap();
+                    let mut caf_a = caf_cell.head();
+                    let caf_vdtun = caf_cell.tail().as_cell().unwrap();
+                    let mut caf_v = caf_vdtun.head();
+                    let caf_dtun = caf_vdtun.tail().as_cell().unwrap();
+                    let caf_d = caf_dtun.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let caf_tun = caf_dtun.tail().as_cell().unwrap();
+                    let caf_t = caf_tun.head();
+                    let caf_un = caf_tun.tail().as_cell().unwrap();
+                    let caf_u = caf_un.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mut caf_n = caf_un.tail();
+                    let mut jet: Option<Jet> = None;
+                    for (n, a, j) in context.hot {
+                        let mut na = T(&mut context.stack, &[n, a.as_noun()]);
+                        if unsafe { unifying_equality(&mut context.stack, &mut na, &mut caf_n) } {
+                            jet = Some(j);
+                            break;
+                        }
+                    }
+                    if let Some(j) = jet {
+                        let subject = frame.vars()[caf_u];
+                        match j(context, subject) {
+                            Ok(r) => {
+                                frame.vars_mut()[caf_d] = r;
+                            }
+                            Err(Punt) => {
+                                let new_pile = cg_direct(context, &mut hill, &mut caf_a);
+                                let mut long = pile_long(new_pile);
+                                let mut walt = pile_walt(new_pile);
+                                frame.salt = caf_d;
+                                frame.cont = caf_t;
+                                push_interpreter_frame(&mut context.stack, new_pile);
+                                let new_frame = unsafe { Frame::current_mut(&context.stack) };
+                                'args: loop {
+                                    if unsafe { caf_v.raw_equals(D(0)) } {
+                                        assert!(unsafe { walt.raw_equals(D(0)) });
+                                        break 'args;
+                                    } else {
+                                        let v_cell = caf_v.as_cell().unwrap();
+                                        let walt_cell = walt.as_cell().unwrap();
+                                        caf_v = v_cell.tail();
+                                        walt = walt_cell.tail();
+                                        let v_i = v_cell.head().as_atom().unwrap().as_u64().unwrap()
+                                            as usize;
+                                        let walt_i =
+                                            walt_cell.head().as_atom().unwrap().as_u64().unwrap()
+                                                as usize;
+                                        new_frame.vars_mut()[walt_i] = frame.vars()[v_i];
+                                    }
+                                }
+                                goto(context, &mut body, &mut bend, &mut long);
+                            }
+                            Err(Fail(err)) => {
+                                break Err(err);
+                            }
+                        }
+                    } else {
+                        let new_pile = cg_direct(context, &mut hill, &mut caf_a);
+                        let mut long = pile_long(new_pile);
+                        let mut walt = pile_walt(new_pile);
+                        frame.salt = caf_d;
+                        frame.cont = caf_t;
+                        push_interpreter_frame(&mut context.stack, new_pile);
+                        let new_frame = unsafe { Frame::current_mut(&context.stack) };
+                        'args: loop {
+                            if unsafe { caf_v.raw_equals(D(0)) } {
+                                assert!(unsafe { walt.raw_equals(D(0)) });
+                                break 'args;
+                            } else {
+                                let v_cell = caf_v.as_cell().unwrap();
+                                let walt_cell = walt.as_cell().unwrap();
+                                caf_v = v_cell.tail();
+                                walt = walt_cell.tail();
+                                let v_i =
+                                    v_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                                let walt_i =
+                                    walt_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                                new_frame.vars_mut()[walt_i] = frame.vars()[v_i];
+                            }
+                        }
+                        goto(context, &mut body, &mut bend, &mut long);
+                    }
                 }
                 tas!(b"lnt") => {
-                    todo!("lnt")
+                    let lnt_cell = inst_cell.tail().as_cell().unwrap();
+                    let lnt_u = lnt_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let lnt_f = lnt_cell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let subject = frame.vars()[lnt_u];
+                    let formula = frame.vars()[lnt_f];
+                    let new_pile = cg_indirect(context, &mut hill, frame.slow, subject, formula);
+                    let sire = pile_sire(new_pile);
+                    let mut wish = pile_wish(new_pile);
+                    tail_frame(&mut context.stack, new_pile);
+                    let new_frame = unsafe { Frame::current_mut(&mut context.stack) };
+                    new_frame.vars_mut()[sire] = subject;
+                    goto(context, &mut body, &mut bend, &mut wish);
                 }
                 tas!(b"jmp") => {
-                    todo!("jmp")
+                    let jmp_cell = inst_cell.tail().as_cell().unwrap();
+                    let mut jmp_a = jmp_cell.head();
+                    let mut jmp_v = jmp_cell.tail();
+                    let new_pile = cg_direct(context, &mut hill, &mut jmp_a);
+                    let new_vars = pile_sans(new_pile);
+                    let mut long = pile_long(new_pile);
+                    let mut walt = pile_walt(new_pile);
+                    tail_frame(&mut context.stack, new_pile);
+                    let new_frame = unsafe { Frame::current_mut(&mut context.stack) };
+                    'args: loop {
+                        if unsafe { jmp_v.raw_equals(D(0)) } {
+                            assert!(unsafe { walt.raw_equals(D(0)) });
+                            break 'args;
+                        } else {
+                            let v_cell = jmp_v.as_cell().unwrap();
+                            let walt_cell = walt.as_cell().unwrap();
+                            jmp_v = v_cell.tail();
+                            walt = walt_cell.tail();
+                            let v_i = v_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                            let walt_i =
+                                walt_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                            new_frame.vars_mut()[walt_i] = new_frame.vars()[new_vars..][v_i];
+                        }
+                    }
+                    goto(context, &mut body, &mut bend, &mut long);
                 }
                 tas!(b"jmf") => {
-                    todo!("jmf")
+                    let jmf_cell = inst_cell.tail().as_cell().unwrap();
+                    let mut jmf_a = jmf_cell.head();
+                    let jmf_vun = jmf_cell.tail().as_cell().unwrap();
+                    let mut jmf_v = jmf_vun.head();
+                    let jmf_un = jmf_vun.tail().as_cell().unwrap();
+                    let jmf_u = jmf_un.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mut jmf_n = jmf_un.tail();
+                    let mut jet: Option<Jet> = None;
+                    for (n, a, j) in context.hot {
+                        let mut na = T(&mut context.stack, &[n, a.as_noun()]);
+                        if unsafe { unifying_equality(&mut context.stack, &mut na, &mut jmf_n) } {
+                            jet = Some(j);
+                            break;
+                        }
+                    }
+                    if let Some(j) = jet {
+                        let subject = frame.vars()[jmf_u];
+                        match j(context, subject) {
+                            Ok(mut r) => {
+                                unsafe {
+                                    context.preserve(); 
+                                    context.stack.preserve(&mut r);
+                                    context.stack.frame_pop();
+                                }
+                                if context.stack.get_frame_pointer() == virtual_frame {
+                                    break Ok(r);
+                                } else {
+                                    let new_frame =
+                                        unsafe { Frame::current_mut(&mut context.stack) };
+                                    new_frame.vars_mut()[new_frame.salt] = r;
+                                    goto(context, &mut body, &mut bend, &mut new_frame.cont)
+                                }
+                            }
+                            Err(Punt) => {
+                                let new_pile = cg_direct(context, &mut hill, &mut jmf_a);
+                                let new_vars = pile_sans(new_pile);
+                                let mut long = pile_long(new_pile);
+                                let mut walt = pile_walt(new_pile);
+                                tail_frame(&mut context.stack, new_pile);
+                                let new_frame = unsafe { Frame::current_mut(&mut context.stack) };
+                                'args: loop {
+                                    if unsafe { jmf_v.raw_equals(D(0)) } {
+                                        assert!(unsafe { walt.raw_equals(D(0)) });
+                                        break 'args;
+                                    } else {
+                                        let v_cell = jmf_v.as_cell().unwrap();
+                                        let walt_cell = walt.as_cell().unwrap();
+                                        jmf_v = v_cell.tail();
+                                        walt = walt_cell.tail();
+                                        let v_i = v_cell.head().as_atom().unwrap().as_u64().unwrap()
+                                            as usize;
+                                        let walt_i =
+                                            walt_cell.head().as_atom().unwrap().as_u64().unwrap()
+                                                as usize;
+                                        new_frame.vars_mut()[walt_i] =
+                                            new_frame.vars()[new_vars..][v_i];
+                                    }
+                                }
+                                goto(context, &mut body, &mut bend, &mut long);
+                            }
+                            Err(Fail(err)) => {
+                                break Err(err);
+                            }
+                        }
+                    } else {
+                        let new_pile = cg_direct(context, &mut hill, &mut jmf_a);
+                        let new_vars = pile_sans(new_pile);
+                        let mut long = pile_long(new_pile);
+                        let mut walt = pile_walt(new_pile);
+                        tail_frame(&mut context.stack, new_pile);
+                        let new_frame = unsafe { Frame::current_mut(&mut context.stack) };
+                        'args: loop {
+                            if unsafe { jmf_v.raw_equals(D(0)) } {
+                                assert!(unsafe { walt.raw_equals(D(0)) });
+                                break 'args;
+                            } else {
+                                let v_cell = jmf_v.as_cell().unwrap();
+                                let walt_cell = walt.as_cell().unwrap();
+                                jmf_v = v_cell.tail();
+                                walt = walt_cell.tail();
+                                let v_i =
+                                    v_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                                let walt_i =
+                                    walt_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                                new_frame.vars_mut()[walt_i] = new_frame.vars()[new_vars..][v_i];
+                            }
+                        }
+                        goto(context, &mut body, &mut bend, &mut long);
+                    }
                 }
                 tas!(b"spy") => {
+                    // XX: what do we want to do about the slow path here?
                     todo!("spy")
                 }
                 tas!(b"mer") => {
                     todo!("mer")
                 }
                 tas!(b"don") => {
-                    todo!("don")
+                    let don_s = inst_cell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mut result = frame.vars()[don_s];
+                    unsafe {
+                        context.preserve();
+                        context.stack.preserve(&mut result);
+                        context.stack.frame_pop();
+                    }
+                    if context.stack.get_frame_pointer() == virtual_frame {
+                        break Ok(result);
+                    } else {
+                        let new_frame = unsafe { Frame::current_mut(&mut context.stack) };
+                        new_frame.vars_mut()[new_frame.salt] = result;
+                        goto(context, &mut body, &mut bend, &mut new_frame.cont);
+                    }
                 }
                 tas!(b"bom") => {
                     break BAIL_EXIT;
@@ -450,14 +702,44 @@ pub fn cg_interpret(context: &mut Context, slow: Noun, subject: Noun, formula: N
         }
     };
     match inner_res {
-        Ok(res) => inner_res,
-        Err(err) => exit(context, err),
+        Ok(res) => {
+            context.which = snapshot.which;  
+            Ok(res)
+        },
+        Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
     }
 }
 
 /// Crash with an error, but first unwind the stack
-fn exit(context: &mut Context, err: Error) -> Result {
-    todo!("exit")
+fn exit(context: &mut Context, snapshot: &ContextSnapshot, virtual_frame: *const u64, error: Error) -> Error {
+    context.restore(snapshot);
+    if context.stack.copying() {
+        assert!(context.stack.get_frame_pointer() != virtual_frame);
+        unsafe { context.stack.frame_pop() };
+    }
+
+    let stack = &mut context.stack;
+    let mut preserve = match error {
+        Error::ScryBlocked(path) => path,
+        Error::Deterministic(_, t) | Error::NonDeterministic(_, t) | Error::ScryCrashed(t) => {
+            let frame = unsafe { Frame::current(stack) };
+            T(stack, &[frame.mean, t])
+        },
+    };
+
+    while stack.get_frame_pointer() != virtual_frame {
+        unsafe {
+            stack.preserve(&mut preserve);
+            stack.frame_pop();
+        }
+    }
+
+    match error {
+        Error::Deterministic(mote, _) => Error::Deterministic(mote, preserve),
+        Error::NonDeterministic(mote, _) => Error::NonDeterministic(mote, preserve),
+        Error::ScryCrashed(_) => Error::ScryCrashed(preserve),
+        Error::ScryBlocked(_) => error
+    }
 }
 
 fn goto(context: &mut Context, body: &mut Noun, bend: &mut Noun, bile: &mut Noun) {

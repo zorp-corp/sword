@@ -2,7 +2,7 @@ use crate::assert_acyclic;
 use crate::hamt::MutHamt;
 use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
-use bitvec::prelude::{BitSlice, Lsb0};
+use bitvec::prelude::{BitSlice, BitStore, Lsb0};
 use either::Either::{Left, Right};
 
 crate::gdb!();
@@ -24,7 +24,11 @@ pub fn met0_u64_to_usize(x: u64) -> usize {
 }
 
 pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
-    let buffer_bitslice = buffer.as_bitslice();
+    cue_bytes(stack, buffer.as_bytes())
+}
+
+pub fn cue_bytes(stack: &mut NockStack, buffer: &[u8]) -> Noun {
+    let buffer_bitslice: &BitSlice<u8, Lsb0> = BitSlice::from_slice(buffer);
     let mut cursor: usize = 0;
     let backref_map = MutHamt::<Noun>::new(stack);
     stack.frame_push(1);
@@ -98,7 +102,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
 }
 
 // TODO: use first_zero() on a slice of the buffer
-fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> usize {
+fn get_size<W: BitStore>(cursor: &mut usize, buffer: &BitSlice<W, Lsb0>) -> usize {
     let buff_at_cursor = &buffer[*cursor..];
     let bitsize = buff_at_cursor
         .first_one()
@@ -108,43 +112,47 @@ fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> usize {
         0
     } else {
         let mut size: u64 = 0;
-        BitSlice::from_element_mut(&mut size)[0..bitsize - 1]
-            .copy_from_bitslice(&buffer[*cursor + bitsize + 1..*cursor + bitsize + bitsize]);
+        BitSlice::<u64, Lsb0>::from_element_mut(&mut size)[0..bitsize - 1]
+            .clone_from_bitslice(&buffer[*cursor + bitsize + 1..*cursor + bitsize + bitsize]);
         *cursor += bitsize + bitsize;
         (size as usize) + (1 << (bitsize - 1))
     }
 }
 
-fn rub_atom(stack: &mut NockStack, cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Atom {
+fn rub_atom<W: BitStore>(
+    stack: &mut NockStack,
+    cursor: &mut usize,
+    buffer: &BitSlice<W, Lsb0>,
+) -> Atom {
     let size = get_size(cursor, buffer);
     if size == 0 {
         unsafe { DirectAtom::new_unchecked(0).as_atom() }
     } else if size < 64 {
         // fits in a direct atom
         let mut direct_raw = 0;
-        BitSlice::from_element_mut(&mut direct_raw)[0..size]
-            .copy_from_bitslice(&buffer[*cursor..*cursor + size]);
+        BitSlice::<u64, Lsb0>::from_element_mut(&mut direct_raw)[0..size]
+            .clone_from_bitslice(&buffer[*cursor..*cursor + size]);
         *cursor += size;
         unsafe { DirectAtom::new_unchecked(direct_raw).as_atom() }
     } else {
         // need an indirect atom
         let wordsize = (size + 63) >> 6;
         let (atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, wordsize) }; // fast round to wordsize
-        slice[0..size].copy_from_bitslice(&buffer[*cursor..*cursor + size]);
+        slice[0..size].clone_from_bitslice(&buffer[*cursor..*cursor + size]);
         debug_assert!(atom.size() > 0);
         *cursor += size;
         atom.as_atom()
     }
 }
 
-fn rub_backref(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> u64 {
+fn rub_backref<W: BitStore>(cursor: &mut usize, buffer: &BitSlice<W, Lsb0>) -> u64 {
     let size = get_size(cursor, buffer);
     if size == 0 {
         0
     } else if size <= 64 {
         let mut backref: u64 = 0;
-        BitSlice::from_element_mut(&mut backref)[0..size]
-            .copy_from_bitslice(&buffer[*cursor..*cursor + size]);
+        BitSlice::<u64, Lsb0>::from_element_mut(&mut backref)[0..size]
+            .clone_from_bitslice(&buffer[*cursor..*cursor + size]);
         *cursor += size;
         backref
     } else {

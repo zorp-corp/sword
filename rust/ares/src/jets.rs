@@ -17,7 +17,7 @@ pub mod sort;
 pub mod tree;
 
 use crate::flog;
-use crate::interpreter::{Context, Error, Mote};
+use crate::interpreter::{Context, Error, Mote, WhichInterpreter};
 use crate::jets::bits::*;
 use crate::jets::cold::Cold;
 use crate::jets::form::*;
@@ -186,7 +186,7 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
-    use crate::interpreter::interpret;
+    use crate::jets::nock::util::ctx_interpret;
     use crate::noun::{Noun, D, T};
     use bitvec::prelude::{BitSlice, Lsb0};
     use std::result;
@@ -291,7 +291,7 @@ pub mod util {
 
     pub fn kick(context: &mut Context, core: Noun, axis: Noun) -> result::Result<Noun, JetErr> {
         let formula: Noun = T(&mut context.stack, &[D(9), axis, D(0), D(1)]);
-        interpret(context, core, formula).map_err(JetErr::Fail)
+        ctx_interpret(context, core, formula).map_err(JetErr::Fail)
     }
 
     pub fn slam(context: &mut Context, gate: Noun, sample: Noun) -> result::Result<Noun, JetErr> {
@@ -334,6 +334,7 @@ pub mod util {
                 line,
                 scry_stack: D(0),
                 trace_info: None,
+                which: WhichInterpreter::CodegenCodegen,
             }
         }
 

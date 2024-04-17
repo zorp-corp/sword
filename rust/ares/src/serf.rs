@@ -1,10 +1,12 @@
+use crate::codegen::cg_interpret;
 use crate::hamt::Hamt;
-use crate::interpreter::{inc, interpret, Error, Mote};
+use crate::interpreter::{inc, interpret, Error, Mote, WhichInterpreter};
 use crate::jets::cold::Cold;
 use crate::jets::hot::{Hot, HotEntry};
 use crate::jets::list::util::{lent, zing};
 use crate::jets::nock::util::mook;
 use crate::jets::warm::Warm;
+use crate::load::load_cg;
 use crate::mem::NockStack;
 use crate::mug::*;
 use crate::newt::Newt;
@@ -40,9 +42,11 @@ impl Persist for Snapshot {
     unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
         let mut arvo = (*(self.0)).arvo;
         let mut cold = (*(self.0)).cold;
+        let mut line = (*(self.0)).line;
         let arvo_space_needed = arvo.space_needed(stack);
         let cold_space_needed = cold.space_needed(stack);
-        (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed
+        let line_space_needed = line.space_needed(stack);
+        (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed + line_space_needed
     }
 
     unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
@@ -58,6 +62,10 @@ impl Persist for Snapshot {
         let mut cold = (*snapshot_buffer).cold;
         cold.copy_to_buffer(stack, buffer);
         (*snapshot_buffer).cold = cold;
+
+        let mut line = (*snapshot_buffer).line;
+        line.copy_to_buffer(stack, buffer);
+        (*snapshot_buffer).line = line;
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
@@ -76,6 +84,7 @@ struct SnapshotMem {
     pub event_num: u64,
     pub arvo: Noun,
     pub cold: Cold,
+    pub line: Noun,
 }
 
 const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
@@ -119,6 +128,7 @@ impl Context {
                 (*snapshot_mem_ptr).event_num = self.event_num;
                 (*snapshot_mem_ptr).arvo = self.arvo;
                 (*snapshot_mem_ptr).cold = self.nock_context.cold;
+                (*snapshot_mem_ptr).line = self.nock_context.line;
                 snapshot_mem_ptr
             });
 
@@ -128,6 +138,7 @@ impl Context {
             self.arvo = (*snapshot.0).arvo;
             self.event_num = (*snapshot.0).event_num;
             self.nock_context.cold = (*snapshot.0).cold;
+            self.nock_context.line = (*snapshot.0).line;
 
             handle
         };
@@ -147,15 +158,16 @@ impl Context {
         let newt = Newt::new();
         let cache = Hamt::<Noun>::new(&mut stack);
 
-        let (epoch, event_num, arvo, mut cold) = unsafe {
+        let (epoch, event_num, arvo, mut cold, line) = unsafe {
             match snapshot {
                 Some(snapshot) => (
                     (*(snapshot.0)).epoch,
                     (*(snapshot.0)).event_num,
                     (*(snapshot.0)).arvo,
                     (*(snapshot.0)).cold,
+                    (*(snapshot.0)).line,
                 ),
-                None => (0, 0, D(0), Cold::new(&mut stack)),
+                None => (0, 0, D(0), Cold::new(&mut stack), NOUN_NONE),
             }
         };
 
@@ -163,7 +175,7 @@ impl Context {
         let warm = Warm::init(&mut stack, &mut cold, &hot);
         let mug = mug_u32(&mut stack, arvo);
 
-        let nock_context = interpreter::Context {
+        let mut nock_context = interpreter::Context {
             stack,
             newt,
             cold,
@@ -172,8 +184,16 @@ impl Context {
             cache,
             scry_stack: D(0),
             trace_info,
-            line: NOUN_NONE,
+            line,
+            which: WhichInterpreter::CodegenCodegen,
         };
+
+        // XX presently no way to upgrade the codegen nock
+        if nock_context.line.is_none() {
+            let (cg_f, cg_s) = load_cg(&mut nock_context.stack);
+            let line = interpret(&mut nock_context, cg_s, cg_f).expect("Could not successfully kick codegen trap");
+            nock_context.line = line;
+        }
 
         Context {
             epoch,
@@ -413,7 +433,7 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
 
-    interpret(&mut context.nock_context, sub, fol)
+    cg_interpret(&mut context.nock_context, D(0), sub, fol)
 }
 
 fn peek(context: &mut Context, ovo: Noun) -> Noun {
@@ -477,12 +497,12 @@ fn play_life(context: &mut Context, eve: Noun) {
     let res = if context.nock_context.trace_info.is_some() {
         let trace_name = "boot";
         let start = Instant::now();
-        let boot_res = interpret(&mut context.nock_context, eve, lyf);
+        let boot_res = cg_interpret(&mut context.nock_context, D(0), eve, lyf);
         write_serf_trace_safe(&mut context.nock_context, trace_name, start);
 
         boot_res
     } else {
-        interpret(&mut context.nock_context, eve, lyf)
+        cg_interpret(&mut context.nock_context, D(0), eve, lyf)
     };
 
     match res {

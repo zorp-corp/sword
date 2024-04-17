@@ -1,7 +1,7 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
-use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
+use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator, NOUN_NONE};
 use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
@@ -178,8 +178,8 @@ impl NockStack {
             assert!(current_size >= RESERVED as isize);
             let offset = current_size - raw_new_size;
             let new_frame_pointer = self.frame_pointer.offset(offset);
-            let copy_size = current_size.min(raw_new_size);
-            copy(self.frame_pointer, new_frame_pointer, RESERVED);
+            let copy_size = current_size.min(raw_new_size) as usize; // OK because >= reserved
+            copy(self.frame_pointer, new_frame_pointer, copy_size);
             self.frame_pointer = new_frame_pointer;
             self.stack_pointer = new_frame_pointer;
         }
@@ -494,6 +494,11 @@ impl NockStack {
             self.pop::<*mut Noun>();
             let next_noun = *(self.top::<Noun>());
             self.pop::<Noun>();
+
+            if next_noun.is_none() {
+                *next_dest = NOUN_NONE;
+                continue;
+            }
 
             // If it's a direct atom, just write it to the destination.
             // Otherwise, we have allocations to make.

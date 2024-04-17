@@ -28,6 +28,14 @@ use std::time::Instant;
 
 crate::gdb!();
 
+#[derive(Copy,Clone)]
+#[repr(u8)]
+pub enum WhichInterpreter {
+    TreeWalking,
+    TreeWalkingCodegen,
+    CodegenCodegen,
+}
+
 #[derive(Copy, Clone)]
 #[repr(u8)]
 enum TodoCons {
@@ -260,6 +268,7 @@ enum NockWork {
 pub struct ContextSnapshot {
     cold: Cold,
     warm: Warm,
+    pub which: WhichInterpreter,
 }
 
 pub struct Context {
@@ -269,6 +278,7 @@ pub struct Context {
     pub warm: Warm,
     pub hot: Hot,
     pub line: Noun,
+    pub which: WhichInterpreter,
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
     pub trace_info: Option<TraceInfo>,
@@ -279,12 +289,21 @@ impl Context {
         ContextSnapshot {
             cold: self.cold,
             warm: self.warm,
+            which: self.which,
         }
     }
 
     pub fn restore(&mut self, saved: &ContextSnapshot) {
         self.cold = saved.cold;
         self.warm = saved.warm;
+        self.which = saved.which;
+    }
+
+    pub unsafe fn preserve(&mut self) {
+        self.stack.preserve(&mut self.cache);
+        self.stack.preserve(&mut self.cold);
+        self.stack.preserve(&mut self.warm);
+        self.stack.preserve(&mut self.line);
     }
 
     /**
@@ -379,6 +398,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     let snapshot = context.save();
     let virtual_frame: *const u64 = context.stack.get_frame_pointer();
     let mut res: Noun = D(0);
+    context.which = WhichInterpreter::TreeWalking;
 
     // Setup stack for Nock computation
     unsafe {
@@ -416,38 +436,32 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         NockWork::Done => {
                             write_trace(context);
 
-                            let stack = &mut context.stack;
-                            debug_assertions(stack, orig_subject);
-                            debug_assertions(stack, subject);
-                            debug_assertions(stack, res);
+                            debug_assertions(&mut context.stack, orig_subject);
+                            debug_assertions(&mut context.stack, subject);
+                            debug_assertions(&mut context.stack, res);
 
-                            stack.preserve(&mut context.cache);
-                            stack.preserve(&mut context.cold);
-                            stack.preserve(&mut context.warm);
-                            stack.preserve(&mut res);
-                            stack.frame_pop();
+                            context.preserve();
+                            context.stack.preserve(&mut res);
+                            context.stack.frame_pop();
 
-                            debug_assertions(stack, orig_subject);
-                            debug_assertions(stack, res);
+                            debug_assertions(&mut context.stack, orig_subject);
+                            debug_assertions(&mut context.stack, res);
 
                             break Ok(res);
                         }
                         NockWork::Ret => {
                             write_trace(context);
 
-                            let stack = &mut context.stack;
-                            debug_assertions(stack, orig_subject);
-                            debug_assertions(stack, subject);
-                            debug_assertions(stack, res);
+                            debug_assertions(&mut context.stack, orig_subject);
+                            debug_assertions(&mut context.stack, subject);
+                            debug_assertions(&mut context.stack, res);
 
-                            stack.preserve(&mut context.cache);
-                            stack.preserve(&mut context.cold);
-                            stack.preserve(&mut context.warm);
-                            stack.preserve(&mut res);
-                            stack.frame_pop();
+                            context.preserve();
+                            context.stack.preserve(&mut res);
+                            context.stack.frame_pop();
 
-                            debug_assertions(stack, orig_subject);
-                            debug_assertions(stack, res);
+                            debug_assertions(&mut context.stack, orig_subject);
+                            debug_assertions(&mut context.stack, res);
                         }
                         NockWork::WorkCons(mut cons) => match cons.todo {
                             TodoCons::ComputeHead => {
@@ -960,7 +974,10 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     });
 
     match nock {
-        Ok(res) => Ok(res),
+        Ok(res) => {
+            context.which = snapshot.which;
+            Ok(res)
+        },
         Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
     }
 }

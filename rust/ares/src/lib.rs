@@ -9,6 +9,7 @@ pub mod guard;
 pub mod hamt;
 pub mod interpreter;
 pub mod jets;
+pub mod load;
 pub mod mem;
 pub mod mug;
 pub mod newt;

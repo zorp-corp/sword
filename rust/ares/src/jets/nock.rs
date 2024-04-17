@@ -71,7 +71,8 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
 
 pub mod util {
     use crate::hamt::Hamt;
-    use crate::interpreter::{interpret, Context, Error, Mote};
+    use crate::interpreter::{interpret, Context, Error, Mote, WhichInterpreter};
+    use crate::codegen::{cg_interpret, cg_interpret_cg};
     use crate::jets;
     use crate::jets::bits::util::rip;
     use crate::jets::form::util::scow;
@@ -83,6 +84,15 @@ pub mod util {
 
     pub const LEAF: Noun = D(tas!(b"leaf"));
     pub const ROSE: Noun = D(tas!(b"rose"));
+
+    pub fn ctx_interpret(context: &mut Context, subject: Noun, formula: Noun) -> crate::interpreter::Result {
+        match context.which {
+            // TODO: pass through slow stack
+            WhichInterpreter::TreeWalking => { interpret(context, subject, formula) },
+            WhichInterpreter::TreeWalkingCodegen => { cg_interpret_cg(context, D(0), subject, formula) },
+            WhichInterpreter::CodegenCodegen => { cg_interpret(context, D(0), subject, formula) },
+        }
+    }
 
     /// The classic "slam gate" formula.
     pub fn slam_gate_fol(stack: &mut NockStack) -> Noun {
@@ -152,7 +162,7 @@ pub mod util {
         context.cache = Hamt::<Noun>::new(&mut context.stack);
         context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
 
-        match interpret(context, subject, formula) {
+        match ctx_interpret(context, subject, formula) {
             Ok(res) => {
                 context.cache = cache_snapshot;
                 context.scry_stack = scry_snapshot;
