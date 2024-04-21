@@ -187,20 +187,23 @@
     ==
   ::    nesting
   ::
-  ::  true if there are no axes unmasked in two but masked in one,
-  ::  and if all axes unmasked in both have the same data
+  ::  roughly, 1 < 2
+  ::
+  ::  every axis known in one is also known in 2, with equal data
   ++  huge
     |=  two=sock
     ^-  ?
-    ?@  data.one
-      ?.  ?=(@ cape.one)  ~|  badone+one  !!
-      ?.  cape.one  &
-      ?&(?=(@ cape.two) cape.two =(data.one data.two))
-    ?@  data.two  ?>(?=(@ cape.two) |)
-    =/  [lope=cape rope=cape]  ?:(?=(^ cape.one) cape.one [cape.one cape.one])
-    =/  [loop=cape roop=cape]  ?:(?=(^ cape.two) cape.two [cape.two cape.two])
-    ?&  $(one [lope -.data.one], two [loop -.data.two])
-        $(one [rope +.data.one], two [roop +.data.two])
+    ?|  =(one two)
+        ?@  data.one
+          ?.  ?=(@ cape.one)  ~|  badone+one  !!
+          ?.  cape.one  &
+          ?&(?=(@ cape.two) cape.two =(data.one data.two))
+        ?@  data.two  ?>(?=(@ cape.two) |)
+        =/  [lope=cape rope=cape]  ?:(?=(^ cape.one) cape.one [cape.one cape.one])
+        =/  [loop=cape roop=cape]  ?:(?=(^ cape.two) cape.two [cape.two cape.two])
+        ?&  $(one [lope -.data.one], two [loop -.data.two])
+            $(one [rope +.data.one], two [roop +.data.two])
+        ==
     ==
   ::    axis
   ::

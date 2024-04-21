@@ -13,6 +13,10 @@
 ::
 ::    Analyze a subject/formula pair
 ::  
+::  XX need to trim provenances
+::    - when tagging with callsite
+::    - when returning from callsite
+::    - for subject of cache entry
 ++  rout
   |=  [soot=* form=*]
   =/  colt  cole
@@ -54,13 +58,13 @@
     =*  balk-loop  $
     ?~  balk  cold-loop(queu t.queu)
     ?.  =(-.form.i.queu +.i.balk)  balk-loop(balk t.balk)
-    ?.  (~(huge so soot.i.queu) -.i.balk)  balk-loop(balk t.balk)
+    ?.  (~(huge so -.i.balk) soot.i.queu)  balk-loop(balk t.balk)
     =/  bart  bark
     |-  ^-  _thus
     =*  bart-loop  $
     ?~  bart  balk-loop(balk t.balk)
     ?.  =(+.form.i.queu +.i.bart)  bart-loop(bart t.bart)
-    ?.  (~(huge so soot.i.queu) -.i.bart)  bart-loop(bart t.bart)
+    ?.  (~(huge so -.i.bart) soot.i.queu)  bart-loop(bart t.bart)
     =/  soot  (~(pack so -.i.balk) -.i.bart)
     =.  call.cole  (~(put by call.cole) [soot form.i.queu] j)
     =.  back.cole  (~(put ju back.cole) j [soot form.i.queu])
@@ -88,15 +92,19 @@
     ::  wrapper for callsite formulas
     |-  ^-  [naan _gen]
     =*  arm-loop  $
+    ~&  [%rail-gen rail.gen]
     =.  prot.less  (~(tag qui prot.less) [entr 1])
     ::  check if memoized
+    ~&  [%memo-wyt ~(wyt by memo.gen)]
     =/  germ  (~(get ja memo.gen) form)
+    ~&  [%germ-len (lent germ)]
     |-  ^-  [naan _gen]
     ?^  germ
-      ?.  (~(huge so sock.less) soot.i.germ)
+      ?.  (~(huge so soot.i.germ) sock.less)
         $(germ t.germ)
       =/  more  [(~(rue qui prot.less) have.i.germ) root.i.germ]
       =.  call.gen  (~(put by call.gen) entr [less want.i.germ more form ~])
+      ~&  %memo-hit
       [more gen]
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
@@ -147,13 +155,13 @@
           ::  not recursive
           :: analyze through direct call
           =/  dire  dire.gen
-          =.  dire.gen  &
           =^  more  gen
             %=  arm-loop  
               form  data.sock.fork
               less  sand
               entr  roil
               sirs  (~(add ja sirs) data.sock.fork [roil sand])
+              dire.gen  &
             ==
           =.  dire.gen  ?&(dire dire.gen)
           [[[%two sown fond roil] more] gen]
@@ -266,7 +274,7 @@
               =/  coal  ~(tap in (~(get ju core.cole.gen) i.pale))
               |-  ^-  [[=nomm =naan] _gen]
               ?~  coal  pale-loop(pale t.pale)
-              ?.  (~(huge so park) i.coal)  $(coal t.coal)
+              ?.  (~(huge so i.coal) park)  $(coal t.coal)
               =/  naut
                 =/  bake  (~(darn so [| ~]) 2 batt)
                 ?>  ?=(^ bake)
@@ -291,11 +299,14 @@
     ::  write to call table
     =.  call.gen  (~(put by call.gen) entr [less want more form `load])
     ::  write to memo table
-    =?  memo  dire.gen
+    =?  memo.gen  dire.gen
+      ~&  %memo-writ
       =/  have  (~(rel qui prot.more) entr)
+      ~&  [%prot-more-wyt ~(wyt in prot.more)]
       =/  such  (~(uni ca want) (~(gut by (~(due qui prot.more) cape.sock.more)) entr |))
       =/  soot  ~(norm so (~(app ca such) sock.less))
-      (~(add ja memo) form [soot want sock.more have])
+      (~(add ja memo.gen) form [soot want sock.more have])
+    ~?  ?!(dire.gen)  %memo-skip
     [more gen]
   ::
   =?  moan  ?=(~ calm.i.queu) :: don't write cold state arms into code table
@@ -417,7 +428,8 @@
   ++  due
     =/  unica  |=([@hail a=cape b=cape] (~(uni ca a) b))
     |=  cave=cape
-    ^-  (map @hail cape)
+    !.
+    |-  ^-  (map @hail cape)
     ?:  =(| cape)  ~
     ?~  prog  ~
     =/  [cale=cape care=cape]  ~(rip ca cave)
