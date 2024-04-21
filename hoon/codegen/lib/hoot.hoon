@@ -1,7 +1,8 @@
 ::
-::::    /sys/hoon                                       ::
+::::    /sys/hoon but as a trap                         ::
   ::                                                    ::
 !.
+|.
 =<  ride
 =>  %139  =>
 ::                                                      ::

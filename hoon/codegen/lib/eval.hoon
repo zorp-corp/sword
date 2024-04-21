@@ -1,3 +1,5 @@
+/+  line
+=>  $:line
 =*  line  .
 =/  ip=?  |
 |%
@@ -120,10 +122,12 @@
   ++  mope
     |=  [s=* f=*]
     ^-  (unit hone)
+    ~!  moan
     =/  huns  (~(get ja moan) f)
     |-  ^-  (unit hone)
     ?~  huns  ~
     :: ~&  [%mope-i soot.i.huns]
+    ~!  so
     ?:  (~(huge so soot.i.huns) [& s])
       `i.huns
     $(huns t.huns)

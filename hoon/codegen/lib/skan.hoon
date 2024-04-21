@@ -1,3 +1,6 @@
+/-  noir
+|.
+=>  $:noir
 =<
 :: moan contains analyzed code for the linearizer
 =|  moan=(jar * hone)

@@ -1,3 +1,6 @@
+/-  sock
+|.
+=>  $:sock
 |%
 ::  operations on $cape
 ++  ca

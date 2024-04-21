@@ -1,3 +1,6 @@
+/+  skan
+|.
+=>  $:skan
 |%
 ::
 ::    hot state

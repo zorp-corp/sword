@@ -1,3 +1,6 @@
+/-  gene
+|.
+=>  $:gene
 :: XX
 ::  - generate ipb tests at 0/10 sites (done)
 ::  - make copy pessimize %this/%both case (not %both/%this) (done)
