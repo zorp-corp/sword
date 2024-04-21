@@ -123,7 +123,7 @@
     =/  huns  (~(get ja moan) f)
     |-  ^-  (unit hone)
     ?~  huns  ~
-    ~&  [%mope-i soot.i.huns]
+    :: ~&  [%mope-i soot.i.huns]
     ?:  (~(huge so soot.i.huns) [& s])
       `i.huns
     $(huns t.huns)
@@ -133,7 +133,7 @@
     =/  roan  (mope s f)
     ?:  ?=(^ roan)  [u.roan this]
     =.  sack  (rout:sack s f)
-    ~&  [%cope-moan moan]
+    :: ~&  [%cope-moan moan]
     =/  sewn  (mope s f)
     ?.  ?=(^ sewn)  ~|  [%mope-miss s f]  !!
     [u.sewn this]
@@ -288,7 +288,7 @@
     ^-  [[=bell hall=_hill] _line]
     =/  bull  (peek:line s f)
     ?:  ?=(^ bull)  [u.bull line]
-    =.  +.line  this:(poke:line [%comp ~ s f])
+    =.  line  this:(poke:line [%comp ~ s f])
     =/  ball  (peek:line s f)
     ?>  ?=(^ ball)
     [u.ball line]

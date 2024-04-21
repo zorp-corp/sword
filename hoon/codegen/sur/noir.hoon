@@ -37,8 +37,7 @@
 ::
 ::  soot: known subject for the call
 ::  norm: nomm and decoration (see $food)
-::  root: known output of the call
-+$  hone  [soot=sock norm=food root=sock]
++$  hone  [soot=sock norm=food]
 ::    Nomm (Nock--)
 ::
 ::  9 is rewritten to 7+2 [9 b c] -> [7 c 2 [0 1] 0 c]
@@ -74,5 +73,5 @@
 ::  ices: labels for direct calls
 ::  loop: set of direct calls which are recursive
 +$  food
-  [=nomm ices=(map @hail [=sock form=*]) loop=(set [=sock form=*])]
+  [=nomm ices=(map @hail [=sock form=*]) loop=(set [=sock form=*]) fizz=(map @hint *)]
 --

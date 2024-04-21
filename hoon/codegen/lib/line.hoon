@@ -13,48 +13,6 @@
 =|  rots=shed
 =>
 |%
-::
-::   lifecycle management
-::
-::  update the slow set (rots)
-++  drub
-  |=  [slow=path =bell]
-  =|  zip=(list [=shed key=@tas])
-  =/  roof  rots
-  =.  slow  (flop slow)
-  ::  find and construct new entry
-  |-  ^-  _rots
-  ?^  slow
-    =/  woof  (~(gut by kids.roof) i.slow *shed)
-    $(slow t.slow, zip [[roof i.slow] zip], roof woof)
-  =.  roof  [`bell ~]
-  |-  ^-  _rots
-  ?^  zip
-    =.  roof  [root.shed.i.zip (~(put by kids.shed.i.zip) key.i.zip roof)]
-    $(zip t.zip)
-  roof
-::    sack-level GC
-::
-::  mark every label in rots, and their transitive callees, then sweep
-++  burn
-  =|  live=(set bell)
-  =/  hell=(list shed)  ~[rots]
-  =|  nell=(list shed)
-  |-  ^-  _sack
-  ?~  hell
-    ?~  nell  (drop:sack live)
-    $(hell (flop nell), nell ~)
-  ?~  root.i.hell
-    $(hell t.hell, nell (weld ~(val by kids.i.hell) nell))
-  $(live (keep:sack live u.root.i.hell), hell t.hell, nell (weld ~(val by kids.i.hell) nell))
-::    line-level GC
-::
-::  check for labels in hill no longer in moan, and delete them
-++  wipe
-  =/  deal  ~(tap in dead)
-  |-  ^-  _hill
-  ?~  deal  hill
-  $(hill (~(del by hill) i.deal), deal t.deal)
 ::   work
 ::
 ::  new: set of bells in moan, not in hill (require codegen)
@@ -510,7 +468,43 @@
           $(nomm vice.nomm, fax (peg fax 13), goal [%next [%this clue] wave])
         (copy fake what.real)
       ::
-          %memo  ~|  %todo  !!
+          %memo
+        =/  fork  (~(got by fizz) hare.nomm)
+        =^  funk  gen  rain
+        =^  sunk  gen  rain
+        =^  gunk  gen  rain
+        =/  body=(list pole)  ~[[%imm 0 gunk] [%imm fork funk]]
+        ?-  -.goal
+            %done
+          =^  salt  gen  rain
+          =^  mode  gen  (emit %mode ~ ~ %don salt)
+          $(goal [%next [%this salt] mode])
+        ::
+            %pick
+          =^  mere  gen  rain
+          =^  chit  gen  (emit %chit ~ ~ %brn mere zero.goal once.goal)
+          =^  loot  gen  rain
+          =^  root  gen  rain
+          =^  loam  gen  (emit %loam ~ ~[[%imm 0 loot] [%mew gunk sunk funk loot]] %hop zero.goal)
+          =^  rome  gen  (emit %rome ~ ~[[%imm 1 root] [%mew gunk sunk funk root]] %hop once.goal)
+          =^  moog  gen  $(nomm then.nomm, fax (peg fax 7), zero.goal loam, once.goal rome)
+          =^  cast  gen  (emit %cast ~ body %mer gunk sunk funk mere chit then.moog)
+          =^  fake  gen  $(nomm vice.nomm, fax (peg fax 13), goal [%next [%none ~] cast])
+          =^  fear  gen  (copy fake what.moog)
+          (copy fear [%this sunk])
+        ::
+            %next
+          =^  [chit=next miss=next]  gen  (phil goal)
+          =^  [chin=bile mere=@uvre]  gen  (kerf %chin chit)
+          =^  [misc=bile salt=@uvre]  gen  (kerf %salt miss)
+          =^  meow  gen  (emit %meow ~ [%mew gunk sunk funk salt]~ %hop misc)
+          =^  real  gen  $(nomm then.nomm, fax (peg fax 7), goal [%next [%this salt] meow])
+          =^  cake  gen  (emit %cake ~ body %mer gunk sunk funk mere chin misc)
+          =^  fake  gen  $(nomm vice.nomm, fax (peg fax 13), goal [%next [%none ~] cake])
+          =^  cope  gen  (copy fake what.real)
+          (copy cope [%this sunk])
+        ==
+      ::
           %bout  ~|  %todo  !!
       ==
     ::
@@ -1312,11 +1306,6 @@
     =/  peep  (peek [s f]:gist)
     ?>  ?=(^ peep)
     bell.u.peep
-  ::  update slow table and drop old bells from moan
-  ::  =.  rots  (drub slow.gist bell)
-  ::  =.  sack  burn
-  ::  drop old bells from hill
-  ::  =.  hill  wipe
   =/  heck  ~(key by hill) 
   [(~(dif in heck) hole) (~(dif in hole) heck) this]
 ::    pretty-printing door
