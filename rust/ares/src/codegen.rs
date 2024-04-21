@@ -1,4 +1,4 @@
-use crate::interpreter::{inc, interpret, Context, Error, Result, BAIL_EXIT, ContextSnapshot, WhichInterpreter};
+use crate::interpreter::{inc, interpret, Context, Error, Result, BAIL_EXIT, BAIL_FAIL, ContextSnapshot, WhichInterpreter};
 use crate::jets::seam::util::get_by;
 use crate::jets::util::slot;
 use crate::jets::{Jet, JetErr::*};
@@ -6,6 +6,7 @@ use crate::mem::NockStack;
 use crate::noun::{DirectAtom, Noun, D, NOUN_NONE, T};
 use crate::unifying_equality::unifying_equality;
 use ares_macros::tas;
+use either::{Left, Right};
 use std::mem::size_of;
 use std::ptr::{copy_nonoverlapping, write_bytes};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
@@ -299,8 +300,16 @@ pub fn cg_interpret_with_snapshot(context: &mut Context, snapshot: &ContextSnaps
                         .slog(&mut context.stack, 0, frame.vars()[slg_s]);
                 }
                 tas!(b"mew") => {
-                    todo!("mew");
-                    // XX TODO implement
+                    let mew_kufr = inst_cell.tail().as_cell().unwrap();
+                    // XX will need for persistent memoization
+                    let _mew_k = mew_kufr.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mew_ufr = mew_kufr.tail().as_cell().unwrap();
+                    let mew_u = mew_ufr.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mew_fr = mew_ufr.tail().as_cell().unwrap();
+                    let mew_f = mew_fr.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mew_r = mew_fr.tail().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mut key = T(&mut context.stack, &[frame.vars()[mew_u], frame.vars()[mew_f]]);
+                    context.cache = context.cache.insert(&mut context.stack, &mut key, frame.vars()[mew_r]);
                 }
                 tas!(b"tim") => {
                     // XX TODO implement
@@ -671,10 +680,36 @@ pub fn cg_interpret_with_snapshot(context: &mut Context, snapshot: &ContextSnaps
                 }
                 tas!(b"spy") => {
                     // XX: what do we want to do about the slow path here?
-                    todo!("spy")
+                    let spy_cell = inst_cell.tail().as_cell().unwrap();
+                    let spy_e = spy_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let spy_pdt = spy_cell.tail().as_cell().unwrap();
+                    let spy_p = spy_pdt.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let spy_dt = spy_pdt.tail().as_cell().unwrap();
+                    let spy_d = spy_dt.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mut spy_t = spy_dt.tail();
+                    frame.vars_mut()[spy_d] = scry(context, frame.vars()[spy_e], frame.vars()[spy_p])?;
+                    goto(context, &mut body, &mut bend, &mut spy_t);
                 }
                 tas!(b"mer") => {
-                    todo!("mer")
+                    let mer_kufdim = inst_cell.tail().as_cell().unwrap();
+                    // XX will need for persistent memoization
+                    let _mer_k = mer_kufdim.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mer_ufdim = mer_kufdim.tail().as_cell().unwrap();
+                    let mer_u = mer_ufdim.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mer_fdim = mer_ufdim.tail().as_cell().unwrap();
+                    let mer_f = mer_fdim.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mer_dim = mer_fdim.tail().as_cell().unwrap();
+                    let mer_d = mer_dim.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let mer_im = mer_dim.tail().as_cell().unwrap();
+                    let mut mer_i = mer_im.head();
+                    let mut mer_m = mer_im.tail();
+                    let mut key = T(&mut context.stack, &[frame.vars()[mer_u], frame.vars()[mer_f]]);
+                    if let Some(res) = context.cache.lookup(&mut context.stack, &mut key) {
+                        frame.vars_mut()[mer_d] = res;
+                        goto(context, &mut body, &mut bend, &mut mer_i);
+                    } else {
+                        goto(context, &mut body, &mut bend, &mut mer_m);
+                    }
                 }
                 tas!(b"don") => {
                     let don_s = inst_cell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
@@ -793,4 +828,57 @@ fn get_blob(context: &mut Context, pile: Noun, bile: &mut Noun) -> (Noun, Noun) 
         .as_cell()
         .expect("Codegen blob tail should be cell");
     (blob_cell.head(), blob_cell.tail())
+}
+
+fn scry(context: &mut Context, reff: Noun, path: Noun) -> Result {
+    if let Some(cell) = context.scry_stack.cell() {
+        let scry_stack = context.scry_stack; // So we can put it back
+        let scry_handler = cell.head();
+        let scry_payload = T(&mut context.stack, &[reff, path]);
+        let scry_patch = T(&mut context.stack, &[D(6), D(0), D(3)]);
+        let scry_formula = T(&mut context.stack, &[D(9), D(2), D(10), scry_patch, D(0), D(2)]);
+        let scry_subject = T(&mut context.stack, &[scry_handler, scry_payload]);
+        context.scry_stack = cell.tail();
+        let snapshot = context.save();
+        match cg_interpret_with_snapshot(context, &snapshot, D(0), scry_subject, scry_formula) {
+            Ok(noun) => match noun.as_either_atom_cell() {
+                Left(atom) => {
+                    if unsafe { atom.as_noun().raw_equals(D(0)) } {
+                        Err(Error::ScryBlocked(path))
+                    } else {
+                        Err(Error::ScryCrashed(D(0)))
+                    }
+                },
+                Right(cell) => {
+                    match cell.tail().as_either_atom_cell() {
+                        Left(_) => {
+                            let hunk = T(&mut context.stack, &[D(tas!(b"hunk")), reff, path]);
+                            let frame = unsafe { Frame::current_mut(&mut context.stack) };
+                            frame.mean = T(&mut context.stack, &[hunk, frame.mean]);
+                            Err(Error::ScryCrashed(D(0)))
+                        },
+                        Right(cell) => {
+                            context.scry_stack = scry_stack;
+                            Ok(cell.tail())
+                        }
+                    }
+                }
+            },
+            Err(error) => match error {
+                Error::Deterministic(_, trace)
+                | Error::ScryCrashed(trace) => {
+                    Err(Error::ScryCrashed(trace))
+                },
+                Error::NonDeterministic(_, _) => {
+                    Err(error)
+                },
+                Error::ScryBlocked(_) => {
+                    BAIL_FAIL
+                }
+            }
+        }
+    } else {
+        // no scry handler
+        BAIL_EXIT
+    }
 }
