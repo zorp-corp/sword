@@ -12,13 +12,9 @@
 ++  thus  .
 ::
 ::    Analyze a subject/formula pair
-::  
-::  XX need to trim provenances
-::    - when tagging with callsite
-::    - when returning from callsite
-::    - for subject of cache entry
 ++  rout
   |=  [soot=* form=*]
+  ~>  %bout
   =/  colt  cole
   =/  queu=(list todo)  [[& soot] form ~]~
   =|  back=(list todo)
@@ -27,6 +23,7 @@
   |-  ^-  _thus
   =*  cold-loop  $
   =/  gnat  ((dif-ju core.cole) core.colt)
+  =.  colt  cole
   =.  back
     :: queue unanalyzed cold-state batteries
     %-  ~(rep by gnat)
@@ -89,22 +86,28 @@
     =/  less=naan  [~ soot.i.queu]  :: subject
     =*  form  form.i.queu :: formula
     =/  sirs  (~(add ja *(jar * [site=@hail less=naan])) form [entr less]) :: 
+    =/  lord  (~(put in *(set @hail)) entr)
     ::  wrapper for callsite formulas
     |-  ^-  [naan _gen]
     =*  arm-loop  $
-    ~&  [%rail-gen rail.gen]
+    =.  prot.less  (~(cut qui prot.less) lord cape.sock.less)
     =.  prot.less  (~(tag qui prot.less) [entr 1])
     ::  check if memoized
-    ~&  [%memo-wyt ~(wyt by memo.gen)]
     =/  germ  (~(get ja memo.gen) form)
-    ~&  [%germ-len (lent germ)]
     |-  ^-  [naan _gen]
     ?^  germ
       ?.  (~(huge so soot.i.germ) sock.less)
         $(germ t.germ)
-      =/  more  [(~(rue qui prot.less) have.i.germ) root.i.germ]
+      =/  mope  (~(rue qui prot.less) have.i.germ)
+      =.  mope  (~(cut qui mope) lord cape.root.i.germ)
+      =/  more  [mope root.i.germ]
+      ::  propagate memoized subject needs
+      =/  pant  (~(due qui prot.less) cape.sock.less)
+      =.  want.gen
+        %-  (~(uno by want.gen) pant)
+        |=  [@hail a=cape b=cape]
+        (~(uni ca a) b)
       =.  call.gen  (~(put by call.gen) entr [less want.i.germ more form ~])
-      ~&  %memo-hit
       [more gen]
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
@@ -297,16 +300,14 @@
     ::
     =/  want  (~(gut by want.gen) entr |)
     ::  write to call table
+    =.  prot.more  (~(cut qui prot.more) lord cape.sock.more)
     =.  call.gen  (~(put by call.gen) entr [less want more form `load])
     ::  write to memo table
     =?  memo.gen  dire.gen
-      ~&  %memo-writ
-      =/  have  (~(rel qui prot.more) entr)
-      ~&  [%prot-more-wyt ~(wyt in prot.more)]
+      =/  have  (~(rel qui prot.more) entr cape.sock.more)
       =/  such  (~(uni ca want) (~(gut by (~(due qui prot.more) cape.sock.more)) entr |))
       =/  soot  ~(norm so (~(app ca such) sock.less))
       (~(add ja memo.gen) form [soot want sock.more have])
-    ~?  ?!(dire.gen)  %memo-skip
     [more gen]
   ::
   =?  moan  ?=(~ calm.i.queu) :: don't write cold state arms into code table
@@ -386,6 +387,25 @@
       %2  $(poor (con(prog poor) p.i.tack), tack t.tack)
       %3  $(poor (con(prog p.i.tack) poor), tack t.tack)
     ==
+  ++  cut
+    |=  [sire=(set @hail) =cape]
+    ^-  prot
+    ?~  prog  ~
+    ?:  =(| cape)  ~
+    ?^  cape
+      =/  n  (murn n.prog |=([s=@hail a=@] ?:((~(has in sire) s) `[s a] ~)))
+      =/  l  $(prog l.prog, cape -.cape)
+      =/  r  $(prog l.prog, cape +.cape)
+      ?:  ?&(?=(~ n) ?=(~ l) ?=(~ r))  ~
+      [n l r]
+    =/  prop  `prot`prog
+    |-  ^-  prot
+    ?~  prop  ~
+    =/  n  (murn n.prop |=([s=@hail a=@] ?:((~(has in sire) s) `[s a] ~)))
+    =/  l  $(prop l.prop)
+    =/  r  $(prop r.prop)
+    ?:  ?&(?=(~ n) ?=(~ l) ?=(~ r))  ~
+    [n l r]
   ::
   ::    provenance tree for +2
   ++  hed
@@ -444,12 +464,14 @@
   ::    given a callsite produce a new provenance tree only retaining
   ::    provenance for that callsite's subject
   ++  rel
-    |=  site=@hail
+    |=  [site=@hail =cape]
     ^-  plop
     ?~  prog  ~
+    ?:  =(| cape)  ~
     =/  n  (murn n.prog |=(p=peon ?:(=(site site.p) `axe.p ~)))
-    =/  l  $(prog l.prog)
-    =/  r  $(prog r.prog)
+    =/  r  ~(rip ca cape)
+    =/  l  $(prog l.prog, cape -.r)
+    =/  r  $(prog r.prog, cape +.r)
     ?:  ?&(?=(~ l) ?=(~ r) ?=(~ n))  ~
     [n l r]
   ::

@@ -42,7 +42,7 @@
     =^  cane  thus
       ?~  bull
         ~&  [%indirect t g]  (cope u.t u.g)
-      ?>  (~(huge so sock.u.bull) [& s])
+      ?>  (~(huge so sock.u.bull) [& u.t])
       =/  kine  (mose u.bull)
       ?>  ?=(^ kine)
       [u.kine this]
@@ -137,6 +137,7 @@
     =/  roan  (mope s f)
     ?:  ?=(^ roan)  [u.roan this]
     =.  sack  (rout:sack s f)
+    ~&  %rout-done
     :: ~&  [%cope-moan moan]
     =/  sewn  (mope s f)
     ?.  ?=(^ sewn)  ~|  [%mope-miss s f]  !!
