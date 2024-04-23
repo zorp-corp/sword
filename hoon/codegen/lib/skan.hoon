@@ -14,7 +14,6 @@
 ::    Analyze a subject/formula pair
 ++  rout
   |=  [soot=* form=*]
-  ~>  %bout
   =/  colt  cole
   =/  queu=(list todo)  [[& soot] form ~]~
   =|  back=(list todo)
@@ -237,14 +236,18 @@
             ::  fast hint registration
             ?.  =(& cape.sock.mild)  ~&  %fast-hide-clue  fail
             =*  clue  data.sock.mild
-            ?.  ?=([name=$@(@tas [@tas @]) pare=$%([%0 a=@] [%1 %0]) *] clue)
+            ?.  ?=([name=$@(@tas [@tas @]) pare=* *] clue)
               ~&  [%fast-bad-clue clue]  fail
             =/  pell
               ?@  name.clue
                 name.clue
               (crip "{(trip -.name.clue)}.{(trip (scot %ud +.name.clue))}")
-            ?-  -.pare.clue
-                %1
+            |-  ^-  [[nomm naan] _gen]
+            ?+  pare.clue  ~&  [%fast-bad-clue clue]  fail 
+                [%11 * *]
+              $(pare.clue +>.pare.clue)
+            ::
+                [%1 %0]
               :: register root
               ?.  =(& cape.sock.bite)
                 ~&  %fast-hide-root  fail
@@ -252,13 +255,14 @@
               =.  root.cole.gen  (~(put ju root.cole.gen) data.sock.bite ~[pell])
               fail
             ::
-                %0
+                [%0 a=@]
+              ?:  =(0 @)  ~&  [%fast-bad-clue clue]  fail
               :: register child core
               =/  butt  (~(pull so sock.bite) 2)
               ?~  butt
                 ~&  %fast-miss-batt  fail
               =*  batt  u.butt
-              ?.  =(& cape.batt)  ~&  %fast-hide-batt  fail
+              ?.  =(& cape.batt)  ~&  [%fast-hide-batt pell]  fail
               ?.  ?=(^ data.batt)  fail
               =/  perk  (~(pull so sock.bite) a.pare.clue)
               ?~  perk  ~&  %fast-lost-sire  fail

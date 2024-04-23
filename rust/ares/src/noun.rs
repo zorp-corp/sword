@@ -593,6 +593,7 @@ pub struct Cell(u64);
 
 impl Cell {
     pub unsafe fn from_raw_pointer(ptr: *const CellMemory) -> Self {
+        assert!(!ptr.is_null());
         Cell((ptr as u64) >> 3 | CELL_TAG)
     }
 

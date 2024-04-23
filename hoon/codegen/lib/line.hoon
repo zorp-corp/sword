@@ -57,29 +57,39 @@
   ~
 ::    worklist
 ::
-::  create a worklist, terminal arms (those with no non-recursive direct
-::  calls) first
+::  sort all of the un-linearized arms in `moan` topologically by the
+::  reverse call DAG (so terminal arms come first). This ensures that we
+::  only have to "redo" recursive callsites.
 ++  work
   ^-  (list bell)
   =/  news  noob
-  =/  wurk  ~(tap in news) :: arms in moan not in hill
-  =|  toil=(list bell) :: accumulator for sorted list
-  =|  done=(set bell) :: sorted list but as set for fast membership
-  =|  back=(list bell) :: arms that need to be re-checked
-  |-  ^-  (list bell)
-  ?^  wurk
-    =/  hues  (puck i.wurk)
+  ?:  =(~ news)  ~
+  =/  sire=(jug bell bell)
+    %-  ~(rep in news)
+    |=  [b=bell sire=(jug bell bell)]
+    =/  hues  (puck b)
     ?<  ?=(~ hues)
-    =/  kids  (~(gas in *(set bell)) ~(val by ices.norm.u.hues))
-    =.  kids  (~(dif in kids) loop.norm.u.hues)
-    =.  kids  (~(int in kids) news)
-    =.  kids  (~(dif in kids) done)
-    ?~  kids  $(toil [i.wurk toil], wurk t.wurk, done (~(put in done) i.wurk))
-    $(back [i.wurk back], wurk t.wurk)
-  ?^  back
-    $(wurk (flop back), back ~)
-  ?>  =(~ (~(dif in noob) done))
-  (flop toil)
+    =/  team  (~(gas in *(set bell)) ~(val by ices.norm.u.hues))
+    =.  team  (~(dif in team) loop.norm.u.hues)
+    =.  team  (~(int in team) news)
+    %-  ~(rep in team)
+    |:  [k=*bell s=sire]
+    (~(put ju s) k b)
+  =<  tack.s
+  %-  ~(rep in news)
+  |=  [v=bell s=[done=(set bell) tack=(list bell)]]
+  =*  dfs  $
+  ^-  _s
+  ?:  (~(has in done.s) v)  s
+  =.  done.s  (~(put in done.s) v)
+  =/  e=(set bell)  (~(get ju sire) v)
+  =.  e  (~(dif in e) done.s)
+  =.  s
+    %-  ~(rep in e)
+    |:  [n=*bell s=s]
+    ^-  _s
+    dfs(v n, s s)
+  s(tack [v tack.s])
 ::
 ::    internal state
 ::
@@ -643,7 +653,6 @@
   ++  emir
     |=  [=bile =blob]
     ^-  _gen
-    ?<  (~(has by will.gen) bile)
     gen(will (~(put by will.gen) bile blob))
   ::
   ::    generate a register
@@ -898,7 +907,7 @@
       %=  $
           tack  t.tack
           salt 
-        :_  salt
+        :_  t.t.salt
         :-  [%both zp.p.i.tack z.i.t.salt z.i.salt]
         [%both op.p.i.tack o.i.t.salt o.i.salt]
       ==
@@ -926,7 +935,7 @@
           :*  [%| left.p.i.tack]
               [%| rite.p.i.tack]
               [%& hurl barf]
-              tack
+              t.tack
           ==
         ==
       ==
@@ -1163,6 +1172,7 @@
   =|  todo=(list [=bell dire=next =gen])
   =|  like=(map bell need)
   =/  toil  work 
+  =/  wurk  toil
   |-  ^-  _hill
   ?^  toil
     =/  [dire=next =gen]  ~(cuts jean i.toil *gen like)
@@ -1191,7 +1201,7 @@
   ::  XX temporary: turn hip/phi into mov so we can run this as-is
   ::  note that it's not safe to do mov coalescing on the output of this
   ::  since we may now have multiple %mov's that target one register
-  =/  toil  work
+  =/  toil  wurk
   |-  ^-  _hill
   ?^  toil
     %=  $
@@ -1295,6 +1305,7 @@
 ::  [%comp ...]: generate code for given subject/formula pair
 ++  poke
   |=  =gist
+  ~>  %bout
   ^-  [new=(set bell) old=(set bell) =_this]
   ::  %comp is the only case
   ::  analyze
