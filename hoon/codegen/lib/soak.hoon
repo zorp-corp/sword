@@ -8,6 +8,18 @@
   ::    axes of yes
   ::
   ::  list all axes of %.y in a cape
+  ++  cut
+    ^-  cape
+    ?-  one
+        %|  |
+        %&  &
+        ^
+      =/  l  cut(one -.one)
+      =/  r  cut(one +.one)
+      ?:  ?&(=(| l) =(| r))  |
+      ?:  ?&(=(& l) =(& r))  &
+      [l r]
+    ==
   ++  yea
     ^-  (list @)
     =/  axe  1
