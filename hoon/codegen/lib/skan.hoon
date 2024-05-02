@@ -8,12 +8,15 @@
 =|  memo=(jar * meme)
 :: cole is the cold state
 =|  cole=cool
+~%  %skan  ..ride  ~
 |%
 ++  thus  .
 ::
 ::    Analyze a subject/formula pair
 ++  rout
+  ~/  %rout
   |=  [soot=* form=*]
+  =/  place-gen  *spot
   =/  colt  cole
   =/  queu=(list todo)  [[& soot] form ~]~
   =|  back=(list todo)
@@ -83,6 +86,7 @@
           wait=(jar @hail @hail)  :: sites to finalize
       ==
   =^  entr  gen  [rail.gen gen(rail .+(rail.gen))]  :: initial callsite
+  =.  wait.gen  (~(add ja wait.gen) entr entr)
   =^  more  gen
     =/  less=naan  [~ soot.i.queu]  :: subject
     =*  form  form.i.queu :: formula
@@ -92,6 +96,8 @@
     ::  wrapper for callsite formulas
     |-  ^-  [naan _gen]
     =*  arm-loop  $
+    =/  place-arm  place-gen
+    ~&  [">" place-arm]
     =.  prot.less  (~(tag qui prot.less) [entr 1])
     ::  check if memoized
     =/  germ  (~(get ja memo.gen) form)
@@ -108,7 +114,8 @@
         %-  (~(uno by want.gen) pant)
         |=  [@hail a=cape b=cape]
         ~(cut ca (~(uni ca a) b))
-      =.  call.gen  (~(put by call.gen) entr [less more form ~ dire.gen])
+      =.  call.gen  (~(put by call.gen) entr [less more form ~ &])
+      ~&  ["<" place-arm]
       [more gen]
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
@@ -138,6 +145,11 @@
         =^  [fond=nomm fork=naan]  gen  $(form f.form)
         ?:  =(& cape.sock.fork)
           :: direct call
+          =/  foo
+            =/  bat  (~(pull so sock.sand) 2)
+            ?.  &(?=(^ bat) =(& cape.u.bat) ?=(^ data.u.bat))  ~
+            (~(get ju batt.cole) data.u.bat)
+          ~?  ?=(^ foo)  foo
           =.  kids.gen  (~(put ju kids.gen) entr roil)
           ::  record need
           =/  pant  (~(due qui prot.fork) &) :: callsite provenance by needs
@@ -243,6 +255,17 @@
           [%11 [h=@ v=*] f=*]
         =^  hare  gen  [hare.gen gen(hare .+(hare.gen))]
         =^  [vice=nomm mild=naan]  gen  $(form v.form)
+        =?  place-gen  =(%spot h.form)
+          ;;(spot data.sock.mild) :: XX soft
+        :: ~?  =(%fast h.form)
+        ::   :-  %fast-pre
+        ::   =*  clue  data.sock.mild
+        ::   ?.  ?&  =(& cape.sock.mild)
+        ::           ?=([name=$@(@tas [@tas @]) pare=* *] clue)
+        ::       ==
+        ::     ~
+        ::   ?@  name.clue  name.clue
+        ::   (crip "{(trip -.name.clue)}.{(trip (scot %ud +.name.clue))}")
         =^  [then=nomm bite=naan]  gen  $(form f.form)
         ::  save body formula
         =.  hint.gen  (~(put ju hint.gen) entr hare)
@@ -304,8 +327,19 @@
                 =/  folk  (~(darn so u.bake) a.pare.clue i.coal)
                 ?>  ?=(^ folk)
                 u.folk
-              ~>  %meme
-              ~?  ?!((~(has by core.cole.gen) nape))  [%cold-into nape]
+              ~&  ?:  ?!((~(has by core.cole.gen) nape))
+                    [%cold-into nape]
+                  [%cold-reap nape]
+              =>  ?:  =(*spot place-gen)  .
+                  =/  tan
+                    :+  %rose  [":" ~ ~]
+                    :~  (smyt p.place-gen)
+                        =*  l   p.q.place-gen
+                        =*  r   q.q.place-gen
+                        =/  ud  |=(a=@u (scow %ud a))
+                        leaf+"<[{(ud p.l)} {(ud q.l)}].[{(ud p.r)} {(ud q.r)}]>"
+                    ==
+                  ~>(%slog.[0 tan] +)
               =.  core.cole.gen  (~(put ju core.cole.gen) nape naut)
               =.  batt.cole.gen  (~(put ju batt.cole.gen) data.batt nape)
               fail
@@ -325,7 +359,9 @@
     =.  call.gen  (~(put by call.gen) entr [less more form `load dire.gen])
     =/  wise  (~(get ja wait.gen) entr)
     =.  wait.gen  (~(del by wait.gen) entr)
-    ?:  =(~ wise)  [more gen] :: no finalizing here
+    ?:  =(~ wise)
+      ~&  ["<" place-arm]
+      [more gen] :: no finalizing here
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
     ::  fixed-point loops to propagate their needs and check that they are really loops
     =/  sap  gen  :: for reset
@@ -413,15 +449,16 @@
       =.  kids.gen  (~(del by kids.gen) site)
       =.  hint.gen  (~(del by hint.gen) site)
       =/  loan  (~(get ja moan.gen) form)
-      =?  moan.gen  (lien loan |=([soot=sock norm=food] =(soot ^soot)))
+      =?  moan.gen  (levy loan |=([soot=sock norm=food] !=(soot ^soot)))
         (~(add ja moan.gen) form [soot u.load ices lope fizz])
       gen
+    ~&  ["<" place-arm]
     [more gen]
   ::
   =.  moan  moan.gen
   =.  memo  memo.gen
   =.  cole  cole.gen
-  =/  want  (~(got by want.gen) entr)
+  =/  want  (fall (~(get by want.gen) entr) |)
   =/  boot
     :-
       =>  [s=soot.i.queu w=want so=so ca=ca]
