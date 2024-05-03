@@ -183,7 +183,7 @@
           ::  not recursive
           :: analyze through direct call
           =/  dire  dire.gen
-          =.  wait.gen  (~(add ja wait.gen) roil roil)
+          =.  wait.gen  (~(add ja wait.gen) roil roil) :: XX wrong
           =^  more  gen
             %=  arm-loop  
               form  data.sock.fork
