@@ -97,7 +97,7 @@
     |-  ^-  [naan _gen]
     =*  arm-loop  $
     =/  place-arm  place-gen
-    ~&  [">" place-arm]
+    ~>  %slog.[0 (blot ">> " place-arm)]
     =.  prot.less  (~(tag qui prot.less) [entr 1])
     ::  check if memoized
     =/  germ  (~(get ja memo.gen) form)
@@ -115,7 +115,7 @@
         |=  [@hail a=cape b=cape]
         ~(cut ca (~(uni ca a) b))
       =.  call.gen  (~(put by call.gen) entr [less more form ~ &])
-      ~&  ["<" place-arm]
+      ~>  %slog.[0 (blot "<1 " place-arm)]
       [more gen]
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
@@ -327,19 +327,14 @@
                 =/  folk  (~(darn so u.bake) a.pare.clue i.coal)
                 ?>  ?=(^ folk)
                 u.folk
-              ~&  ?:  ?!((~(has by core.cole.gen) nape))
-                    [%cold-into nape]
-                  [%cold-reap nape]
-              =>  ?:  =(*spot place-gen)  .
-                  =/  tan
-                    :+  %rose  [":" ~ ~]
-                    :~  (smyt p.place-gen)
-                        =*  l   p.q.place-gen
-                        =*  r   q.q.place-gen
-                        =/  ud  |=(a=@u (scow %ud a))
-                        leaf+"<[{(ud p.l)} {(ud q.l)}].[{(ud p.r)} {(ud q.r)}]>"
-                    ==
-                  ~>(%slog.[0 tan] +)
+              ::
+              =>  =*  dot  .
+                  =/  cod
+                    ?:(?!((~(has by core.cole.gen) nape)) %cold-into %cold-peat)
+                  ~>  %slog.[0 [%rose [": " ~ ~] cod (smyt nape) ~]]
+                  ?:  =(*spot place-gen)  dot
+                  ~>(%slog.[0 (blot "" place-gen)] dot)
+              ::
               =.  core.cole.gen  (~(put ju core.cole.gen) nape naut)
               =.  batt.cole.gen  (~(put ju batt.cole.gen) data.batt nape)
               fail
@@ -360,7 +355,7 @@
     =/  wise  (~(get ja wait.gen) entr)
     =.  wait.gen  (~(del by wait.gen) entr)
     ?:  =(~ wise)
-      ~&  ["<" place-arm]
+      ~>  %slog.[0 (blot "<2 " place-arm)]
       [more gen] :: no finalizing here
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
     ::  fixed-point loops to propagate their needs and check that they are really loops
@@ -452,7 +447,7 @@
       =?  moan.gen  (levy loan |=([soot=sock norm=food] !=(soot ^soot)))
         (~(add ja moan.gen) form [soot u.load ices lope fizz])
       gen
-    ~&  ["<" place-arm]
+    ~>  %slog.[0 (blot "<3 " place-arm)]
     [more gen]
   ::
   =.  moan  moan.gen
@@ -629,6 +624,17 @@
   =/  s=_q  (~(dif in q) r)
   ?:  =(~ s)  c
   (~(put by c) p s)
+::
+++  blot
+  |=  [tap=tape pot=spot]
+  ^-  tank
+  :+  %rose  [":" tap ~]
+  :~  (smyt p.pot)
+      =*  l   p.q.pot
+      =*  r   q.q.pot
+      =/  ud  |=(a=@u (scow %ud a))
+      leaf+"<[{(ud p.l)} {(ud q.l)}].[{(ud p.r)} {(ud q.r)}]>"
+  ==
 --
 ::  utility types
 ::
