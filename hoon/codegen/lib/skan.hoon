@@ -96,8 +96,8 @@
     ::  wrapper for callsite formulas
     |-  ^-  [naan _gen]
     =*  arm-loop  $
-    =/  place-arm  place-gen
-    ~>  %slog.[0 (blot ">> " place-arm)]
+    =/  place-arm=(unit spot)  ?:(=(*spot place-gen) ~ `place-gen)
+    =>  (?~(place-arm same (slog (blot ">> " u.place-arm) ~)) .)
     =.  prot.less  (~(tag qui prot.less) [entr 1])
     ::  check if memoized
     =/  germ  (~(get ja memo.gen) form)
@@ -115,7 +115,7 @@
         |=  [@hail a=cape b=cape]
         ~(cut ca (~(uni ca a) b))
       =.  call.gen  (~(put by call.gen) entr [less more form ~ &])
-      ~>  %slog.[0 (blot "<1 " place-arm)]
+      %-  ?~(place-arm same (slog (blot "<1 " u.place-arm) ~))
       [more gen]
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
@@ -355,7 +355,7 @@
     =/  wise  (~(get ja wait.gen) entr)
     =.  wait.gen  (~(del by wait.gen) entr)
     ?:  =(~ wise)
-      ~>  %slog.[0 (blot "<2 " place-arm)]
+      %-  ?~(place-arm same (slog (blot "<2 " u.place-arm) ~))
       [more gen] :: no finalizing here
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
     ::  fixed-point loops to propagate their needs and check that they are really loops
@@ -447,7 +447,7 @@
       =?  moan.gen  (levy loan |=([soot=sock norm=food] !=(soot ^soot)))
         (~(add ja moan.gen) form [soot u.load ices lope fizz])
       gen
-    ~>  %slog.[0 (blot "<3 " place-arm)]
+    %-  ?~(place-arm same (slog (blot "<3 " u.place-arm) ~))
     [more gen]
   ::
   =.  moan  moan.gen
