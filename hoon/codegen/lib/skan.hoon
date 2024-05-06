@@ -83,6 +83,7 @@
           moan=_moan
           cole=_cole  :: cold state
           dire=?      :: fully direct?
+          trace=(list spot)
           wait=(jar @hail @hail)  :: sites to finalize
       ==
   =^  entr  gen  [rail.gen gen(rail .+(rail.gen))]  :: initial callsite
@@ -93,14 +94,15 @@
     =/  sirs  (~(add ja *(jar * [site=@hail less=naan])) form [entr less]) :: 
     =|  lord=(set @hail)  :: enclosing scope
     =/  tack=(list @hail)  ~[entr]
+    =|  place=(unit spot)
     ::  wrapper for callsite formulas
     |-  ^-  [naan _gen]
     =*  arm-loop  $
-    =/  place-arm=(unit spot)  ?:(=(*spot place-gen) ~ `place-gen)
-    =>  (?~(place-arm same (slog (blot ">> " u.place-arm) ~)) .)
+    =>  ((into:blot ">> " entr place) .)
     =.  prot.less  (~(tag qui prot.less) [entr 1])
     ::  check if memoized
     =/  germ  (~(get ja memo.gen) form)
+    :: =>  (?:((gth 10 (lent germ)) same (slog leaf+(scow %ud (lent germ)) ?~(place-arm ~ [(blot ">> " u.place-arm) ~]))) .)
     |-  ^-  [naan _gen]
     ?^  germ
       ?.  (~(huge so soot.i.germ) sock.less)
@@ -115,7 +117,7 @@
         |=  [@hail a=cape b=cape]
         ~(cut ca (~(uni ca a) b))
       =.  call.gen  (~(put by call.gen) entr [less more form ~ &])
-      %-  ?~(place-arm same (slog (blot "<1 " u.place-arm) ~))
+      =>  ((outa:blot "<1 " entr place ~) .)
       [more gen]
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
@@ -183,6 +185,7 @@
           ::  not recursive
           :: analyze through direct call
           =/  dire  dire.gen
+          =/  trace  trace.gen
           =.  wait.gen  (~(add ja wait.gen) roil roil) :: XX wrong
           =^  more  gen
             %=  arm-loop  
@@ -193,8 +196,11 @@
               lord  (~(put in lord) entr)
               tack  [roil tack]
               dire.gen  &
+              trace.gen  ~
+              place  ?~(trace.gen ~ `i.trace.gen)
             ==
           =.  dire.gen  ?&(dire dire.gen)
+          =.  trace.gen  trace
           [[[%two sown fond roil] more] gen]
         ::  indirect call
         =.  dire.gen  |
@@ -255,8 +261,8 @@
           [%11 [h=@ v=*] f=*]
         =^  hare  gen  [hare.gen gen(hare .+(hare.gen))]
         =^  [vice=nomm mild=naan]  gen  $(form v.form)
-        =?  place-gen  =(%spot h.form)
-          ;;(spot data.sock.mild) :: XX soft
+        =?  trace.gen  =(%spot h.form)
+          [;;(spot data.sock.mild) trace.gen] :: XX soft
         :: ~?  =(%fast h.form)
         ::   :-  %fast-pre
         ::   =*  clue  data.sock.mild
@@ -332,8 +338,9 @@
                   =/  cod
                     ?:(?!((~(has by core.cole.gen) nape)) %cold-into %cold-peat)
                   ~>  %slog.[0 [%rose [": " ~ ~] cod (smyt nape) ~]]
-                  ?:  =(*spot place-gen)  dot
-                  ~>(%slog.[0 (blot "" place-gen)] dot)
+                  dot
+                  :: ?:  =(*spot place-gen)  dot
+                  :: ~>(%slog.[0 (blot "" place-gen)] dot)
               ::
               =.  core.cole.gen  (~(put ju core.cole.gen) nape naut)
               =.  batt.cole.gen  (~(put ju batt.cole.gen) data.batt nape)
@@ -350,12 +357,13 @@
       ==
     ::
     ::  write to call table
+    =/  space=(unit spot)  ?~(trace.gen ~ `(rear trace.gen))
     =.  prot.more  (~(cut qui prot.more) lord cape.sock.more)
     =.  call.gen  (~(put by call.gen) entr [less more form `load dire.gen])
     =/  wise  (~(get ja wait.gen) entr)
     =.  wait.gen  (~(del by wait.gen) entr)
     ?:  =(~ wise)
-      %-  ?~(place-arm same (slog (blot "<2 " u.place-arm) ~))
+      %-  (outa:blot "<2 " entr place space)
       [more gen] :: no finalizing here
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
     ::  fixed-point loops to propagate their needs and check that they are really loops
@@ -447,7 +455,7 @@
       =?  moan.gen  (levy loan |=([soot=sock norm=food] !=(soot ^soot)))
         (~(add ja moan.gen) form [soot u.load ices lope fizz])
       gen
-    %-  ?~(place-arm same (slog (blot "<3 " u.place-arm) ~))
+    %-  (outa:blot "<3 " entr place space)
     [more gen]
   ::
   =.  moan  moan.gen
@@ -626,15 +634,44 @@
   (~(put by c) p s)
 ::
 ++  blot
-  |=  [tap=tape pot=spot]
-  ^-  tank
-  :+  %rose  [":" tap ~]
-  :~  (smyt p.pot)
-      =*  l   p.q.pot
-      =*  r   q.q.pot
-      =/  ud  |=(a=@u (scow %ud a))
-      leaf+"<[{(ud p.l)} {(ud q.l)}].[{(ud p.r)} {(ud q.r)}]>"
-  ==
+  |%
+  ++  ren
+    |=  pot=spot
+    ^-  tank
+    :+  %rose  [":" ~ ~]
+    :~  (smyt p.pot)
+        =*  l   p.q.pot
+        =*  r   q.q.pot
+        =/  ud  |=(a=@u (scow %ud a))
+        leaf+"<[{(ud p.l)} {(ud q.l)}].[{(ud p.r)} {(ud q.r)}]>"
+    ==
+  ::
+  ++  hal  (cury scot %x)
+  ::
+  ++  one
+    |=  [tap=tape ale=@hail pot=spot]
+    ^-  tank
+    [%rose [": " tap ~] (hal ale) (ren pot) ~]
+  ::
+  ++  two
+    |=  [tap=tape ale=@hail pot=spot top=spot]
+    ^-  tank
+    :+  %rose  [": " tap ~]
+    :~  `tank`(hal ale)
+        `tank`[%rose [" -> " ~ ~] (ren pot) (ren top) ~]
+    ==
+  ::
+  ++  into
+    |=  [tap=tape ale=@hail f=(unit spot)]
+    ^+  same
+    ?~(f same (slog (one tap ale u.f) ~))
+  ::
+  ++  outa
+    |=  [tap=tape ale=@hail f=(unit spot) t=(unit spot)]
+    ^+  same
+    ?~  t  (into tap ale f)
+    ?~(f same (slog (two tap ale u.f u.t) ~))
+  --
 --
 ::  utility types
 ::
