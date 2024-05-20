@@ -10,6 +10,18 @@ nix develop
 
 in `rust/` or any subdirectory, and you will be dropped into a BASH shell with the build environment set up. This will provide proper versions of non-rust dependencies, as well as the rust environment.
 
+If you receive the error
+
+```
+error: experimental Nix feature 'nix-command' is disabled; use '--extra-experimental-features nix-command' to override
+```
+
+edit your `$HOME/.config/nix/nix.conf` to include the line
+
+```
+extra-experimental-features = nix-command
+```
+
 ## Rust
 
 ### Build
@@ -33,7 +45,7 @@ To run the Vere king with Ares as serf, it's necessary to modify the Vere king t
 arg_c[0] = "/path/to/ares/repo/rust/ares/target/debug/ares";
 ```
 
-Then, it is necessary to follow the [Vere build instrcutions](https://github.com/urbit/vere/blob/develop/INSTALL.md). Afterwards, it's possible to launch Vere with Ares as the serf using the usual commands:
+Then, it is necessary to follow the [Vere build instrcutions](https://github.com/urbit/vere/blob/develop/INSTALL.md). (You should exit the `nix develop` shell first for such a build.) Afterwards, it's possible to launch Vere with Ares as the serf using the usual commands:
 
 ```bash
 bazel-bin/pkg/vere/urbit -F zod
