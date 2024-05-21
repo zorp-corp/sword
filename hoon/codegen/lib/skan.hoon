@@ -87,10 +87,16 @@
     =/  less=naan  [~ soot.i.queu]  :: subject
     =*  form  form.i.queu :: formula
     =/  sirs  (~(add ja *(jar * [site=@hail less=naan])) form [entr less]) :: 
-    ::  XX write into this when you refuse memoization
+    ::  XX write into this when you refuse finalization
     ::    for each entry in loop.gen
     ::    - generate plop for noon by rel:qui of prot from naan with roil
     ::      at memoizing callsite
+    ::    ::having [c=@hail t=@hail s=sock l=naan] from loop.gen
+    ::    =/  p=plop  (~(rel qui prot.l) entr &)
+    ::    =/  n=noon  [p sock.l]
+    ::    [t s noon]
+    ::    XX  for assertion purposes 
+    ::    - THEY HAVE PLAYED US FOR ABSOLUTE FOOLS
     ::  XX check this after memo in same manner as memo
     ::    on hit
     ::    -  reconstruct result in same manner as memo
@@ -100,7 +106,6 @@
     ::    after fixpoint, intersect nop and demo and force roils
     ::       from intersection to be indirect (delete from call.gen)
     ::  XX  melo=(jar * meal) 
-    ::  XX  demo=(map @hail @hail)
     =|  lord=(set @hail)  :: enclosing scope
     =/  tack=(list @hail)  ~[entr]
     ::  wrapper for callsite formulas
