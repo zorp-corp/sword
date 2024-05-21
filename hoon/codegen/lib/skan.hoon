@@ -92,6 +92,20 @@
     =/  less=naan  [~ soot.i.queu]  :: subject
     =*  form  form.i.queu :: formula
     =/  sirs  (~(add ja *(jar * [site=@hail less=naan])) form [entr less]) :: 
+    ::  XX write into this when you refuse memoization
+    ::    for each entry in loop.gen
+    ::    - generate plop for noon by rel:qui of prot from naan with roil
+    ::      at memoizing callsite
+    ::  XX check this after memo in same manner as memo
+    ::    on hit
+    ::    -  reconstruct result in same manner as memo
+    ::    -  generate fresh callsites for each entry in loom and put in
+    ::       loop.gen, rue:qui noon with subject provenance at melo hit site
+    ::    -  insert each [fresh-callsite roil] into demo
+    ::    after fixpoint, intersect nop and demo and force roils
+    ::       from intersection to be indirect (delete from call.gen)
+    ::  XX  melo=(jar * meal) 
+    ::  XX  demo=(map @hail @hail)
     =|  lord=(set @hail)  :: enclosing scope
     =/  tack=(list @hail)  ~[entr]
     =|  place=(unit spot)
@@ -680,6 +694,9 @@
 ::    abstract noun with provenance
 +$  naan  [=prot =sock]
 ::
+::    abstract noun with local provenance
++$  noon  [=plop =sock]
+::
 ::    callsite information
 +$  cafe  (map @hail [less=naan more=naan form=* load=(unit nomm) rect=?])
 ::
@@ -704,4 +721,7 @@
 ::
 ::    analysis memoization entry
 +$  meme  [soot=sock want=cape root=sock have=plop]
+::
+::    loop-local analysis memoization entry
++$  meal  [soot=sock want=cape root=sock have=plop loom=(list [t=@ s=sock =noon])]
 --
