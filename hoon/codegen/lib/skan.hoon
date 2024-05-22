@@ -85,6 +85,7 @@
           dire=?      :: fully direct?
           trace=(list spot)
           wait=(jar @hail @hail)  :: sites to finalize
+          melo=(jar * meal)       ::  non-final memoization
       ==
   =^  entr  gen  [rail.gen gen(rail .+(rail.gen))]  :: initial callsite
   =.  wait.gen  (~(add ja wait.gen) entr entr)
@@ -136,8 +137,31 @@
         |=  [@hail a=cape b=cape]
         ~(cut ca (~(uni ca a) b))
       =.  call.gen  (~(put by call.gen) entr [less more form ~ &])
+      ::  XX assert not in melo.gen
       =>  ((outa:blot "<1 " entr place ~) .)
       [more gen]
+    ::
+    =/  gorm  (~(get ja melo.gen) form)
+    :: =>  (?:((gth 10 (lent gorm)) same (slog leaf+(scow %ud (lent gorm)) ?~(place-arm ~ [(blot ">> " u.place-arm) ~]))) .)
+    |-  ^-  [naan _gen]
+    ?^  gorm
+      ?.  (~(huge so soot.i.gorm) sock.less)
+        $(gorm t.gorm)
+      ::  XX deduplicate with above
+      =/  mope  (~(rue qui prot.less) have.i.gorm)
+      =.  mope  (~(cut qui mope) lord cape.root.i.gorm)
+      =/  more  [mope root.i.gorm]
+      ::  propagate memoized subject needs
+      =/  pant  (~(due qui prot.less) want.i.gorm)
+      =.  want.gen
+        %-  (~(uno by want.gen) pant)
+        |=  [@hail a=cape b=cape]
+        ~(cut ca (~(uni ca a) b))
+      =.  call.gen  (~(put by call.gen) entr [less more form ~ &])
+      ::  XX put loom in loop.gen
+      =>  ((outa:blot "<2 " entr place ~) .)
+      [more gen]
+    ::
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
       |-  ^-  [[=nomm =naan] _gen]
@@ -166,11 +190,11 @@
         =^  [fond=nomm fork=naan]  gen  $(form f.form)
         ?:  =(& cape.sock.fork)
           :: direct call
-          =/  foo
-            =/  bat  (~(pull so sock.sand) 2)
-            ?.  &(?=(^ bat) =(& cape.u.bat) ?=(^ data.u.bat))  ~
-            (~(get ju batt.cole) data.u.bat)
-          ~?  ?=(^ foo)  foo
+          :: =/  foo
+          ::   =/  bat  (~(pull so sock.sand) 2)
+          ::   ?.  &(?=(^ bat) =(& cape.u.bat) ?=(^ data.u.bat))  ~
+          ::   (~(get ju batt.cole) data.u.bat)
+          :: ~?  ?=(^ foo)  foo
           =.  kids.gen  (~(put ju kids.gen) entr roil)
           ::  record need
           =/  pant  (~(due qui prot.fork) &) :: callsite provenance by needs
@@ -382,8 +406,23 @@
     =/  wise  (~(get ja wait.gen) entr)
     =.  wait.gen  (~(del by wait.gen) entr)
     ?:  =(~ wise)
-      %-  (outa:blot "<2 " entr place space)
+      :: =?  melo.gen  dire.gen  XX direct only?
+      =.  melo.gen
+        %+  ~(add ja melo.gen)  form
+        =/  want=cape  (~(gut by want.gen) entr |)
+        =/  have  (~(rel qui prot.more) entr cape.sock.more)
+        =/  such  (~(uni ca want) (~(gut by (~(due qui prot.more) cape.sock.more)) entr |))
+        =/  sutt  ~(norm so (~(app ca such) sock.less))
+        =-  [[sutt want sock.more have] -]
+        %-  ~(rep by loop.gen)
+        |=  [[c=@hail t=@hail s=sock l=naan] loom=(list [t=@ s=sock =noon])]
+        ^+  loom
+        =/  p=plop  (~(rel qui prot.l) entr &)  :: XX what about [c]?
+        =/  n=noon  [p sock.l]
+        [[t s n] loom]         :: XX skip if ?=(~ p) ?
+      %-  (outa:blot "<3 " entr place space)
       [more gen] :: no finalizing here
+    ::
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
     ::  fixed-point loops to propagate their needs and check that they are really loops
     =/  sap  gen  :: for reset
@@ -425,11 +464,19 @@
       =+  (~(got by call.gen) site)
       ?>  ?=(^ load)
       =/  want=cape  (~(gut by want.gen) site |)
+      =/  such  (~(uni ca want) (~(gut by (~(due qui prot.more) cape.sock.more)) site |))
+      =/  sutt  ~(norm so (~(app ca such) sock.less))
       =?  memo.gen  ?&(rect ?=(~ nop))
         =/  have  (~(rel qui prot.more) site cape.sock.more)
-        =/  such  (~(uni ca want) (~(gut by (~(due qui prot.more) cape.sock.more)) site |))
-        =/  soot  ~(norm so (~(app ca such) sock.less))
-        (~(add ja memo.gen) form [soot want sock.more have])
+        (~(add ja memo.gen) form [sutt want sock.more have])
+      =.  melo.gen
+        ?~  mel=(~(get by melo.gen) form)
+          melo.gen
+        =/  lit  (skip u.mel |=([[s=sock *] *] =(sutt s)))
+        ?:  =(~ lit)
+          (~(del by melo.gen) form)
+        (~(put by melo.gen) form lit)
+      ::
       =/  soot  
         =>  [s=sock.less w=want so=so ca=ca]
         ~+  ~(norm so (~(app ca w) s))
@@ -474,7 +521,7 @@
       =?  moan.gen  (levy loan |=([soot=sock norm=food] !=(soot ^soot)))
         (~(add ja moan.gen) form [soot u.load ices lope fizz])
       gen
-    %-  (outa:blot "<3 " entr place space)
+    %-  (outa:blot "<4 " entr place space)
     [more gen]
   ::
   =.  moan  moan.gen
@@ -728,5 +775,5 @@
 +$  meme  [soot=sock want=cape root=sock have=plop]
 ::
 ::    loop-local analysis memoization entry
-+$  meal  [soot=sock want=cape root=sock have=plop loom=(list [t=@ s=sock =noon])]
++$  meal  [meme loom=(list [t=@hail s=sock =noon])]  :: XX add orig site for slog
 --
