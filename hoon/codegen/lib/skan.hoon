@@ -158,7 +158,20 @@
         |=  [@hail a=cape b=cape]
         ~(cut ca (~(uni ca a) b))
       =.  call.gen  (~(put by call.gen) entr [less more form ~ &])
-      ::  XX put loom in loop.gen
+      ::  XX slowed to a crawl when i added this
+      =.  gen
+        %+  roll  loom.i.gorm
+        |=  [[t=@hail s=sock no=noon] =_gen]
+        =/  roil     rail.gen
+        =/  na=naan
+          :_  sock.no
+          =>  [less=prot=prot.less no=plop=plop.no ..qui]
+          ~+  (~(rue qui prot.less) plop.no)
+        %=  gen
+          rail  +(rail.gen)
+          kids  (~(put ju kids.gen) entr roil)
+          loop  (~(put by loop.gen) roil [t s na])
+        ==
       =>  ((outa:blot "<2 " entr place ~) .)
       [more gen]
     ::
