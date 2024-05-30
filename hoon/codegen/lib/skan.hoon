@@ -96,7 +96,8 @@
           dire=?      :: fully direct?
           trace=(list spot)
           wait=(jar @hail @hail)  :: sites to finalize
-          melo=(jar * meal)       ::  non-final memoization
+          melo=(jar * meal)       ::  non-final memoization targets
+          remo=(map @hail [site=@hail =sock]) :: non-final memoization hits
       ==
   =^  entr  gen  [rail.gen gen(rail .+(rail.gen))]  :: initial callsite
   =.  wait.gen  (~(add ja wait.gen) entr entr)
@@ -157,17 +158,19 @@
     ?^  gorm
       ?.  (~(huge so soot.i.gorm) sock.less)
         $(gorm t.gorm)
-      ::  XX deduplicate with above
       =/  mope  (~(rue qui prot.less) have.i.gorm)
       =.  mope  (~(cut qui mope) lord cape.root.i.gorm)
       =/  more  [mope root.i.gorm]
-      ::  propagate memoized subject needs
-      =/  pant  (~(due qui prot.less) want.i.gorm)
-      =.  want.gen
-        %-  (~(uno by want.gen) pant)
-        |=  [@hail a=cape b=cape]
-        ~(cut ca (~(uni ca a) b))
-      =.  call.gen  (~(put by call.gen) entr [less more form ~ & & place space.i.gorm])
+      ::
+      =.  remo.gen  (~(put by remo.gen) entr [site.i.gorm sock.less])
+      ::
+      :: ::  propagate memoized subject needs
+      :: =/  pant  (~(due qui prot.less) want.i.gorm)
+      :: =.  want.gen
+      ::   %-  (~(uno by want.gen) pant)
+      ::   |=  [@hail a=cape b=cape]
+      ::   ~(cut ca (~(uni ca a) b))
+      :: =.  call.gen  (~(put by call.gen) entr [less more form ~ & & place space.i.gorm])
       ::
       =.  loop.gen
         %+  roll  loom.i.gorm
@@ -482,7 +485,6 @@
     =/  want=cape  (~(gut by want.gen) entr |)
     ::  finalize waiting callsites
     =.  gen
-      ~|  wise=wise
       %+  roll  wise
       |=  [site=@hail =_gen]
       =/  kid  (~(get ju kids.gen) site)
@@ -509,26 +511,36 @@
       =^  [ices=(map @hail [=sock form=*]) lope=(set [=sock form=*])]  gen
         %-  ~(rep in kid)
         |=  [k=@hail [ices=(map @hail [=sock form=*]) lope=(set [=sock form=*])] =_gen]
-        ~|  [k=k]
         =/  n  t:(~(gut by loop.gen) k [t=k s=*sock l=*naan])
-        ~|  [n=n]
-        ~|  [wk=~(key by call.gen)]
-        ~|  [tack=tack]
-        ~|  [entr=entr]
-        =/  c  (~(got by call.gen) n)
-        =/  w=cape  (~(gut by want.gen) n |)
+        =/  rem  (~(get by remo.gen) k)
+        =/  m  ?~(rem n site.u.rem)          :: XX look this up in loop.gen to avoid fail-1
+        =/  w=cape  (~(gut by want.gen) m |)
+        ?~  lac=(~(get by call.gen) m)
+          ::  XX should this prevent memoization?
+          ::
+          ~&  [%ices-fail-1 k=k n=n m=m]
+          [[ices lope] gen]
+        =*  c  u.lac
         =/  s
           =>  [s=sock.less.c w=w so=so ca=ca]
           ~+  ~(norm so (~(app ca w) s))
         ::
-        =+  ?.  lemo.c  ~
-            =/  hose  (~(get ja moan) form.c)
-            |-  ^-  (unit hone)
-            ?~  hose
-              ~&  [%ices-gone site=site n=n]
-              ~
-            ?:  =(s soot.i.hose)  `i.hose
-            $(hose t.hose)
+        ?.  ?|  ?=(~ rem)
+                (~(huge so s) (~(app ca w) sock.u.rem))
+            ==
+          ::  XX should this prevent memoization?
+          ::
+          ~&  [%ices-fail-2 k=k n=n m=m]
+          [[ices lope] gen]
+        ::
+        :: =+  ?.  lemo.c  ~
+        ::     =/  hose  (~(get ja moan) form.c)
+        ::     |-  ^-  (unit hone)
+        ::     ?~  hose
+        ::       ~&  [%ices-gone site=site n=n]
+        ::       ~
+        ::     ?:  =(s soot.i.hose)  `i.hose
+        ::     $(hose t.hose)
         ::
         =.  ices  (~(put by ices) k [s form.c])
         =?  lope  ?!(.=(k n))  (~(put in lope) [s form.c])
@@ -541,6 +553,7 @@
         =.  want.gen  (~(del by want.gen) k)
         =.  call.gen  (~(del by call.gen) k)
         =.  loop.gen  (~(del by loop.gen) k)
+        =.  remo.gen  (~(del by remo.gen) k)
         gen
       =/  hiss  (~(get ju hint.gen) site)
       =^  fizz  gen
