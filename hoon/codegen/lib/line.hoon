@@ -1203,86 +1203,62 @@
     ::
         todo  t.todo
     ==
-  ~&  %after-todo1
   ::  XX temporary: turn hip/phi into mov so we can run this as-is
   ::  note that it's not safe to do mov coalescing on the output of this
   ::  since we may now have multiple %mov's that target one register
   =/  toil  wurk
   |-  ^-  _hill
-  ?^  toil
-    %=  $
-        toil  t.toil
-    ::
-        hill
-      %+  ~(jab by hill)  i.toil
-      |=  =pile
-      =/  queu=(list bile)  ~[long wish]:pile
-      =|  back=(list bile)
-      =|  will=(map bile blob)
-      !.
-      |-  ^-  _pile
-      ?~  queu
-        ?~  back  pile(will will)
-        $(queu (flop back), back ~)
-      =/  blob  (~(got by will.pile) i.queu)
+  ?~  toil
+    hill
+  %=  $
+      toil  t.toil
+  ::
+      hill
+    %+  ~(jab by hill)  i.toil
+    |=  =pile
+    =/  seen  (~(gas in *(set bile)) ~[long wish]:pile)
+    =/  queu=(list bile)  ~(tap in seen)
+    =|  back=(list bile)
+    =|  will=(map bile blob)
+    !.
+    |-  ^+  pile
+    ?~  queu
+      ?~  back  pile(will will)
+      $(queu (flop back), back ~)
+    =/  blob  (~(got by will.pile) i.queu)
+    =^  more=(list bile)  blob
       ?-  -.bend.blob
           %hip
+        :-  ~[t.bend.blob]
         =/  movs
-          %+  turn  ~(tap by biff:(~(got by will.pile) t.bend.blob))
-          |=  [out=@uvre bin=(map bile @uvre)]
-          [%mov (~(got by bin) c.bend.blob) out]
-        %=  $
-            queu  t.queu
-            back  [t.bend.blob back]
-            will
-          %+  ~(put by will)  i.queu
-          [biff.blob (welp body.blob movs) %hop t.bend.blob]
-        ==
+          %-  ~(rep by biff:(~(got by will.pile) t.bend.blob))
+          |=  [[out=@uvre bin=(map bile @uvre)] lit=(list pole)]
+          [[%mov (~(got by bin) c.bend.blob) out] lit]
+        [biff.blob (welp body.blob movs) %hop t.bend.blob]  :: XX flop?
       ::
-          %clq
-        $(queu t.queu, back (weld ~[z o]:bend.blob back), will (~(put by will) i.queu blob))
-      ::
-          %eqq
-        $(queu t.queu, back (weld ~[z o]:bend.blob back), will (~(put by will) i.queu blob))
-      ::
-          %brn 
-        $(queu t.queu, back (weld ~[z o]:bend.blob back), will (~(put by will) i.queu blob))
-      ::
-          %hop
-        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
-      ::
-          %lnk
-        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
-      ::
-          %cal
-        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
-      ::
-          %caf
-        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
-      ::
-          %lnt
-        $(queu t.queu, will (~(put by will) i.queu blob))
-      ::
-          %jmp
-        $(queu t.queu, will (~(put by will) i.queu blob))
-      ::
-          %jmf
-        $(queu t.queu, will (~(put by will) i.queu blob))
-      ::
-          %spy
-        $(queu t.queu, back [t.bend.blob back], will (~(put by will) i.queu blob))
-      ::
-          %mer
-        $(queu t.queu, back (weld ~[i m]:bend.blob back), will (~(put by will) i.queu blob))
-      ::
-          %don
-        $(queu t.queu, will (~(put by will) i.queu blob))
-      ::
-          %bom
-        $(queu t.queu, will (~(put by will) i.queu blob))
+          %clq  [~[z o]:bend.blob blob]
+          %eqq  [~[z o]:bend.blob blob]
+          %brn  [~[z o]:bend.blob blob]
+          %hop  [~[t.bend.blob] blob]
+          %lnk  [~[t.bend.blob] blob]
+          %cal  [~[t.bend.blob] blob]
+          %caf  [~[t.bend.blob] blob]
+          %lnt  `blob
+          %jmp  `blob
+          %jmf  `blob
+          %spy  [~[t.bend.blob] blob]
+          %mer  [~[i m]:bend.blob blob]
+          %don  `blob
+          %bom  `blob
       ==
-    ==
-  hill
+    |-  ^+  pile
+    ?~  more
+      ^$(queu t.queu, will (~(put by will) i.queu blob))
+    ?:  (~(has in seen) i.more)
+      $(more t.more)
+    $(more t.more, back [i.more back], seen (~(put in seen) i.more))
+
+  ==
 --
 ::    codegen interface
 =+  %1
