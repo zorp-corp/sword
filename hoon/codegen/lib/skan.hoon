@@ -38,8 +38,13 @@
   =.  colt  cole
   =.  back
     :: queue unanalyzed cold-state batteries
-    %-  ~(rep by gnat)
-    |:  [[p=*path q=*(set sock)] b=back]
+    :: %-  ~(rep by gnat)
+    %+  roll
+      %+  sort
+        %+  turn  ~(tap by gnat)
+        |=([p=path q=(set sock)] [(lent p) p q])
+      |=([l=[len=@ *] r=[len=@ *]] (lth len.l len.r))
+    |:  [[len=*@ p=*path q=*(set sock)] b=back]
     %-  ~(rep in q)
     |:  [s=*sock b=b]
     =/  batt  (~(pull so s) 2)
