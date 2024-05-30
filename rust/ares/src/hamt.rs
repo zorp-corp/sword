@@ -345,18 +345,22 @@ impl<T: Copy + Preserve> Hamt<T> {
                         *new_leaf_buffer = (*n, t);
                         let split = stem.hypothetical_index(chunk);
                         let new_buffer = stack.struct_alloc(stem.size() + 1);
-                        copy_nonoverlapping(stem.buffer, new_buffer, split);
+                        if split > 0 {
+                            copy_nonoverlapping(stem.buffer, new_buffer, split);
+                        }
                         *new_buffer.add(split) = Entry {
                             leaf: Leaf {
                                 len: 1,
                                 buffer: new_leaf_buffer,
                             },
                         };
-                        copy_nonoverlapping(
-                            stem.buffer.add(split),
-                            new_buffer.add(split + 1),
-                            stem.size() - split,
-                        );
+                        if stem.size() - split > 0 {
+                            copy_nonoverlapping(
+                                stem.buffer.add(split),
+                                new_buffer.add(split + 1),
+                                stem.size() - split,
+                            );
+                        }
                         *dest = Stem {
                             bitmap: stem.bitmap | chunk_to_bit(chunk),
                             typemap: stem.typemap & !chunk_to_bit(chunk),
@@ -628,8 +632,10 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             let next_chunk = traversal[depth].bitmap.trailing_zeros();
             let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
             let next_entry = *traversal[depth].buffer;
-            traversal[depth].bitmap >>= next_chunk + 1;
-            traversal[depth].typemap >>= next_chunk + 1;
+            traversal[depth].bitmap >>= next_chunk;
+            traversal[depth].bitmap >>= 1;
+            traversal[depth].typemap >>= next_chunk;
+            traversal[depth].typemap >>= 1;
             traversal[depth].buffer = traversal[depth].buffer.add(1);
 
             if next_type {
@@ -707,8 +713,10 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
             let next_entry_ptr = traversal[depth].buffer;
 
-            traversal[depth].bitmap >>= next_chunk + 1;
-            traversal[depth].typemap >>= next_chunk + 1;
+            traversal[depth].bitmap >>= next_chunk;
+            traversal[depth].bitmap >>= 1;
+            traversal[depth].typemap >>= next_chunk;
+            traversal[depth].typemap >>= 1;
             traversal[depth].buffer = traversal[depth].buffer.add(1);
 
             if next_type {
