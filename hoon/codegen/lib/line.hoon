@@ -1171,7 +1171,11 @@
 ++  mill
   =|  todo=(list [=bell dire=next =gen])
   =|  like=(map bell need)
+  ~>  %slog.[0 'mill: before']
+  ~<  %slog.[0 'mill: after']
+  ~&  %before-work
   =/  toil  work 
+  ~&  %after-work
   =/  wurk  toil
   |-  ^-  _hill
   ?^  toil
@@ -1181,6 +1185,7 @@
        todo  [[i.toil dire gen] todo]
        like  (~(put by like) i.toil what.dire)
     ==
+  ~&  %after-toil1
   |-  ^-  _hill
   ?^  todo
     =/  r  redo.gen.i.todo
@@ -1198,6 +1203,7 @@
     ::
         todo  t.todo
     ==
+  ~&  %after-todo1
   ::  XX temporary: turn hip/phi into mov so we can run this as-is
   ::  note that it's not safe to do mov coalescing on the output of this
   ::  since we may now have multiple %mov's that target one register
@@ -1309,17 +1315,24 @@
   ^-  [new=(set bell) old=(set bell) =_this]
   ::  %comp is the only case
   ::  analyze
-  =.  sack  (rout:sack s.gist f.gist)
+  ~>  %meme.[1 %fore]
+  =.  sack
+    ~>  %bout.[0 %sack]
+    (rout:sack s.gist f.gist)
+  ~>  %meme.[1 %sack]
   ?<  =(~ moan)
   ::  save old codegen table keys
   =/  hole  ~(key by hill)
   ::  codegen
   =.  hill  mill
+  ~>  %meme.[1 %mill]
   ::  get entry label for new codegen
   =/  bell  
     =/  peep  (peek [s f]:gist)
     ?>  ?=(^ peep)
     bell.u.peep
+  ~>  %slog.[0 'poke: diff: before']
+  ~<  %slog.[0 'poke: diff: after']
   =/  heck  ~(key by hill) 
   [(~(dif in heck) hole) (~(dif in hole) heck) this]
 ::    pretty-printing door
