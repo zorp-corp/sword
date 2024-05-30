@@ -20,7 +20,7 @@
 ::    meloize:          >2
 ::    finalize:         >3
 ::
-++  verbose  &
+:: ++  verbose  &
 ::
 ::    Analyze a subject/formula pair
 ++  rout
@@ -107,6 +107,7 @@
   =^  entr  gen  [rail.gen gen(rail .+(rail.gen))]  :: initial callsite
   =.  wait.gen  (~(add ja wait.gen) entr entr)
   =^  more  gen
+    :: ~>  %bout.[0 `tank`?.(?=(^ calm.i.queu) %raw [%rose [": " ~ ~] leaf+['+' (scow %ud +.j.u.calm.i.queu)] (smyt -.j.u.calm.i.queu) ~])]
     =/  less=naan  [~ soot.i.queu]  :: subject
     =*  form  form.i.queu :: formula
     =/  sirs  (~(add ja *(jar * [site=@hail less=naan])) form [entr less]) :: 
@@ -410,12 +411,12 @@
                 u.folk
               ::
               =>  =*  dot  .
-                  =/  cod
-                    ?:(?!((~(has by core.cole.gen) nape)) %cold-into %cold-peat)
-                  ~>  %slog.[0 [%rose [": " ~ ~] cod (smyt nape) ~]]
+                  !@  verbose
+                    =/  cod
+                      ?:(?!((~(has by core.cole.gen) nape)) %cold-into %cold-peat)
+                    ~>  %slog.[0 [%rose [": " ~ ~] cod (smyt nape) ~]]
+                    dot
                   dot
-                  :: ?:  =(*spot place-gen)  dot
-                  :: ~>(%slog.[0 (blot "" place-gen)] dot)
               ::
               =.  core.cole.gen  (~(put ju core.cole.gen) nape naut)
               =.  batt.cole.gen  (~(put ju batt.cole.gen) data.batt nape)
@@ -505,7 +506,7 @@
         ?~  mel=(~(get by melo.gen) form)
           melo.gen
         =/  lit  (skip u.mel |=([[s=sock *] *] =(sutt s)))
-        ~&  [%del-melo (lent u.mel) (lent lit)]
+        :: ~&  [%del-melo (lent u.mel) (lent lit)]
         ?:  =(~ lit)
           (~(del by melo.gen) form)
         (~(put by melo.gen) form lit)
