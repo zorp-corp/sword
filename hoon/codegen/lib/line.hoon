@@ -1219,6 +1219,7 @@
       =/  queu=(list bile)  ~[long wish]:pile
       =|  back=(list bile)
       =|  will=(map bile blob)
+      !.
       |-  ^-  _pile
       ?~  queu
         ?~  back  pile(will will)
