@@ -632,10 +632,17 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             let next_chunk = traversal[depth].bitmap.trailing_zeros();
             let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
             let next_entry = *traversal[depth].buffer;
-            traversal[depth].bitmap >>= next_chunk;
-            traversal[depth].bitmap >>= 1;
-            traversal[depth].typemap >>= next_chunk;
-            traversal[depth].typemap >>= 1;
+            if next_chunk >= 31 {
+                // if next_chunk == 31, then we will try to shift the bitmap by next_chunk+1 = 32 bits.
+                // The datatype is a u32, so this is equivalent to setting it to 0. If we do try
+                // to shift a u32 by 32 bits, then rust's overflow checking will catch it
+                // and crash the process.
+                traversal[depth].bitmap = 0;
+                traversal[depth].typemap = 0;
+            } else {
+                traversal[depth].bitmap >>= next_chunk + 1;
+                traversal[depth].typemap >>= next_chunk + 1;
+            }
             traversal[depth].buffer = traversal[depth].buffer.add(1);
 
             if next_type {
@@ -713,10 +720,17 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
             let next_entry_ptr = traversal[depth].buffer;
 
-            traversal[depth].bitmap >>= next_chunk;
-            traversal[depth].bitmap >>= 1;
-            traversal[depth].typemap >>= next_chunk;
-            traversal[depth].typemap >>= 1;
+            if next_chunk >= 31 {
+                // if next_chunk == 31, then we will try to shift the bitmap by next_chunk+1 = 32 bits.
+                // The datatype is a u32, so this is equivalent to setting it to 0. If we do try
+                // to shift a u32 by 32 bits, then rust's overflow checking will catch it
+                // and crash the process.
+                traversal[depth].bitmap = 0;
+                traversal[depth].typemap = 0;
+            } else {
+                traversal[depth].bitmap >>= next_chunk + 1;
+                traversal[depth].typemap >>= next_chunk + 1;
+            }
             traversal[depth].buffer = traversal[depth].buffer.add(1);
 
             if next_type {
