@@ -428,7 +428,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
                             debug_assertions(stack, orig_subject);
                             debug_assertions(stack, res);
-
+                            
                             break Ok(res);
                         }
                         NockWork::Ret => {

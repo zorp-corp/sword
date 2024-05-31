@@ -1,3 +1,4 @@
+use crate::disk::Disk;
 use crate::hamt::Hamt;
 use crate::interpreter::{inc, interpret, Error, Mote};
 use crate::jets::cold::Cold;
@@ -80,20 +81,22 @@ struct SnapshotMem {
 
 const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
 
-struct Context {
-    epoch: u64,
-    event_num: u64,
-    arvo: Noun,
-    mug: u32,
-    nock_context: interpreter::Context,
+pub struct Context {
+    pub epoch: u64,
+    pub event_num: u64,
+    pub arvo: Noun,
+    pub mug: u32,
+    pub nock_context: interpreter::Context,
+    pub log: Disk,
 }
 
 impl Context {
     pub fn load(
-        snap_path: PathBuf,
+        pier_path: PathBuf,
         trace_info: Option<TraceInfo>,
         constant_hot_state: &[HotEntry],
     ) -> Context {
+        let snap_path = pier_path.join(".urb/chk");
         pma_open(snap_path).expect("serf: pma open failed");
 
         let snapshot_version = pma_meta_get(BTMetaField::SnapshotVersion as usize);
@@ -106,7 +109,7 @@ impl Context {
             _ => panic!("Unsupported snapshot version"),
         };
 
-        Context::new(trace_info, snapshot, constant_hot_state)
+        Context::new(pier_path, trace_info, snapshot, constant_hot_state)
     }
 
     pub unsafe fn save(&mut self) {
@@ -139,6 +142,7 @@ impl Context {
     }
 
     fn new(
+        pier_path: PathBuf,
         trace_info: Option<TraceInfo>,
         snapshot: Option<Snapshot>,
         constant_hot_state: &[HotEntry],
@@ -174,12 +178,16 @@ impl Context {
             trace_info,
         };
 
+        let log_path = pier_path.join(".urb/log");
+        let log = Disk::new(log_path);
+
         Context {
             epoch,
             event_num,
             arvo,
             mug,
             nock_context,
+            log
         }
     }
 
@@ -310,9 +318,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
     let pier_path = PathBuf::from(pier_path_string);
-    let mut snap_path = pier_path.clone();
-    snap_path.push(".urb");
-    snap_path.push("chk");
+    let snap_path = pier_path.join(".urb/chk");
     create_dir_all(&snap_path)?;
 
     let wag: u32 = std::env::args()
@@ -324,6 +330,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
             "flag bitmap is not integer",
         )))?;
 
+    let load_path = pier_path.clone();
     let mut trace_info = if wag & FLAG_TRACE != 0 {
         create_trace_file(pier_path).ok()
     } else {
@@ -339,7 +346,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         }
     }
 
-    let mut context = Context::load(snap_path, trace_info, constant_hot_state);
+    let mut context = Context::load(load_path, trace_info, constant_hot_state);
     context.ripe();
 
     // Can't use for loop because it borrows newt
@@ -469,7 +476,7 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
     }
 }
 
-fn play_life(context: &mut Context, eve: Noun) {
+pub fn play_life(context: &mut Context, eve: Noun) {
     let stack = &mut context.nock_context.stack;
     let sub = T(stack, &[D(0), D(3)]);
     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
@@ -540,7 +547,7 @@ fn play_list(context: &mut Context, mut lit: Noun) {
     context.play_done();
 }
 
-fn work(context: &mut Context, job: Noun) {
+pub fn work(context: &mut Context, job: Noun) {
     let trace_name = if context.nock_context.trace_info.is_some() {
         //  XX: good luck making this safe AND rust idiomatic!
         let wire = job.slot(6).expect("serf: work: job missing wire");
@@ -653,6 +660,6 @@ fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
         .map_err(|_e| io::Error::new(io::ErrorKind::InvalidInput, "Bad axis"))
 }
 
-fn clear_interrupt() {
+pub fn clear_interrupt() {
     (*TERMINATOR).store(false, Ordering::Relaxed);
 }
