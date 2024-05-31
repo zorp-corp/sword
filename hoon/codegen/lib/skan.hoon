@@ -120,25 +120,6 @@
     =/  less=naan  [~ soot.i.queu]  :: subject
     =*  form  form.i.queu :: formula
     =/  sirs  (~(add ja *(jar * [site=@hail less=naan])) form [entr less]) :: 
-    ::  XX write into this when you refuse finalization
-    ::    for each entry in loop.gen
-    ::    - generate plop for noon by rel:qui of prot from naan with roil
-    ::      at memoizing callsite
-    ::    ::having [c=@hail t=@hail s=sock l=naan] from loop.gen
-    ::    =/  p=plop  (~(rel qui prot.l) entr &)
-    ::    =/  n=noon  [p sock.l]
-    ::    [t s noon]
-    ::    XX  for assertion purposes 
-    ::    - THEY HAVE PLAYED US FOR ABSOLUTE FOOLS
-    ::  XX check this after memo in same manner as memo
-    ::    on hit
-    ::    -  reconstruct result in same manner as memo
-    ::    -  generate fresh callsites for each entry in loom and put in
-    ::       loop.gen, rue:qui noon with subject provenance at melo hit site
-    ::    -  insert each [fresh-callsite roil] into demo
-    ::    after fixpoint, intersect nop and demo and force roils
-    ::       from intersection to be indirect (delete from call.gen)
-    ::  XX  melo=(jar * meal) 
     =|  lord=(set @hail)  :: enclosing scope
     =/  tack=(list @hail)  ~[entr]
     =|  place=(unit spot)
@@ -514,7 +495,7 @@
       =.  melo.gen
         ?~  mel=(~(get by melo.gen) form)
           melo.gen
-        =/  lit  (skip u.mel |=([[s=sock *] *] =(sutt s)))
+        =/  lit  (skip u.mel |=([[s=sock *] *] =(sutt s)))  :: XX use sock.less directly?
         :: ~&  [%del-melo (lent u.mel) (lent lit)]
         ?:  =(~ lit)
           (~(del by melo.gen) form)
@@ -548,7 +529,8 @@
           ~&  [%ices-fail-2 k=k n=n m=m]
           [[ices lope] gen]
         ::
-        :: =+  ?.  lemo.c  ~
+        ::  NB: this should always hold:
+        ::
         ::     =/  hose  (~(get ja moan) form.c)
         ::     |-  ^-  (unit hone)
         ::     ?~  hose
@@ -559,8 +541,8 @@
         ::
         =.  ices  (~(put by ices) k [s form.c])
         =?  lope  ?!(.=(m n))  (~(put in lope) [s form.c])
-        ::  trim want/call/loop tables
         [[ices lope] gen]
+      ::  trim want/call/loop tables
       =.  gen  
         %-  ~(rep in kid)
         |=  [k=@hail =_gen]
