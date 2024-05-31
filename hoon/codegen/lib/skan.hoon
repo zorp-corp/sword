@@ -517,9 +517,9 @@
       =^  [ices=(map @hail [=sock form=*]) lope=(set [=sock form=*])]  gen
         %-  ~(rep in kid)
         |=  [k=@hail [ices=(map @hail [=sock form=*]) lope=(set [=sock form=*])] =_gen]
-        =/  n  t:(~(gut by loop.gen) k [t=k s=*sock l=*naan])
         =/  rem  (~(get by remo.gen) k)
-        =/  m  ?~(rem n site.u.rem)          :: XX look this up in loop.gen to avoid fail-1
+        =/  n  ?~(rem k site.u.rem)
+        =/  m  t:(~(gut by loop.gen) k [t=n s=*sock l=*naan])
         =/  w=cape  (~(gut by want.gen) m |)
         ?~  lac=(~(get by call.gen) m)
           ::  XX should this prevent memoization?
@@ -549,7 +549,7 @@
         ::     $(hose t.hose)
         ::
         =.  ices  (~(put by ices) k [s form.c])
-        =?  lope  ?!(.=(k n))  (~(put in lope) [s form.c])
+        =?  lope  ?!(.=(m n))  (~(put in lope) [s form.c])
         ::  trim want/call/loop tables
         [[ices lope] gen]
       =.  gen  
