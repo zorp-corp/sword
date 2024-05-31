@@ -8,19 +8,28 @@
 =|  memo=(jar * meme)
 :: cole is the cold state
 =|  cole=cool
+::
+::  compile-time verbosity control (un/comment individual faces)
+::
+=/  verb
+  :*  ::  call-site/spot lifecycle rubric:
+      ::    memo hit:         <1
+      ::    melo hit:         <2
+      ::    analysis:         >>
+      ::    pseudo-recursive: >1
+      ::    meloize:          >2
+      ::    finalize:         >3
+      ::
+      :: call=&
+      ::
+      jet=&           ::  jet re/registration
+      ::
+      ~
+  ==
+::
 ~%  %skan  ..ride  ~
 |%
 ++  thus  .
-::
-::  uncomment for logs. rubric:
-::    memo hit:         <1
-::    melo hit:         <2
-::    analysis:         >>
-::    pseudo-recursive: >1
-::    meloize:          >2
-::    finalize:         >3
-::
-:: ++  verbose  &
 ::
 ::    Analyze a subject/formula pair
 ++  rout
@@ -155,7 +164,7 @@
         ~(cut ca (~(uni ca a) b))
       =.  call.gen  (~(put by call.gen) entr [less more form ~ & | place space.i.germ])
       ::  XX assert not in melo.gen
-      =>  !@(verbose ((outa:blot "<1 " entr place space.i.germ) .) .)
+      =>  !@(call.verb ((outa:blot "<1 " entr place space.i.germ) .) .)
       [more gen]
     ::
     =/  gorm  (~(get ja melo.gen) form)
@@ -187,12 +196,12 @@
         %+  ~(put by loop.gen)  c
         u.op(prot.l (~(int qui rot) prot.l.u.op))
       ::
-      =>  !@(verbose ((onto:blot "<2 " entr place [site place space]:i.gorm) .) .)
+      =>  !@(call.verb ((onto:blot "<2 " entr place [site place space]:i.gorm) .) .)
       [more gen]
     ::
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
-      =>  !@(verbose ((into:blot ">> " entr place) .) .)
+      =>  !@(call.verb ((into:blot ">> " entr place) .) .)
       |-  ^-  [[=nomm =naan] _gen]
       ?+  form  [[[%not 0] [~ | ~]] gen]
           [b=^ c=*]
@@ -256,7 +265,7 @@
               =.  wire  [(~(get ja wait.gen) i.tack) wire]
               =.  wait.gen  (~(put by wait.gen) i.tack (zing (flop wire)))
               ::  XX print spot for loop target
-              =>  !@(verbose ((onto:blot ">1 " entr place i.tack ~ ~) .) .)
+              =>  !@(call.verb ((onto:blot ">1 " entr place i.tack ~ ~) .) .)
               [[[%two sown fond roil] [~ | ~]] gen]
             $(pore t.pore)
           ::  not recursive
@@ -411,7 +420,7 @@
                 u.folk
               ::
               =>  =*  dot  .
-                  !@  verbose
+                  !@  jet.verb
                     =/  cod
                       ?:(?!((~(has by core.cole.gen) nape)) %cold-into %cold-peat)
                     ~>  %slog.[0 [%rose [": " ~ ~] cod (smyt nape) ~]]
@@ -453,7 +462,7 @@
         =/  p=plop  (~(rel qui prot.l) entr &)
         =/  n=noon  [p sock.l]
         [[c t s n] loom]         :: XX skip if ?=(~ p) ?
-      %-  !@(verbose (outa:blot ">2 " entr place space) same)
+      %-  !@(call.verb (outa:blot ">2 " entr place space) same)
       [more gen] :: no finalizing here
     ::
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
@@ -577,7 +586,7 @@
         (~(add ja moan.gen) form [soot u.load ices lope fizz])
       gen
     ::  XX also log kid
-    %-  !@(verbose (outa:blot ">3 " entr place space) same)
+    %-  !@(call.verb (outa:blot ">3 " entr place space) same)
     [more gen]
   ::
   =.  moan  moan.gen
