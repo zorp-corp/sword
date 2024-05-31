@@ -34,6 +34,7 @@ num-derive = "0.3"
 num-traits = "0.2"
 signal-hook = "0.3"
 static_assertions = "1.1.0"
+lmdb-rkv = "0.14.0"
 
 [build-dependencies]
 autotools = "0.2"
