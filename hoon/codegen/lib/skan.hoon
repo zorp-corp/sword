@@ -35,7 +35,6 @@
 ++  rout
   ~/  %rout
   |=  [soot=* form=*]
-  =/  place-gen  *spot
   =/  colt  cole
   =/  queu=(list todo)  [[& soot] form ~]~
   =|  back=(list todo)
@@ -46,8 +45,9 @@
   =/  gnat  ((dif-ju core.cole) core.colt)
   =.  colt  cole
   =.  back
-    :: queue unanalyzed cold-state batteries
-    :: %-  ~(rep by gnat)
+    ::  queue unanalyzed cold-state batteries
+    ::  (shortest-path first gives a rough topo-sort)
+    ::
     %+  roll
       %+  sort
         %+  turn  ~(tap by gnat)
@@ -114,7 +114,6 @@
           remo=(map @hail [site=@hail =sock]) :: non-final memoization hits
       ==
   =^  entr  gen  [rail.gen gen(rail .+(rail.gen))]  :: initial callsite
-  =.  wait.gen  (~(add ja wait.gen) entr entr)
   =^  more  gen
     :: ~>  %bout.[0 `tank`?.(?=(^ calm.i.queu) %raw [%rose [": " ~ ~] leaf+['+' (scow %ud +.j.u.calm.i.queu)] (smyt -.j.u.calm.i.queu) ~])]
     =/  less=naan  [~ soot.i.queu]  :: subject
@@ -127,6 +126,7 @@
     |-  ^-  [naan _gen]
     =*  arm-loop  $
     =.  prot.less  (~(tag qui prot.less) [entr 1])
+    =.  wait.gen  (~(add ja wait.gen) entr entr)
     ::  check if memoized
     =/  germ  (~(get ja memo.gen) form)
     :: =>  (?:((gth 10 (lent germ)) same (slog leaf+(scow %ud (lent germ)) ?~(place-arm ~ [(blot ">> " u.place-arm) ~]))) .)
@@ -176,6 +176,8 @@
         =/  rot  (~(rue qui prot.less) plop.n)
         %+  ~(put by loop.gen)  c
         u.op(prot.l (~(int qui rot) prot.l.u.op))
+      ::
+      ::  XX also wait on site.i.gorm and/or vice versa?
       ::
       =>  !@(call.verb ((onto:blot "<2 " entr place [site place space]:i.gorm) .) .)
       [more gen]
@@ -252,7 +254,6 @@
           ::  not recursive
           :: analyze through direct call
           =/  dire  dire.gen
-          =.  wait.gen  (~(add ja wait.gen) roil roil) :: XX wrong
           =^  more  gen
             %=  arm-loop  
               form  data.sock.fork
@@ -433,8 +434,11 @@
         %+  ~(add ja melo.gen)  form
         =/  want=cape  (~(gut by want.gen) entr |)
         =/  have  (~(rel qui prot.more) entr cape.sock.more)
-        =/  such  (~(uni ca want) (~(gut by (~(due qui prot.more) cape.sock.more)) entr |))
-        =/  sutt  ~(norm so (~(app ca such) sock.less))
+        =/  sutt
+          =/  such
+            %-  ~(uni ca want)
+            (~(gut by (~(due qui prot.more) cape.sock.more)) entr |)
+          ~(norm so (~(app ca such) sock.less))
         =-  [[sutt want sock.more have space] entr place -]
         %-  ~(rep by loop.gen)
         |=  [[c=@hail t=@hail s=sock l=naan] loom=(list [c=@hail t=@hail s=sock =noon])]
@@ -487,8 +491,11 @@
       =+  (~(got by call.gen) site)
       ?>  ?=(^ load)
       =/  want=cape  (~(gut by want.gen) site |)
-      =/  such  (~(uni ca want) (~(gut by (~(due qui prot.more) cape.sock.more)) site |))
-      =/  sutt  ~(norm so (~(app ca such) sock.less))
+      =/  sutt
+        =/  such
+          %-  ~(uni ca want)
+          (~(gut by (~(due qui prot.more) cape.sock.more)) site |)
+        ~(norm so (~(app ca such) sock.less))
       =?  memo.gen  ?&(rect ?=(~ nop))
         =/  have  (~(rel qui prot.more) site cape.sock.more)
         (~(add ja memo.gen) form [sutt want sock.more have space])
