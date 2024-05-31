@@ -345,18 +345,22 @@ impl<T: Copy + Preserve> Hamt<T> {
                         *new_leaf_buffer = (*n, t);
                         let split = stem.hypothetical_index(chunk);
                         let new_buffer = stack.struct_alloc(stem.size() + 1);
-                        copy_nonoverlapping(stem.buffer, new_buffer, split);
+                        if split > 0 {
+                            copy_nonoverlapping(stem.buffer, new_buffer, split);
+                        }
                         *new_buffer.add(split) = Entry {
                             leaf: Leaf {
                                 len: 1,
                                 buffer: new_leaf_buffer,
                             },
                         };
-                        copy_nonoverlapping(
-                            stem.buffer.add(split),
-                            new_buffer.add(split + 1),
-                            stem.size() - split,
-                        );
+                        if stem.size() - split > 0 {
+                            copy_nonoverlapping(
+                                stem.buffer.add(split),
+                                new_buffer.add(split + 1),
+                                stem.size() - split,
+                            );
+                        }
                         *dest = Stem {
                             bitmap: stem.bitmap | chunk_to_bit(chunk),
                             typemap: stem.typemap & !chunk_to_bit(chunk),
@@ -628,8 +632,17 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             let next_chunk = traversal[depth].bitmap.trailing_zeros();
             let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
             let next_entry = *traversal[depth].buffer;
-            traversal[depth].bitmap >>= next_chunk + 1;
-            traversal[depth].typemap >>= next_chunk + 1;
+            if next_chunk >= 31 {
+                // if next_chunk == 31, then we will try to shift the bitmap by next_chunk+1 = 32 bits.
+                // The datatype is a u32, so this is equivalent to setting it to 0. If we do try
+                // to shift a u32 by 32 bits, then rust's overflow checking will catch it
+                // and crash the process.
+                traversal[depth].bitmap = 0;
+                traversal[depth].typemap = 0;
+            } else {
+                traversal[depth].bitmap >>= next_chunk + 1;
+                traversal[depth].typemap >>= next_chunk + 1;
+            }
             traversal[depth].buffer = traversal[depth].buffer.add(1);
 
             if next_type {
@@ -707,8 +720,17 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             let next_type = traversal[depth].typemap & (1 << next_chunk) != 0;
             let next_entry_ptr = traversal[depth].buffer;
 
-            traversal[depth].bitmap >>= next_chunk + 1;
-            traversal[depth].typemap >>= next_chunk + 1;
+            if next_chunk >= 31 {
+                // if next_chunk == 31, then we will try to shift the bitmap by next_chunk+1 = 32 bits.
+                // The datatype is a u32, so this is equivalent to setting it to 0. If we do try
+                // to shift a u32 by 32 bits, then rust's overflow checking will catch it
+                // and crash the process.
+                traversal[depth].bitmap = 0;
+                traversal[depth].typemap = 0;
+            } else {
+                traversal[depth].bitmap >>= next_chunk + 1;
+                traversal[depth].typemap >>= next_chunk + 1;
+            }
             traversal[depth].buffer = traversal[depth].buffer.add(1);
 
             if next_type {
