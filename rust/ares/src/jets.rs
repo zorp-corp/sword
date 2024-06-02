@@ -11,12 +11,13 @@ pub mod lute;
 pub mod math;
 pub mod nock;
 pub mod parse;
+pub mod seam;
 pub mod serial;
 pub mod sort;
 pub mod tree;
 
 use crate::flog;
-use crate::interpreter::{Context, Error, Mote};
+use crate::interpreter::{Context, Error, Mote, WhichInterpreter};
 use crate::jets::bits::*;
 use crate::jets::cold::Cold;
 use crate::jets::form::*;
@@ -185,7 +186,7 @@ pub fn get_jet_test_mode(_jet_name: Noun) -> bool {
 
 pub mod util {
     use super::*;
-    use crate::interpreter::interpret;
+    use crate::jets::nock::util::ctx_interpret;
     use crate::noun::{Noun, D, T};
     use bitvec::prelude::{BitSlice, Lsb0};
     use std::result;
@@ -290,7 +291,7 @@ pub mod util {
 
     pub fn kick(context: &mut Context, core: Noun, axis: Noun) -> result::Result<Noun, JetErr> {
         let formula: Noun = T(&mut context.stack, &[D(9), axis, D(0), D(1)]);
-        interpret(context, core, formula).map_err(JetErr::Fail)
+        ctx_interpret(context, core, formula).map_err(JetErr::Fail)
     }
 
     pub fn slam(context: &mut Context, gate: Noun, sample: Noun) -> result::Result<Noun, JetErr> {
@@ -309,7 +310,7 @@ pub mod util {
         use super::*;
         use crate::hamt::Hamt;
         use crate::mem::NockStack;
-        use crate::noun::{Atom, Noun, D, T};
+        use crate::noun::{Atom, Noun, D, NOUN_NONE, T};
         use crate::unifying_equality::unifying_equality;
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
@@ -321,6 +322,7 @@ pub mod util {
             let warm = Warm::new(&mut stack);
             let hot = Hot::init(&mut stack, URBIT_HOT_STATE);
             let cache = Hamt::<Noun>::new(&mut stack);
+            let line = NOUN_NONE;
 
             Context {
                 stack,
@@ -329,8 +331,10 @@ pub mod util {
                 warm,
                 hot,
                 cache,
+                line,
                 scry_stack: D(0),
                 trace_info: None,
+                which: WhichInterpreter::CodegenCodegen,
             }
         }
 

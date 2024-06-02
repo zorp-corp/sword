@@ -1,7 +1,8 @@
 /** Text processing jets
  */
-use crate::interpreter::{interpret, Context};
+use crate::interpreter::{Context};
 use crate::jets::util::{slot, BAIL_FAIL};
+use crate::jets::nock::util::ctx_interpret;
 use crate::jets::Result;
 use crate::noun::{Cell, Noun, D, T};
 use bitvec::order::Lsb0;
@@ -100,7 +101,7 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
                 );
                 unsafe {
                     let (new_cell, new_mem) = Cell::new_raw_mut(&mut context.stack);
-                    (*new_mem).head = interpret(context, element_subject, gate_battery)?;
+                    (*new_mem).head = ctx_interpret(context, element_subject, gate_battery)?;
                     *dest = new_cell.as_noun();
                     dest = &mut (*new_mem).tail;
                 }
