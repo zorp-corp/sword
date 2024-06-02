@@ -666,15 +666,20 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                 Todo9::ComputeResult => {
                                     if let Ok(mut formula) = res.slot_atom(kale.axis) {
                                         if !cfg!(feature = "sham_hints") {
-                                            if let Some((jet, _path)) = context.warm.find_jet(
+                                            if let Some((jet, path)) = context.warm.find_jet(
                                                 &mut context.stack,
                                                 &mut res,
                                                 &mut formula,
                                             ) {
                                                 match jet(context, res) {
                                                     Ok(jet_res) => {
+                                                        let stack = &mut context.stack;
+                                                        stack.pop::<NockWork>();
+                                                        if context.trace_info.is_some() {
+                                                            append_trace(stack, path);
+                                                            write_trace(context);
+                                                        };
                                                         res = jet_res;
-                                                        context.stack.pop::<NockWork>();
                                                         continue;
                                                     }
                                                     Err(JetErr::Punt) => {}
