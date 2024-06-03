@@ -253,7 +253,7 @@
     [?=(~ nop) gen]
   ::
   ++  seal
-    |=  [sane=? space=(unit spot) wise=(list @hail)]
+    |=  [sane=? wise=(list @hail)]
     ^-  lore
     %+  roll  wise
     |=  [site=@hail =_gen]
@@ -268,7 +268,7 @@
       ~(norm so (~(app ca such) sock.less))
     =?  memo.gen  ?&(rect sane)
       =/  have  (~(rel qui prot.more) site cape.sock.more)
-      (~(add ja memo.gen) form [sutt want sock.more have space])
+      (~(add ja memo.gen) form [sutt want sock.more have spod])
     =.  melo.gen
       ?~  mel=(~(get by melo.gen) form)
         melo.gen
@@ -534,7 +534,7 @@
     ::  write to memo table
     =/  want=cape  (~(gut by want.gen) entr |)
     ::  finalize waiting callsites
-    =.  gen  (seal sane space wise)
+    =.  gen  (seal sane wise)
     ::  XX also log kid
     =>  !@(call.verb ((outa:blot ">3 " entr place space) .) .)
     [more gen]
