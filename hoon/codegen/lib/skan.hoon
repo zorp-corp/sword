@@ -59,23 +59,22 @@
     =/  germ  (~(get ja memo.gen) form)
     :: =>  (?:((gth 10 (lent germ)) same (slog leaf+(scow %ud (lent germ)) ?~(place-arm ~ [(blot ">> " u.place-arm) ~]))) .)
     |-  ^-  (unit [naan lore])
-    ?^  germ
-      ?.  (~(huge so soot.i.germ) sock.less)
-        $(germ t.germ)
-      =/  mope  (~(rue qui prot.less) have.i.germ)
-      =.  mope  (~(cut qui mope) lord cape.root.i.germ)
-      =/  more  [mope root.i.germ]
-      ::  propagate memoized subject needs
-      =/  pant  (~(due qui prot.less) want.i.germ)
-      =.  want.gen
-        %-  (~(uno by want.gen) pant)
-        |=  [@hail a=cape b=cape]
-        ~(cut ca (~(uni ca a) b))
-      =.  call.gen  (~(put by call.gen) entr [less more form ~ & | place space.i.germ])
-      ::  XX assert not in melo.gen
-      =>  !@(call.verb ((outa:blot "<1 " entr place space.i.germ) .) .)
-      `[more gen]
-    ~
+    ?~  germ  ~
+    ?.  (~(huge so soot.i.germ) sock.less)
+      $(germ t.germ)
+    =/  mope  (~(rue qui prot.less) have.i.germ)
+    =.  mope  (~(cut qui mope) lord cape.root.i.germ)
+    =/  more  [mope root.i.germ]
+    ::  propagate memoized subject needs
+    =/  pant  (~(due qui prot.less) want.i.germ)
+    =.  want.gen
+      %-  (~(uno by want.gen) pant)
+      |=  [@hail a=cape b=cape]
+      ~(cut ca (~(uni ca a) b))
+    =.  call.gen  (~(put by call.gen) entr [less more form ~ & | place space.i.germ])
+    ::  XX assert not in melo.gen
+    =>  !@(call.verb ((outa:blot "<1 " entr place space.i.germ) .) .)
+    `[more gen]
   ::
   ++  melo
     |=  [entr=@hail lord=(set @hail) place=(unit spot) form=* less=naan]
@@ -83,66 +82,64 @@
     =/  gorm  (~(get ja melo.gen) form)
     :: =>  (?:((gth 10 (lent gorm)) same (slog leaf+(scow %ud (lent gorm)) ?~(place-arm ~ [(blot ">> " u.place-arm) ~]))) .)
     |-  ^-  (unit [naan lore])
-    ?^  gorm
-      ?.  (~(huge so soot.i.gorm) sock.less)
-        $(gorm t.gorm)
-      =/  mope  (~(rue qui prot.less) have.i.gorm)
-      =.  mope  (~(cut qui mope) lord cape.root.i.gorm)
-      =/  more  [mope root.i.gorm]
-      ::
-      =.  remo.gen  (~(put by remo.gen) entr [site.i.gorm sock.less])
-      ::
-      :: ::  propagate memoized subject needs
-      :: =/  pant  (~(due qui prot.less) want.i.gorm)
-      :: =.  want.gen
-      ::   %-  (~(uno by want.gen) pant)
-      ::   |=  [@hail a=cape b=cape]
-      ::   ~(cut ca (~(uni ca a) b))
-      :: =.  call.gen  (~(put by call.gen) entr [less more form ~ & & place space.i.gorm])
-      ::
-      =.  loop.gen
-        %+  roll  loom.i.gorm
-        |=  [[c=@hail t=@hail s=sock n=noon] gen=loop=_loop.gen]
-        ?~  op=(~(get by loop.gen) c)
-          loop.gen  :: NB: got:by has crashed here
-        =/  rot  (~(rue qui prot.less) plop.n)
-        %+  ~(put by loop.gen)  c
-        u.op(prot.l (~(int qui rot) prot.l.u.op))
-      ::
-      ::  XX also wait on site.i.gorm and/or vice versa?
-      ::
-      =>  !@(call.verb ((onto:blot "<2 " entr place [site place space]:i.gorm) .) .)
-      `[more gen]
-    ~
+    ?~  gorm  ~
+    ?.  (~(huge so soot.i.gorm) sock.less)
+      $(gorm t.gorm)
+    =/  mope  (~(rue qui prot.less) have.i.gorm)
+    =.  mope  (~(cut qui mope) lord cape.root.i.gorm)
+    =/  more  [mope root.i.gorm]
+    ::
+    =.  remo.gen  (~(put by remo.gen) entr [site.i.gorm sock.less])
+    ::
+    :: ::  propagate memoized subject needs
+    :: =/  pant  (~(due qui prot.less) want.i.gorm)
+    :: =.  want.gen
+    ::   %-  (~(uno by want.gen) pant)
+    ::   |=  [@hail a=cape b=cape]
+    ::   ~(cut ca (~(uni ca a) b))
+    :: =.  call.gen  (~(put by call.gen) entr [less more form ~ & & place space.i.gorm])
+    ::
+    =.  loop.gen
+      %+  roll  loom.i.gorm
+      |=  [[c=@hail t=@hail s=sock n=noon] gen=loop=_loop.gen]
+      ?~  op=(~(get by loop.gen) c)
+        loop.gen  :: NB: got:by has crashed here
+      =/  rot  (~(rue qui prot.less) plop.n)
+      %+  ~(put by loop.gen)  c
+      u.op(prot.l (~(int qui rot) prot.l.u.op))
+    ::
+    ::  XX also wait on site.i.gorm and/or vice versa?
+    ::
+    =>  !@(call.verb ((onto:blot "<2 " entr place [site place space]:i.gorm) .) .)
+    `[more gen]
   ::
   ++  loop
     |=  [roil=@hail place=(unit spot) tack=(list @hail) fork=naan sand=naan sirs=(jar * [site=@hail less=naan])]
     ^-  (unit lore)
     =/  pore  (~(get ja sirs) data.sock.fork)
     |-  ^-  (unit lore)
-    ?^  pore
+    ?~  pore  ~
+    =/  tote
       =/  cope  (~(gut by want.gen) site.i.pore |)
-      =/  tote  (~(app ca cope) sock.less.i.pore)
-      ?:  (~(huge so tote) sock.sand)
-        :: recursive
-        =.  loop.gen  (~(put by loop.gen) roil [site.i.pore sock.less.i.pore sand])
-        :: push
-        =|  wire=(list (list @hail))
-        |-  ^-  (unit lore)
-        ?>  ?=(^ tack)
-        =/  fire  (~(get ja wait.gen) i.tack)
-        ?.  (lien fire |=(h=@hail =(site.i.pore h)))
-          =/  wise  (~(get ja wait.gen) i.tack)
-          =.  wait.gen  (~(del by wait.gen) i.tack)
-          =.  wire  [wise wire]
-          $(tack t.tack)
-        =.  wire  [(~(get ja wait.gen) i.tack) wire]
-        =.  wait.gen  (~(put by wait.gen) i.tack (zing (flop wire)))
-        ::  XX print spot for loop target
-        =>  !@(call.verb ((onto:blot "<3 " roil place i.tack ~ ~) .) .)
-        `gen
+      (~(app ca cope) sock.less.i.pore)
+    ?.  (~(huge so tote) sock.sand)
       $(pore t.pore)
-    ~
+    :: recursive
+    =.  loop.gen  (~(put by loop.gen) roil [site.i.pore sock.less.i.pore sand])
+    :: push
+    =|  wire=(list (list @hail))
+    |-  ^-  (unit lore)
+    ?>  ?=(^ tack)
+    =/  fire  (~(get ja wait.gen) i.tack)
+    ?.  (lien fire |=(h=@hail =(site.i.pore h)))
+      %=  $
+        tack      t.tack
+        wire      [fire wire]
+        wait.gen  (~(del by wait.gen) i.tack)
+      ==
+    ::  XX print spot and site for loop target
+    =>  !@(call.verb ((onto:blot "<3 " roil place i.tack ~ ~) .) .)
+    `gen(wait (~(put by wait.gen) i.tack (zing (flop [fire wire]))))
   ::
   ++  hint
     |=  [form=h=@ mild=naan bite=naan]
@@ -167,9 +164,10 @@
         :: register root
         ?.  =(& cape.sock.bite)
           ~&  %fast-hide-root  gen
-        =.  core.cole.gen  (~(put ju core.cole.gen) ~[pell] sock.bite)
-        =.  root.cole.gen  (~(put ju root.cole.gen) data.sock.bite ~[pell])
-        gen
+        %=  gen
+          core.cole  (~(put ju core.cole.gen) ~[pell] sock.bite)
+          root.cole  (~(put ju root.cole.gen) data.sock.bite ~[pell])
+        ==
       ::
           [%0 a=@]
         ?:  =(0 @)  ~&  [%fast-bad-clue clue]  gen
@@ -213,9 +211,10 @@
               dot
             dot
         ::
-        =.  core.cole.gen  (~(put ju core.cole.gen) nape naut)
-        =.  batt.cole.gen  (~(put ju batt.cole.gen) data.batt nape)
-        gen
+        %=  gen
+          core.cole  (~(put ju core.cole.gen) nape naut)
+          batt.cole  (~(put ju batt.cole.gen) data.batt nape)
+        ==
       ==
     ==
   ::
@@ -395,44 +394,41 @@
         =^  [sown=nomm sand=naan]  gen  $(form s.form)
         =^  [fond=nomm fork=naan]  gen  $(form f.form)
         =.  trace.gen  trace
-        ?:  =(& cape.sock.fork)
-          :: direct call
-          :: =/  foo
-          ::   =/  bat  (~(pull so sock.sand) 2)
-          ::   ?.  &(?=(^ bat) =(& cape.u.bat) ?=(^ data.u.bat))  ~
-          ::   (~(get ju batt.cole) data.u.bat)
-          :: ~?  ?=(^ foo)  foo
-          =.  kids.gen  (~(put ju kids.gen) entr roil)
-          ::  record need
-          =/  pant  (~(due qui prot.fork) &) :: callsite provenance by needs
-          =.  want.gen
-            %-  (~(uno by want.gen) pant)
-            |=  [@hail a=cape b=cape]
-            ~(cut ca (~(uni ca a) b))
-          ::  check for recursion
-          ?^  l=(loop roil slace tack fork sand sirs)
-            [[[%two sown fond roil] [~ | ~]] u.l]
-          ::  not recursive
-          :: analyze through direct call
-          =/  dire  dire.gen
-          =^  more  gen
-            %=  arm-loop  
-              form  data.sock.fork
-              less  sand
-              entr  roil
-              sirs  (~(add ja sirs) data.sock.fork [roil sand])
-              lord  (~(put in lord) entr)
-              tack  [roil tack]
-              dire.gen   &
-              trace.gen  ~
-              place      slace
-            ==
-          =.  dire.gen  ?&(dire dire.gen)
-          =.  trace.gen  trace
-          [[[%two sown fond roil] more] gen]
-        ::  indirect call
-        =.  dire.gen  |
-        [[[%two sown fond roil] [~ | ~]] gen]
+        ?.  =(& cape.sock.fork)
+          ::  indirect call
+          [[[%two sown fond roil] [~ | ~]] gen(dire |)]
+        :: direct call
+        :: =/  foo
+        ::   =/  bat  (~(pull so sock.sand) 2)
+        ::   ?.  &(?=(^ bat) =(& cape.u.bat) ?=(^ data.u.bat))  ~
+        ::   (~(get ju batt.cole) data.u.bat)
+        :: ~?  ?=(^ foo)  foo
+        =.  kids.gen  (~(put ju kids.gen) entr roil)
+        ::  record need
+        =/  pant  (~(due qui prot.fork) &) :: callsite provenance by needs
+        =.  want.gen
+          %-  (~(uno by want.gen) pant)
+          |=  [@hail a=cape b=cape]
+          ~(cut ca (~(uni ca a) b))
+        ::  check for recursion
+        ?^  l=(loop roil slace tack fork sand sirs)
+          [[[%two sown fond roil] [~ | ~]] u.l]
+        ::  not recursive
+        :: analyze through direct call
+        =/  dire  dire.gen
+        =^  more  gen
+          %=  arm-loop
+            form  data.sock.fork
+            less  sand
+            entr  roil
+            sirs  (~(add ja sirs) data.sock.fork [roil sand])
+            lord  (~(put in lord) entr)
+            tack  [roil tack]
+            gen   gen(dire &, trace ~)
+            place  slace
+          ==
+        :-  [[%two sown fond roil] more]
+        gen(dire &(dire dire.gen), trace trace)
       ::
           [%3 c=*]
         =^  [knob=nomm mild=naan]  gen  $(form c.form)
@@ -491,15 +487,6 @@
         =^  [vice=nomm mild=naan]  gen  $(form v.form)
         =?  trace.gen  =(%spot h.form)
           [;;(spot data.sock.mild) trace.gen] :: XX soft
-        :: ~?  =(%fast h.form)
-        ::   :-  %fast-pre
-        ::   =*  clue  data.sock.mild
-        ::   ?.  ?&  =(& cape.sock.mild)
-        ::           ?=([name=$@(@tas [@tas @]) pare=* *] clue)
-        ::       ==
-        ::     ~
-        ::   ?@  name.clue  name.clue
-        ::   (crip "{(trip -.name.clue)}.{(trip (scot %ud +.name.clue))}")
         =^  [then=nomm bite=naan]  gen  $(form f.form)
         ::  save body formula
         =.  hint.gen  (~(put ju hint.gen) entr hare)
@@ -537,7 +524,7 @@
         =/  p=plop  (~(rel qui prot.l) entr &)
         =/  n=noon  [p sock.l]
         [[c t s n] loom]         :: XX skip if ?=(~ p) ?
-      %-  !@(call.verb (outa:blot ">2 " entr place space) same)
+      =>  !@(call.verb ((outa:blot ">2 " entr place space) .) .)
       [more gen] :: no finalizing here
     ::
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
@@ -548,7 +535,7 @@
     ::  finalize waiting callsites
     =.  gen  (seal sane space wise)
     ::  XX also log kid
-    %-  !@(call.verb (outa:blot ">3 " entr place space) same)
+    =>  !@(call.verb ((outa:blot ">3 " entr place space) .) .)
     [more gen]
   --
 ::
@@ -616,18 +603,23 @@
     bart-loop(bart t.bart)
   :: analyze a formula
   =/  gen=lore  +:(scan:snak i.queu)
-  =.  moan  moan.gen
-  =.  memo  memo.gen
-  =.  cole  cole.gen
-  =/  want  (fall (~(get by want.gen) `@hail`0x0) |) :: XX
-  =/  boot
-    :-
+  %=    cold-loop
+      queu  t.queu
+      moan  moan.gen
+      memo  memo.gen
+      cole
+    ?~  calm.i.queu  cole.gen
+    =/  boot
+      :_  form
+      =/  want  (fall (~(get by want.gen) `@hail`0x0) |) :: first site is always 0x0
       =>  [s=soot.i.queu w=want so=so ca=ca]
       ~+  ~(norm so (~(app ca w) s))
-    form
-  =?  call.cole  ?=(^ calm.i.queu)  (~(put by call.cole) boot j.u.calm.i.queu)
-  =?  back.cole  ?=(^ calm.i.queu)  (~(put ju back.cole) j.u.calm.i.queu boot)
-  cold-loop(queu t.queu)
+    =*  pax  j.u.calm.i.queu
+    %=  cole.gen
+      call  (~(put by call.cole.gen) boot pax)
+      back  (~(put ju back.cole.gen) pax boot)
+    ==
+  ==
 --
 =<
 ::  utilities
