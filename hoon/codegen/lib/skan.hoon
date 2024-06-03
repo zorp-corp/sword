@@ -157,6 +157,7 @@
         (crip "{(trip -.name.clue)}.{(trip (scot %ud +.name.clue))}")
       |-  ^-  lore
       ?+  pare.clue  ~&  [%fast-bad-clue clue]  gen
+          ::  XX may elide crashes [%11 [%1 *] *]
           [%11 * *]
         $(pare.clue +>.pare.clue)
       ::
