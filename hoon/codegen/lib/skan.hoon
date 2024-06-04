@@ -70,6 +70,7 @@
     ?~  germ  ~
     ?.  (~(huge so soot.i.germ) sock.less)
       $(germ t.germ)
+    =>  !@(call.verb ((outa:blot "<1 " entr place.dad space.i.germ) .) .)
     =/  mope  (~(rue qui prot.less) have.i.germ)
     =.  mope  (~(cut qui mope) lord.dad cape.root.i.germ)
     =/  more  [mope root.i.germ]
@@ -81,7 +82,6 @@
       ~(cut ca (~(uni ca a) b))
     =.  call.gen  (~(put by call.gen) entr [less more form ~ & | place.dad space.i.germ])
     ::  XX assert not in melo.gen
-    =>  !@(call.verb ((outa:blot "<1 " entr place.dad space.i.germ) .) .)
     `[more gen]
   ::
   ++  melo
@@ -94,6 +94,7 @@
     ?~  gorm  ~
     ?.  (~(huge so soot.i.gorm) sock.less)
       $(gorm t.gorm)
+    =>  !@(call.verb ((onto:blot "<2 " entr place.dad [site place space]:i.gorm) .) .)
     =/  mope  (~(rue qui prot.less) have.i.gorm)
     =.  mope  (~(cut qui mope) lord.dad cape.root.i.gorm)
     =/  more  [mope root.i.gorm]
@@ -119,7 +120,6 @@
     ::
     ::  XX also wait on site.i.gorm and/or vice versa?
     ::
-    =>  !@(call.verb ((onto:blot "<2 " entr place.dad [site place space]:i.gorm) .) .)
     `[more gen]
   ::
   ++  loop
@@ -230,6 +230,28 @@
       ==
     ==
   ::
+  ++  bide
+    ~/  %bide
+    |=  [entr=@hail form=* less=naan more=naan space=(unit spot)]
+    ^+  melo.gen
+    =>  !@(call.verb ((outa:blot ">2 " entr place.dad space) .) .)
+    =/  want=cape  (~(gut by want.gen) entr |)
+    =/  have  (~(rel qui prot.more) entr cape.sock.more)
+    =/  sutt
+      =/  such
+        %-  ~(uni ca want)
+        (~(gut by (~(due qui prot.more) cape.sock.more)) entr |)
+      ~(norm so (~(app ca such) sock.less))
+    =/  loom
+      %-  ~(rep by loop.gen)
+      |=  [[c=@hail t=@hail s=sock l=naan] loom=(list [c=@hail t=@hail s=sock =noon])]
+      ^+  loom
+      :: XX maybe require that t is in sirs
+      =/  p=plop  (~(rel qui prot.l) entr &)
+      =/  n=noon  [p sock.l]
+      [[c t s n] loom]         :: XX skip if ?=(~ p) ?
+    (~(add ja melo.gen) form [[sutt want sock.more have space] entr place.dad loom])
+  ::
   ++  mend
     =<  $
     ~%  %mend  ..mend  ~
@@ -267,8 +289,11 @@
   ::
   ++  seal
     ~/  %seal
-    |=  [sane=? wise=(list @hail)]
+    |=  [entr=@hail sane=? wise=(list @hail) space=(unit spot)]
     ^-  lore
+    =>  ::  XX also log kid
+        !@(call.verb ((outa:blot ">3 " entr place.dad space) .) .)
+    ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
     %+  roll  wise
     |=  [site=@hail =_gen]
     =/  kid  (~(get ju kids.gen) site)
@@ -417,11 +442,6 @@
           ::  indirect call
           [[[%two sown fond roil] [~ | ~]] gen(dire |)]
         :: direct call
-        :: =/  foo
-        ::   =/  bat  (~(pull so sock.sand) 2)
-        ::   ?.  &(?=(^ bat) =(& cape.u.bat) ?=(^ data.u.bat))  ~
-        ::   (~(get ju batt.cole) data.u.bat)
-        :: ~?  ?=(^ foo)  foo
         =.  kids.gen  (~(put ju kids.gen) entr roil)
         ::  record need
         =/  pant  (~(due qui prot.fork) &) :: callsite provenance by needs
@@ -519,42 +539,20 @@
         [[[%elf rend pond] [~ | ~]] gen]
       ==
     ::
-    ::  write to call table
-    =/  space=(unit spot)  ?~(trace.gen ~ `(rear trace.gen))
     =.  prot.more  (~(cut qui prot.more) lord.dad cape.sock.more)
+    :-  more
+    =/  space=(unit spot)  ?~(trace.gen ~ `(rear trace.gen))
+    ::  write to call table
     =.  call.gen  (~(put by call.gen) entr [less more form `load dire.gen | place.dad space])
-    =/  wise  (~(get ja wait.gen) entr)
+    =/  wise      (~(get ja wait.gen) entr)
     =.  wait.gen  (~(del by wait.gen) entr)
     ?:  =(~ wise)
-      =.  melo.gen
-        %+  ~(add ja melo.gen)  form
-        =/  want=cape  (~(gut by want.gen) entr |)
-        =/  have  (~(rel qui prot.more) entr cape.sock.more)
-        =/  sutt
-          =/  such
-            %-  ~(uni ca want)
-            (~(gut by (~(due qui prot.more) cape.sock.more)) entr |)
-          ~(norm so (~(app ca such) sock.less))
-        =-  [[sutt want sock.more have space] entr place.dad -]
-        %-  ~(rep by loop.gen)
-        |=  [[c=@hail t=@hail s=sock l=naan] loom=(list [c=@hail t=@hail s=sock =noon])]
-        ^+  loom
-        :: XX maybe require that t is in sirs
-        =/  p=plop  (~(rel qui prot.l) entr &)
-        =/  n=noon  [p sock.l]
-        [[c t s n] loom]         :: XX skip if ?=(~ p) ?
-      =>  !@(call.verb ((outa:blot ">2 " entr place.dad space) .) .)
-      [more gen] :: no finalizing here
-    ::
-    ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
+      :: no finalizing here
+      gen(melo (bide entr form less more space))
     ::  fixed-point loops to propagate their needs and check that they are really loops
     =^  sane=?  gen  mend
-    ::  write to memo table
     ::  finalize waiting callsites
-    =.  gen  (seal sane wise)
-    ::  XX also log kid
-    =>  !@(call.verb ((outa:blot ">3 " entr place.dad space) .) .)
-    [more gen]
+    (seal entr sane wise space)
   --
 ::
 ::    Analyze a subject/formula pair
