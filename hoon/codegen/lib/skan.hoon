@@ -51,9 +51,11 @@
   ==
 ::
 ++  snak
+  ~%  %snak  ..snak  ~
   |_  gen=lore
   ::
   ++  memo
+    ~/  %memo
     |=  [entr=@hail lord=(set @hail) place=(unit spot) form=* less=naan]
     ^-  (unit [naan lore])
     =/  germ  (~(get ja memo.gen) form)
@@ -77,6 +79,7 @@
     `[more gen]
   ::
   ++  melo
+    ~/  %melo
     |=  [entr=@hail lord=(set @hail) place=(unit spot) form=* less=naan]
     ^-  (unit [naan lore])
     =/  gorm  (~(get ja melo.gen) form)
@@ -114,6 +117,7 @@
     `[more gen]
   ::
   ++  loop
+    ~/  %loop
     |=  [roil=@hail place=(unit spot) tack=(list @hail) fork=naan sand=naan sirs=(jar * [site=@hail less=naan])]
     ^-  (unit lore)
     =/  pore  (~(get ja sirs) data.sock.fork)
@@ -142,6 +146,7 @@
     `gen(wait (~(put by wait.gen) i.tack (zing (flop [fire wire]))))
   ::
   ++  hint
+    ~/  %hint
     |=  [form=h=@ mild=naan bite=naan]
     ^-  lore
     ?+    h.form  gen
@@ -220,7 +225,9 @@
     ==
   ::
   ++  mend
-    ^-  [? lore]
+    =<  $
+    ~%  %mend  ..mend  ~
+    |.  ^-  [? lore]
     =/  sap  gen  :: for reset
     =|  nop=(map @hail [t=@hail s=sock l=naan])
     |-  ^-  [? lore]
@@ -253,6 +260,7 @@
     [?=(~ nop) gen]
   ::
   ++  seal
+    ~/  %seal
     |=  [sane=? wise=(list @hail)]
     ^-  lore
     %+  roll  wise
@@ -346,6 +354,7 @@
     gen
   ::
   ++  scan
+    ~/  %scan
     |=  queu=i=todo
     ^-  [naan lore]
     =^  entr  gen  [rail.gen gen(rail .+(rail.gen))]  :: initial callsite
