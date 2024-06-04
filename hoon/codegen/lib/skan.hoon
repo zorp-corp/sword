@@ -60,12 +60,16 @@
               place=(unit spot)
       ==  ==
   |%
+  ::  +memo: check for memoized, finalized analysis
+  ::
+  ::    hits are guaranteed complete
+  ::    XX: add debug sanity-check that entries are never in [melo.gen]
+  ::
   ++  memo
     ~/  %memo
     |=  [entr=@hail form=* less=naan]
     ^-  (unit [naan lore])
     =/  germ  (~(get ja memo.gen) form)
-    :: =>  (?:((gth 10 (lent germ)) same (slog leaf+(scow %ud (lent germ)) ?~(place-arm ~ [(blot ">> " u.place-arm) ~]))) .)
     |-  ^-  (unit [naan lore])
     ?~  germ  ~
     ?.  (~(huge so soot.i.germ) sock.less)
@@ -81,8 +85,12 @@
       |=  [@hail a=cape b=cape]
       ~(cut ca (~(uni ca a) b))
     =.  call.gen  (~(put by call.gen) entr [less more form ~ & | place.dad space.i.germ])
-    ::  XX assert not in melo.gen
     `[more gen]
+  ::
+  ::  +melo: check for in-progress analysis
+  ::
+  ::    hits are estimates, must be validated in +seal
+  ::    XX: add [entr] to [wait.gen] to avoid "priority inversion"
   ::
   ++  melo
     ~/  %melo
@@ -100,15 +108,6 @@
     =/  more  [mope root.i.gorm]
     ::
     =.  remo.gen  (~(put by remo.gen) entr [site.i.gorm sock.less])
-    ::
-    :: ::  propagate memoized subject needs
-    :: =/  pant  (~(due qui prot.less) want.i.gorm)
-    :: =.  want.gen
-    ::   %-  (~(uno by want.gen) pant)
-    ::   |=  [@hail a=cape b=cape]
-    ::   ~(cut ca (~(uni ca a) b))
-    :: =.  call.gen  (~(put by call.gen) entr [less more form ~ & & place.dad space.i.gorm])
-    ::
     =.  loop.gen
       %+  roll  loom.i.gorm
       |=  [[c=@hail t=@hail s=sock n=noon] gen=loop=_loop.gen]
@@ -121,6 +120,11 @@
     ::  XX also wait on site.i.gorm and/or vice versa?
     ::
     `[more gen]
+  ::
+  ::  +loop: check for recursion
+  ::
+  ::    hits are estimates, must be validated in +mend and +seal
+  ::    XX: improve debug output (link site -> target -> finalization site)
   ::
   ++  loop
     ~/  %loop
@@ -150,6 +154,10 @@
     ::  XX print spot and site for loop target
     =>  !@(call.verb ((onto:blot "<3 " roil place.dad i.tack.dad ~ ~) .) .)
     `gen(wait (~(put by wait.gen) i.tack.dad (zing (flop [fire wire]))))
+  ::
+  ::  +hint: update lore after analyzing through hint (currently just %fast)
+  ::
+  ::    XX: validate recursive hint processing, refactor
   ::
   ++  hint
     ~/  %hint
@@ -230,6 +238,8 @@
       ==
     ==
   ::
+  ::  +bide: save non-final results for "meloization"
+  ::
   ++  bide
     ~/  %bide
     |=  [entr=@hail form=* less=naan more=naan space=(unit spot)]
@@ -251,6 +261,10 @@
       =/  n=noon  [p sock.l]
       [[c t s n] loom]         :: XX skip if ?=(~ p) ?
     (~(add ja melo.gen) form [[sutt want sock.more have space] entr place.dad loom])
+  ::
+  ::  +mend: fixpoints to validate pseudo-recursive estimates
+  ::
+  ::    XX performance
   ::
   ++  mend
     =<  $
@@ -286,6 +300,12 @@
       nop
     ?.  =(nap nop)  redo-loop
     [?=(~ nop) gen]
+  ::
+  ::  +seal: finalize analysis (including recursive descendants)
+  ::
+  ::    XX: incorporate "melo" hits into wait.gen to avoid "priority inversion"
+  ::    XX: debug %ices-fail-2, prevent memoization
+  ::    XX: refactor
   ::
   ++  seal
     ~/  %seal
@@ -383,6 +403,8 @@
     =?  moan.gen  (levy loan |=([soot=sock norm=food] !=(soot ^soot)))
       (~(add ja moan.gen) form [soot u.load ices lope fizz])
     gen
+  ::
+  ::  +scan: statefully analyze formula against subject
   ::
   ++  scan
     ~/  %scan
