@@ -1,8 +1,6 @@
 /** Disk storage for events. */
 use crate::jets::list::util::lent;
 use crate::lmdb::{lmdb_gulf, lmdb_read_meta};
-use crate::mem::NockStack;
-use crate::mug::mug_u32;
 use crate::noun::{IndirectAtom, Noun, D, T};
 use crate::serf::Context;
 use crate::serialization::cue;
@@ -109,7 +107,7 @@ pub fn disk_read_meta(env: &Environment, key: &str) -> Result<u64> {
 /// Read `len` events from the database, starting at `eve`.
 pub fn disk_read_list(ctx: &mut Context, eve: u64, len: u64) -> Option<Noun> {
     let stack = &mut ctx.nock_context.stack;
-    let mut events: Noun = D(0);
+    let mut eves: Noun = D(0);
     let db_name = "EVENTS";
     let log = &ctx.log;
     let env = &log.env;
@@ -117,15 +115,15 @@ pub fn disk_read_list(ctx: &mut Context, eve: u64, len: u64) -> Option<Noun> {
     let db = unsafe { txn.open_db(Some(db_name)).unwrap() };
     let cursor = txn.open_ro_cursor(db).unwrap();
     let mut i = eve;
-    while i <= eve + len {
+    while i < eve + len {
         let key = u64::to_le_bytes(i);
         let value = cursor.get(Some(&key), None, ffi::MDB_SET_KEY).unwrap().1;
-        println!("event {}: len: {}", i, value.len());
         let _mug = u32::from_le_bytes(value[0..4].try_into().unwrap());
-        let jam = unsafe { IndirectAtom::new_raw_bytes_ref(stack, &value[5..]) };
+        let jam = unsafe { IndirectAtom::new_raw_bytes_ref(stack, &value[4..]) };
         let e = cue(stack, jam.as_atom());
-        events = T(stack, &[e, events]);
+        eves = T(stack, &[e, eves]);
         i += 1;
     }
-    Some(events)
+    // eprintln!("disk_read_list: read {} events\r", lent(eves).unwrap());
+    Some(eves)
 }

@@ -96,8 +96,8 @@ impl Context {
         trace_info: Option<TraceInfo>,
         constant_hot_state: &[HotEntry],
     ) -> Context {
-        let mut snap_path = pier_path.clone();
-        snap_path.push(".urb/chk");
+        let snap_path = pier_path.join(".urb/chk");
+        // eprintln!("load: pma: {:?}\r", snap_path);
         pma_open(snap_path).expect("serf: pma open failed");
 
         let snapshot_version = pma_meta_get(BTMetaField::SnapshotVersion as usize);
@@ -109,6 +109,8 @@ impl Context {
             }),
             _ => panic!("Unsupported snapshot version"),
         };
+
+        // eprintln!("load: new context coming up\r");
 
         Context::new(pier_path, trace_info, snapshot, constant_hot_state)
     }
@@ -179,8 +181,7 @@ impl Context {
             trace_info,
         };
 
-        let mut log_path = pier_path.clone();
-        log_path.push(".urb/log");
+        let log_path = pier_path.join(".urb/log");
         let log = Disk::new(log_path);
 
         Context {
@@ -320,10 +321,10 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
     let pier_path = PathBuf::from(pier_path_string);
-    let mut snap_path = pier_path.clone();
-    snap_path.push(".urb");
-    snap_path.push("chk");
+    // eprintln!("serf: pier path: {:?}\r", pier_path);
+    let snap_path = pier_path.join(".urb/chk");
     create_dir_all(&snap_path)?;
+    // eprintln!("serf: snap path: {:?}\r", snap_path);
 
     let wag: u32 = std::env::args()
         .nth(4)
@@ -334,6 +335,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
             "flag bitmap is not integer",
         )))?;
 
+    let load_path = pier_path.clone();
     let mut trace_info = if wag & FLAG_TRACE != 0 {
         create_trace_file(pier_path).ok()
     } else {
@@ -349,7 +351,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         }
     }
 
-    let mut context = Context::load(snap_path, trace_info, constant_hot_state);
+    let mut context = Context::load(load_path, trace_info, constant_hot_state);
     context.ripe();
 
     // Can't use for loop because it borrows newt
@@ -517,7 +519,7 @@ pub fn play_life(context: &mut Context, eve: Noun) {
     }
 }
 
-fn play_list(context: &mut Context, mut lit: Noun) {
+pub fn play_list(context: &mut Context, mut lit: Noun) {
     let mut eve = context.event_num;
     while let Ok(cell) = lit.as_cell() {
         let ovo = cell.head();
@@ -527,6 +529,8 @@ fn play_list(context: &mut Context, mut lit: Noun) {
         } else {
             None
         };
+
+        // eprintln!("play: {}\r", eve);
 
         match soft(context, ovo, trace_name) {
             Ok(res) => {

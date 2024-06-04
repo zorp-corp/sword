@@ -22,18 +22,21 @@ pub fn lmdb_read_meta(env: &Environment, key: &str) -> Result<u64> {
 pub fn lmdb_gulf(env: &Environment) -> (u64, u64) {
     let db_name = "EVENTS";
     let txn = env.begin_ro_txn().unwrap();
-    let db = unsafe { txn.open_db(Some(db_name)).unwrap() };
-    let cursor = txn.open_ro_cursor(db).unwrap();
-    if let Some(first) = cursor.get(None, None, ffi::MDB_FIRST).unwrap().0 {
-        let low = u64::from_le_bytes(first.try_into().unwrap());
-        if let Some(last) = cursor.get(None, None, ffi::MDB_LAST).unwrap().0 {
-            let high = u64::from_le_bytes(last.try_into().unwrap());
-            return (low, high);
+    if let Ok(db) = unsafe { txn.open_db(Some(db_name)) } {
+        let cursor = txn.open_ro_cursor(db).unwrap();
+        if let Some(first) = cursor.get(None, None, ffi::MDB_FIRST).unwrap().0 {
+            let low = u64::from_le_bytes(first.try_into().unwrap());
+            if let Some(last) = cursor.get(None, None, ffi::MDB_LAST).unwrap().0 {
+                let high = u64::from_le_bytes(last.try_into().unwrap());
+                return (low, high);
+            } else {
+                panic!("Couldn't get last event from the database");
+            }
         } else {
-            panic!("Couldn't get last event from the database");
+            panic!("Couldn't get first event from the database");
         }
     } else {
-        panic!("Couldn't get first event from the database");
+        (0, 0)
     }
 }
 
@@ -48,7 +51,7 @@ where
     let db = unsafe { txn.open_db(Some(db_name)).unwrap() };
     let mut cursor = txn.open_ro_cursor(db).unwrap();
     for (key, value) in cursor.iter_from(&u64::to_le_bytes(eve)) {
-        println!("key: {:?}", key);
+        // eprintln!("key: {:?}\r", key);
         if key > u64::to_le_bytes(eve + len as u64).as_ref() {
             break;
         }

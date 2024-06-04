@@ -4,9 +4,8 @@ use std::result::Result as StdResult;
 
 use crate::disk::*;
 use crate::jets::list::util::lent;
-use crate::noun::Noun;
-use crate::persist::pma_sync;
-use crate::serf::{Context, play_life};
+use crate::persist::{pma_close, pma_sync};
+use crate::serf::{Context, play_life, play_list};
 
 #[derive(Debug)]
 pub enum Error {
@@ -49,27 +48,24 @@ pub struct Mars {
 
 /// Do a boot.
 fn mars_boot(mars: &mut Mars, eve: u64) -> Result<()> {
-    let log = &mut mars.ctx.log;
     let ctx = &mut mars.ctx;
     let seq = disk_read_list(ctx, 1, eve).unwrap();  // boot sequence
-    println!("--------------- bootstrap starting ----------------");
-    println!("boot: 1-{}", lent(seq).unwrap());
+    // eprintln!("--------------- bootstrap starting ----------------\r");
+    // eprintln!("boot: 1-{}\r", lent(seq).unwrap());
     play_life(ctx, seq);
-    println!("--------------- bootstrap complete ----------------");
+    // eprintln!("--------------- bootstrap complete ----------------\r");
     Ok(())
 }
 
 /// Replay up to `eve`, snapshot every `sap` events.
-pub fn mars_play(mut mars: Mars, mut eve: u64, sap: u64) -> u64 {
-    println!("mars_play: mars.sent={} mars.done={} eve={}, sap={}", mars.sent, mars.done, eve, sap);
-
+pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     let mut played = 0u64;
 
     if eve == 0 {
         eve = mars.ctx.log.done;
     } else if eve <= mars.ctx.log.done {
-        println!("mars: already computed {}", eve);
-        println!("      state={}, &mut mars.log={}", mars.done, mars.ctx.log.done);
+        // eprintln!("mars: already computed {}\r", eve);
+        // eprintln!("      state={}, &mut mars.log={}\r", mars.done, mars.ctx.log.done);
         return played;
     } else {
         eve = min(eve, mars.ctx.log.done);
@@ -86,58 +82,39 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, sap: u64) -> u64 {
     if mars.done == 0 {
         let life = disk_read_meta(&mars.ctx.log.env, "life").unwrap();
 
-        mars_boot(&mut mars, life).unwrap();
+        mars_boot(&mut mars, life + 1).unwrap();
 
         mars.sent = life;
         mars.done = life;
-
-        pma_sync();
     }
 
-    println!("---------------- playback starting ----------------");
+    // eprintln!("---------------- playback starting ----------------\r");
 
     if (eve + 1) == mars.ctx.log.done {
-        println!("play: event {}", mars.ctx.log.done);
+        // eprintln!("play: event {}\r", mars.ctx.log.done);
     } else if eve != mars.ctx.log.done {
-        println!("play: events {}-{} of {}", (mars.done + 1), eve, mars.ctx.log.done);
+        // eprintln!("play: events {}-{} of {}\r", (mars.done + 1), eve, mars.ctx.log.done);
     } else {
-        println!("play: events {}-{}", (mars.done + 1), eve);
+        // eprintln!("play: events {}-{}\r", (mars.done + 1), eve);
     }
 
-    {
-        let mut past = mars.done; // last snapshot
-        // let meme = 0;         // last event to bail:meme
-        // let shot = 0;         // meme retry count
+    let past = mars.done; // last snapshot
+    
+    let events = disk_read_list(&mut mars.ctx, past + 1, eve - mars.done).unwrap();
+    play_list(&mut mars.ctx, events);
 
-        while mars.done < eve {
-            match mars_play_batch(&mut mars, true, 1024) {
-                Ok(_) => {
-                    if sap > 0 && (mars.done - past) >= sap {
-                        pma_sync();
-                        past = mars.done;
-                        println!("play ({}): save", mars.done);
-                    } else {
-                        println!("play: ({}): done", mars.done);
-                    }
-                    break;
-                }
-                Err(e) => { // XX implement retries and other error handling
-                    println!("play: error {}", e);
-                    break;
-                }
-            }
-        }
-    }
-
-    println!("---------------- playback complete ----------------");
-
-    pma_sync();
+    // eprintln!("---------------- playback complete ----------------\r");
 
     played
 }
 
 /// Play a batch of events. XX add a `when` parameter.
-fn mars_play_batch(mars: &mut Mars, mug: bool, batch: u32) -> Result<()> {
-    let log: &mut Disk = &mut mars.ctx.log;
-    Ok(())
+fn _mars_play_batch(mars: &mut Mars, _mug: bool, batch: u64) -> Result<()> {
+    let start = mars.done + 1;
+    if let Some(eve) = disk_read_list(&mut mars.ctx, start, batch) {
+        play_list(&mut mars.ctx, eve);
+        Ok(())
+    } else {
+        Err(Error::PlayEventLogFailure)
+    }
 }

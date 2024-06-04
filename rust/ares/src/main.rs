@@ -1,7 +1,7 @@
-use ares::disk::Disk;
 use ares::jets::hot::URBIT_HOT_STATE;
 use ares::mars::{mars_play, Mars};
 use ares::serf::{Context, serf};
+use ares::trace::create_trace_file;
 use std::env;
 use std::io;
 use std::path::PathBuf;
@@ -35,6 +35,7 @@ fn main() -> io::Result<()> {
     }
 
     if cmd == "serf" {
+        // eprintln!("ares: serf\r");
         return serf(URBIT_HOT_STATE);
     } else if cmd == "play" {
         let pier_path = PathBuf::from(
@@ -43,8 +44,11 @@ fn main() -> io::Result<()> {
                 .expect("Must provide path to log directory"),
         );
 
-        let ctx = Context::load(pier_path.clone(), None, URBIT_HOT_STATE);
-        println!("ctx.event_num: {}", ctx.event_num);
+        // eprintln!("\rares: play: loading context from {:?}\r", pier_path);
+        let trace_path = pier_path.clone();
+        let trace_info = create_trace_file(trace_path).ok();
+        let mut ctx = Context::load(pier_path.clone(), trace_info, URBIT_HOT_STATE);
+        ctx.ripe();
         
         let sent = ctx.event_num;
         let done = sent;
@@ -69,6 +73,7 @@ fn main() -> io::Result<()> {
             .expect("Failed to parse snapshot interval");
 
         mars_play(mars, eve, sap);
+        // eprintln!("play: done\r");
     }
 
     Ok(())
