@@ -408,7 +408,7 @@
       ::
           [%2 s=* f=*]
         =/  trace  trace.gen
-        =/  slace=(unit spot)  ?~(trace ~ `i.trace)  :: spot at site
+        =.  place.dad  ?~(trace ~ `i.trace)     :: spot at site
         =^  roil  gen  [rail.gen gen(rail .+(rail.gen))]
         =^  [sown=nomm sand=naan]  gen  $(form s.form)
         =^  [fond=nomm fork=naan]  gen  $(form f.form)
@@ -430,7 +430,7 @@
           |=  [@hail a=cape b=cape]
           ~(cut ca (~(uni ca a) b))
         ::  check for recursion
-        ?^  l=(loop(place.dad slace) roil fork sand)
+        ?^  l=(loop roil fork sand)
           [[[%two sown fond roil] [~ | ~]] u.l]
         ::  not recursive
         :: analyze through direct call
@@ -445,7 +445,6 @@
                     sirs  (~(add ja sirs.dad) data.sock.fork [roil sand])
                     lord  (~(put in lord.dad) entr)
                     tack  [roil tack.dad]
-                    place  slace
           ==      ==
         :-  [[%two sown fond roil] more]
         gen(dire &(dire dire.gen), trace trace)
