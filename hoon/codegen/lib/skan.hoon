@@ -52,11 +52,17 @@
 ::
 ++  snak
   ~%  %snak  ..snak  ~
-  |_  gen=lore
-  ::
+  =|  $:  gen=lore
+      $=  dad
+          $:  sirs=(jar * [site=@hail less=naan])
+              lord=(set @hail)  :: enclosing scope
+              tack=(list @hail)
+              place=(unit spot)
+      ==  ==
+  |%
   ++  memo
     ~/  %memo
-    |=  [entr=@hail lord=(set @hail) place=(unit spot) form=* less=naan]
+    |=  [entr=@hail form=* less=naan]
     ^-  (unit [naan lore])
     =/  germ  (~(get ja memo.gen) form)
     :: =>  (?:((gth 10 (lent germ)) same (slog leaf+(scow %ud (lent germ)) ?~(place-arm ~ [(blot ">> " u.place-arm) ~]))) .)
@@ -65,7 +71,7 @@
     ?.  (~(huge so soot.i.germ) sock.less)
       $(germ t.germ)
     =/  mope  (~(rue qui prot.less) have.i.germ)
-    =.  mope  (~(cut qui mope) lord cape.root.i.germ)
+    =.  mope  (~(cut qui mope) lord.dad cape.root.i.germ)
     =/  more  [mope root.i.germ]
     ::  propagate memoized subject needs
     =/  pant  (~(due qui prot.less) want.i.germ)
@@ -73,14 +79,14 @@
       %-  (~(uno by want.gen) pant)
       |=  [@hail a=cape b=cape]
       ~(cut ca (~(uni ca a) b))
-    =.  call.gen  (~(put by call.gen) entr [less more form ~ & | place space.i.germ])
+    =.  call.gen  (~(put by call.gen) entr [less more form ~ & | place.dad space.i.germ])
     ::  XX assert not in melo.gen
-    =>  !@(call.verb ((outa:blot "<1 " entr place space.i.germ) .) .)
+    =>  !@(call.verb ((outa:blot "<1 " entr place.dad space.i.germ) .) .)
     `[more gen]
   ::
   ++  melo
     ~/  %melo
-    |=  [entr=@hail lord=(set @hail) place=(unit spot) form=* less=naan]
+    |=  [entr=@hail form=* less=naan]
     ^-  (unit [naan lore])
     =/  gorm  (~(get ja melo.gen) form)
     :: =>  (?:((gth 10 (lent gorm)) same (slog leaf+(scow %ud (lent gorm)) ?~(place-arm ~ [(blot ">> " u.place-arm) ~]))) .)
@@ -89,7 +95,7 @@
     ?.  (~(huge so soot.i.gorm) sock.less)
       $(gorm t.gorm)
     =/  mope  (~(rue qui prot.less) have.i.gorm)
-    =.  mope  (~(cut qui mope) lord cape.root.i.gorm)
+    =.  mope  (~(cut qui mope) lord.dad cape.root.i.gorm)
     =/  more  [mope root.i.gorm]
     ::
     =.  remo.gen  (~(put by remo.gen) entr [site.i.gorm sock.less])
@@ -100,7 +106,7 @@
     ::   %-  (~(uno by want.gen) pant)
     ::   |=  [@hail a=cape b=cape]
     ::   ~(cut ca (~(uni ca a) b))
-    :: =.  call.gen  (~(put by call.gen) entr [less more form ~ & & place space.i.gorm])
+    :: =.  call.gen  (~(put by call.gen) entr [less more form ~ & & place.dad space.i.gorm])
     ::
     =.  loop.gen
       %+  roll  loom.i.gorm
@@ -113,14 +119,14 @@
     ::
     ::  XX also wait on site.i.gorm and/or vice versa?
     ::
-    =>  !@(call.verb ((onto:blot "<2 " entr place [site place space]:i.gorm) .) .)
+    =>  !@(call.verb ((onto:blot "<2 " entr place.dad [site place space]:i.gorm) .) .)
     `[more gen]
   ::
   ++  loop
     ~/  %loop
-    |=  [roil=@hail place=(unit spot) tack=(list @hail) fork=naan sand=naan sirs=(jar * [site=@hail less=naan])]
+    |=  [roil=@hail fork=naan sand=naan]
     ^-  (unit lore)
-    =/  pore  (~(get ja sirs) data.sock.fork)
+    =/  pore  (~(get ja sirs.dad) data.sock.fork)
     |-  ^-  (unit lore)
     ?~  pore  ~
     =/  tote
@@ -133,17 +139,17 @@
     :: push
     =|  wire=(list (list @hail))
     |-  ^-  (unit lore)
-    ?>  ?=(^ tack)
-    =/  fire  (~(get ja wait.gen) i.tack)
+    ?>  ?=(^ tack.dad)
+    =/  fire  (~(get ja wait.gen) i.tack.dad)
     ?.  (lien fire |=(h=@hail =(site.i.pore h)))
       %=  $
-        tack      t.tack
+        tack.dad  t.tack.dad
         wire      [fire wire]
-        wait.gen  (~(del by wait.gen) i.tack)
+        wait.gen  (~(del by wait.gen) i.tack.dad)
       ==
     ::  XX print spot and site for loop target
-    =>  !@(call.verb ((onto:blot "<3 " roil place i.tack ~ ~) .) .)
-    `gen(wait (~(put by wait.gen) i.tack (zing (flop [fire wire]))))
+    =>  !@(call.verb ((onto:blot "<3 " roil place.dad i.tack.dad ~ ~) .) .)
+    `gen(wait (~(put by wait.gen) i.tack.dad (zing (flop [fire wire]))))
   ::
   ++  hint
     ~/  %hint
@@ -360,23 +366,26 @@
     =^  entr  gen  [rail.gen gen(rail .+(rail.gen))]  :: initial callsite
     :: ~>  %bout.[0 `tank`?.(?=(^ calm.i.queu) %raw [%rose [": " ~ ~] leaf+['+' (scow %ud +.j.u.calm.i.queu)] (smyt -.j.u.calm.i.queu) ~])]
     =/  less=naan  [~ soot.i.queu]  :: subject
-    =*  form  form.i.queu :: formula
-    =/  sirs  (~(add ja *(jar * [site=@hail less=naan])) form [entr less]) ::
-    =|  lord=(set @hail)  :: enclosing scope
-    =/  tack=(list @hail)  ~[entr]
-    =|  place=(unit spot)
+    =*  form       form.i.queu      :: formula
+    =.  dad
+      %=  dad
+        sirs   (~(add ja ^+(sirs.dad ~)) form [entr less])
+        lord   ~
+        tack   ~[entr]
+        place  ~
+      ==
     ::  wrapper for callsite formulas
     |-  ^-  [naan _gen]
     =*  arm-loop  $
     =.  prot.less  (~(tag qui prot.less) [entr 1])
     =.  wait.gen  (~(add ja wait.gen) entr entr)
     ::  check if memoized
-    ?^  m=(memo entr lord place form less)  u.m
-    ?^  m=(melo entr lord place form less)  u.m
+    ?^  m=(memo entr form less)  u.m
+    ?^  m=(melo entr form less)  u.m
     ::
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
-      =>  !@(call.verb ((into:blot ">> " entr place) .) .)
+      =>  !@(call.verb ((into:blot ">> " entr place.dad) .) .)
       |-  ^-  [[=nomm =naan] _gen]
       ?+  form  [[[%not 0] [~ | ~]] gen]
           [b=^ c=*]
@@ -421,7 +430,7 @@
           |=  [@hail a=cape b=cape]
           ~(cut ca (~(uni ca a) b))
         ::  check for recursion
-        ?^  l=(loop roil slace tack fork sand sirs)
+        ?^  l=(loop(place.dad slace) roil fork sand)
           [[[%two sown fond roil] [~ | ~]] u.l]
         ::  not recursive
         :: analyze through direct call
@@ -431,12 +440,13 @@
             form  data.sock.fork
             less  sand
             entr  roil
-            sirs  (~(add ja sirs) data.sock.fork [roil sand])
-            lord  (~(put in lord) entr)
-            tack  [roil tack]
             gen   gen(dire &, trace ~)
-            place  slace
-          ==
+            dad   %=  dad
+                    sirs  (~(add ja sirs.dad) data.sock.fork [roil sand])
+                    lord  (~(put in lord.dad) entr)
+                    tack  [roil tack.dad]
+                    place  slace
+          ==      ==
         :-  [[%two sown fond roil] more]
         gen(dire &(dire dire.gen), trace trace)
       ::
@@ -512,8 +522,8 @@
     ::
     ::  write to call table
     =/  space=(unit spot)  ?~(trace.gen ~ `(rear trace.gen))
-    =.  prot.more  (~(cut qui prot.more) lord cape.sock.more)
-    =.  call.gen  (~(put by call.gen) entr [less more form `load dire.gen | place space])
+    =.  prot.more  (~(cut qui prot.more) lord.dad cape.sock.more)
+    =.  call.gen  (~(put by call.gen) entr [less more form `load dire.gen | place.dad space])
     =/  wise  (~(get ja wait.gen) entr)
     =.  wait.gen  (~(del by wait.gen) entr)
     ?:  =(~ wise)
@@ -526,7 +536,7 @@
             %-  ~(uni ca want)
             (~(gut by (~(due qui prot.more) cape.sock.more)) entr |)
           ~(norm so (~(app ca such) sock.less))
-        =-  [[sutt want sock.more have space] entr place -]
+        =-  [[sutt want sock.more have space] entr place.dad -]
         %-  ~(rep by loop.gen)
         |=  [[c=@hail t=@hail s=sock l=naan] loom=(list [c=@hail t=@hail s=sock =noon])]
         ^+  loom
@@ -534,7 +544,7 @@
         =/  p=plop  (~(rel qui prot.l) entr &)
         =/  n=noon  [p sock.l]
         [[c t s n] loom]         :: XX skip if ?=(~ p) ?
-      =>  !@(call.verb ((outa:blot ">2 " entr place space) .) .)
+      =>  !@(call.verb ((outa:blot ">2 " entr place.dad space) .) .)
       [more gen] :: no finalizing here
     ::
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
@@ -544,7 +554,7 @@
     ::  finalize waiting callsites
     =.  gen  (seal sane wise)
     ::  XX also log kid
-    =>  !@(call.verb ((outa:blot ">3 " entr place space) .) .)
+    =>  !@(call.verb ((outa:blot ">3 " entr place.dad space) .) .)
     [more gen]
   --
 ::
