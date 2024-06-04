@@ -1,3 +1,4 @@
+use crate::disk::Disk;
 use crate::hamt::Hamt;
 use crate::interpreter::{inc, interpret, Error, Mote};
 use crate::jets::cold::Cold;
@@ -71,7 +72,7 @@ impl Persist for Snapshot {
 
 #[repr(C)]
 #[repr(packed)]
-struct SnapshotMem {
+pub struct SnapshotMem {
     pub epoch: u64,
     pub event_num: u64,
     pub arvo: Noun,
@@ -80,20 +81,23 @@ struct SnapshotMem {
 
 const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
 
-struct Context {
-    epoch: u64,
-    event_num: u64,
-    arvo: Noun,
-    mug: u32,
-    nock_context: interpreter::Context,
+pub struct Context {
+    pub epoch: u64,
+    pub event_num: u64,
+    pub arvo: Noun,
+    pub mug: u32,
+    pub nock_context: interpreter::Context,
+    pub log: Disk,
 }
 
 impl Context {
     pub fn load(
-        snap_path: PathBuf,
+        pier_path: PathBuf,
         trace_info: Option<TraceInfo>,
         constant_hot_state: &[HotEntry],
     ) -> Context {
+        let mut snap_path = pier_path.clone();
+        snap_path.push(".urb/chk");
         pma_open(snap_path).expect("serf: pma open failed");
 
         let snapshot_version = pma_meta_get(BTMetaField::SnapshotVersion as usize);
@@ -106,7 +110,7 @@ impl Context {
             _ => panic!("Unsupported snapshot version"),
         };
 
-        Context::new(trace_info, snapshot, constant_hot_state)
+        Context::new(pier_path, trace_info, snapshot, constant_hot_state)
     }
 
     pub unsafe fn save(&mut self) {
@@ -139,6 +143,7 @@ impl Context {
     }
 
     fn new(
+        pier_path: PathBuf,
         trace_info: Option<TraceInfo>,
         snapshot: Option<Snapshot>,
         constant_hot_state: &[HotEntry],
@@ -174,12 +179,17 @@ impl Context {
             trace_info,
         };
 
+        let mut log_path = pier_path.clone();
+        log_path.push(".urb/log");
+        let log = Disk::new(log_path);
+
         Context {
             epoch,
             event_num,
             arvo,
             mug,
             nock_context,
+            log: log,
         }
     }
 
@@ -441,7 +451,7 @@ fn goof(context: &mut Context, mote: Mote, traces: Noun) -> Noun {
 /** Run slam; process stack trace to tang if error.
  *  Generate tracing events, if JSON tracing enabled.
  */
-fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<Noun, Noun> {
+pub fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<Noun, Noun> {
     let slam_res = if context.nock_context.trace_info.is_some() {
         let start = Instant::now();
         let slam_res = slam(context, POKE_AXIS, ovo);
@@ -469,7 +479,7 @@ fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<
     }
 }
 
-fn play_life(context: &mut Context, eve: Noun) {
+pub fn play_life(context: &mut Context, eve: Noun) {
     let stack = &mut context.nock_context.stack;
     let sub = T(stack, &[D(0), D(3)]);
     let lyf = T(stack, &[D(2), sub, D(0), D(2)]);
