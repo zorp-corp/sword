@@ -541,7 +541,6 @@
     ::  fixed-point loops to propagate their needs and check that they are really loops
     =^  sane=?  gen  mend
     ::  write to memo table
-    =/  want=cape  (~(gut by want.gen) entr |)
     ::  finalize waiting callsites
     =.  gen  (seal sane wise)
     ::  XX also log kid
