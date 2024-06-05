@@ -135,6 +135,24 @@
     ::
     `[more gen]
   ::
+  ::  +wait: register dependence on [site] for finalization
+  ::
+  ++  wait
+    ~/  %wait
+    |=  site=@hail
+    =|  wire=(list (list @hail))
+    |-  ^-  [@hail _wait.gen]
+    ?>  ?=(^ tack.dad)
+    =/  fire  (~(get ja wait.gen) i.tack.dad)
+    ?.  (lien fire |=(h=@hail =(site h)))
+      %=  $
+        tack.dad  t.tack.dad
+        wire      [fire wire]
+        wait.gen  (~(del by wait.gen) i.tack.dad)
+      ==
+    :-  i.tack.dad
+    (~(put by wait.gen) i.tack.dad (zing (flop [fire wire])))
+  ::
   ::  +loop: check for recursion
   ::
   ::    hits are estimates, must be validated in +mend and +seal
@@ -153,21 +171,11 @@
     ?.  (~(huge so tote) sock.sand)
       $(pore t.pore)
     :: recursive
-    =.  loop.gen  (~(put by loop.gen) roil [site.i.pore sock.less.i.pore sand])
-    :: push
-    =|  wire=(list (list @hail))
-    |-  ^-  (unit lore)
-    ?>  ?=(^ tack.dad)
-    =/  fire  (~(get ja wait.gen) i.tack.dad)
-    ?.  (lien fire |=(h=@hail =(site.i.pore h)))
-      %=  $
-        tack.dad  t.tack.dad
-        wire      [fire wire]
-        wait.gen  (~(del by wait.gen) i.tack.dad)
-      ==
-    ::  XX print spot and site for loop target
-    =>  !@(call.verb ((onto:blot "<3 " roil place.dad i.tack.dad ~ ~) .) .)
-    `gen(wait (~(put by wait.gen) i.tack.dad (zing (flop [fire wire]))))
+    =.  loop.gen   (~(put by loop.gen) roil [site.i.pore sock.less.i.pore sand])
+    =^  til=@hail  wait.gen  (wait site.i.pore)
+    ::  XX also print [site.i.pore] and its spot
+    =>  !@(call.verb ((onto:blot "<3 " roil place.dad til ~ ~) .) .)
+    `gen
   ::
   ::  +hint: update lore after analyzing through hint (currently just %fast)
   ::
