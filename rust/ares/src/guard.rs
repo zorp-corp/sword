@@ -80,12 +80,15 @@ pub fn call_with_guard<F: FnMut() -> Result>(
         );
 
         if res == 0 {
+            eprintln!("guard: success");
             permit_alloc(|| {
                 let result_box = Box::from_raw(ret_p as *mut Result);
+                eprintln!("box good");
                 *result_box
             })
         } else {
             let err = GuardError::from(res);
+            eprintln!("guard: error {:?}\r", err);
             match err {
                 GuardError::OutOfMemory => Err(Error::NonDeterministic(Mote::Meme, D(0))),
                 _ => {

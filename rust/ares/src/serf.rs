@@ -429,8 +429,9 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
 
-    eprintln!("serf: interpreting\r");
-    interpret(&mut context.nock_context, sub, fol)
+    let res = interpret(&mut context.nock_context, sub, fol);
+    eprintln!("slam: done");
+    res
 }
 
 fn peek(context: &mut Context, ovo: Noun) -> Noun {

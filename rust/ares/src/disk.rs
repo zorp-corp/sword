@@ -122,6 +122,7 @@ pub fn disk_read_list(ctx: &mut Context, eve: u64, len: u64) -> Option<Noun> {
         let _mug = u32::from_le_bytes(value[0..4].try_into().unwrap());
         let jam = unsafe { IndirectAtom::new_raw_bytes_ref(stack, &value[4..]) };
         let e = cue(stack, jam.as_atom());
+        eprintln!("disk: read {:?}\r", e);
         eves = T(stack, &[e, eves]);
         i += 1;
     }

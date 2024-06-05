@@ -1,7 +1,7 @@
 use ares::jets::hot::URBIT_HOT_STATE;
 use ares::mars::{mars_play, Mars};
 use ares::serf::{Context, serf};
-// use ares::trace::create_trace_file;
+use ares::trace::create_trace_file;
 use std::env;
 use std::io;
 use std::path::PathBuf;
@@ -44,9 +44,9 @@ fn main() -> io::Result<()> {
                 .expect("Must provide path to log directory"),
         );
 
-        // let trace_path = pier_path.clone();
-        // let trace_info = create_trace_file(trace_path).ok();
-        let ctx = Context::load(pier_path.clone(), None, URBIT_HOT_STATE);
+        let trace_path = pier_path.clone();
+        let trace_info = create_trace_file(trace_path).ok();
+        let ctx = Context::load(pier_path.clone(), trace_info, URBIT_HOT_STATE);
         
         let sent = ctx.event_num;
         let done = sent;
