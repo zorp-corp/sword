@@ -35,7 +35,7 @@ fn main() -> io::Result<()> {
     }
 
     if cmd == "serf" {
-        // eprintln!("ares: serf\r");
+        eprintln!("ares: serf\r");
         return serf(URBIT_HOT_STATE);
     } else if cmd == "play" {
         let pier_path = PathBuf::from(
@@ -44,11 +44,9 @@ fn main() -> io::Result<()> {
                 .expect("Must provide path to log directory"),
         );
 
-        // eprintln!("\rares: play: loading context from {:?}\r", pier_path);
-        let trace_path = pier_path.clone();
-        let trace_info = create_trace_file(trace_path).ok();
-        let mut ctx = Context::load(pier_path.clone(), trace_info, URBIT_HOT_STATE);
-        ctx.ripe();
+        // let trace_path = pier_path.clone();
+        // let trace_info = create_trace_file(trace_path).ok();
+        let ctx = Context::load(pier_path.clone(), None, URBIT_HOT_STATE);
         
         let sent = ctx.event_num;
         let done = sent;
@@ -73,7 +71,7 @@ fn main() -> io::Result<()> {
             .expect("Failed to parse snapshot interval");
 
         mars_play(mars, eve, sap);
-        // eprintln!("play: done\r");
+        eprintln!("play: done\r");
     }
 
     Ok(())

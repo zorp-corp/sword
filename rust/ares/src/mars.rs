@@ -4,6 +4,7 @@ use std::result::Result as StdResult;
 
 use crate::disk::*;
 use crate::jets::list::util::lent;
+use crate::mem::Preserve;
 use crate::persist::{pma_close, pma_sync};
 use crate::serf::{Context, play_life, play_list};
 
@@ -26,7 +27,6 @@ impl Display for Error {
             Error::PlayFailure => write!(f, "play: failure"),
         }
     }
-
 }
 
 pub type Result<T> = StdResult<T, Error>;
@@ -50,10 +50,10 @@ pub struct Mars {
 fn mars_boot(mars: &mut Mars, eve: u64) -> Result<()> {
     let ctx = &mut mars.ctx;
     let seq = disk_read_list(ctx, 1, eve).unwrap();  // boot sequence
-    // eprintln!("--------------- bootstrap starting ----------------\r");
-    // eprintln!("boot: 1-{}\r", lent(seq).unwrap());
+    eprintln!("--------------- bootstrap starting ----------------\r");
+    eprintln!("boot: 1-{}\r", lent(seq).unwrap());
     play_life(ctx, seq);
-    // eprintln!("--------------- bootstrap complete ----------------\r");
+    eprintln!("--------------- bootstrap complete ----------------\r");
     Ok(())
 }
 
@@ -64,8 +64,8 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     if eve == 0 {
         eve = mars.ctx.log.done;
     } else if eve <= mars.ctx.log.done {
-        // eprintln!("mars: already computed {}\r", eve);
-        // eprintln!("      state={}, &mut mars.log={}\r", mars.done, mars.ctx.log.done);
+        eprintln!("mars: already computed {}\r", eve);
+        eprintln!("      state={}, &mut mars.log={}\r", mars.done, mars.ctx.log.done);
         return played;
     } else {
         eve = min(eve, mars.ctx.log.done);
@@ -88,22 +88,27 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
         mars.done = life;
     }
 
-    // eprintln!("---------------- playback starting ----------------\r");
+    eprintln!("---------------- playback starting ----------------\r");
 
     if (eve + 1) == mars.ctx.log.done {
-        // eprintln!("play: event {}\r", mars.ctx.log.done);
+        eprintln!("play: event {}\r", mars.ctx.log.done);
     } else if eve != mars.ctx.log.done {
-        // eprintln!("play: events {}-{} of {}\r", (mars.done + 1), eve, mars.ctx.log.done);
+        eprintln!("play: events {}-{} of {}\r", (mars.done + 1), eve, mars.ctx.log.done);
     } else {
-        // eprintln!("play: events {}-{}\r", (mars.done + 1), eve);
+        eprintln!("play: events {}-{}\r", (mars.done + 1), eve);
     }
 
     let past = mars.done; // last snapshot
     
     let events = disk_read_list(&mut mars.ctx, past + 1, eve - mars.done).unwrap();
+    eprintln!("events len: {}\r", lent(events).unwrap());
     play_list(&mut mars.ctx, events);
+    eprintln!("play: list\r");
+    pma_sync();
+    eprintln!("play: pma sync\r");
+    let _ = pma_close();
 
-    // eprintln!("---------------- playback complete ----------------\r");
+    eprintln!("---------------- playback complete ----------------\r");
 
     played
 }

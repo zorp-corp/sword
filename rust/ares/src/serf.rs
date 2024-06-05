@@ -424,6 +424,7 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
 
+    eprintln!("serf: interpreting\r");
     interpret(&mut context.nock_context, sub, fol)
 }
 
@@ -530,7 +531,7 @@ pub fn play_list(context: &mut Context, mut lit: Noun) {
             None
         };
 
-        // eprintln!("play: {}\r", eve);
+        eprintln!("play: {}\r", eve);
 
         match soft(context, ovo, trace_name) {
             Ok(res) => {
@@ -551,6 +552,7 @@ pub fn play_list(context: &mut Context, mut lit: Noun) {
             }
         }
     }
+    eprintln!("play: done list\r");
     context.play_done();
 }
 

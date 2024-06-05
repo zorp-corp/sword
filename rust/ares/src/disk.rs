@@ -124,6 +124,6 @@ pub fn disk_read_list(ctx: &mut Context, eve: u64, len: u64) -> Option<Noun> {
         eves = T(stack, &[e, eves]);
         i += 1;
     }
-    // eprintln!("disk_read_list: read {} events\r", lent(eves).unwrap());
+    eprintln!("disk: read {} events\r", lent(eves).unwrap());
     Some(eves)
 }
