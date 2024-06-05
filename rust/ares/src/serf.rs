@@ -110,8 +110,7 @@ impl Context {
             _ => panic!("Unsupported snapshot version"),
         };
 
-        // eprintln!("load: new context coming up\r");
-
+        eprintln!("load: new context\r");
         Context::new(pier_path, trace_info, snapshot, constant_hot_state)
     }
 
@@ -321,10 +320,10 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
     let pier_path = PathBuf::from(pier_path_string);
-    // eprintln!("serf: pier path: {:?}\r", pier_path);
+    eprintln!("serf: pier path: {:?}\r", pier_path);
     let snap_path = pier_path.join(".urb/chk");
     create_dir_all(&snap_path)?;
-    // eprintln!("serf: snap path: {:?}\r", snap_path);
+    eprintln!("serf: snap path: {:?}\r", snap_path);
 
     let wag: u32 = std::env::args()
         .nth(4)
@@ -351,11 +350,17 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         }
     }
 
+    eprintln!("serf: loading context\r");
+
     let mut context = Context::load(load_path, trace_info, constant_hot_state);
     context.ripe();
 
+    eprintln!("serf: loaded context\r");
+
     // Can't use for loop because it borrows newt
+    eprintln!("serf: starting event loop\r");
     while let Some(writ) = context.next() {
+        eprintln!("serf: event {}\r", context.event_num);
         // Reset the local cache and scry handler stack
         context.nock_context.cache = Hamt::<Noun>::new(&mut context.nock_context.stack);
         context.nock_context.scry_stack = D(0);

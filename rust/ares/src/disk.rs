@@ -1,5 +1,5 @@
 /** Disk storage for events. */
-use crate::jets::list::util::lent;
+use crate::jets::list::util::{flop, lent};
 use crate::lmdb::{lmdb_gulf, lmdb_read_meta};
 use crate::noun::{IndirectAtom, Noun, D, T};
 use crate::serf::Context;
@@ -45,6 +45,7 @@ impl Disk {
             .open(epoch_dir.as_path())
             .expect("Failed to open LMDB environment");
         let (_, high) = lmdb_gulf(&env);
+        eprintln!("disk: new\r");
         Disk {
             dir: log_dir,
             epoch: epoch,
@@ -124,6 +125,7 @@ pub fn disk_read_list(ctx: &mut Context, eve: u64, len: u64) -> Option<Noun> {
         eves = T(stack, &[e, eves]);
         i += 1;
     }
+    // XX txn.abort();
     eprintln!("disk: read {} events\r", lent(eves).unwrap());
-    Some(eves)
+    Some(flop(stack, eves).unwrap())
 }

@@ -1,7 +1,7 @@
 use ares::jets::hot::URBIT_HOT_STATE;
 use ares::mars::{mars_play, Mars};
 use ares::serf::{Context, serf};
-use ares::trace::create_trace_file;
+// use ares::trace::create_trace_file;
 use std::env;
 use std::io;
 use std::path::PathBuf;

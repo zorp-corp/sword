@@ -4,7 +4,6 @@ use std::result::Result as StdResult;
 
 use crate::disk::*;
 use crate::jets::list::util::lent;
-use crate::mem::Preserve;
 use crate::persist::{pma_close, pma_sync};
 use crate::serf::{Context, play_life, play_list};
 
