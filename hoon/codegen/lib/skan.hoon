@@ -294,10 +294,12 @@
     |.  ^-  [? lore]
     =/  sap  gen  :: for reset
     =|  nop=(map @hail [t=@hail s=sock l=naan])
+    =|  i=@ud
     |-  ^-  [? lore]
     =*  redo-loop  $
     =.  gen  sap
     =.  loop.gen  (~(dif by loop.gen) nop)
+    =|  j=@ud
     |-  ^-  [? lore]
     =*  need-loop  $
     =/  wap  want.gen
@@ -310,7 +312,9 @@
         %-  (~(uno by want.gen) (~(due qui prot.l) teed))
         |=([@hail a=cape b=cape] ~(cut ca (~(uni ca a) b)))
       gen
-    ?.  =(wap want.gen)  need-loop
+    ?.  =(wap want.gen)
+      ~&  [%mend-need i=i j=j]
+      need-loop(j +(j))
     =/  nap  nop
     =.  nop
       %-  ~(rep by loop.gen)
@@ -320,7 +324,9 @@
       ::  XX log non pseudo-recursive
       ?.  (~(huge so s) sock.l)  (~(put by nop) c *[t=@hail s=sock l=naan])
       nop
-    ?.  =(nap nop)  redo-loop
+    ?.  =(nap nop)
+      ~&  [%mend-redo i=i j=j]
+      redo-loop(i +(i))
     [?=(~ nop) gen]
   ::
   ::  +seal: finalize analysis (including recursive descendants)
@@ -335,10 +341,12 @@
     ^-  lore
     =>  ::  XX also log kid
         !@(call.verb ((outa:blot ">3 " entr place.dad space) .) .)
+    ~?  ?=([* * *] wise)  wise=(tail (flop wise))
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
     %+  roll  wise
     |=  [site=@hail =_gen]
     =/  kid  (~(get ju kids.gen) site)
+    ~?  !=(~ kid)  [site=site `kid=(set @hail)`kid]
     =+  (~(got by call.gen) site)
     ?>  ?=(^ load)
     =/  want=cape  (~(gut by want.gen) site |)
@@ -354,7 +362,11 @@
       ?~  mel=(~(get by melo.gen) form)
         melo.gen
       =/  lit  (skip u.mel |=([[s=sock *] *] =(sutt s)))  :: XX use sock.less directly?
-      :: ~&  [%del-melo (lent u.mel) (lent lit)]
+      =/  lit2  (skip u.mel |=([^ lite=@hail *] =(site lite)))
+      =/  len1  (lent u.mel)
+      =/  len2  (lent lit2)
+      =/  len3  (lent lit)
+      ~?  |(!=(len1 len2) !=(len2 len3))  [%del-melo len1 len2 len3]
       ?:  =(~ lit)
         (~(del by melo.gen) form)
       (~(put by melo.gen) form lit)
@@ -387,15 +399,14 @@
         ~&  [%ices-fail-2 k=k n=n m=m]
         [[ices lope] gen]
       ::
-      ::  NB: this should always hold:
+      ::  XX s/b debug assert
+      ::  XX only if [rect.u.lac]?
       ::
-      ::     =/  hose  (~(get ja moan) form.c)
-      ::     |-  ^-  (unit hone)
-      ::     ?~  hose
-      ::       ~&  [%ices-gone site=site n=n]
-      ::       ~
-      ::     ?:  =(s soot.i.hose)  `i.hose
-      ::     $(hose t.hose)
+      ?.  ?|  ?=(~ rem)
+              (lien (~(get ja moan) form.c) |=([ss=sock *] =(s ss)))
+          ==
+        ~&  [%ices-fail-3 k=k n=n m=m direct=rect.u.lac]
+        [[ices lope] gen]
       ::
       =.  ices  (~(put by ices) k [s form.c])
       =?  lope  ?!(.=(m n))  (~(put in lope) [s form.c])
@@ -422,7 +433,7 @@
     =.  kids.gen  (~(del by kids.gen) site)
     =.  hint.gen  (~(del by hint.gen) site)
     =/  loan  (~(get ja moan.gen) form)
-    =?  moan.gen  (levy loan |=([soot=sock norm=food] !=(soot ^soot)))
+    =?  moan.gen  (levy loan |=([ss=sock *] !=(soot ss)))
       (~(add ja moan.gen) form [soot u.load ices lope fizz])
     gen
   ::
