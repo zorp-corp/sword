@@ -16,6 +16,7 @@
       ::    memo hit:         <1
       ::    melo hit:         <2
       ::    pseudo-recursive: <3
+      ::    indirect:         <4
       ::    analysis:           >>
       ::      meloize:          >2
       ::      finalize:         >3
@@ -476,6 +477,7 @@
         =.  trace.gen  trace
         ?.  =(& cape.sock.fork)
           ::  indirect call
+          =>  !@(call.verb ((outa:blot "<4 " roil place.dad ~) .) .)
           [[[%two sown fond roil] [~ | ~]] gen(dire |)]
         :: direct call
         =.  kids.gen  (~(put ju kids.gen) entr roil)
