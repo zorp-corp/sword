@@ -361,12 +361,9 @@
     =.  melo.gen
       ?~  mel=(~(get by melo.gen) form)
         melo.gen
-      =/  lit  (skip u.mel |=([[s=sock *] *] =(sutt s)))  :: XX use sock.less directly?
-      =/  lit2  (skip u.mel |=([^ lite=@hail *] =(site lite)))
-      =/  len1  (lent u.mel)
-      =/  len2  (lent lit2)
-      =/  len3  (lent lit)
-      ~?  |(!=(len1 len2) !=(len2 len3))  [%del-melo len1 len2 len3]
+      =/  lit  (skip u.mel |=([^ lite=@hail *] =(site lite)))
+      :: =+  [len nel]=[(lent lit) (lent u.mel)]
+      :: ~?  !=(len nel)  [%del-melo nel len]
       ?:  =(~ lit)
         (~(del by melo.gen) form)
       (~(put by melo.gen) form lit)
