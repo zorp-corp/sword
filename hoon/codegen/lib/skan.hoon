@@ -800,20 +800,19 @@
   ::
   ::    given a cape, distribute that cape to callsites by provenance
   ++  due
+    !.
     =/  unica  |=([@hail a=cape b=cape] (~(uni ca a) b))
     |=  cave=cape
-    !.
-    |-  ^-  (map @hail cape)
-    ?:  =(| cape)  ~
-    ?~  prog  ~
-    =/  [cale=cape care=cape]  ~(rip ca cave)
-    %-  
-      :: XX wrong: unify repeated callsites at node
-      %~  gas  by 
-      ((~(uno by $(cave cale, prog l.prog)) $(cave care, prog r.prog)) unica)
-    %+  turn  n.prog
-    |=  [site=@hail axe=@]
-    [site (~(pat ca cave) axe)]
+    ^-  (map @hail cape)
+    ?:  |(?=(%| cave) ?=(~ prog))  ~
+    =/  n
+      %+  roll  n.prog
+      |=  [[s=@hail a=@] m=(map @hail cape)]
+      (~(put by m) s (~(pat ca cave) a))
+    =+  [p q]=?@(cave [& &] cave)
+    =/  l  $(prog l.prog, cave p)
+    =/  r  $(prog r.prog, cave q)
+    ((~(uno by ((~(uno by l) r) unica)) n) unica)
   ::
   ::    given a callsite produce a new provenance tree only retaining
   ::    provenance for that callsite's subject
