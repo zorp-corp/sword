@@ -45,7 +45,7 @@
       moan=_moan
       cole=_cole  :: cold state
       dire=?      :: fully direct?
-      trace=(list spot)
+      area=(unit spot)  :: outermost spot within this site
       wait=(jar @hail @hail)  :: sites to finalize
       melo=(jar * meal)       ::  non-final memoization targets
       remo=(map @hail [site=@hail =sock]) :: non-final memoization hits
@@ -58,7 +58,8 @@
           $:  sirs=(jar * [site=@hail less=naan])
               lord=(set @hail)  :: enclosing scope
               tack=(list @hail)
-              place=(unit spot)
+              seat=(unit spot)  :: innermost spot in lord
+              wake=(list spot)  :: trace within arm
       ==  ==
   |%
   ::  +memo: check for memoized, finalized analysis
@@ -75,7 +76,7 @@
     ?~  germ  ~
     ?.  (~(huge so soot.i.germ) sock.less)
       $(germ t.germ)
-    =>  !@(call.verb ((outa:blot "<1 " entr place.dad space.i.germ) .) .)
+    =>  !@(call.verb ((outa:blot "<1 " entr seat.dad area.i.germ) .) .)
     =/  mope  (~(rue qui prot.less) have.i.germ)
     =.  mope  (~(cut qui mope) lord.dad cape.root.i.germ)
     =/  more  [mope root.i.germ]
@@ -85,7 +86,7 @@
       %-  (~(uno by want.gen) pant)
       |=  [@hail a=cape b=cape]
       ~(cut ca (~(uni ca a) b))
-    =.  call.gen  (~(put by call.gen) entr [less more form ~ & ~ place.dad space.i.germ])
+    =.  call.gen  (~(put by call.gen) entr [less more form ~ & ~ seat.dad area.i.germ])
     `[more gen]
   ::
   ++  melo-punt
@@ -96,7 +97,7 @@
     ?~  gorm  ~
     ?.  (~(huge so soot.i.gorm) sock.less)
       $(gorm t.gorm)
-    =>  !@(call.verb ((onto:blot "<2 " entr place.dad [site place space]:i.gorm) .) .)
+    =>  !@(call.verb ((onto:blot "<2 " entr seat.dad [site seat area]:i.gorm) .) .)
     :+  ~  [~ | ~]
     ?>  ?=([* * *] tack.dad)
     gen(dire |, kids (~(del ju kids.gen) i.t.tack.dad entr))
@@ -114,7 +115,7 @@
     ?~  gorm  ~
     ?.  (~(huge so soot.i.gorm) sock.less)
       $(gorm t.gorm)
-    =>  !@(call.verb ((onto:blot "<2 " entr place.dad [site place space]:i.gorm) .) .)
+    =>  !@(call.verb ((onto:blot "<2 " entr seat.dad [site seat area]:i.gorm) .) .)
     =/  mope  (~(rue qui prot.less) have.i.gorm)
     =.  mope  (~(cut qui mope) lord.dad cape.root.i.gorm)
     =/  more  [mope root.i.gorm]
@@ -180,7 +181,7 @@
     =.  loop.gen   (~(put by loop.gen) roil [site.i.pore sock.less.i.pore sand])
     =^  til=@hail  wait.gen  (wait site.i.pore)
     ::  XX also print [site.i.pore] and its spot
-    =>  !@(call.verb ((onto:blot "<3 " roil place.dad til ~ ~) .) .)
+    =>  !@(call.verb ((onto:blot "<3 " roil seat.dad til ~ ~) .) .)
     `gen
   ::
   ::  +hint: update lore after analyzing through hint (currently just %fast)
@@ -270,9 +271,9 @@
   ::
   ++  bide
     ~/  %bide
-    |=  [entr=@hail form=* less=naan more=naan space=(unit spot)]
+    |=  [entr=@hail form=* less=naan more=naan]
     ^+  melo.gen
-    =>  !@(call.verb ((outa:blot ">2 " entr place.dad space) .) .)
+    =>  !@(call.verb ((outa:blot ">2 " entr seat.dad area.gen) .) .)
     =/  want=cape  (~(gut by want.gen) entr |)
     =/  have  (~(rel qui prot.more) entr cape.sock.more)
     =/  sutt
@@ -288,7 +289,7 @@
       =/  p=plop  (~(rel qui prot.l) entr &)
       =/  n=noon  [p sock.l]
       [[c t s n] loom]         :: XX skip if ?=(~ p) ?
-    (~(add ja melo.gen) form [[sutt want sock.more have space] entr place.dad loom])
+    (~(add ja melo.gen) form [[sutt want sock.more have area.gen] entr seat.dad loom])
   ::
   ::  +mend: fixpoints to validate pseudo-recursive estimates
   ::
@@ -342,10 +343,10 @@
   ::
   ++  seal
     ~/  %seal
-    |=  [entr=@hail sane=? wise=(list @hail) space=(unit spot)]
+    |=  [entr=@hail sane=? wise=(list @hail)]
     ^-  lore
     =>  ::  XX also log kid
-        !@(call.verb ((outa:blot ">3 " entr place.dad space) .) .)
+        !@(call.verb ((outa:blot ">3 " entr seat.dad area.gen) .) .)
     ~?  ?=([* * *] wise)  wise=(tail (flop wise))
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
     %+  roll  wise
@@ -362,7 +363,7 @@
       ~(norm so (~(app ca such) sock.less))
     =?  memo.gen  ?&(rect sane)
       =/  have  (~(rel qui prot.more) site cape.sock.more)
-      (~(add ja memo.gen) form [sutt want sock.more have spod])
+      (~(add ja memo.gen) form [sutt want sock.more have area])
     =.  melo.gen
       ?~  mel=(~(get by melo.gen) form)
         melo.gen
@@ -451,10 +452,11 @@
     =*  form       form.i.queu      :: formula
     =.  dad
       %=  dad
-        sirs   (~(add ja ^+(sirs.dad ~)) form [entr less])
-        lord   ~
-        tack   ~[entr]
-        place  ~
+        sirs  (~(add ja ^+(sirs.dad ~)) form [entr less])
+        lord  ~
+        tack  ~[entr]
+        wake  ~
+        seat  ~
       ==
     ::  wrapper for callsite formulas
     |-  ^-  [naan _gen]
@@ -468,7 +470,7 @@
     ::
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
-      =>  !@(call.verb ((into:blot ">> " entr place.dad) .) .)
+      =>  !@(call.verb ((into:blot ">> " entr seat.dad) .) .)
       |-  ^-  [[=nomm =naan] _gen]
       ?+  form  [[[%not 0] [~ | ~]] gen]
           [b=^ c=*]
@@ -490,16 +492,17 @@
         [[[%one n.form] [~ & n.form]] gen]
       ::
           [%2 s=* f=*]
-        =/  trace  trace.gen
-        =.  place.dad  ?~(trace ~ `i.trace)     :: spot at site
         =^  roil  gen  [rail.gen gen(rail .+(rail.gen))]
-        =^  [sown=nomm sand=naan]  gen  $(form s.form)
-        =^  [fond=nomm fork=naan]  gen  $(form f.form)
-        =.  trace.gen  trace
+        =/  area  area.gen
+        =:  wake.dad  ~
+            seat.dad  ?~(wake.dad ~ `i.wake.dad)
+          ==
+        =^  [sown=nomm sand=naan]  gen  $(form s.form, area.gen ~)
+        =^  [fond=nomm fork=naan]  gen  $(form f.form, area.gen ~)
         ?.  =(& cape.sock.fork)
           ::  indirect call
-          =>  !@(call.verb ((outa:blot "<4 " roil place.dad ~) .) .)
-          [[[%two sown fond roil] [~ | ~]] gen(dire |)]
+          =>  !@(call.verb ((outa:blot "<4 " roil seat.dad ~) .) .)
+          [[[%two sown fond roil] [~ | ~]] gen(dire |, area area)]
         :: direct call
         =.  kids.gen  (~(put ju kids.gen) entr roil)
         ::  record need
@@ -510,7 +513,7 @@
           ~(cut ca (~(uni ca a) b))
         ::  check for recursion
         ?^  l=(loop roil fork sand)
-          [[[%two sown fond roil] [~ | ~]] u.l]
+          [[[%two sown fond roil] [~ | ~]] u.l(area area)]
         ::  not recursive
         :: analyze through direct call
         =/  dire  dire.gen
@@ -519,14 +522,14 @@
             form  data.sock.fork
             less  sand
             entr  roil
-            gen   gen(dire &, trace ~)
+            gen   gen(dire &, area ~)
             dad   %=  dad
                     sirs  (~(add ja sirs.dad) data.sock.fork [roil sand])
                     lord  (~(put in lord.dad) entr)
                     tack  [roil tack.dad]
           ==      ==
         :-  [[%two sown fond roil] more]
-        gen(dire &(dire dire.gen), trace trace)
+        gen(dire &(dire dire.gen), area area)
       ::
           [%3 c=*]
         =^  [knob=nomm mild=naan]  gen  $(form c.form)
@@ -583,8 +586,17 @@
           [%11 [h=@ v=*] f=*]
         =^  hare  gen  [hare.gen gen(hare .+(hare.gen))]
         =^  [vice=nomm mild=naan]  gen  $(form v.form)
-        =?  trace.gen  =(%spot h.form)
-          [;;(spot data.sock.mild) trace.gen] :: XX soft
+        ::
+        ::  XX !@ on call.verb?
+        ::
+        =>  =/  pot=(unit spot)
+              ?.(=(%spot h.form) ~ ((soft spot) data.sock.mild))
+            ?~  pot  +
+            %_  +
+              wake.dad  [u.pot wake.dad]
+              area.gen  ?~(area.gen pot area.gen)
+            ==
+        ::
         =^  [then=nomm bite=naan]  gen  $(form f.form)
         ::  save body formula
         =.  hint.gen  (~(put ju hint.gen) entr hare)
@@ -600,18 +612,17 @@
     ::
     =.  prot.more  (~(cut qui prot.more) lord.dad cape.sock.more)
     :-  more
-    =/  space=(unit spot)  ?~(trace.gen ~ `(rear trace.gen))
     ::  write to call table
-    =.  call.gen  (~(put by call.gen) entr [less more form `load dire.gen ~ place.dad space])
+    =.  call.gen  (~(put by call.gen) entr [less more form `load dire.gen ~ seat.dad area.gen])
     =/  wise      (~(get ja wait.gen) entr)
     =.  wait.gen  (~(del by wait.gen) entr)
     ?:  =(~ wise)
       :: no finalizing here
-      gen(melo (bide entr form less more space))
+      gen(melo (bide entr form less more))
     ::  fixed-point loops to propagate their needs and check that they are really loops
     =^  sane=?  gen  mend
     ::  finalize waiting callsites
-    (seal entr sane wise space)
+    (seal entr sane wise)
   --
 ::
 ::    Analyze a subject/formula pair
@@ -935,7 +946,7 @@
 +$  noon  [=plop =sock]
 ::
 ::    callsite information
-+$  cafe  (map @hail [less=naan more=naan form=* load=(unit nomm) rect=? remos=(set @hail) spos=(unit spot) spod=(unit spot)])
++$  cafe  (map @hail [less=naan more=naan form=* load=(unit nomm) rect=? remos=(set @hail) seat=(unit spot) area=(unit spot)])
 ::
 ::    subject requirements for callsites
 +$  urge  (map @hail cape)
@@ -957,8 +968,8 @@
   ==
 ::
 ::    analysis memoization entry
-+$  meme  [soot=sock want=cape root=sock have=plop space=(unit spot)]
++$  meme  [soot=sock want=cape root=sock have=plop area=(unit spot)]
 ::
 ::    loop-local analysis memoization entry
-+$  meal  [meme site=@hail place=(unit spot) loom=(list [c=@hail t=@hail s=sock n=noon])]
++$  meal  [meme site=@hail seat=(unit spot) loom=(list [c=@hail t=@hail s=sock n=noon])]
 --
