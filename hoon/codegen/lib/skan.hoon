@@ -85,7 +85,7 @@
       %-  (~(uno by want.gen) pant)
       |=  [@hail a=cape b=cape]
       ~(cut ca (~(uni ca a) b))
-    =.  call.gen  (~(put by call.gen) entr [less more form ~ & | place.dad space.i.germ])
+    =.  call.gen  (~(put by call.gen) entr [less more form ~ & ~ place.dad space.i.germ])
     `[more gen]
   ::
   ++  melo-punt
@@ -103,15 +103,13 @@
   ::
   ::  +melo: check for in-progress analysis
   ::
-  ::    hits are estimates, must be validated in +seal
-  ::    XX: add [entr] to [wait.gen] to avoid "priority inversion"
+  ::    NB: hits are estimates, must be validated in +seal
   ::
   ++  melo
     ~/  %melo
     |=  [entr=@hail form=* less=naan]
     ^-  (unit [naan lore])
     =/  gorm  (~(get ja melo.gen) form)
-    :: =>  (?:((gth 10 (lent gorm)) same (slog leaf+(scow %ud (lent gorm)) ?~(place-arm ~ [(blot ">> " u.place-arm) ~]))) .)
     |-  ^-  (unit [naan lore])
     ?~  gorm  ~
     ?.  (~(huge so soot.i.gorm) sock.less)
@@ -121,8 +119,10 @@
     =.  mope  (~(cut qui mope) lord.dad cape.root.i.gorm)
     =/  more  [mope root.i.gorm]
     ::
-    =.  remo.gen  (~(put by remo.gen) entr [site.i.gorm sock.less])
-    =.  loop.gen
+    :+  ~  more
+    %=    gen
+        remo  (~(put by remo.gen) entr [site.i.gorm sock.less])
+        loop
       %+  roll  loom.i.gorm
       |=  [[c=@hail t=@hail s=sock n=noon] gen=loop=_loop.gen]
       ?~  op=(~(get by loop.gen) c)
@@ -131,9 +131,15 @@
       %+  ~(put by loop.gen)  c
       u.op(prot.l (~(int qui rot) prot.l.u.op))
     ::
-    ::  XX also wait on site.i.gorm and/or vice versa?
+        call
+      =/  lac  (~(got by call.gen) site.i.gorm)
+      (~(put by call.gen) site.i.gorm lac(remos (~(put in remos.lac) entr)))
     ::
-    `[more gen]
+        wait
+      =<  +
+      %.  site.i.gorm
+      wait(tack.dad +.tack.dad, wait.gen (~(del by wait.gen) entr))
+    ==
   ::
   ::  +wait: register dependence on [site] for finalization
   ::
@@ -331,7 +337,6 @@
   ::
   ::  +seal: finalize analysis (including recursive descendants)
   ::
-  ::    XX: incorporate "melo" hits into wait.gen to avoid "priority inversion"
   ::    XX: debug %ices-fail-2, prevent memoization
   ::    XX: refactor
   ::
@@ -378,12 +383,7 @@
       =/  n  ?~(rem k site.u.rem)
       =/  m  t:(~(gut by loop.gen) k [t=n s=*sock l=*naan])
       =/  w=cape  (~(gut by want.gen) m |)
-      ?~  lac=(~(get by call.gen) m)
-        ::  XX should this prevent memoization?
-        ::
-        ~&  [%ices-fail-1 k=k n=n m=m]
-        [[ices lope] gen]
-      =*  c  u.lac
+      =/  c  (~(got by call.gen) m)  :: XX would crash on mend-redo?
       =/  s
         =>  [s=sock.less.c w=w so=so ca=ca]
         ~+  ~(norm so (~(app ca w) s))
@@ -393,16 +393,15 @@
           ==
         ::  XX should this prevent memoization?
         ::
-        ~&  [%ices-fail-2 k=k n=n m=m]
+        ~&  [%ices-fail-nest k=k n=n m=m]
         [[ices lope] gen]
       ::
-      ::  XX s/b debug assert
-      ::  XX only if [rect.u.lac]?
+      ::  XX s/b debug assert (only if rect.c?)
       ::
       ?.  ?|  ?=(~ rem)
               (lien (~(get ja moan) form.c) |=([ss=sock *] =(s ss)))
           ==
-        ~&  [%ices-fail-3 k=k n=n m=m direct=rect.u.lac]
+        ~&  [%ices-fail-link k=k n=n m=m direct=rect.c]
         [[ices lope] gen]
       ::
       =.  ices  (~(put by ices) k [s form.c])
@@ -412,12 +411,18 @@
     =.  gen
       %-  ~(rep in kid)
       |=  [k=@hail =_gen]
-      ^-  _gen
-      =.  want.gen  (~(del by want.gen) k)
-      =.  call.gen  (~(del by call.gen) k)
-      =.  loop.gen  (~(del by loop.gen) k)
-      =.  remo.gen  (~(del by remo.gen) k)
-      gen
+      %_    gen
+          call
+        =.  k  ?~(rem=(~(get by remo.gen) k) k site.u.rem)
+        ?~  lac=(~(get by call.gen) k)  call.gen
+        ?~  mos=(~(del in remos.u.lac) site)
+          (~(del by call.gen) k)
+        (~(put by call.gen) k u.lac(remos mos))
+      ::
+          want  (~(del by want.gen) k)
+          loop  (~(del by loop.gen) k)
+          remo  (~(del by remo.gen) k)
+      ==
     =/  hiss  (~(get ju hint.gen) site)
     =^  fizz  gen
       %-  ~(rep in hiss)
@@ -597,7 +602,7 @@
     :-  more
     =/  space=(unit spot)  ?~(trace.gen ~ `(rear trace.gen))
     ::  write to call table
-    =.  call.gen  (~(put by call.gen) entr [less more form `load dire.gen | place.dad space])
+    =.  call.gen  (~(put by call.gen) entr [less more form `load dire.gen ~ place.dad space])
     =/  wise      (~(get ja wait.gen) entr)
     =.  wait.gen  (~(del by wait.gen) entr)
     ?:  =(~ wise)
@@ -930,7 +935,7 @@
 +$  noon  [=plop =sock]
 ::
 ::    callsite information
-+$  cafe  (map @hail [less=naan more=naan form=* load=(unit nomm) rect=? lemo=? spos=(unit spot) spod=(unit spot)])
++$  cafe  (map @hail [less=naan more=naan form=* load=(unit nomm) rect=? remos=(set @hail) spos=(unit spot) spod=(unit spot)])
 ::
 ::    subject requirements for callsites
 +$  urge  (map @hail cape)
