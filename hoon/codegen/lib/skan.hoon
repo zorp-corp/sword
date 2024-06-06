@@ -744,20 +744,11 @@
   ++  cut
     |=  [sire=(set @hail) =cape]
     ^-  prot
-    ?~  prog  ~
-    ?:  =(| cape)  ~
-    ?^  cape
-      =/  n  (murn n.prog |=([s=@hail a=@] ?:((~(has in sire) s) `[s a] ~)))
-      =/  l  $(prog l.prog, cape -.cape)
-      =/  r  $(prog l.prog, cape +.cape)
-      ?:  ?&(?=(~ n) ?=(~ l) ?=(~ r))  ~
-      [n l r]
-    =/  prop  `prot`prog
-    |-  ^-  prot
-    ?~  prop  ~
-    =/  n  (murn n.prop |=([s=@hail a=@] ?:((~(has in sire) s) `[s a] ~)))
-    =/  l  $(prop l.prop)
-    =/  r  $(prop r.prop)
+    ?:  |(?=(%| cape) ?=(~ prog))  ~
+    =/  n  (skim n.prog |=([s=@hail @] (~(has in sire) s)))
+    =+  [p q]=?@(cape [& &] cape)
+    =/  l  $(prog l.prog, cape p)
+    =/  r  $(prog l.prog, cape q)
     ?:  ?&(?=(~ n) ?=(~ l) ?=(~ r))  ~
     [n l r]
   ::
@@ -819,13 +810,12 @@
   ++  rel
     |=  [site=@hail =cape]
     ^-  plop
-    ?~  prog  ~
-    ?:  =(| cape)  ~
+    ?:  |(?=(%| cape) ?=(~ prog))  ~
     =/  n  (murn n.prog |=(p=peon ?:(=(site site.p) `axe.p ~)))
-    =/  r  ~(rip ca cape)
-    =/  l  $(prog l.prog, cape -.r)
-    =/  r  $(prog r.prog, cape +.r)
-    ?:  ?&(?=(~ l) ?=(~ r) ?=(~ n))  ~
+    =+  [p q]=?@(cape [& &] cape)
+    =/  l  $(prog l.prog, cape p)
+    =/  r  $(prog r.prog, cape q)
+    ?:  &(?=(~ l) ?=(~ r) ?=(~ n))  ~
     [n l r]
   ::
   ::    relocate cached provenance
