@@ -360,7 +360,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     // Can't use for loop because it borrows newt
     eprintln!("serf: starting event loop\r");
     while let Some(writ) = context.next() {
-        eprintln!("serf: event {}\r", context.event_num);
+        // eprintln!("serf: event {}\r", context.event_num);
         // Reset the local cache and scry handler stack
         context.nock_context.cache = Hamt::<Noun>::new(&mut context.nock_context.stack);
         context.nock_context.scry_stack = D(0);
@@ -368,6 +368,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         let tag = slot(writ, 2)?.as_direct().unwrap();
         match tag.data() {
             tas!(b"live") => {
+                eprintln!("%live");
                 let inner = slot(writ, 6)?.as_direct().unwrap();
                 match inner.data() {
                     tas!(b"cram") => {
@@ -394,11 +395,13 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
                 context.live();
             }
             tas!(b"peek") => {
+                eprintln!("%peek");
                 let ovo = slot(writ, 7)?;
                 let res = peek(&mut context, ovo);
                 context.peek_done(res);
             }
             tas!(b"play") => {
+                eprintln!("%play");
                 let lit = slot(writ, 7)?;
                 if context.epoch == 0 && context.event_num == 0 {
                     // apply lifecycle to first batch
@@ -408,6 +411,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
                 };
             }
             tas!(b"work") => {
+                eprintln!("%work");
                 //  XX: what is in slot 6? it's mil_w in Vere Serf
                 let job = slot(writ, 7)?;
                 work(&mut context, job);
@@ -429,9 +433,7 @@ fn slam(context: &mut Context, axis: u64, ovo: Noun) -> Result<Noun, Error> {
     let fol = T(stack, &[D(8), pul, D(9), D(2), D(10), sam, D(0), D(2)]);
     let sub = T(stack, &[arvo, ovo]);
 
-    let res = interpret(&mut context.nock_context, sub, fol);
-    eprintln!("slam: done");
-    res
+    interpret(&mut context.nock_context, sub, fol)
 }
 
 fn peek(context: &mut Context, ovo: Noun) -> Noun {
@@ -507,6 +509,7 @@ pub fn play_life(context: &mut Context, eve: Noun) {
         Ok(gat) => {
             let eved = lent(eve).expect("serf: play: boot event number failure") as u64;
             let arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
+            eprintln!("play: eved: {}", eved);
 
             unsafe {
                 context.event_update(eved, arvo);
@@ -537,8 +540,6 @@ pub fn play_list(context: &mut Context, mut lit: Noun) {
             None
         };
 
-        eprintln!("play: {}\r", eve);
-
         match soft(context, ovo, trace_name) {
             Ok(res) => {
                 let arvo = res
@@ -552,17 +553,19 @@ pub fn play_list(context: &mut Context, mut lit: Noun) {
                     context.nock_context.stack.preserve(&mut lit);
                     context.preserve_event_update_leftovers();
                 }
+
+                eprintln!("play: {} mug: {:x}\r", eve - 1, context.mug);
             }
             Err(goof) => {
                 return context.play_bail(goof);
             }
         }
     }
-    eprintln!("play: done list\r");
+    eprintln!("play: done list\r"); // XX we will blow up when we get here
     context.play_done();
 }
 
-fn work(context: &mut Context, job: Noun) {
+pub fn work(context: &mut Context, job: Noun) {
     let trace_name = if context.nock_context.trace_info.is_some() {
         //  XX: good luck making this safe AND rust idiomatic!
         let wire = job.slot(6).expect("serf: work: job missing wire");
@@ -675,6 +678,6 @@ fn slot(noun: Noun, axis: u64) -> io::Result<Noun> {
         .map_err(|_e| io::Error::new(io::ErrorKind::InvalidInput, "Bad axis"))
 }
 
-fn clear_interrupt() {
+pub fn clear_interrupt() {
     (*TERMINATOR).store(false, Ordering::Relaxed);
 }

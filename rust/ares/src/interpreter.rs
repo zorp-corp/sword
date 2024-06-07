@@ -422,7 +422,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             debug_assertions(stack, subject);
                             debug_assertions(stack, res);
 
-                            eprintln!("Done: {:x}", mug_u32(stack, res));
+                            // eprintln!("Done: {:x}", mug_u32(stack, res));
 
                             stack.preserve(&mut context.cache);
                             stack.preserve(&mut context.cold);
@@ -1004,21 +1004,13 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                 }
             };
 
-            // eprintln!("Calling with guard");
-            work_f()
-            // call_with_guard(stack_pp, alloc_pp, work_f)
+            call_with_guard(stack_pp, alloc_pp, work_f)
         })
     });
 
     match nock {
-        Ok(res) => {
-            eprintln!("res: {:x}", mug_u32(&mut context.stack, res));
-            Ok(res)
-        },
-        Err(err) => {
-            eprintln!("Error");
-            Err(exit(context, &snapshot, virtual_frame, err))
-        },
+        Ok(res) => Ok(res),
+        Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
     }
 }
 

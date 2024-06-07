@@ -345,6 +345,8 @@ impl<T: Copy + Preserve> Hamt<T> {
                         *new_leaf_buffer = (*n, t);
                         let split = stem.hypothetical_index(chunk);
                         let new_buffer = stack.struct_alloc(stem.size() + 1);
+                        // let stem_buffer = stem.buffer;
+                        // eprintln!("stem.buffer: {:p} split: {}", stem_buffer, split);
                         copy_nonoverlapping(stem.buffer, new_buffer, split);
                         *new_buffer.add(split) = Entry {
                             leaf: Leaf {

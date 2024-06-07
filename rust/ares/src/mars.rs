@@ -3,9 +3,12 @@ use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::result::Result as StdResult;
 
 use crate::disk::*;
+use crate::hamt::Hamt;
 use crate::jets::list::util::lent;
-use crate::persist::{pma_close, pma_sync};
-use crate::serf::{Context, play_life, play_list};
+use crate::mem::Preserve;
+use crate::noun::{D, Noun};
+// use crate::persist::{pma_close, pma_sync};
+use crate::serf::{clear_interrupt, play_life, play_list, work, Context};
 
 #[derive(Debug)]
 pub enum Error {
@@ -79,9 +82,10 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     }
 
     if mars.done == 0 {
-        let life = disk_read_meta(&mars.ctx.log.env, "life").unwrap();
+        // let life = disk_read_meta(&mars.ctx.log.env, "life").unwrap();
+        let life = 9;
 
-        mars_boot(&mut mars, life + 1).unwrap();
+        mars_boot(&mut mars, life).unwrap();
 
         mars.sent = life;
         mars.done = life;
@@ -99,13 +103,26 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
 
     let past = mars.done; // last snapshot
     
-    let events = disk_read_list(&mut mars.ctx, past + 1, eve - mars.done).unwrap();
-    eprintln!("events len: {}\r", lent(events).unwrap());
-    play_list(&mut mars.ctx, events);
-    eprintln!("play: list\r");
-    pma_sync();
-    eprintln!("play: pma sync\r");
-    let _ = pma_close();
+    let mut events = disk_read_list(&mut mars.ctx, past + 1, eve - mars.done).unwrap();
+    mars.ctx.event_num = past + 1;
+
+    // XX if not work; read events from lmdb one at a time
+    while events.is_cell() {
+        mars.ctx.nock_context.cache = Hamt::<Noun>::new(&mut mars.ctx.nock_context.stack);
+        mars.ctx.nock_context.scry_stack = D(0);
+        let e = events.as_cell().unwrap().head();
+        work(&mut mars.ctx, e);
+        events = events.as_cell().unwrap().tail();
+        clear_interrupt();
+        unsafe { events.preserve(&mut mars.ctx.nock_context.stack) };
+    }
+
+    // // XX call work on each event instead of play_list
+    // play_list(&mut mars.ctx, events);
+    // eprintln!("play: list\r");
+    // pma_sync();
+    // eprintln!("play: pma sync\r");
+    // let _ = pma_close();
 
     eprintln!("---------------- playback complete ----------------\r");
 

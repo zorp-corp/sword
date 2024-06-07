@@ -1,7 +1,7 @@
 use ares::jets::hot::URBIT_HOT_STATE;
 use ares::mars::{mars_play, Mars};
 use ares::serf::{Context, serf};
-use ares::trace::create_trace_file;
+use ares::trace::{create_trace_file, write_metadata};
 use std::env;
 use std::io;
 use std::path::PathBuf;
@@ -44,16 +44,26 @@ fn main() -> io::Result<()> {
                 .expect("Must provide path to log directory"),
         );
 
-        let trace_path = pier_path.clone();
-        let trace_info = create_trace_file(trace_path).ok();
-        let ctx = Context::load(pier_path.clone(), trace_info, URBIT_HOT_STATE);
+        let load_path = pier_path.clone();
+        let mut trace_info = create_trace_file(pier_path).ok();
+        if let Some(ref mut info) = trace_info.as_mut() {
+            if let Err(_e) = write_metadata(info) {
+                //  XX: need NockStack allocated string interpolation
+                //  XX: chicken/egg problem with flog bc it requires context
+                //      before we've initialized it, and context needs trace_info
+                // eprintln!("\rError initializing trace file: {:?}", e);
+                trace_info = None;
+            }
+        }
+        let mut ctx = Context::load(load_path.clone(), trace_info, URBIT_HOT_STATE);
+        ctx.ripe();
         
         let sent = ctx.event_num;
         let done = sent;
 
         let mars = Mars {
             ctx: ctx,
-            dir: pier_path,
+            dir: load_path,
             sent: sent,
             done: done,
         };
