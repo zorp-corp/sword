@@ -7,6 +7,7 @@ use crate::hamt::Hamt;
 use crate::jets::list::util::lent;
 use crate::mem::Preserve;
 use crate::noun::{D, Noun};
+use crate::persist::pma_close;
 // use crate::persist::{pma_close, pma_sync};
 use crate::serf::{clear_interrupt, play_life, play_list, work, Context};
 
@@ -133,7 +134,7 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     // eprintln!("play: list\r");
     // pma_sync();
     // eprintln!("play: pma sync\r");
-    // let _ = pma_close();
+    let _ = pma_close();
 
     eprintln!("---------------- playback complete ----------------\r");
 

@@ -115,14 +115,18 @@ pub fn disk_read_one(ctx: &mut Context, eve: u64) -> Option<Noun> {
     let txn = env.begin_ro_txn().unwrap();
     let db = unsafe { txn.open_db(Some(db_name)).unwrap() };
     let key = u64::to_le_bytes(eve);
-    let value = txn.get(db, &key).unwrap();
-    let mug_bytes = &value[0..4];
-    let mug = u32::from_ne_bytes(mug_bytes.try_into().unwrap());
-    let jam = unsafe { IndirectAtom::new_raw_bytes_ref(stack, &value[4..]) };
-    let e = cue(stack, jam.as_atom());
-    eprintln!("disk: {} mug: {:x}", eve, mug);
-    txn.abort();
-    Some(e)
+    if let Ok(value) = txn.get(db, &key) {
+        let mug_bytes = &value[0..4];
+        let mug = u32::from_ne_bytes(mug_bytes.try_into().unwrap());
+        let jam = unsafe { IndirectAtom::new_raw_bytes_ref(stack, &value[4..]) };
+        let e = cue(stack, jam.as_atom());
+        eprintln!("disk: {} mug: {:x}", eve, mug);
+        txn.abort();
+        Some(e)
+    } else {
+        txn.abort();
+        None
+    }
 }
 
 /// Read `len` events from the database, starting at `eve`.
