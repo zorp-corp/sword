@@ -106,6 +106,25 @@ pub fn disk_read_meta(env: &Environment, key: &str) -> Result<u64> {
     lmdb_read_meta(env, key).map_err(|e| Error::Lmdb(e))
 }
 
+/// Read a single event `eve` from the database.
+pub fn disk_read_one(ctx: &mut Context, eve: u64) -> Option<Noun> {
+    let stack = &mut ctx.nock_context.stack;
+    let db_name = "EVENTS";
+    let log = &ctx.log;
+    let env = &log.env;
+    let txn = env.begin_ro_txn().unwrap();
+    let db = unsafe { txn.open_db(Some(db_name)).unwrap() };
+    let key = u64::to_le_bytes(eve);
+    let value = txn.get(db, &key).unwrap();
+    let mug_bytes = &value[0..4];
+    let mug = u32::from_ne_bytes(mug_bytes.try_into().unwrap());
+    let jam = unsafe { IndirectAtom::new_raw_bytes_ref(stack, &value[4..]) };
+    let e = cue(stack, jam.as_atom());
+    eprintln!("disk: {} mug: {:x}", eve, mug);
+    txn.abort();
+    Some(e)
+}
+
 /// Read `len` events from the database, starting at `eve`.
 pub fn disk_read_list(ctx: &mut Context, eve: u64, len: u64) -> Option<Noun> {
     let stack = &mut ctx.nock_context.stack;

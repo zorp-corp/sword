@@ -102,20 +102,31 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     }
 
     let past = mars.done; // last snapshot
-    
-    let mut events = disk_read_list(&mut mars.ctx, past + 1, eve - mars.done).unwrap();
-    mars.ctx.event_num = past + 1;
 
-    // XX if not work; read events from lmdb one at a time
-    while events.is_cell() {
+    let mut i = past + 1;
+    let mut e = disk_read_one(&mut mars.ctx, i);
+    while e.is_some() {
         mars.ctx.nock_context.cache = Hamt::<Noun>::new(&mut mars.ctx.nock_context.stack);
         mars.ctx.nock_context.scry_stack = D(0);
-        let e = events.as_cell().unwrap().head();
-        work(&mut mars.ctx, e);
-        events = events.as_cell().unwrap().tail();
+        work(&mut mars.ctx, e.unwrap());
         clear_interrupt();
-        unsafe { events.preserve(&mut mars.ctx.nock_context.stack) };
+        i += 1;
+        e = disk_read_one(&mut mars.ctx, i);
     }
+    
+    // let mut events = disk_read_list(&mut mars.ctx, past + 1, eve - mars.done).unwrap();
+    // mars.ctx.event_num = past + 1;
+
+    // // XX if not work; read events from lmdb one at a time
+    // while events.is_cell() {
+    //     mars.ctx.nock_context.cache = Hamt::<Noun>::new(&mut mars.ctx.nock_context.stack);
+    //     mars.ctx.nock_context.scry_stack = D(0);
+    //     let e = events.as_cell().unwrap().head();
+    //     work(&mut mars.ctx, e);
+    //     events = events.as_cell().unwrap().tail();
+    //     clear_interrupt();
+    //     unsafe { events.preserve(&mut mars.ctx.nock_context.stack) };
+    // }
 
     // // XX call work on each event instead of play_list
     // play_list(&mut mars.ctx, events);
