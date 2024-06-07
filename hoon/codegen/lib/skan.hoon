@@ -320,7 +320,7 @@
         |=([@hail a=cape b=cape] ~(cut ca (~(uni ca a) b)))
       gen
     ?.  =(wap want.gen)
-      ~&  [%mend-need i=i j=j]
+      ~?  !=(0 j)  [%mend-need i=i j=j]
       need-loop(j +(j))
     =/  nap  nop
     =.  nop
