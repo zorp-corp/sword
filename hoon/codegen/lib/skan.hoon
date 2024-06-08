@@ -719,12 +719,25 @@
   ++  ask
     |=  axe=@
     ?<  =(0 axe)
+    =/  rev  1
+    =|  don=(list (pair @ (list peon)))
     |-  ^-  prot
-    ?:  =(1 axe)  prog
-    ?-  (cap axe)
-      %2  $(axe (mas axe), prog hed)
-      %3  $(axe (mas axe), prog tal)
-    ==
+    =+  [n l r]=?@(prog [~ ~ ~] prog)
+    ?.  =(1 axe)
+      ?-  (cap axe)
+        %2  $(axe (mas axe), don [[rev n] don], rev (peg rev 2), prog l)
+        %3  $(axe (mas axe), don [[rev n] don], rev (peg rev 3), prog r)
+      ==
+    =.  n
+      %+  roll  don
+      |=  [[axe=@ lit=(list peon)] out=_n]
+      ?:  =(~ lit)  out
+      =/  rel  (hub axe rev)
+      %+  roll  lit
+      |=([p=peon =_out] [p(axe (peg axe.p rel)) out])
+    ?:  ?&(?=(~ n) ?=(~ l) ?=(~ r))  ~
+    [n l r]
+  ::
   ++  put
     |=  [axe=@ poor=prot]
     ?<  =(0 axe)
@@ -846,6 +859,21 @@
   %+  turn  slav
   |=  =peon
   peon(axe (peg axe.peon axe))
+::
+++  hub
+  :: ~/  %hub
+  ::    axis after axis
+  ::
+  ::  computes the remainder of axis {b} when navigating to {a}.
+  ::  (crashes if not `(pin a b)`)
+  |=  [a=@ b=@]
+  ?<  =(0 a)
+  ?<  =(0 b)
+  |-  ^-  @
+  ?:  =(a 1)  b
+  ?>  =((cap a) (cap b))
+  $(a (mas a), b (mas b))
+::
 ++  dif-ju
   |*  a=(jug)
   |*  b=_a
