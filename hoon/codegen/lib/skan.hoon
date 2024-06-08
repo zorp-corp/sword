@@ -741,6 +741,7 @@
   ++  put
     |=  [axe=@ poor=prot]
     ?<  =(0 axe)
+    ?:  &(?=(~ prog) ?=(~ poor))  ~
     =|  tack=(list [c=?(%2 %3) p=prot])
     |-  ^-  prot
     ?.  =(1 axe)
@@ -751,8 +752,8 @@
     |-  ^-  prot
     ?~  tack  poor
     ?-  c.i.tack
-      %2  $(poor (con(prog poor) p.i.tack), tack t.tack)
-      %3  $(poor (con(prog p.i.tack) poor), tack t.tack)
+      %2  $(poor [~ poor p.i.tack], tack t.tack)
+      %3  $(poor [~ p.i.tack poor], tack t.tack)
     ==
   ++  cut
     |=  [sire=(set @hail) =cape]
@@ -787,6 +788,7 @@
   ++  con
     |=  poor=prot
     ^-  prot
+    ?:  &(?=(~ prog) ?=(~ poor))  ~
     [~ prog poor]
   ::
   ::    provenance tree of intersection
