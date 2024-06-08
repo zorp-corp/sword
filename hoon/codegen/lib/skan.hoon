@@ -756,17 +756,19 @@
   ++  hed
     ^-  prot
     ?~  prog  ~
-    =/  slav  (pepe n.prog 2)
-    ?~  l.prog  [slav ~ ~]
-    l.prog(n (weld slav n.l.prog))
+    =+  [n l r]=?@(l.prog [~ ~ ~] l.prog)
+    :_  [l r]
+    %+  roll  n.prog
+    |=([p=peon out=_n] [p(axe (peg axe.p 2)) out])
   ::
   ::    provenance tree for +3
   ++  tal
     ^-  prot
     ?~  prog  ~
-    =/  slav  (pepe n.prog 3)
-    ?~  r.prog  [slav ~ ~]
-    r.prog(n (weld slav n.r.prog))
+    =+  [n l r]=?@(r.prog [~ ~ ~] r.prog)
+    :_  [l r]
+    %+  roll  n.prog
+    |=([p=peon out=_n] [p(axe (peg axe.p 3)) out])
   ::
   ::    provenance tree from two subtrees (cons)
   ++  con
