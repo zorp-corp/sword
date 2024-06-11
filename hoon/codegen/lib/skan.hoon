@@ -221,21 +221,18 @@
           [%0 a=@]
         ?:  =(0 @)  ~&  [%fast-bad-clue clue]  gen
         :: register child core
-        =/  butt  (~(pull so sock.bite) 2)
-        ?~  butt
-          ~&  %fast-miss-batt  gen
-        =*  batt  u.butt
+        =/  batt  (~(pull so sock.bite) 2)
         ?.  =(& cape.batt)  ~&  [%fast-hide-batt pell]  gen
         ?.  ?=(^ data.batt)  gen
-        =/  perk  (~(pull so sock.bite) a.pare.clue)
-        ?~  perk  ~&  %fast-lost-sire  gen
-        =*  park  u.perk
+        =/  park  (~(pull so sock.bite) a.pare.clue)
+        :: XX ???
+        :: ?.  =(& cape.park)  ~&  %fast-lost-sire  gen
         =/  past=(set path)
           ?.  =(& cape.park)  ~
           (~(get ju root.cole.gen) data.park)
         =/  bork  (~(pull so park) 2)
-        =?  past  ?&(?=(^ bork) =(& cape.u.bork) ?=(^ data.u.bork))
-          (~(uni in past) (~(get ju batt.cole.gen) data.u.bork))
+        =?  past  &(?=(%& cape.bork) ?=(^ data.bork))
+          (~(uni in past) (~(get ju batt.cole.gen) data.bork))
         =/  pale  ~(tap in past)
         |-  ^-  lore
         =*  pale-loop  $
@@ -479,11 +476,10 @@
       ::
           [%0 axe=@]
         ?:  =(0 axe.form)  [[[%not 0] [~ | ~]] gen]
-        =/  salt  (~(pull so sock.less) axe.form)
-        ?~  salt  [[[%not axe.form] [~ | ~]] gen]
         :_  gen
-        :-  [%not axe.form]
-        [(~(ask qui prot.less) axe.form) u.salt]
+        :+  [%not axe.form]
+          (~(ask qui prot.less) axe.form)
+        (~(pull so sock.less) axe.form)
       ::
           [%1 n=*]
         [[[%one n.form] [~ & n.form]] gen]
@@ -647,10 +643,9 @@
     %-  ~(rep in q)
     |:  [s=*sock b=b]
     =/  batt  (~(pull so s) 2)
-    ?~  batt  b
-    ?.  =(& cape.u.batt)  ~&  [%cold-miss-batt p]  b
+    ?.  =(& cape.batt)  ~&  [%cold-miss-batt p]  b
     ::  split up battery at autocons sites
-    =*  f  data.u.batt
+    =*  f  data.batt
     =/  a=@  1
     |-  ^-  _b
     ?.  ?=([^ *] f)

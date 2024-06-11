@@ -219,19 +219,24 @@
     ==
   ::    axis
   ::
-  ::  create a sock that is known to be cells down the given axis
+  ::  create a sock that, if known, has cells down the given axis
   ::  and at that axis is one
   ++  pull
     |=  axe=@
-    ^-  (unit sock)
-    ?:  =(0 axe)  ~
-    |-  ^-  (unit sock)
-    ?:  =(1 axe)  `one
-    ?:  ?=(%| cape.one)  `[| ~]
-    ?.  ?=(^ data.one)  ~
-    ?-  (cap axe)
-      %2  $(data.one -.data.one, cape.one ?:(?=(^ cape.one) -.cape.one &), axe (mas axe))
-      %3  $(data.one +.data.one, cape.one ?:(?=(^ cape.one) +.cape.one &), axe (mas axe))
+    ?<  =(0 axe)
+    |-  ^-  sock
+    ?:  =(1 axe)  one
+    ?:  |(?=(%| cape.one) ?=(@ data.one))
+      [| ~]
+    =+  [now lat]=[(cap axe) (mas axe)]
+    ?@  cape.one
+      ?-  now
+        %2  $(axe lat, data.one -.data.one)
+        %3  $(axe lat, data.one +.data.one)
+      ==
+    ?-  now
+      %2  $(axe lat, data.one -.data.one, cape.one -.cape.one)
+      %3  $(axe lat, data.one +.data.one, cape.one +.cape.one)
     ==
   ::    pair
   ::
