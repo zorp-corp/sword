@@ -394,7 +394,7 @@
       ::  XX s/b debug assert (only if rect.c?)
       ::
       ?.  ?|  ?=(~ rem)
-              (lien (~(get ja moan) form.c) |=([ss=sock *] =(s ss)))
+              (lien (~(get ja moan.gen) form.c) |=([ss=sock *] =(s ss)))
           ==
         ~&  [%ices-fail-link k=k n=n m=m direct=rect.c]
         [[ices lope] gen]
