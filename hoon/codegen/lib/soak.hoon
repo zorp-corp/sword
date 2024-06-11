@@ -299,41 +299,32 @@
   ::  update mask and data at an axis into a sock
   ++  darn
     |=  [axe=@ two=sock]
-    ^-  (unit sock)
-    ?:  =(0 axe)  ~
-    |-  ^-  (unit sock)
-    ?:  =(1 axe)  `two
-    ?@  data.one
-      ?>  ?=(@ cape.one)
-      ?:  cape.one  ~
-      =/  luck  $(axe (mas axe))
-      ?~  luck  ~
-      ?-  (cap axe)
-        %2  `[[cape.u.luck |] data.u.luck ~]
-        %3  `[[| cape.u.luck] ~ data.u.luck]
-      ==
-    ?@  cape.one
-      ?-  (cap axe)
-          %2
-        =/  luck  $(axe (mas axe), data.one -.data.one)
-        ?~  luck  ~
-        `[[cape.u.luck cape.one] data.u.luck +.data.one]
+    ?<  =(0 axe)
+    |-  ^-  sock
+    ?:  =(1 axe)  two
+    =+  [now lat]=[(cap axe) (mas axe)]
+    ?^  cape.one
+      ?-  now
+        %2  =/  n  $(axe lat, one [-.cape -.data]:one)
+            [[cape.n +.cape.one] data.n +.data.one]
       ::
-          %3
-        =/  luck  $(axe (mas axe), data.one +.data.one)
-        ?~  luck  ~
-        `[[cape.one cape.u.luck] -.data.one data.u.luck]
+        %3  =/  n  $(axe lat, one [+.cape +.data]:one)
+            [[-.cape.one cape.n] -.data.one data.n]
       ==
-    ?-  (cap axe)
-        %2
-      =/  luck  $(axe (mas axe), cape.one -.cape.one, data.one -.data.one)
-      ?~  luck  ~
-      `[[cape.u.luck +.cape.one] data.u.luck +.data.one]
-    ::
-        %3
-      =/  luck  $(axe (mas axe), cape.one +.cape.one, data.one +.data.one)
-      ?~  luck  ~
-      `[[-.cape.one cape.u.luck] -.data.one data.u.luck]
+    ?:  &(cape.one ?=(^ data.one))
+      ?-  now
+        %2  =/  n  $(axe lat, data.one -.data.one)
+            :-  ?:(?=(%& cape.n) & [cape.n &])
+            [data.n +.data.one]
+      ::
+        %3  =/  n  $(axe lat, data.one +.data.one)
+            :-  ?:(?=(%& cape.n) & [& cape.n])
+            [-.data.one data.n]
+      ==
+    =/  n  $(axe lat)
+    ?-  now
+      %2  [[cape.n |] data.n ~]
+      %3  [[| cape.n] ~ data.n]
     ==
   --
 ::    apt assertion

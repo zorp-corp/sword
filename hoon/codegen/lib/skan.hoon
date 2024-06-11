@@ -246,11 +246,8 @@
         ?~  coal  pale-loop(pale t.pale)
         ?.  (~(huge so i.coal) park)  $(coal t.coal)
         =/  naut
-          =/  bake  (~(darn so [| ~]) 2 batt)
-          ?>  ?=(^ bake)
-          =/  folk  (~(darn so u.bake) a.pare.clue i.coal)
-          ?>  ?=(^ folk)
-          u.folk
+          =/  bake  (~(darn so [| ~]) 2 batt)  :: XX [[& |] batt ~]
+          (~(darn so bake) a.pare.clue i.coal)
         ::
         =>  =*  dot  .
             !@  jet.verb
@@ -573,11 +570,10 @@
         ?:  =(0 a.form)  [[[%not 0] [~ | ~]] gen]
         =^  [twig=nomm bite=naan]  gen  $(form p.form)
         =^  [tree=nomm hole=naan]  gen  $(form b.form)
-        =/  salt  (~(darn so sock.hole) a.form sock.bite)
-        ?~  salt  [[[%ten a.form twig tree] [~ | ~]] gen]
         :_  gen
-        :-  [%ten a.form twig tree]
-        [(~(put qui prot.hole) a.form prot.bite) u.salt]
+        :+  [%ten a.form twig tree]
+          (~(put qui prot.hole) a.form prot.bite)
+        (~(darn so sock.hole) a.form sock.bite)
       ::
           [%11 h=@ f=*]
         =^  [then=nomm bite=naan]  gen  $(form f.form)
