@@ -244,11 +244,9 @@
   ++  knit
     |=  two=sock
     ^-  sock
-    :-
-      ?:  ?&(?=(@ cape.one) ?=(@ cape.two))
-        ?:  cape.one  ?:  cape.two  &  [cape.one cape.two]
-        ?.  cape.two  |  [cape.one cape.two]
-      [cape.one cape.two]
+    =*  l  cape.one
+    =*  r  cape.two
+    :-  ?:(&(?=(@ l) =(l r)) l [l r])
     [data.one data.two]
   ::    intersect
   ::
