@@ -336,7 +336,6 @@
   ::
   ::  +seal: finalize analysis (including recursive descendants)
   ::
-  ::    XX: debug %ices-fail-2, prevent memoization
   ::    XX: refactor
   ::
   ++  seal
@@ -387,22 +386,10 @@
         =>  [s=sock.less.c w=w so=so ca=ca]
         ~+  ~(norm so (~(app ca w) s))
       ::
-      ?.  ?|  ?=(~ rem)
+      ~|  %ices-melo-sock-nest
+      ?>  ?|  ?=(~ rem)
               (~(huge so s) (~(app ca w) sock.u.rem))
           ==
-        ::  XX should this prevent memoization?
-        ::
-        ~&  [%ices-fail-nest k=k n=n m=m]
-        [[ices lope] gen]
-      ::
-      ::  XX s/b debug assert (only if rect.c?)
-      ::
-      ?.  ?|  ?=(~ rem)
-              (lien (~(get ja moan.gen) form.c) |=([ss=sock *] =(s ss)))
-          ==
-        ~&  [%ices-fail-link k=k n=n m=m direct=rect.c]
-        [[ices lope] gen]
-      ::
       =.  ices  (~(put by ices) k [s form.c])
       =?  lope  ?!(.=(m n))  (~(put in lope) [s form.c])
       [[ices lope] gen]
@@ -410,18 +397,26 @@
     =.  gen
       %-  ~(rep in kid)
       |=  [k=@hail =_gen]
-      %_    gen
-          call
-        =.  k  ?~(rem=(~(get by remo.gen) k) k site.u.rem)
-        ?~  lac=(~(get by call.gen) k)  call.gen
-        ?~  mos=(~(del in remos.u.lac) site)
-          (~(del by call.gen) k)
-        (~(put by call.gen) k u.lac(remos mos))
+      ?:  (~(has by loop.gen) k)
+        ?<  (~(has by remo.gen) k)
+        ?<  (~(has by call.gen) k)
+        gen(want (~(del by want.gen) k), loop (~(del by loop.gen) k))
       ::
-          want  (~(del by want.gen) k)
-          loop  (~(del by loop.gen) k)
-          remo  (~(del by remo.gen) k)
-      ==
+      ?~  rem=(~(get by remo.gen) k)
+        =/  lac  (~(got by call.gen) k)
+        ?^  remos.lac  gen
+        gen(want (~(del by want.gen) k), call (~(del by call.gen) k))
+      ::
+      ?<  (~(has by call.gen) k)
+      =.  gen
+        ?~  lac=(~(get by call.gen) site.u.rem)
+          ~&  [%missing-call k=k rem=site.u.rem]
+          gen
+        ?^  mos=(~(del in remos.u.lac) site) :: XX explain
+          gen(call (~(put by call.gen) site.u.rem u.lac(remos mos)))
+        gen(want (~(del by want.gen) site.u.rem), call (~(del by call.gen) site.u.rem))
+      gen(want (~(del by want.gen) k), remo (~(del by remo.gen) k))
+
     =/  hiss  (~(get ju hint.gen) site)
     =^  fizz  gen
       %-  ~(rep in hiss)
