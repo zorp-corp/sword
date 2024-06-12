@@ -95,7 +95,10 @@
     =/  gorm  (~(get ja melo.gen) form)
     |-  ^-  (unit [naan lore])
     ?~  gorm  ~
-    ?.  (~(huge so soot.i.gorm) sock.less)
+    =/  tote
+      =/  cope  (~(gut by want.gen) site.i.gorm |)
+      (~(app ca cope) sock.less.i.gorm)
+    ?.  (~(huge so tote) sock.less)
       $(gorm t.gorm)
     =>  !@(call.verb ((onto:blot "<2 " entr seat.dad [site seat area]:i.gorm) .) .)
     :+  ~  [~ | ~]
@@ -113,7 +116,10 @@
     =/  gorm  (~(get ja melo.gen) form)
     |-  ^-  (unit [naan lore])
     ?~  gorm  ~
-    ?.  (~(huge so soot.i.gorm) sock.less)
+    =/  tote
+      =/  cope  (~(gut by want.gen) site.i.gorm |)
+      (~(app ca cope) sock.less.i.gorm)
+    ?.  (~(huge so tote) sock.less)
       $(gorm t.gorm)
     =>  !@(call.verb ((onto:blot "<2 " entr seat.dad [site seat area]:i.gorm) .) .)
     =/  mope  (~(rue qui prot.less) have.i.gorm)
@@ -268,13 +274,9 @@
     |=  [entr=@hail form=* less=naan more=naan]
     ^+  melo.gen
     =>  !@(call.verb ((outa:blot ">2 " entr seat.dad area.gen) .) .)
-    =/  want=cape  (~(gut by want.gen) entr |)
+    =/  want  *cape
+    =/  sutt  *sock
     =/  have  (~(rel qui prot.more) entr cape.sock.more)
-    =/  sutt
-      =/  such
-        %-  ~(uni ca want)
-        (~(gut by (~(due qui prot.more) cape.sock.more)) entr |)
-      ~(norm so (~(app ca such) sock.less))
     =/  loom
       %-  ~(rep by loop.gen)
       |=  [[c=@hail t=@hail s=sock l=naan] loom=(list [c=@hail t=@hail s=sock =noon])]
@@ -283,10 +285,12 @@
       =/  p=plop  (~(rel qui prot.l) entr &)
       =/  n=noon  [p sock.l]
       [[c t s n] loom]         :: XX skip if ?=(~ p) ?
-    (~(add ja melo.gen) form [[sutt want sock.more have area.gen] entr seat.dad loom])
+      ::  XX remove sutt and want
+    (~(add ja melo.gen) form [[sutt want sock.more have area.gen] entr less seat.dad loom])
   ::
   ::  +mend: fixpoints to validate pseudo-recursive estimates
   ::
+  ::    XX consider additionally fixpointing into want.gen from remo.gen
   ::    XX performance
   ::
   ++  mend
@@ -983,5 +987,6 @@
 +$  meme  [soot=sock want=cape root=sock have=plop area=(unit spot)]
 ::
 ::    loop-local analysis memoization entry
-+$  meal  [meme site=@hail seat=(unit spot) loom=(list [c=@hail t=@hail s=sock n=noon])]
+::  XX skip meal, remove [soot] and [want]
++$  meal  [meme site=@hail less=naan seat=(unit spot) loom=(list [c=@hail t=@hail s=sock n=noon])]
 --
