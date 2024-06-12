@@ -75,12 +75,12 @@
     |=  two=cape
     ^-  cape
     ?-  one
+        %&  &
         %|  two
-        %&  one
         ^
       ?-  two
+          %&  &
           %|  one
-          %&  two
           ^ 
         =/  l  $(one -.one, two -.two)
         =/  r  $(one +.one, two +.two)
