@@ -1186,7 +1186,15 @@
     =/  r  redo.gen.i.todo
     |-  ^-  _hill
     ?^  r
-      =.  gen.i.todo  (~(redo jean bell.i.todo gen.i.todo like) i.r)
+      =.  gen.i.todo
+        ~|  =*  bel  bell.i.todo
+            =/  mot  (~(get ja moan) form.bel)
+            |-  ^-  ?(%redo-fail ~)
+            ?~  mot  ~
+            ?:  =(soot.i.mot text.bel)
+              ((outa:blot:sack "redo fail: " `@`0 [seat area]:norm.i.mot) %redo-fail)
+            $(mot t.mot)
+          (~(redo jean bell.i.todo gen.i.todo like) i.r)
       $(r t.r)
     =^  [wish=bile sire=@uvre]  gen.i.todo  (~(kerf jean bell.i.todo gen.i.todo like) %indy dire.i.todo)
     ?.  (~(has by will.gen.i.todo) wish)  ~&  %missing-wish  !!
