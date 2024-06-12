@@ -89,22 +89,6 @@
     =.  call.gen  (~(put by call.gen) entr [less more form ~ & ~ seat.dad area.i.germ])
     `[more gen]
   ::
-  ++  melo-punt
-    |=  [entr=@hail form=* less=naan]
-    ^-  (unit [naan lore])
-    =/  gorm  (~(get ja melo.gen) form)
-    |-  ^-  (unit [naan lore])
-    ?~  gorm  ~
-    =/  tote
-      =/  cope  (~(gut by want.gen) site.i.gorm |)
-      (~(app ca cope) sock.less.i.gorm)
-    ?.  (~(huge so tote) sock.less)
-      $(gorm t.gorm)
-    =>  !@(call.verb ((onto:blot "<2 " entr seat.dad [site seat area]:i.gorm) .) .)
-    :+  ~  [~ | ~]
-    ?>  ?=([* * *] tack.dad)
-    gen(dire |, kids (~(del ju kids.gen) i.t.tack.dad entr))
-  ::
   ::  +melo: check for in-progress analysis
   ::
   ::    NB: hits are estimates, must be validated in +seal
@@ -459,7 +443,6 @@
     ::  check if memoized
     ?^  m=(memo entr form less)  u.m
     ?^  m=(melo entr form less)  u.m
-    :: ?^  m=(melo-punt entr form less)  u.m
     ::
     =^  [load=nomm more=naan]  gen
       :: structurally recur over formula
