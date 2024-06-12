@@ -344,12 +344,12 @@
     ^-  lore
     =>  ::  XX also log kid
         !@(call.verb ((outa:blot ">3 " entr seat.dad area.gen) .) .)
-    ~?  ?=([* * *] wise)  wise=(tail (flop wise))
+    :: ~?  ?=([* * *] wise)  wise=(tail (flop wise))
     ?>  =(entr (rear wise)) :: current callsite should be last item of finalization list
     %+  roll  wise
     |=  [site=@hail =_gen]
     =/  kid  (~(get ju kids.gen) site)
-    ~?  !=(~ kid)  [site=site `kid=(set @hail)`kid]
+    :: ~?  !=(~ kid)  [site=site `kid=(set @hail)`kid]
     =+  (~(got by call.gen) site)
     ?>  ?=(^ load)
     =/  want=cape  (~(gut by want.gen) site |)
