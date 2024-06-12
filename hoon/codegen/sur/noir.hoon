@@ -76,5 +76,11 @@
 ::  ices: labels for direct calls
 ::  loop: set of direct calls which are recursive
 +$  food
-  [=nomm ices=(map @hail [=sock form=*]) loop=(set [=sock form=*]) fizz=(map @hint *)]
+  $:  =nomm
+      ices=(map @hail [=sock form=*])
+      loop=(set [=sock form=*])
+      fizz=(map @hint *)
+      seat=(unit spot)
+      area=(unit spot)
+  ==
 --

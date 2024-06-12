@@ -431,7 +431,7 @@
     =.  hint.gen  (~(del by hint.gen) site)
     =/  loan  (~(get ja moan.gen) form)
     =?  moan.gen  (levy loan |=([ss=sock *] !=(soot ss)))
-      (~(add ja moan.gen) form [soot u.load ices lope fizz])
+      (~(add ja moan.gen) form [soot u.load ices lope fizz seat.dad area.gen])
     gen
   ::
   ::  +scan: statefully analyze formula against subject
