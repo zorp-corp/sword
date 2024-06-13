@@ -1,7 +1,7 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
-use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
+use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator, NOUN_NONE};
 use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
@@ -9,7 +9,7 @@ use memmap::MmapMut;
 use std::alloc::Layout;
 use std::mem;
 use std::ptr;
-use std::ptr::copy_nonoverlapping;
+use std::ptr::{copy, copy_nonoverlapping};
 
 crate::gdb!();
 
@@ -144,6 +144,45 @@ impl NockStack {
     /** Current frame pointer of this NockStack */
     pub fn get_frame_pointer(&self) -> *const u64 {
         self.frame_pointer
+    }
+
+    pub fn get_frame_base(&self) -> *mut u64 {
+        if self.is_west() {
+            unsafe { *(self.prev_alloc_pointer_pointer()) }
+        } else {
+            unsafe { self.frame_pointer.add(RESERVED) }
+        }
+    }
+
+    pub unsafe fn resize_frame(&mut self, new_size: usize) {
+        // lightweight stack must be empty
+        assert!(self.stack_pointer == self.frame_pointer);
+        let raw_new_size = (new_size + RESERVED) as isize;
+        if self.is_west() {
+            let current_size = self
+                .frame_pointer
+                .offset_from(*(self.prev_alloc_pointer_pointer()));
+            assert!(current_size >= RESERVED as isize);
+            let offset = raw_new_size - current_size;
+            let new_frame_pointer = self.frame_pointer.offset(offset);
+            copy(
+                self.frame_pointer.sub(RESERVED),
+                new_frame_pointer.sub(RESERVED),
+                RESERVED,
+            );
+            self.frame_pointer = new_frame_pointer;
+            self.stack_pointer = new_frame_pointer;
+        } else {
+            let current_size =
+                (*(self.prev_alloc_pointer_pointer())).offset_from(self.frame_pointer);
+            assert!(current_size >= RESERVED as isize);
+            let offset = current_size - raw_new_size;
+            let new_frame_pointer = self.frame_pointer.offset(offset);
+            let copy_size = current_size.min(raw_new_size) as usize; // OK because >= reserved
+            copy(self.frame_pointer, new_frame_pointer, copy_size);
+            self.frame_pointer = new_frame_pointer;
+            self.stack_pointer = new_frame_pointer;
+        }
     }
 
     /** Current stack pointer of this NockStack */
@@ -455,6 +494,11 @@ impl NockStack {
             self.pop::<*mut Noun>();
             let next_noun = *(self.top::<Noun>());
             self.pop::<Noun>();
+
+            if next_noun.is_none() {
+                *next_dest = NOUN_NONE;
+                continue;
+            }
 
             // If it's a direct atom, just write it to the destination.
             // Otherwise, we have allocations to make.

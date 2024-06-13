@@ -31,6 +31,9 @@ const CELL_TAG: u64 = u64::MAX & INDIRECT_MASK;
 /** Tag mask for a cell. */
 const CELL_MASK: u64 = !(u64::MAX >> 3);
 
+const NONE_BITS: u64 = !(u64::MAX >> 3);
+pub const NOUN_NONE: Noun = Noun { raw: NONE_BITS };
+
 /*  A note on forwarding pointers:
  *
  *  Forwarding pointers are only used temporarily during copies between NockStack frames and between
@@ -153,6 +156,10 @@ fn is_indirect_atom(noun: u64) -> bool {
 /** Test if a noun is a cell. */
 fn is_cell(noun: u64) -> bool {
     noun & CELL_MASK == CELL_TAG
+}
+
+fn is_none(noun: u64) -> bool {
+    noun == NONE_BITS
 }
 
 /** A noun-related error. */
@@ -586,6 +593,7 @@ pub struct Cell(u64);
 
 impl Cell {
     pub unsafe fn from_raw_pointer(ptr: *const CellMemory) -> Self {
+        assert!(!ptr.is_null());
         Cell((ptr as u64) >> 3 | CELL_TAG)
     }
 
@@ -1023,14 +1031,16 @@ pub union Noun {
 
 impl Noun {
     pub fn is_none(self) -> bool {
-        unsafe { self.raw == u64::MAX }
+        unsafe { is_none(self.raw) }
     }
 
     pub fn is_direct(&self) -> bool {
+        assert!(!self.is_none());
         unsafe { is_direct_atom(self.raw) }
     }
 
     pub fn is_indirect(&self) -> bool {
+        assert!(!self.is_none());
         unsafe { is_indirect_atom(self.raw) }
     }
 
@@ -1043,6 +1053,7 @@ impl Noun {
     }
 
     pub fn is_cell(&self) -> bool {
+        assert!(!self.is_none());
         unsafe { is_cell(self.raw) }
     }
 
