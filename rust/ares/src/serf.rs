@@ -72,7 +72,7 @@ impl Persist for Snapshot {
 
 #[repr(C)]
 #[repr(packed)]
-pub struct SnapshotMem {
+struct SnapshotMem {
     pub epoch: u64,
     pub event_num: u64,
     pub arvo: Noun,
@@ -187,7 +187,7 @@ impl Context {
             arvo,
             mug,
             nock_context,
-            log: log,
+            log
         }
     }
 
@@ -448,7 +448,7 @@ fn goof(context: &mut Context, mote: Mote, traces: Noun) -> Noun {
 /** Run slam; process stack trace to tang if error.
  *  Generate tracing events, if JSON tracing enabled.
  */
-pub fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<Noun, Noun> {
+fn soft(context: &mut Context, ovo: Noun, trace_name: Option<String>) -> Result<Noun, Noun> {
     let slam_res = if context.nock_context.trace_info.is_some() {
         let start = Instant::now();
         let slam_res = slam(context, POKE_AXIS, ovo);
@@ -514,7 +514,7 @@ pub fn play_life(context: &mut Context, eve: Noun) {
     }
 }
 
-pub fn play_list(context: &mut Context, mut lit: Noun) {
+fn play_list(context: &mut Context, mut lit: Noun) {
     let mut eve = context.event_num;
     while let Ok(cell) = lit.as_cell() {
         let ovo = cell.head();

@@ -39,23 +39,3 @@ pub fn lmdb_gulf(env: &Environment) -> (u64, u64) {
         (0, 0)
     }
 }
-
-/// Read `len` events from the database, starting at `eve`, and calling `read_f` for each
-/// event.
-pub fn lmdb_read<F>(env: &Environment, eve: u64, len: usize, mut read_f: F)
-where
-    F: FnMut(u64, &[u8]),
-{
-    let db_name = "EVENTS";
-    let txn = env.begin_ro_txn().unwrap();
-    let db = unsafe { txn.open_db(Some(db_name)).unwrap() };
-    let mut cursor = txn.open_ro_cursor(db).unwrap();
-    for (key, value) in cursor.iter_from(&u64::to_le_bytes(eve)) {
-        // eprintln!("key: {:?}\r", key);
-        if key > u64::to_le_bytes(eve + len as u64).as_ref() {
-            break;
-        }
-        let key = u64::from_le_bytes(key.try_into().unwrap());
-        read_f(key, value);
-    }
-}

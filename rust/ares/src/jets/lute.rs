@@ -181,9 +181,6 @@ pub fn jet_ut_nest_dext(context: &mut Context, subject: Noun) -> Result {
             if unsafe { pro.raw_equals(YES) && reg.raw_equals(D(0)) }
                 || unsafe { pro.raw_equals(NO) && seg.raw_equals(D(0)) }
             {
-                // let mug_key = mug_u32(&mut context.stack, key);
-                // let mug_pro = mug_u32(&mut context.stack, pro);
-                // eprintln!("nest: key: {:x}, pro: {:x}", mug_key, mug_pro);
                 context.cache = context.cache.insert(&mut context.stack, &mut key, pro);
             }
             Ok(pro)
