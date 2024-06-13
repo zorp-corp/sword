@@ -78,7 +78,11 @@ impl Newt {
     pub fn new_mock() -> Newt {
         Newt {
             input: std::fs::File::open("/dev/null").expect("newt: could not open /dev/null"),
-            output: std::fs::File::open("/dev/null").expect("newt: could not open /dev/null"),
+            //output: std::fs::File::open("/dev/null").expect("newt: could not open /dev/null"),
+            output: std::fs::File::options()
+            .read(true)
+            .write(true)
+            .open("/dev/null").expect("newt: could not open /dev/null")
         }
     }
 
