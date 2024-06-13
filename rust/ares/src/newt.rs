@@ -79,9 +79,10 @@ impl Newt {
         Newt {
             input: std::fs::File::open("/dev/null").expect("newt: could not open /dev/null"),
             output: std::fs::File::options()
-            .read(true)
-            .write(true)
-            .open("/dev/null").expect("newt: could not open /dev/null")
+                .read(true)
+                .write(true)
+                .open("/dev/null")
+                .expect("newt: could not open /dev/null"),
         }
     }
 
