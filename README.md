@@ -6,7 +6,4 @@ Read the [proposal](docs/proposal/proposal-nock-performance.md) and [hypotheses]
 
 ## Installation
 
-Dependencies:
-* [`libaes_siv`](https://github.com/dfoxfranke/libaes_siv)
-* [`openssl`](https://github.com/openssl/openssl)
-* [`libsecp256k1`](https://github.com/bitcoin-core/secp256k1)
+See the "Run" section of [DEVELOPERS.md](DEVELOPERS.md#run).
