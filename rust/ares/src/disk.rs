@@ -1,7 +1,6 @@
 /** Disk storage for events. */
-use crate::jets::list::util::{flop, lent};
+use crate::jets::list::util::flop;
 use crate::lmdb::{lmdb_gulf, lmdb_read_meta};
-use crate::mug::mug_u32;
 use crate::noun::{IndirectAtom, Noun, D, T};
 use crate::serf::Context;
 use crate::serialization::cue;
@@ -46,7 +45,6 @@ impl Disk {
             .open(epoch_dir.as_path())
             .expect("Failed to open LMDB environment");
         let (_, high) = lmdb_gulf(&env);
-        eprintln!("disk: new\r");
         Disk {
             dir: log_dir,
             epoch: epoch,
@@ -90,17 +88,6 @@ pub fn epoch_last(log_dir: &PathBuf) -> Result<u64> {
     Err(Error::EpochNotFound)
 }
 
-/// Open the specified epoch's LMDB environment.
-fn _epoch_load(log: Disk, epoch: u64) -> Result<()> {
-    let epoch_dir = log.dir.join(format!("0i{}", epoch));
-    let env_builder = Environment::new();
-    let env_res = env_builder.open(epoch_dir.as_path());
-    match env_res {
-        Ok(_) => Ok(()),
-        Err(err) => Err(Error::Lmdb(err)),
-    }
-}
-
 /// Read a value from the metadata database.
 pub fn disk_read_meta(env: &Environment, key: &str) -> Result<u64> {
     lmdb_read_meta(env, key).map_err(|e| Error::Lmdb(e))
@@ -117,10 +104,10 @@ pub fn disk_read_one(ctx: &mut Context, eve: u64) -> Option<Noun> {
     let key = u64::to_le_bytes(eve);
     if let Ok(value) = txn.get(db, &key) {
         let mug_bytes = &value[0..4];
-        let mug = u32::from_ne_bytes(mug_bytes.try_into().unwrap());
+        // XX use mug
+        let _mug = u32::from_ne_bytes(mug_bytes.try_into().unwrap());
         let jam = unsafe { IndirectAtom::new_raw_bytes_ref(stack, &value[4..]) };
         let e = cue(stack, jam.as_atom());
-        eprintln!("disk: {} mug: {:x}", eve, mug);
         txn.abort();
         Some(e)
     } else {
@@ -145,10 +132,10 @@ pub fn disk_read_list(ctx: &mut Context, eve: u64, len: u64) -> Option<Noun> {
             let key = u64::to_le_bytes(i);
             let value = cursor.get(Some(&key), None, ffi::MDB_SET_KEY).unwrap().1;
             let mug_bytes = &value[0..4];
-            let mug = u32::from_ne_bytes(mug_bytes.try_into().unwrap());
+            // XX use mug
+            let _mug = u32::from_ne_bytes(mug_bytes.try_into().unwrap());
             let jam = unsafe { IndirectAtom::new_raw_bytes_ref(stack, &value[4..]) };
             let e = cue(stack, jam.as_atom());
-            eprintln!("disk: {} mug: {:x}", i, mug);
             eves = T(stack, &[e, eves]);
             i += 1;
         }

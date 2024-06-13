@@ -35,7 +35,6 @@ fn main() -> io::Result<()> {
     }
 
     if cmd == "serf" {
-        eprintln!("ares: serf\r");
         return serf(URBIT_HOT_STATE);
     } else if cmd == "play" {
         let pier_path = PathBuf::from(
@@ -81,7 +80,6 @@ fn main() -> io::Result<()> {
             .expect("Failed to parse snapshot interval");
 
         mars_play(mars, eve, sap);
-        eprintln!("play: done\r");
     }
 
     Ok(())

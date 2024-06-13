@@ -97,7 +97,6 @@ impl Context {
         constant_hot_state: &[HotEntry],
     ) -> Context {
         let snap_path = pier_path.join(".urb/chk");
-        // eprintln!("load: pma: {:?}\r", snap_path);
         pma_open(snap_path).expect("serf: pma open failed");
 
         let snapshot_version = pma_meta_get(BTMetaField::SnapshotVersion as usize);
@@ -110,7 +109,6 @@ impl Context {
             _ => panic!("Unsupported snapshot version"),
         };
 
-        eprintln!("load: new context\r");
         Context::new(pier_path, trace_info, snapshot, constant_hot_state)
     }
 
@@ -320,10 +318,8 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         .nth(2)
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
     let pier_path = PathBuf::from(pier_path_string);
-    eprintln!("serf: pier path: {:?}\r", pier_path);
     let snap_path = pier_path.join(".urb/chk");
     create_dir_all(&snap_path)?;
-    eprintln!("serf: snap path: {:?}\r", snap_path);
 
     let wag: u32 = std::env::args()
         .nth(4)
@@ -350,17 +346,11 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         }
     }
 
-    eprintln!("serf: loading context\r");
-
     let mut context = Context::load(load_path, trace_info, constant_hot_state);
     context.ripe();
 
-    eprintln!("serf: loaded context\r");
-
     // Can't use for loop because it borrows newt
-    eprintln!("serf: starting event loop\r");
     while let Some(writ) = context.next() {
-        // eprintln!("serf: event {}\r", context.event_num);
         // Reset the local cache and scry handler stack
         context.nock_context.cache = Hamt::<Noun>::new(&mut context.nock_context.stack);
         context.nock_context.scry_stack = D(0);
@@ -368,7 +358,6 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         let tag = slot(writ, 2)?.as_direct().unwrap();
         match tag.data() {
             tas!(b"live") => {
-                eprintln!("%live");
                 let inner = slot(writ, 6)?.as_direct().unwrap();
                 match inner.data() {
                     tas!(b"cram") => {
@@ -395,13 +384,11 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
                 context.live();
             }
             tas!(b"peek") => {
-                eprintln!("%peek");
                 let ovo = slot(writ, 7)?;
                 let res = peek(&mut context, ovo);
                 context.peek_done(res);
             }
             tas!(b"play") => {
-                eprintln!("%play");
                 let lit = slot(writ, 7)?;
                 if context.epoch == 0 && context.event_num == 0 {
                     // apply lifecycle to first batch
@@ -411,7 +398,6 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
                 };
             }
             tas!(b"work") => {
-                eprintln!("%work");
                 //  XX: what is in slot 6? it's mil_w in Vere Serf
                 let job = slot(writ, 7)?;
                 work(&mut context, job);
@@ -509,7 +495,6 @@ pub fn play_life(context: &mut Context, eve: Noun) {
         Ok(gat) => {
             let eved = lent(eve).expect("serf: play: boot event number failure") as u64;
             let arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
-            eprintln!("play: eved: {}", eved);
 
             unsafe {
                 context.event_update(eved, arvo);
@@ -553,15 +538,12 @@ pub fn play_list(context: &mut Context, mut lit: Noun) {
                     context.nock_context.stack.preserve(&mut lit);
                     context.preserve_event_update_leftovers();
                 }
-
-                eprintln!("play: {} mug: {:x}\r", eve - 1, context.mug);
             }
             Err(goof) => {
                 return context.play_bail(goof);
             }
         }
     }
-    eprintln!("play: done list\r"); // XX we will blow up when we get here
     context.play_done();
 }
 

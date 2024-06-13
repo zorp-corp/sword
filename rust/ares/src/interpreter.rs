@@ -11,7 +11,6 @@ use crate::jets::warm::Warm;
 use crate::jets::JetErr;
 use crate::mem::NockStack;
 use crate::mem::Preserve;
-use crate::mug::mug_u32;
 use crate::newt::Newt;
 use crate::noun;
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};

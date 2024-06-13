@@ -5,11 +5,10 @@ use std::result::Result as StdResult;
 use crate::disk::*;
 use crate::hamt::Hamt;
 use crate::jets::list::util::lent;
-use crate::mem::Preserve;
+use crate::lmdb::lmdb_gulf;
 use crate::noun::{D, Noun};
 use crate::persist::pma_close;
-// use crate::persist::{pma_close, pma_sync};
-use crate::serf::{clear_interrupt, play_life, play_list, work, Context};
+use crate::serf::{clear_interrupt, play_life, work, Context};
 
 #[derive(Debug)]
 pub enum Error {
@@ -61,6 +60,7 @@ fn mars_boot(mars: &mut Mars, eve: u64) -> Result<()> {
 }
 
 /// Replay up to `eve`, snapshot every `sap` events.
+/// XX save every `sap` events, show time, produce more errors.
 pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     let mut played = 0u64;
 
@@ -83,8 +83,7 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     }
 
     if mars.done == 0 {
-        // let life = disk_read_meta(&mars.ctx.log.env, "life").unwrap();
-        let life = 9;
+        let life = disk_read_meta(&mars.ctx.log.env, "life").unwrap();
 
         mars_boot(&mut mars, life).unwrap();
 
@@ -102,38 +101,40 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
         eprintln!("play: events {}-{}\r", (mars.done + 1), eve);
     }
 
-    let past = mars.done; // last snapshot
+    let mut _past = mars.done;  // XX last snapshot
+    let mut _meme = 0;          // XX last event to bail:meme
+    let mut _shot = 0;          // XX retry counter
 
-    let mut i = past + 1;
-    let mut e = disk_read_one(&mut mars.ctx, i);
-    while e.is_some() {
-        mars.ctx.nock_context.cache = Hamt::<Noun>::new(&mut mars.ctx.nock_context.stack);
-        mars.ctx.nock_context.scry_stack = D(0);
-        work(&mut mars.ctx, e.unwrap());
-        clear_interrupt();
-        i += 1;
-        e = disk_read_one(&mut mars.ctx, i);
+    while mars.done < eve {
+        match mars_play_batch(&mut mars, false, 1024) {
+            Ok(_) => {
+                // XX show the time
+                // XX only snapshot per `sap` events, not after each one
+                _past = mars.done;
+            }
+            Err(Error::PlayOOM) => {
+                eprintln!("play: out of memory\r");
+                break;
+            }
+            Err(Error::PlayInterrupted) => {
+                eprintln!("play: interrupted\r");
+                break;
+            }
+            Err(Error::PlayEventLogFailure) => {
+                eprintln!("play: event log failure\r");
+                break;
+            }
+            Err(Error::PlayMugMismatch) => {
+                eprintln!("play: mug mismatch\r");
+                break;
+            }
+            Err(Error::PlayFailure) => {
+                eprintln!("play: failure\r");
+                break;
+            }
+        }
     }
-    
-    // let mut events = disk_read_list(&mut mars.ctx, past + 1, eve - mars.done).unwrap();
-    // mars.ctx.event_num = past + 1;
 
-    // // XX if not work; read events from lmdb one at a time
-    // while events.is_cell() {
-    //     mars.ctx.nock_context.cache = Hamt::<Noun>::new(&mut mars.ctx.nock_context.stack);
-    //     mars.ctx.nock_context.scry_stack = D(0);
-    //     let e = events.as_cell().unwrap().head();
-    //     work(&mut mars.ctx, e);
-    //     events = events.as_cell().unwrap().tail();
-    //     clear_interrupt();
-    //     unsafe { events.preserve(&mut mars.ctx.nock_context.stack) };
-    // }
-
-    // // XX call work on each event instead of play_list
-    // play_list(&mut mars.ctx, events);
-    // eprintln!("play: list\r");
-    // pma_sync();
-    // eprintln!("play: pma sync\r");
     let _ = pma_close();
 
     eprintln!("---------------- playback complete ----------------\r");
@@ -141,13 +142,30 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     played
 }
 
-/// Play a batch of events. XX add a `when` parameter.
-fn _mars_play_batch(mars: &mut Mars, _mug: bool, batch: u64) -> Result<()> {
-    let start = mars.done + 1;
-    if let Some(eve) = disk_read_list(&mut mars.ctx, start, batch) {
-        play_list(&mut mars.ctx, eve);
-        Ok(())
-    } else {
-        Err(Error::PlayEventLogFailure)
+/// Play a batch of events. 
+/// XX use `mug`, track time, and produce more errors.
+fn mars_play_batch(mars: &mut Mars, _mug: bool, bat: u64) -> Result<()> {
+    let ctx = &mut mars.ctx;
+    let (_, high) = lmdb_gulf(&ctx.log.env);
+    let mut i = mars.done + 1;
+    let start = i;
+    while i < (start + bat) && i <= high {
+        let e = disk_read_one(ctx, i);
+        match e {
+            Some(e) => {
+                let stack = &mut ctx.nock_context.stack;
+                ctx.nock_context.cache = Hamt::<Noun>::new(stack);
+                ctx.nock_context.scry_stack = D(0);
+                work(ctx, e);
+                mars.done = i;
+                clear_interrupt();
+                i += 1;
+            }
+            None => {
+                return Err(Error::PlayEventLogFailure);
+            }
+        }
     }
+
+    Ok(())
 }
