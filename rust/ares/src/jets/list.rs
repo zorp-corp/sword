@@ -3,7 +3,7 @@
 use crate::interpreter::Context;
 use crate::jets::util::{slot, BAIL_FAIL};
 use crate::jets::Result;
-use crate::noun::{Cell, Noun, D};
+use crate::noun::{Cell, Noun, D, T};
 use crate::site::{site_slam, Site};
 
 crate::gdb!();
@@ -50,6 +50,27 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
                 *dest = D(0);
             };
             return Ok(res);
+        }
+    }
+}
+
+pub fn jet_roll(context: &mut Context, subject: Noun) -> Result {
+    let sample = slot(subject, 6)?;
+    let mut list = slot(sample, 2)?;
+    let mut gate = slot(sample, 3)?;
+    let mut pro = slot(gate, 13)?;
+
+    let site = Site::new(context, &mut gate);
+    loop {
+        if let Ok(list_cell) = list.as_cell() {
+            list = list_cell.tail();
+            let sam = T(&mut context.stack, &[list_cell.head(), pro]);
+            pro = site_slam(context, &site, sam);
+        } else {
+            if unsafe { !list.raw_equals(D(0)) } {
+                return Err(BAIL_FAIL);
+            }
+            return Ok(pro);
         }
     }
 }
