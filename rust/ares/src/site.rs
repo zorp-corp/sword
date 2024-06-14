@@ -8,10 +8,10 @@ use crate::jets::Jet;
 use crate::noun::{Noun, D, T};
 
 pub struct Site {
-    pub battery: Noun,     // battery
-    pub context: Noun,     // context
-    pub jet: Option<Jet>,  // jet driver
-    pub path: Noun,        // label
+    pub battery: Noun,    // battery
+    pub context: Noun,    // context
+    pub jet: Option<Jet>, // jet driver
+    pub path: Noun,       // label
 }
 
 impl Site {
@@ -49,18 +49,24 @@ impl Site {
                 ret
             })
         {
-            return Site { battery: battery, context: context, jet: Some(jet), path: path };
+            return Site {
+                battery: battery,
+                context: context,
+                jet: Some(jet),
+                path: path,
+            };
         }
-        return Site { battery: battery, context: context, jet: None, path: D(0) };
+        return Site {
+            battery: battery,
+            context: context,
+            jet: None,
+            path: D(0),
+        };
     }
 }
 
 /// Slam a cached call site.
-pub fn site_slam(
-    ctx: &mut Context,
-    site: &Site,
-    sample: Noun,
-) -> Noun {
+pub fn site_slam(ctx: &mut Context, site: &Site, sample: Noun) -> Noun {
     let subject = T(&mut ctx.stack, &[site.battery, sample, site.context]);
     if site.jet.is_some() {
         let jet = site.jet.unwrap();

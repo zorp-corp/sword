@@ -31,7 +31,7 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
     let mut gate = slot(sample, 3)?;
     let mut res = D(0);
     let mut dest: *mut Noun = &mut res; // Mutable pointer because we cannot guarantee initialized
-    
+
     let site = Site::new(context, &mut gate);
     loop {
         if let Ok(list_cell) = list.as_cell() {
