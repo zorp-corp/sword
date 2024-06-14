@@ -2,23 +2,26 @@
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
 
-use crate::interpreter::Context;
+use crate::interpreter::{interpret, Context};
 use crate::jets::util::slot;
-use crate::jets::{Jet, Result};
-use crate::noun::{D, Noun};
+use crate::jets::Jet;
+use crate::noun::{Noun, D, T};
 
 pub struct Site {
-    pub jet: Jet,
-    pub path: Noun,
+    pub battery: Noun,     // battery
+    pub context: Noun,     // context
+    pub jet: Option<Jet>,  // jet driver
+    pub path: Noun,        // label
 }
 
 impl Site {
     /// Prepare a locally cached gate to call repeatedly.
-    pub fn new(ctx: &mut Context, gate: &mut Noun) -> Option<Site> {
-        let mut gate_battery = slot(*gate, 2).unwrap();
+    pub fn new(ctx: &mut Context, core: &mut Noun) -> Site {
+        let mut battery = slot(*core, 2).unwrap();
+        let context = slot(*core, 7).unwrap();
         if let Some((jet, path)) = ctx
             .warm
-            .find_jet(&mut ctx.stack, gate, &mut gate_battery)
+            .find_jet(&mut ctx.stack, core, &mut battery)
             .filter(|(_jet, mut path)| {
                 // check that 7 is a prefix of the parent battery axis,
                 // to ensure that the sample (axis 6) is not part of the jet match.
@@ -46,13 +49,23 @@ impl Site {
                 ret
             })
         {
-            return Some(Site { jet, path } );
+            return Site { battery: battery, context: context, jet: Some(jet), path: path };
         }
-        None
+        return Site { battery: battery, context: context, jet: None, path: D(0) };
     }
+}
 
-    /// Kick a core with a cached `Site`.
-    pub fn kick() -> Result {
-        Ok(D(0))
+/// Slam a cached call site.
+pub fn site_slam(
+    ctx: &mut Context,
+    site: &Site,
+    sample: Noun,
+) -> Noun {
+    let subject = T(&mut ctx.stack, &[site.battery, sample, site.context]);
+    if site.jet.is_some() {
+        let jet = site.jet.unwrap();
+        return jet(ctx, subject).unwrap();
+    } else {
+        return interpret(ctx, subject, site.battery).unwrap();
     }
 }

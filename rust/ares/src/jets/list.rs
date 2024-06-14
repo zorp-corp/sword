@@ -1,10 +1,10 @@
 /** Text processing jets
  */
-use crate::interpreter::{interpret, Context};
+use crate::interpreter::Context;
 use crate::jets::util::{slot, BAIL_FAIL};
 use crate::jets::Result;
-use crate::noun::{Cell, Noun, D, T};
-use crate::site::Site;
+use crate::noun::{Cell, Noun, D};
+use crate::site::{site_slam, Site};
 
 crate::gdb!();
 
@@ -29,61 +29,27 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
     let sample = slot(subject, 6)?;
     let mut list = slot(sample, 2)?;
     let mut gate = slot(sample, 3)?;
-    let gate_battery = slot(gate, 2)?;
-    let gate_context = slot(gate, 7)?;
     let mut res = D(0);
     let mut dest: *mut Noun = &mut res; // Mutable pointer because we cannot guarantee initialized
-
-    if let Some(site) = Site::new(context, &mut gate)
-    {
-        let jet = site.jet;
-        let _path = site.path;
-        loop {
-            if let Ok(list_cell) = list.as_cell() {
-                list = list_cell.tail();
-                let element_subject = T(
-                    &mut context.stack,
-                    &[gate_battery, list_cell.head(), gate_context],
-                );
-                unsafe {
-                    let (new_cell, new_mem) = Cell::new_raw_mut(&mut context.stack);
-                    (*new_mem).head = jet(context, element_subject)?;
-                    *dest = new_cell.as_noun();
-                    dest = &mut (*new_mem).tail;
-                }
-            } else {
-                if unsafe { !list.raw_equals(D(0)) } {
-                    return Err(BAIL_FAIL);
-                }
-                unsafe {
-                    *dest = D(0);
-                };
-                return Ok(res);
+    
+    let site = Site::new(context, &mut gate);
+    loop {
+        if let Ok(list_cell) = list.as_cell() {
+            list = list_cell.tail();
+            unsafe {
+                let (new_cell, new_mem) = Cell::new_raw_mut(&mut context.stack);
+                (*new_mem).head = site_slam(context, &site, list_cell.head());
+                *dest = new_cell.as_noun();
+                dest = &mut (*new_mem).tail;
             }
-        }
-    } else {
-        loop {
-            if let Ok(list_cell) = list.as_cell() {
-                list = list_cell.tail();
-                let element_subject = T(
-                    &mut context.stack,
-                    &[gate_battery, list_cell.head(), gate_context],
-                );
-                unsafe {
-                    let (new_cell, new_mem) = Cell::new_raw_mut(&mut context.stack);
-                    (*new_mem).head = interpret(context, element_subject, gate_battery)?;
-                    *dest = new_cell.as_noun();
-                    dest = &mut (*new_mem).tail;
-                }
-            } else {
-                if unsafe { !list.raw_equals(D(0)) } {
-                    return Err(BAIL_FAIL);
-                }
-                unsafe {
-                    *dest = D(0);
-                };
-                return Ok(res);
+        } else {
+            if unsafe { !list.raw_equals(D(0)) } {
+                return Err(BAIL_FAIL);
             }
+            unsafe {
+                *dest = D(0);
+            };
+            return Ok(res);
         }
     }
 }
