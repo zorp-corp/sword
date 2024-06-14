@@ -53,7 +53,7 @@ impl Site {
             battery,
             context,
             jet: warm_result.map(|(jet, _)| jet),
-            path: warm_result.map(|(_, path)| path).unwrap_or(D(0))
+            path: warm_result.map(|(_, path)| path).unwrap_or(D(0)),
         }
     }
 }
