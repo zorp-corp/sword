@@ -9,7 +9,6 @@ crate::gdb!();
 
 fn by_rep(context: &mut Context, tree: Noun, site: &Site, out: &mut Noun) {
     if unsafe { tree.raw_equals(D(0)) } {
-        return;
     } else {
         let node = slot(tree, 2).unwrap();
         let left = slot(node, 6).unwrap();
