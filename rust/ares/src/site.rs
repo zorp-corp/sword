@@ -19,7 +19,8 @@ impl Site {
     pub fn new(ctx: &mut Context, core: &mut Noun) -> Site {
         let mut battery = slot(*core, 2).unwrap();
         let context = slot(*core, 7).unwrap();
-        if let Some((jet, path)) = ctx
+
+        let warm_result = ctx
             .warm
             .find_jet(&mut ctx.stack, core, &mut battery)
             .filter(|(_jet, mut path)| {
@@ -47,21 +48,13 @@ impl Site {
                     }
                 }
                 ret
-            })
-        {
-            return Site {
-                battery: battery,
-                context: context,
-                jet: Some(jet),
-                path: path,
-            };
+            });
+        Site {
+            battery,
+            context,
+            jet: warm_result.map(|(jet, _)| jet),
+            path: warm_result.map(|(_, path)| path).unwrap_or(D(0))
         }
-        return Site {
-            battery: battery,
-            context: context,
-            jet: None,
-            path: D(0),
-        };
     }
 }
 
@@ -70,8 +63,8 @@ pub fn site_slam(ctx: &mut Context, site: &Site, sample: Noun) -> Noun {
     let subject = T(&mut ctx.stack, &[site.battery, sample, site.context]);
     if site.jet.is_some() {
         let jet = site.jet.unwrap();
-        return jet(ctx, subject).unwrap();
+        jet(ctx, subject).unwrap()
     } else {
-        return interpret(ctx, subject, site.battery).unwrap();
+        interpret(ctx, subject, site.battery).unwrap()
     }
 }
