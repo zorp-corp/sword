@@ -229,6 +229,11 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
         1,
         jet_by_rep,
     ),
+    (
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"in"), Left(b"rep")],
+        1,
+        jet_by_rep, // +rep:in has the same signature as +rep:by
+    ),
     //
     (
         &[

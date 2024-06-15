@@ -9,16 +9,17 @@ crate::gdb!();
 
 fn by_rep(context: &mut Context, tree: Noun, site: &Site, out: &mut Noun) {
     if unsafe { tree.raw_equals(D(0)) } {
-    } else {
-        let node = slot(tree, 2).unwrap();
-        let left = slot(node, 6).unwrap();
-        let rite = slot(node, 7).unwrap();
-
+    } else if let Ok(node) = slot(tree, 2) {
         let acc = T(&mut context.stack, &[node, *out]);
         *out = site_slam(context, site, acc);
 
-        by_rep(context, left, site, out);
-        by_rep(context, rite, site, out);
+        if let Ok(left) = slot(tree, 6) {
+            by_rep(context, left, site, out);
+        }
+
+        if let Ok(rite) = slot(tree, 7) {
+            by_rep(context, rite, site, out);
+        }
     }
 }
 
