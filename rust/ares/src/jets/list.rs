@@ -2,7 +2,6 @@
  */
 use crate::interpreter::Context;
 use crate::jets::util::{slot, BAIL_FAIL};
-use crate::jets::nock::util::ctx_interpret;
 use crate::jets::Result;
 use crate::noun::{Cell, Noun, D, T};
 use crate::site::{site_slam, Site};

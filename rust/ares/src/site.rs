@@ -2,9 +2,10 @@
 use bitvec::order::Lsb0;
 use bitvec::slice::BitSlice;
 
-use crate::interpreter::{interpret, Context};
+use crate::interpreter::Context;
 use crate::jets::util::slot;
 use crate::jets::Jet;
+use crate::jets::nock::util::ctx_interpret;
 use crate::noun::{Noun, D, T};
 
 pub struct Site {
@@ -65,6 +66,6 @@ pub fn site_slam(ctx: &mut Context, site: &Site, sample: Noun) -> Noun {
         let jet = site.jet.unwrap();
         jet(ctx, subject).unwrap()
     } else {
-        interpret(ctx, subject, site.battery).unwrap()
+        ctx_interpret(ctx, subject, site.battery).unwrap()
     }
 }
