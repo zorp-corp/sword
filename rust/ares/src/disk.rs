@@ -4,7 +4,7 @@ use crate::lmdb::{lmdb_gulf, lmdb_read_meta};
 use crate::noun::{IndirectAtom, Noun, D, T};
 use crate::serf::Context;
 use crate::serialization::cue;
-use lmdb::{Cursor, Environment, Error as LmdbError, Transaction};
+use lmdb::{Cursor, Environment, EnvironmentFlags, Error as LmdbError, Transaction};
 use lmdb_sys as ffi;
 use std::convert::TryInto;
 use std::fs;
@@ -41,6 +41,7 @@ impl Disk {
         let mut env_builder = Environment::new();
         env_builder.set_map_size(0x10000000000);
         env_builder.set_max_dbs(2);
+        env_builder.set_flags(EnvironmentFlags::NO_LOCK); // XX else linux hangs
         let env = env_builder
             .open(epoch_dir.as_path())
             .expect("Failed to open LMDB environment");
