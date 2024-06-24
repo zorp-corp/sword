@@ -28,7 +28,7 @@ pub fn lmdb_gulf(env: &Environment) -> (u64, u64) {
             let low = u64::from_le_bytes(first.try_into().unwrap());
             if let Some(last) = cursor.get(None, None, ffi::MDB_LAST).unwrap().0 {
                 let high = u64::from_le_bytes(last.try_into().unwrap());
-                return (low, high);
+                (low, high)
             } else {
                 panic!("Couldn't get last event from the database");
             }

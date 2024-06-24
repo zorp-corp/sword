@@ -1,12 +1,12 @@
-use std::{cmp::min, path::PathBuf};
 use std::fmt::{Display, Formatter, Result as FmtResult};
 use std::result::Result as StdResult;
+use std::{cmp::min, path::PathBuf};
 
 use crate::disk::*;
 use crate::hamt::Hamt;
 use crate::jets::list::util::lent;
 use crate::lmdb::lmdb_gulf;
-use crate::noun::{D, Noun};
+use crate::noun::{Noun, D};
 use crate::persist::pma_close;
 use crate::serf::{clear_interrupt, play_life, work, Context};
 
@@ -45,13 +45,12 @@ pub struct Mars {
 
     /// Last event processed.
     pub done: u64,
-
 }
 
 /// Do a boot.
 fn mars_boot(mars: &mut Mars, eve: u64) -> Result<()> {
     let ctx = &mut mars.ctx;
-    let seq = disk_read_list(ctx, 1, eve).unwrap();  // boot sequence
+    let seq = disk_read_list(ctx, 1, eve).unwrap(); // boot sequence
     eprintln!("--------------- bootstrap starting ----------------\r");
     eprintln!("boot: 1-{}\r", lent(seq).unwrap());
     play_life(ctx, seq);
@@ -68,7 +67,10 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
         eve = mars.ctx.log.done;
     } else if eve <= mars.ctx.log.done {
         eprintln!("mars: already computed {}\r", eve);
-        eprintln!("      state={}, &mut mars.log={}\r", mars.done, mars.ctx.log.done);
+        eprintln!(
+            "      state={}, &mut mars.log={}\r",
+            mars.done, mars.ctx.log.done
+        );
         return played;
     } else {
         eve = min(eve, mars.ctx.log.done);
@@ -96,14 +98,19 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     if (eve + 1) == mars.ctx.log.done {
         eprintln!("play: event {}\r", mars.ctx.log.done);
     } else if eve != mars.ctx.log.done {
-        eprintln!("play: events {}-{} of {}\r", (mars.done + 1), eve, mars.ctx.log.done);
+        eprintln!(
+            "play: events {}-{} of {}\r",
+            (mars.done + 1),
+            eve,
+            mars.ctx.log.done
+        );
     } else {
         eprintln!("play: events {}-{}\r", (mars.done + 1), eve);
     }
 
-    let mut _past = mars.done;  // XX last snapshot
-    let mut _meme = 0;          // XX last event to bail:meme
-    let mut _shot = 0;          // XX retry counter
+    let mut _past = mars.done; // XX last snapshot
+    let mut _meme = 0; // XX last event to bail:meme
+    let mut _shot = 0; // XX retry counter
 
     while mars.done < eve {
         match mars_play_batch(&mut mars, false, 1024) {
@@ -142,7 +149,7 @@ pub fn mars_play(mut mars: Mars, mut eve: u64, _sap: u64) -> u64 {
     played
 }
 
-/// Play a batch of events. 
+/// Play a batch of events.
 /// XX use `mug`, track time, and produce more errors.
 fn mars_play_batch(mars: &mut Mars, _mug: bool, bat: u64) -> Result<()> {
     let ctx = &mut mars.ctx;

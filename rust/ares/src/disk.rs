@@ -8,7 +8,7 @@ use lmdb::{Cursor, Environment, EnvironmentFlags, Error as LmdbError, Transactio
 use lmdb_sys as ffi;
 use std::convert::TryInto;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::result::Result as StdResult;
 
 #[derive(Debug, PartialEq)]
@@ -48,8 +48,8 @@ impl Disk {
         let (_, high) = lmdb_gulf(&env);
         Disk {
             dir: log_dir,
-            epoch: epoch,
-            env: env,
+            epoch,
+            env,
             done: high,
         }
     }
@@ -57,7 +57,7 @@ impl Disk {
 
 /// Get the number of the latest epoch in the given directory, or return
 /// an error if there are no epochs or the path specified isn't a directory.
-pub fn epoch_last(log_dir: &PathBuf) -> Result<u64> {
+pub fn epoch_last(log_dir: &Path) -> Result<u64> {
     if !log_dir.is_dir() {
         return Err(Error::InvalidPath);
     }
@@ -65,16 +65,14 @@ pub fn epoch_last(log_dir: &PathBuf) -> Result<u64> {
     let mut some = false;
     let mut last = 0;
 
-    if let Ok(entries) = fs::read_dir(log_dir.clone()) {
-        for entry in entries {
-            if let Ok(entry) = entry {
-                if let Some(name) = entry.file_name().to_str() {
-                    if let Some(epoch) = name.strip_prefix("0i") {
-                        if let Ok(n) = epoch.parse::<u64>() {
-                            some = true;
-                            if n > last {
-                                last = n;
-                            }
+    if let Ok(entries) = fs::read_dir(log_dir) {
+        for entry in entries.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                if let Some(epoch) = name.strip_prefix("0i") {
+                    if let Ok(n) = epoch.parse::<u64>() {
+                        some = true;
+                        if n > last {
+                            last = n;
                         }
                     }
                 }
@@ -91,7 +89,7 @@ pub fn epoch_last(log_dir: &PathBuf) -> Result<u64> {
 
 /// Read a value from the metadata database.
 pub fn disk_read_meta(env: &Environment, key: &str) -> Result<u64> {
-    lmdb_read_meta(env, key).map_err(|e| Error::Lmdb(e))
+    lmdb_read_meta(env, key).map_err(Error::Lmdb)
 }
 
 /// Read a single event `eve` from the database.

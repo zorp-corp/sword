@@ -1,6 +1,6 @@
 use ares::jets::hot::URBIT_HOT_STATE;
 use ares::mars::{mars_play, Mars};
-use ares::serf::{Context, serf};
+use ares::serf::{serf, Context};
 use ares::trace::{create_trace_file, write_metadata};
 use std::env;
 use std::io;
@@ -56,7 +56,7 @@ fn main() -> io::Result<()> {
         }
         let mut ctx = Context::load(load_path.clone(), trace_info, URBIT_HOT_STATE);
         ctx.ripe();
-        
+
         let sent = ctx.event_num;
         let done = sent;
 

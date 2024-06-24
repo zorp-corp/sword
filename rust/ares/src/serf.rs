@@ -187,7 +187,7 @@ impl Context {
             arvo,
             mug,
             nock_context,
-            log
+            log,
         }
     }
 
@@ -319,7 +319,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
         .ok_or(io::Error::new(io::ErrorKind::Other, "no pier path"))?;
     let pier_path = PathBuf::from(pier_path_string);
     let snap_path = pier_path.join(".urb/chk");
-    create_dir_all(&snap_path)?;
+    create_dir_all(snap_path)?;
 
     let wag: u32 = std::env::args()
         .nth(4)
