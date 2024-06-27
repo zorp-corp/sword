@@ -157,6 +157,21 @@ int main(int argc, char *argv[])
   BT_findpath path = {0};
   int rc = 0;
 
+  /* ;;: testing dirtying logic */
+#if 0
+  /* start: 0x2aaa80 */
+  bp(0);
+  bt_state_new(&state1);
+  if (mkdir("./pmatest1", 0774) == -1)
+    return errno;
+  assert(SUCC(bt_state_open(state1, "./pmatest1", 0, 0644)));
+  _bt_insert(state1, 0x2aaa80, 0x2aaa81, 1);
+  _bt_insert(state1, 0x2aaa83, 0x2aaa84, 2);
+  _bt_insert(state1, 0x2aaa82, 0x2aaa83, 3);
+  /* ;;: so basically dirtying logic is incorrect. Mark the index in the bitmap where the actual fo is inserted. Further, the dirty bitmap needs to be shifted when the data segment is shifted. This error may apply not just with leaf nodes, but branch nodes also when they are split... */
+
+#endif
+
 
   DPUTS("== test 2: malloc");
   BT_state *state2;
@@ -214,7 +229,7 @@ int main(int argc, char *argv[])
   };
 
 #define ITERATIONS 1000
-#define MAXALLOCPG 0xFF
+#define MAXALLOCPG 0xFE
   lohi_pair allocs[ITERATIONS] = {0};
   size_t alloc_sizp = 0;
   size_t flist_sizp = _flist_sizep(state3->flist);
