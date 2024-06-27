@@ -808,6 +808,33 @@ _bt_cleanchild(BT_page *parent, size_t child_idx)
   return BT_SUCC;
 }
 
+static int
+_bt_dirtyshift(BT_page *node, size_t idx, size_t n)
+/* shift dirty bitset at idx over by n bits */
+{
+  assert(idx + n < 2048);
+  uint8_t copy[256] = {0};
+  /* copy bitset left of idx */
+  for (size_t i = 0; i < idx; i++) {
+    uint8_t *to   = &copy[i >> 3];
+    int is_dirty = _bt_ischilddirty(node, i);
+    *to |= is_dirty;
+  }
+
+  /* copy bitset right of idx shifted n bits */
+  for (size_t i = idx; (i + n) < 2048; i++) {
+    uint8_t *to   = &copy[(i + n) >> 3];
+    int is_dirty = _bt_ischilddirty(node, i);
+    *to |= is_dirty << n;
+  }
+
+  /* memcpy the shifted array into node */
+  memcpy(&node->head.dirty, &copy, 256);
+
+  return BT_SUCC;
+
+}
+
 /* ;:: assert that the node is dirty when splitting */
 static int
 _bt_split_child(BT_state *state, BT_page *parent, size_t i, pgno_t *newchild)
@@ -875,25 +902,32 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
   /* duplicate */
   if (llo == lo && hhi == hi) {
     parent->datk[childidx].fo = fo;
+    _bt_dirtychild(parent, childidx);
     return BT_SUCC;
   }
 
+  /* ;;: todo: any calls to datshift need to also shift the dirty bitset */
   if (llo == lo) {
     _bt_datshift(parent, childidx + 1, 1);
+    _bt_dirtyshift(parent, childidx + 1, 1);
     vaof_t oldfo = parent->datk[childidx].fo;
     parent->datk[childidx].fo = fo;
     parent->datk[childidx+1].va = hi;
     parent->datk[childidx+1].fo = (oldfo == 0)
       ? 0
       : oldfo + (hi - llo);
+    _bt_dirtychild(parent, childidx+1);
   }
   else if (hhi == hi) {
     _bt_datshift(parent, childidx + 1, 1);
+    _bt_dirtyshift(parent, childidx + 1, 1);
     parent->datk[childidx+1].va = lo;
     parent->datk[childidx+1].fo = fo;
+    _bt_dirtychild(parent, childidx+1);
   }
   else {
     _bt_datshift(parent, childidx + 1, 2);
+    _bt_dirtyshift(parent, childidx + 1, 2);
     parent->datk[childidx+1].va = lo;
     parent->datk[childidx+1].fo = fo;
     parent->datk[childidx+2].va = hi;
@@ -902,6 +936,8 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
     parent->datk[childidx+2].fo = (lfo == 0)
       ? 0
       : lfo + (hi - lva);
+    _bt_dirtychild(parent, childidx+1);
+    _bt_dirtychild(parent, childidx+2);
   }
 
 #if DEBUG_PRINTNODE
@@ -1585,8 +1621,6 @@ _bt_insert(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo)
   /* before calling into recursive insert, handle root splitting since it's
      special cased (2 allocs) */
   if (N >= BT_DAT_MAXKEYS - 2) { /* ;;: remind, fix all these conditions to be - 2 */
-    pgno_t pg = 0;
-
     /* the old root is now the left child of the new root */
     BT_page *left = root;
     BT_page *right = _bt_nalloc(state);
@@ -1594,21 +1628,20 @@ _bt_insert(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo)
 
     /* split root's data across left and right nodes */
     _bt_split_datcopy(left, right);
-    /* save left and right in new root's .data */
-    pg = _fo_get(state, left);
-    rootnew->datk[0].fo = pg;
-    rootnew->datk[0].va = 0;
-    pg = _fo_get(state, right);
-    rootnew->datk[1].fo = pg;
+    /* point to left and right data nodes in the new root */
+    rootnew->datk[0].va = B2PAGES(BLK_BASE_LEN_TOTAL);
+    rootnew->datk[0].fo = _fo_get(state, left);
     rootnew->datk[1].va = right->datk[0].va;
+    rootnew->datk[1].fo = _fo_get(state, right);
     rootnew->datk[2].va = UINT32_MAX;
+    rootnew->datk[2].fo = 0;
     /* dirty new root's children */
     _bt_dirtychild(rootnew, 0);
     _bt_dirtychild(rootnew, 1);
     /* update meta page information. (root and depth) */
-    pg = _fo_get(state, rootnew);
-    meta->root = pg;
+    meta->root = _fo_get(state, rootnew);
     meta->depth += 1;
+    assert(meta->depth <= BT_MAXDEPTH);
     root = rootnew;
   }
 
@@ -2648,14 +2681,7 @@ _bt_sync_leaf(BT_state *state, BT_page *node)
       DPRINTF("mprotect of leaf data failed with %s", strerror(errno));
       abort();
     }
-
-    /* and clean the dirty bit */
-    _bt_cleanchild(node, i);
   }
-
-  /* ;;: all data pages synced. should we now sync the node as well? No, I think
-       that should be the caller's responsibility */
-
   /* ;;: it is probably faster to scan the dirty bit set and derive the datk idx
      rather than iterate over the full datk array and check if it is dirty. This
      was simpler to implement for now though. */
@@ -2768,12 +2794,12 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
       DPRINTF("msync of child node: %p failed with %s", child, strerror(errno));
       abort();
     }
-
-    /* unset child dirty bit */
-    _bt_cleanchild(node, i);
   }
 
  e:
+  /* zero out the dirty bitmap */
+  ZERO(&node->head.dirty[0], sizeof node->head.dirty);
+
   /* all modifications done in node, mark it read-only */
   if (mprotect(node, sizeof(BT_page), BT_PROT_CLEAN) != 0) {
     DPRINTF("mprotect of node failed with %s", strerror(errno));
