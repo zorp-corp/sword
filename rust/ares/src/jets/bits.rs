@@ -310,7 +310,7 @@ pub mod util {
             if arg < 63 {
                 DirectAtom::new_unchecked(1 << arg).as_atom()
             } else {
-                let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, (arg + 7) >> 3);
+                let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, (arg + 7) >> 5);
                 dest.set(arg, true);
                 atom.normalize_as_atom()
             }
