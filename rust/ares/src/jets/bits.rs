@@ -228,6 +228,14 @@ pub fn jet_rip(context: &mut Context, subject: Noun) -> Result {
     util::rip(&mut context.stack, bloq, step, atom)
 }
 
+pub fn jet_rop(context: &mut Context, subject: Noun) -> Result {
+    let arg = slot(subject, 6)?;
+    let (bloq, step) = bite(slot(arg, 2)?)?;
+    let num = slot(arg, 6)?.as_direct()?.data() as usize;
+    let atom = slot(arg, 7)?.as_atom()?;
+    util::rop(&mut context.stack, bloq, step, num, atom)
+}
+
 pub fn jet_rsh(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
@@ -345,6 +353,22 @@ pub mod util {
 
     pub fn rip(stack: &mut NockStack, bloq: usize, step: usize, atom: Atom) -> Result {
         let len = (met(bloq, atom) + step - 1) / step;
+        let mut list = D(0);
+        for i in (0..len).rev() {
+            let new_atom = unsafe {
+                let (mut new_indirect, new_slice) =
+                    IndirectAtom::new_raw_mut_bitslice(stack, step << bloq);
+                chop(bloq, i * step, step, 0, new_slice, atom.as_bitslice())?;
+                new_indirect.normalize_as_atom()
+            };
+            list = Cell::new(stack, new_atom.as_noun(), list).as_noun();
+        }
+
+        Ok(list)
+    }
+
+    pub fn rop(stack: &mut NockStack, bloq: usize, step: usize, num: usize, atom: Atom) -> Result {
+        let len = num;
         let mut list = D(0);
         for i in (0..len).rev() {
             let new_atom = unsafe {
