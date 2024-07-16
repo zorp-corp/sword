@@ -27,10 +27,6 @@
 ::  formula
 +$  bell  [text=sock form=*]
 ::
-::    internal label
-::
-::  labels a basic block within generated code for an arm
-+$  bile  [%bile axe=@ thus=@tas =bell]
 ::    noun shape
 ::
 ::  labels axes of an abstract noun with SSA registers, possibly
@@ -53,9 +49,9 @@
 ::  %done: nock is in tail position, return result
 ::  %next: jump to given label with result in given $need
 +$  goal
-  $%  [%pick sass=@uvre zero=bile once=bile]
+  $%  [%pick sass=@uvre zero=@uwoo once=@uwoo]
       [%done ~]
-      [%next what=need then=bile]
+      [%next what=need then=@uwoo]
   ==
 ::
 ::    instructions in a block
@@ -174,19 +170,19 @@
 ::  %don - return value in s from current arm
 ::  %bom - crash
 +$  site
-  $%  [%clq s=@uvre z=bile o=bile]
-      [%eqq l=@uvre r=@uvre z=bile o=bile]
-      [%brn s=@uvre z=bile o=bile]
-      [%hop t=bile]
-      [%hip c=bile t=bile]
-      [%lnk u=@uvre f=@uvre d=@uvre t=bile]
-      [%cal a=bell v=(list @uvre) d=@uvre t=bile]
-      [%caf a=bell v=(list @uvre) d=@uvre t=bile u=@uvre n=[path @]]
+  $%  [%clq s=@uvre z=@uwoo o=@uwoo]
+      [%eqq l=@uvre r=@uvre z=@uwoo o=@uwoo]
+      [%brn s=@uvre z=@uwoo o=@uwoo]
+      [%hop t=@uwoo]
+      [%hip c=@uwoo t=@uwoo]
+      [%lnk u=@uvre f=@uvre d=@uvre t=@uwoo]
+      [%cal a=@uwoo v=(list @uvre) d=@uvre t=@uwoo]
+      [%caf a=@uwoo v=(list @uvre) d=@uvre t=@uwoo u=@uvre n=[path @]]
       [%lnt u=@uvre f=@uvre]
-      [%jmp a=bell v=(list @uvre)]
-      [%jmf a=bell v=(list @uvre) u=@uvre n=[path @]]
-      [%spy e=@uvre p=@uvre d=@uvre t=bile]
-      [%mer k=@uvre u=@uvre f=@uvre d=@uvre i=bile m=bile]
+      [%jmp a=@uwoo v=(list @uvre)]
+      [%jmf a=@uwoo v=(list @uvre) u=@uvre n=[path @]]
+      [%spy e=@uvre p=@uvre d=@uvre t=@uwoo]
+      [%mer k=@uvre u=@uvre f=@uvre d=@uvre i=@uwoo m=@uwoo]
       [%don s=@uvre]
       [%bom ~]
   ==
@@ -197,7 +193,7 @@
 ::  flow instruction)
 ::  zero or more dataflow instructions executed in order, followed by a
 ::  single control-flow instruction
-+$  blob  [biff=(map @uvre (map bile @uvre)) body=(list pole) bend=site]
++$  blob  [biff=(map @uvre (map @uwoo @uvre)) body=(list pole) bend=site]
 ::
 ::    compilation unit
 ::
@@ -211,17 +207,27 @@
 ::  will: code table for arm                 axis 126
 ::  sans: next SSA register                  axis 127
 +$  pile
-  $:  long=bile
-      want=need
+  $:  want=need
       walt=(list @uvre)
-      wish=bile
       sire=@uvre
-      will=(map bile blob)
       sans=@uvre
   ==
+::    code table state
 ::
-::    code table
+::  Code table
 ::
-::  code entry information for arms
-+$  hill  (map bell pile)
+::  hill: basic block table
+::  peal: direct entry points
+::  gong: indirect entry points
+::  gist: register information
+::  next: next free register
+::  free: free label spaces
++$  fuji
+  $:  hill=(map @uwoo blob)
+      peal=(map bell @uwoo)
+      gong=(map bell @uwoo)
+      gist=(map bell pile)
+      next=@uwoo
+      free=(list @uwoo)
+  ==
 --
