@@ -199,13 +199,10 @@
 ::
 ::  basic blocks and entry information for an arm
 ::
-::  long: starting label for direct calls    axis 2
-::  want: input registers for direct calls   axis 6
-::  walt: input starting registers LR        axis 14
-::  wish: starting label for indirect calls  axis 30
-::  sire: input register for indirect calls  axis 62
-::  will: code table for arm                 axis 126
-::  sans: next SSA register                  axis 127
+::  want: input registers for direct calls   axis XX
+::  walt: input starting registers LR        axis XX
+::  sire: input register for indirect calls  axis XX
+::  sans: next SSA register                  axis XX
 +$  pile
   $:  want=need
       walt=(list @uvre)

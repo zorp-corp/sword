@@ -1,6 +1,7 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
+use crate::codegen::CgContext;
 use crate::flog;
 use crate::guard::call_with_guard;
 use crate::hamt::Hamt;
@@ -28,7 +29,7 @@ use std::time::Instant;
 
 crate::gdb!();
 
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 #[repr(u8)]
 pub enum WhichInterpreter {
     TreeWalking,
@@ -277,7 +278,7 @@ pub struct Context {
     pub cold: Cold,
     pub warm: Warm,
     pub hot: Hot,
-    pub line: Noun,
+    pub cg_context: CgContext,
     pub which: WhichInterpreter,
     pub cache: Hamt<Noun>,
     pub scry_stack: Noun,
@@ -303,7 +304,7 @@ impl Context {
         self.stack.preserve(&mut self.cache);
         self.stack.preserve(&mut self.cold);
         self.stack.preserve(&mut self.warm);
-        self.stack.preserve(&mut self.line);
+        self.stack.preserve(&mut self.cg_context.line);
     }
 
     /**
@@ -977,7 +978,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
         Ok(res) => {
             context.which = snapshot.which;
             Ok(res)
-        },
+        }
         Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
     }
 }

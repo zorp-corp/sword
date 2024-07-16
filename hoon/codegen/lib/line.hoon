@@ -16,9 +16,10 @@
   ~+
   =/  h  (~(get ja m) form.b)
   |-  ^-  (unit hone)
-  ?<  ?=(h ~)  
+  ?<  ?=(h ~)
   ?:  =(text.b soot.i.h)  `h
   $(h t.h)
+--
 ::    compute which analysis results are not linearized and return in
 ::    toposorted order
 ::
@@ -52,7 +53,7 @@
     |:  [n=*bell s=s]
     ^-  _s
     dfs(v n, s s)
-  s(tack [v tack.s])  
+  s(tack [v tack.s])
 +$  gen  [redo=(list [t=bell b=@uwoo]) =fuji sans=@uvre chan=@uwoo]
 ++  jean
   |_  =gen
@@ -399,7 +400,7 @@
       :: XX TODO %live %slog %memo %bout
       ==
     ==
-  ::  XX 
+  ::  XX
   ::  rain - new register
   ::  emit - add basic block
   ::  lyse - split need for cons
@@ -419,6 +420,6 @@
 |%
 ++  this  .
 ++  peek  ~|  %todo  !!
-++  poke  ~|  %todo  !!
+++  poke  ~|  %todo  !!  ::  ^-  (unit [=bell =fuji])
 ++  xray  ~|  %todo  !!
 --

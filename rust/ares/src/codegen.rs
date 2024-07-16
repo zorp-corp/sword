@@ -1,4 +1,6 @@
-use crate::interpreter::{inc, interpret, Context, Error, Result, BAIL_EXIT, BAIL_FAIL, ContextSnapshot, WhichInterpreter};
+use crate::interpreter::{
+    inc, interpret, Context, ContextSnapshot, Error, Result, WhichInterpreter, BAIL_EXIT, BAIL_FAIL,
+};
 use crate::jets::seam::util::get_by;
 use crate::jets::util::slot;
 use crate::jets::{Jet, JetErr::*};
@@ -55,7 +57,17 @@ impl Frame {
     fn vars_mut<'a>(&mut self) -> &'a mut [Noun] {
         unsafe { from_raw_parts_mut((self as *mut Frame).add(1) as *mut Noun, self.vars) }
     }
+}
 
+pub struct Block {
+    pub blob: Noun,
+    pub jet: Option<Jet>,
+}
+
+pub struct CgContext {
+    pub line: Noun,
+    pub fuji: Noun,
+    pub blox: *mut [Block],
 }
 
 assert_eq_align!(Frame, u64, usize);
@@ -107,7 +119,7 @@ const POKE_AXIS: u64 = 46;
 
 fn slam_line(context: &mut Context, arm_axis: u64, sample: Noun) -> Noun {
     let axis_noun = DirectAtom::new_panic(arm_axis).as_noun();
-    let subject = T(&mut context.stack, &[sample, context.line]);
+    let subject = T(&mut context.stack, &[sample, context.cg_context.line]);
     let sample_patch = T(&mut context.stack, &[D(6), D(0), D(2)]);
     let arm_kick_form = T(&mut context.stack, &[D(9), axis_noun, D(0), D(3)]);
     let gate_slam_form = T(
@@ -118,8 +130,9 @@ fn slam_line(context: &mut Context, arm_axis: u64, sample: Noun) -> Noun {
 }
 
 fn cg_peek(context: &mut Context, subject: Noun, formula: Noun) -> Option<Noun> {
-    assert!(!context.line.is_none());
+    assert!(!context.cg_context.fuji.is_none());
     let sample = T(&mut context.stack, &[subject, formula]);
+    //  XX redefine PEEK_AXIS after linearizer rewrite?
     let peek_result = slam_line(context, PEEK_AXIS, sample);
     if unsafe { peek_result.raw_equals(D(0)) } {
         None
@@ -130,14 +143,14 @@ fn cg_peek(context: &mut Context, subject: Noun, formula: Noun) -> Option<Noun> 
 }
 
 fn cg_poke(context: &mut Context, slow: Noun, subject: Noun, formula: Noun) {
-    assert!(!context.line.is_none());
+    assert!(!context.cg_context.fuji.is_none());
     let sample = T(
         &mut context.stack,
         &[D(tas!(b"comp")), slow, subject, formula],
     );
     let result = slam_line(context, POKE_AXIS, sample);
-    let new_line = slot(result, 7).expect("Poke should return triple");
-    context.line = new_line;
+    let new_fuji = slot(result, 7).expect("Poke should return triple");
+    context.cg_context.fuji = new_fuji;
 }
 
 /// Get the $pile for an arm, possibly updating the line core
@@ -185,8 +198,13 @@ pub fn cg_interpret_cg(context: &mut Context, slow: Noun, subject: Noun, formula
     cg_interpret_with_snapshot(context, &snapshot, slow, subject, formula)
 }
 
-
-pub fn cg_interpret_with_snapshot(context: &mut Context, snapshot: &ContextSnapshot, slow: Noun, subject: Noun, formula: Noun) -> Result {
+pub fn cg_interpret_with_snapshot(
+    context: &mut Context,
+    snapshot: &ContextSnapshot,
+    slow: Noun,
+    subject: Noun,
+    formula: Noun,
+) -> Result {
     let mut hill = NOUN_NONE;
     let outer_pile = cg_indirect(context, &mut hill, slow, subject, formula);
     let virtual_frame = context.stack.get_frame_pointer();
@@ -308,8 +326,14 @@ pub fn cg_interpret_with_snapshot(context: &mut Context, snapshot: &ContextSnaps
                     let mew_fr = mew_ufr.tail().as_cell().unwrap();
                     let mew_f = mew_fr.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let mew_r = mew_fr.tail().as_atom().unwrap().as_u64().unwrap() as usize;
-                    let mut key = T(&mut context.stack, &[frame.vars()[mew_u], frame.vars()[mew_f]]);
-                    context.cache = context.cache.insert(&mut context.stack, &mut key, frame.vars()[mew_r]);
+                    let mut key = T(
+                        &mut context.stack,
+                        &[frame.vars()[mew_u], frame.vars()[mew_f]],
+                    );
+                    context.cache =
+                        context
+                            .cache
+                            .insert(&mut context.stack, &mut key, frame.vars()[mew_r]);
                 }
                 tas!(b"tim") => {
                     // XX TODO implement
@@ -608,7 +632,7 @@ pub fn cg_interpret_with_snapshot(context: &mut Context, snapshot: &ContextSnaps
                         match j(context, subject) {
                             Ok(mut r) => {
                                 unsafe {
-                                    context.preserve(); 
+                                    context.preserve();
                                     context.stack.preserve(&mut r);
                                     context.stack.frame_pop();
                                 }
@@ -687,7 +711,8 @@ pub fn cg_interpret_with_snapshot(context: &mut Context, snapshot: &ContextSnaps
                     let spy_dt = spy_pdt.tail().as_cell().unwrap();
                     let spy_d = spy_dt.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let mut spy_t = spy_dt.tail();
-                    frame.vars_mut()[spy_d] = scry(context, frame.vars()[spy_e], frame.vars()[spy_p])?;
+                    frame.vars_mut()[spy_d] =
+                        scry(context, frame.vars()[spy_e], frame.vars()[spy_p])?;
                     goto(context, &mut body, &mut bend, &mut spy_t);
                 }
                 tas!(b"mer") => {
@@ -703,7 +728,10 @@ pub fn cg_interpret_with_snapshot(context: &mut Context, snapshot: &ContextSnaps
                     let mer_im = mer_dim.tail().as_cell().unwrap();
                     let mut mer_i = mer_im.head();
                     let mut mer_m = mer_im.tail();
-                    let mut key = T(&mut context.stack, &[frame.vars()[mer_u], frame.vars()[mer_f]]);
+                    let mut key = T(
+                        &mut context.stack,
+                        &[frame.vars()[mer_u], frame.vars()[mer_f]],
+                    );
                     if let Some(res) = context.cache.lookup(&mut context.stack, &mut key) {
                         frame.vars_mut()[mer_d] = res;
                         goto(context, &mut body, &mut bend, &mut mer_i);
@@ -738,15 +766,20 @@ pub fn cg_interpret_with_snapshot(context: &mut Context, snapshot: &ContextSnaps
     };
     match inner_res {
         Ok(res) => {
-            context.which = snapshot.which;  
+            context.which = snapshot.which;
             Ok(res)
-        },
+        }
         Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
     }
 }
 
 /// Crash with an error, but first unwind the stack
-fn exit(context: &mut Context, snapshot: &ContextSnapshot, virtual_frame: *const u64, error: Error) -> Error {
+fn exit(
+    context: &mut Context,
+    snapshot: &ContextSnapshot,
+    virtual_frame: *const u64,
+    error: Error,
+) -> Error {
     context.restore(snapshot);
     if context.stack.copying() {
         assert!(context.stack.get_frame_pointer() != virtual_frame);
@@ -759,7 +792,7 @@ fn exit(context: &mut Context, snapshot: &ContextSnapshot, virtual_frame: *const
         Error::Deterministic(_, t) | Error::NonDeterministic(_, t) | Error::ScryCrashed(t) => {
             let frame = unsafe { Frame::current(stack) };
             T(stack, &[frame.mean, t])
-        },
+        }
     };
 
     while stack.get_frame_pointer() != virtual_frame {
@@ -773,7 +806,7 @@ fn exit(context: &mut Context, snapshot: &ContextSnapshot, virtual_frame: *const
         Error::Deterministic(mote, _) => Error::Deterministic(mote, preserve),
         Error::NonDeterministic(mote, _) => Error::NonDeterministic(mote, preserve),
         Error::ScryCrashed(_) => Error::ScryCrashed(preserve),
-        Error::ScryBlocked(_) => error
+        Error::ScryBlocked(_) => error,
     }
 }
 
@@ -782,6 +815,15 @@ fn goto(context: &mut Context, body: &mut Noun, bend: &mut Noun, bile: &mut Noun
     let (o, e) = get_blob(context, frame.pile, bile);
     *body = o;
     *bend = e;
+}
+
+fn tuple_slot(mut ix: u64) -> u64 {
+    let mut ret: u64 = 0;
+    while 0 != ix {
+        ret = 1 + (2 * ret);
+        ix = ix - 1;
+    }
+    return ret;
 }
 
 fn pile_sans(pile: Noun) -> usize {
@@ -793,10 +835,6 @@ fn pile_sans(pile: Noun) -> usize {
         .expect("Codegen sans too big")) as usize
 }
 
-fn pile_wish(pile: Noun) -> Noun {
-    slot(pile, 30).expect("Codegen pile should have wish face")
-}
-
 fn pile_sire(pile: Noun) -> usize {
     (slot(pile, 62)
         .expect("Codegen pile should have sire face")
@@ -806,23 +844,18 @@ fn pile_sire(pile: Noun) -> usize {
         .expect("Codegen sire too big")) as usize
 }
 
-fn pile_will(pile: Noun) -> Noun {
-    slot(pile, 126).expect("Codegen pile should have will face")
-}
-
-fn pile_long(pile: Noun) -> Noun {
-    slot(pile, 2).expect("Codegen pile should have long face")
-}
-
 fn pile_walt(pile: Noun) -> Noun {
     slot(pile, 14).expect("Codegen pile should have walt face")
 }
 
-fn get_blob(context: &mut Context, pile: Noun, bile: &mut Noun) -> (Noun, Noun) {
-    let mut will = pile_will(pile);
-    let blob_with_biff = get_by(&mut context.stack, &mut will, bile)
-        .expect("Codegen bile lookup successful")
-        .expect("Codegen will has bile");
+fn pile_want(pile: Noun) -> Noun {
+    // XX axis
+    slot(pile, 13).expect("Codegen pile should have want face")
+}
+
+fn get_blob(context: &mut Context, hill: &mut Noun, idx: usize) -> (Noun, Noun) {
+    let blox = unsafe { *context.cg_context.blox };
+    let blob_with_biff = blox[idx].blob;
     let blob_cell = slot(blob_with_biff, 3)
         .expect("Codegen blob has tail")
         .as_cell()
@@ -836,7 +869,10 @@ fn scry(context: &mut Context, reff: Noun, path: Noun) -> Result {
         let scry_handler = cell.head();
         let scry_payload = T(&mut context.stack, &[reff, path]);
         let scry_patch = T(&mut context.stack, &[D(6), D(0), D(3)]);
-        let scry_formula = T(&mut context.stack, &[D(9), D(2), D(10), scry_patch, D(0), D(2)]);
+        let scry_formula = T(
+            &mut context.stack,
+            &[D(9), D(2), D(10), scry_patch, D(0), D(2)],
+        );
         let scry_subject = T(&mut context.stack, &[scry_handler, scry_payload]);
         context.scry_stack = cell.tail();
         let snapshot = context.save();
@@ -848,34 +884,27 @@ fn scry(context: &mut Context, reff: Noun, path: Noun) -> Result {
                     } else {
                         Err(Error::ScryCrashed(D(0)))
                     }
-                },
-                Right(cell) => {
-                    match cell.tail().as_either_atom_cell() {
-                        Left(_) => {
-                            let hunk = T(&mut context.stack, &[D(tas!(b"hunk")), reff, path]);
-                            let frame = unsafe { Frame::current_mut(&mut context.stack) };
-                            frame.mean = T(&mut context.stack, &[hunk, frame.mean]);
-                            Err(Error::ScryCrashed(D(0)))
-                        },
-                        Right(cell) => {
-                            context.scry_stack = scry_stack;
-                            Ok(cell.tail())
-                        }
-                    }
                 }
+                Right(cell) => match cell.tail().as_either_atom_cell() {
+                    Left(_) => {
+                        let hunk = T(&mut context.stack, &[D(tas!(b"hunk")), reff, path]);
+                        let frame = unsafe { Frame::current_mut(&mut context.stack) };
+                        frame.mean = T(&mut context.stack, &[hunk, frame.mean]);
+                        Err(Error::ScryCrashed(D(0)))
+                    }
+                    Right(cell) => {
+                        context.scry_stack = scry_stack;
+                        Ok(cell.tail())
+                    }
+                },
             },
             Err(error) => match error {
-                Error::Deterministic(_, trace)
-                | Error::ScryCrashed(trace) => {
+                Error::Deterministic(_, trace) | Error::ScryCrashed(trace) => {
                     Err(Error::ScryCrashed(trace))
-                },
-                Error::NonDeterministic(_, _) => {
-                    Err(error)
-                },
-                Error::ScryBlocked(_) => {
-                    BAIL_FAIL
                 }
-            }
+                Error::NonDeterministic(_, _) => Err(error),
+                Error::ScryBlocked(_) => BAIL_FAIL,
+            },
         }
     } else {
         // no scry handler

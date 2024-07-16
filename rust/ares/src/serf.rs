@@ -1,4 +1,4 @@
-use crate::codegen::cg_interpret;
+use crate::codegen::{self, cg_interpret};
 use crate::hamt::Hamt;
 use crate::interpreter::{inc, interpret, Error, Mote, WhichInterpreter};
 use crate::jets::cold::Cold;
@@ -46,7 +46,10 @@ impl Persist for Snapshot {
         let arvo_space_needed = arvo.space_needed(stack);
         let cold_space_needed = cold.space_needed(stack);
         let line_space_needed = line.space_needed(stack);
-        (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed + line_space_needed
+        (((size_of::<SnapshotMem>() + 7) >> 3) << 3)
+            + arvo_space_needed
+            + cold_space_needed
+            + line_space_needed
     }
 
     unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
@@ -128,7 +131,7 @@ impl Context {
                 (*snapshot_mem_ptr).event_num = self.event_num;
                 (*snapshot_mem_ptr).arvo = self.arvo;
                 (*snapshot_mem_ptr).cold = self.nock_context.cold;
-                (*snapshot_mem_ptr).line = self.nock_context.line;
+                (*snapshot_mem_ptr).line = self.nock_context.cg_context.line;
                 snapshot_mem_ptr
             });
 
@@ -138,7 +141,7 @@ impl Context {
             self.arvo = (*snapshot.0).arvo;
             self.event_num = (*snapshot.0).event_num;
             self.nock_context.cold = (*snapshot.0).cold;
-            self.nock_context.line = (*snapshot.0).line;
+            self.nock_context.cg_context.line = (*snapshot.0).line;
 
             handle
         };
@@ -175,24 +178,31 @@ impl Context {
         let warm = Warm::init(&mut stack, &mut cold, &hot);
         let mug = mug_u32(&mut stack, arvo);
 
+        let mut cg_context = codegen::CgContext {
+            line,
+            fuji: NOUN_NONE,
+            blox: std::ptr::null_mut() as *mut [codegen::Block],
+        };
+
         let mut nock_context = interpreter::Context {
             stack,
             newt,
             cold,
             warm,
             hot,
+            cg_context,
             cache,
             scry_stack: D(0),
             trace_info,
-            line,
             which: WhichInterpreter::CodegenCodegen,
         };
 
         // XX presently no way to upgrade the codegen nock
-        if nock_context.line.is_none() {
+        if nock_context.cg_context.line.is_none() {
             let (cg_f, cg_s) = load_cg(&mut nock_context.stack);
-            let line = interpret(&mut nock_context, cg_s, cg_f).expect("Could not successfully kick codegen trap");
-            nock_context.line = line;
+            let line = interpret(&mut nock_context, cg_s, cg_f)
+                .expect("Could not successfully kick codegen trap");
+            nock_context.cg_context.line = line;
         }
 
         Context {
