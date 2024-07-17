@@ -24,6 +24,9 @@ _B2PAGES(size_t x)
         fprintf(stderr, "%s:%d " fmt "\n", __func__, __LINE__, __VA_ARGS__)
 #define DEMO_PUTS(arg)	DEMO_PRINTF("%s", arg)
 
+#define EVENTNUM_IDX 0
+static uint64_t eventnum = 0;
+
 int main(int argc, char *argv[])
 {
 #define DEMO_PATH "./pma"
@@ -73,6 +76,9 @@ int main(int argc, char *argv[])
   bt_state_new(&state);
   assert(SUCC(bt_state_open(state, DEMO_PATH, 0, 0644)));
   DEMO_PUTS("== PMA opened at " DEMO_PATH);
+
+  eventnum = bt_meta_get(state, EVENTNUM_IDX);
+  bt_meta_set(state, EVENTNUM_IDX, eventnum);
 
   /* malloc sufficient space to store shrek2 */
   ret = bt_malloc(state, size_p);

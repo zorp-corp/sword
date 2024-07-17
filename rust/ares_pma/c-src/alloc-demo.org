@@ -1,0 +1,26 @@
+;; This buffer is for text that is not saved, and for Lisp evaluation.
+;; To create a file, visit it with C-x C-f and enter text in its buffer.
+
+alloc demo:
+
+- in a loop, alloc blocks of 100M up to 1T
+- store /dev/urandom data in each alloc
+- crc32 checksum the data. store pointer, alloc size, and event number
+  in write-ahead log
+
+- each time process is started:
+  - validation: lookup event number. validate checksums of data up to
+    current event number. Free WAL nodes with higher event numbers
+    (assert none > 1 of current)
+  - allocation: allocate more random data
+  - sync intermittently
+
+- params to alloc-demo:
+  - max allocation size
+  - switch to disable alloc validation
+  - (hardcode for now) alloc size (or random?)
+
+- add random process crashing. Write C program runner or do it in bash
+  
+- add random freeing. Maybe implement as a separate process?
+
