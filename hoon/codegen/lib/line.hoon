@@ -419,7 +419,7 @@
 =+  ver=%1
 |%
 ++  this  .
-++  peek  ~|  %todo  !!
-++  poke  ~|  %todo  !!  ::  ^-  (unit [=bell =fuji])
+++  peek  ~|  %todo  !!  ::  ^-  (unit [@uvre @uwoo])
+++  poke  ~|  %todo  !!
 ++  xray  ~|  %todo  !!
 --
