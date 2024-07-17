@@ -199,10 +199,10 @@
 ::
 ::  basic blocks and entry information for an arm
 ::
-::  want: input registers for direct calls   axis XX
-::  walt: input starting registers LR        axis XX
-::  sire: input register for indirect calls  axis XX
-::  sans: next SSA register                  axis XX
+::  want: input registers for direct calls
+::  walt: input starting registers LR
+::  sire: input register for indirect calls
+::  sans: next SSA register
 +$  pile
   $:  want=need
       walt=(list @uvre)

@@ -1325,14 +1325,14 @@ pub trait Slots: private::RawSlots {
 /**
  * Get axis for tuple index, for one item.
  */
-fn slot_pam(ix: u64) -> u64 {
+pub fn slot_pam(ix: u64) -> u64 {
     (1u64 << ix + 1) - 2
 }
 
 /**
  * Get axis for tuple index, for the rest of the items.
  */
-fn slot_bar(ix: u64) -> u64 {
+pub fn slot_bar(ix: u64) -> u64 {
     1 + slot_pam(ix)
 }
 
