@@ -667,7 +667,7 @@ impl NockStack {
     /// westward for east frame), and then save the old stack/frame/alloc pointers in slots
     /// adjacent to the frame pointer.
     ///
-    /// Push a frame onto the stack with 0 or more local variable slots. */
+    /// Push a frame onto the stack with 0 or more local variable slots.
     pub fn frame_push(&mut self, num_locals: usize) {
         if self.pc {
             panic!("frame_push during cleanup phase is prohibited.");

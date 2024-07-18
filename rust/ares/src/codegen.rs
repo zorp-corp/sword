@@ -1,7 +1,6 @@
 use crate::interpreter::{
     inc, interpret, Context, ContextSnapshot, Error, Result, WhichInterpreter, BAIL_EXIT, BAIL_FAIL,
 };
-use crate::jets::list::util::lent;
 use crate::jets::seam::util::{get_by, tap_by};
 use crate::jets::util::slot;
 use crate::jets::{Jet, JetErr::*};
@@ -86,13 +85,28 @@ fn blox_mut<'a>(cg_context: &mut CgContext) -> &'a mut [Block] {
     unsafe { from_raw_parts_mut(blox.data as *mut Block, blox.lent) }
 }
 
+/// Transforms the $hill from the `CgContext` into a `Blocks` structure then
+/// allocates it on the NockStack.
 fn blox_init(context: &mut Context) {
     let fuji = context.cg_context.fuji;
+    let next = slot(fuji, slot_pam(5)) // total number of blocks
+        .expect("Codegen fuji should have next")
+        .as_atom()
+        .unwrap()
+        .as_u64()
+        .unwrap() as usize;
+    // XX allocate zeroed slice on NockStack
     let mut hill = slot(fuji, slot_pam(1)).expect("Codegen fuji should have hill");
-    if let Some(hill_kvs) =
-        tap_by(&mut context.stack, &mut hill).expect("Codegen hill tap_by failed")
-    {
-        let hill_lent = lent(hill_kvs).expect("Codegen hill lent failed");
+    let mut i = 0;
+    while i < next {
+        let blob = get_by(&mut context.stack, &mut hill, &mut D(i as u64))
+            .expect("Codegen hill lookup failed")
+            .expect("Codegen hill lookup result should be Some");
+        let jet = None; // XX jet match
+        let block = Block { blob, jet };
+        // XX allocate on NockStack
+        blox_mut(&mut context.cg_context)[i] = block;
+        i += 1;
     }
 }
 
