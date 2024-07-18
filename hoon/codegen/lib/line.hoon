@@ -287,7 +287,7 @@
         =^  weir  gen  (come till ward)
         =^  mere  gen  (come fill ward)
         =^  ware  gen  (emit ~ [%imm 0 tare]~ %hop weir)
-        =^  mare  gen  (emit ~ [%imm 1 tare]~ %hop mere)
+        =^  mare  gen  (emit ~ [%imm 1 fare]~ %hop mere)
         =^  crap  gen  rain
         $(goal [%pick crap ware mare])
       ::
