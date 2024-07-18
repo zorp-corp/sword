@@ -16,6 +16,7 @@ pub mod serial;
 pub mod sort;
 pub mod tree;
 
+use crate::codegen::{Block, Blocks, CgContext};
 use crate::flog;
 use crate::interpreter::{Context, Error, Mote, WhichInterpreter};
 use crate::jets::bits::*;
@@ -323,6 +324,15 @@ pub mod util {
             let hot = Hot::init(&mut stack, URBIT_HOT_STATE);
             let cache = Hamt::<Noun>::new(&mut stack);
             let line = NOUN_NONE;
+            let fuji = NOUN_NONE;
+            let cg_context = CgContext {
+                line,
+                fuji,
+                blox: Blocks {
+                    data: std::ptr::null_mut() as *mut Block,
+                    lent: 0,
+                },
+            };
 
             Context {
                 stack,
@@ -331,7 +341,7 @@ pub mod util {
                 warm,
                 hot,
                 cache,
-                line,
+                cg_context,
                 scry_stack: D(0),
                 trace_info: None,
                 which: WhichInterpreter::CodegenCodegen,

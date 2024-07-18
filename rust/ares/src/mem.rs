@@ -660,14 +660,14 @@ impl NockStack {
         x.preserve(self)
     }
 
-    /**  Pushing
-     *  When pushing, we swap the stack and alloc pointers, set the frame pointer to be the stack
-     *  pointer, move both frame and stack pointer by number of locals (eastward for west frames,
-     *  westward for east frame), and then save the old stack/frame/alloc pointers in slots
-     *  adjacent to the frame pointer.
-     */
-
-    /** Push a frame onto the stack with 0 or more local variable slots. */
+    /// Pushing
+    ///
+    /// When pushing, we swap the stack and alloc pointers, set the frame pointer to be the stack
+    /// pointer, move both frame and stack pointer by number of locals (eastward for west frames,
+    /// westward for east frame), and then save the old stack/frame/alloc pointers in slots
+    /// adjacent to the frame pointer.
+    ///
+    /// Push a frame onto the stack with 0 or more local variable slots. */
     pub fn frame_push(&mut self, num_locals: usize) {
         if self.pc {
             panic!("frame_push during cleanup phase is prohibited.");

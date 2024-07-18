@@ -100,4 +100,27 @@ pub mod util {
             }
         }
     }
+
+    pub fn tap_by(stack: &mut NockStack, a: &mut Noun) -> Result<Option<Noun>, JetErr> {
+        let mut ap = a as *mut Noun;
+        unsafe {
+            loop {
+                if (*ap).raw_equals(D(0)) {
+                    break Ok(None);
+                }
+                let na = slot(*ap, 2)?; // n.a
+                let mut pna = slot(na, 2)?; // p.n.a
+                if unifying_equality(stack, a, &mut pna) {
+                    break Ok(Some(slot(na, 3)?)); // q.n.a
+                }
+                let lr_cell = slot(*ap, 3)?.as_cell()?;
+
+                ap = if gor_b(stack, &mut (*a), &mut pna) {
+                    lr_cell.head_as_mut()
+                } else {
+                    lr_cell.tail_as_mut()
+                };
+            }
+        }
+    }
 }
