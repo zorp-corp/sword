@@ -499,6 +499,77 @@
       %both  `sass.need
       %none  ~
     ==
+  ::  +sect: align subject needs for branching computation
+  ::
+  ::    this generates the maximally common split of registers between
+  ::    both branches. If one branch expects a cell at an axis but the other does
+  ::    not, then we must expect that axis in a register so we do not
+  ::    crash when the more permissive branch would be taken
+  ::
+  ++  sect
+    |=  [zero=next once=next]
+    ^-  [[need @uwoo @uwoo] _gen]
+    =|  lose=(list pole)
+    =|  rose=(list pole)
+    =/  tack=(list (each r=@uvre [z=need o=need]))  [%| what.zero what.once]~
+    =|  salt=(list need)
+    |-  ^-  [[need @uwoo @uwoo] _gen]
+    ?~  tack
+      ?>  ?=(^ salt)
+      ?>  ?=(~ t.salt)
+      =^  loan  gen  (emit ~ (flop lose) %hop then.zero)
+      =^  roan  gen  (emit ~ (flop rose) %hop then.once)
+      [[i.salt loan roan] gen]
+    ?-  -.i.tack
+        %&
+      ?>  ?=(^ salt)
+      ?>  ?=(^ t.salt)
+      $(tack t.tack, salt [[%both p.i.tack i.t.salt i.salt] t.t.salt])
+    ::
+        %|
+      ?:  ?=(%none -.z.p.i.tack)
+        :: z side has no requirements
+        :: so we should do no splitting outside conditional
+        ?:  ?=(%none -.o.p.i.tack)
+          $(tack t.tack, salt [[%none ~] salt])
+        =^  rr  gen  (kern rose o.p.i.tack)
+        =.  rose  pose.rr
+        $(tack t.tack, salt [[%this out.rr] salt])
+      ?:  ?=(%none -.o.p.i.tack)
+        :: o side has no requirements
+        :: so we should do no splitting outside conditional
+        =^  lr  gen  (kern lose z.p.i.tack)
+        =.  lose  pose.lr
+        $(tack t.tack, salt [[%this out.lr] salt])
+      ?:  ?=(%both -.z.p.i.tack)
+        ::  z side splits
+        ?:  ?=(%both -.o.p.i.tack)
+          ::  both sides split, recursively build need
+          %=  $
+              tack
+            :*  [%| left.z.p.i.tack left.o.p.i.tack]
+                [%| rite.z.p.i.tack rite.o.p.i.tack]
+                [%& sass.z.p.i.tack]
+                t.tack
+            ==
+          ::
+            rose  [[%mov sass.z.p.i.tack sass.o.p.i.tack] rose]
+          ==
+        ::  z side splits, o side this
+        =^  lr  gen  (kern ~ z.p.i.tack)
+        =.  lose  [[%mov sass.o.p.i.tack out.lr] lose]
+        =.  lose  (weld pose.lr lose)
+        $(tack t.tack, salt [o.p.i.tack salt])
+      ?:  ?=(%both -.o.p.i.tack)
+        ::  z side this, o side splits
+        =^  rr  gen  (kern ~ o.p.i.tack)
+        =.  rose  [[%mov sass.z.p.i.tack out.rr] rose]
+        =.  rose  (weld pose.rr rose)
+        $(tack t.tack, salt [z.p.i.tack salt])
+      ::  both sides this
+      =.  rose  [[%mov sass.z.p.i.tack sass.o.p.i.tack] rose]
+      $(tack t.tack, salt [z.p.i.tack salt])
+    ==
   ::
   ++  vial                                              ::  new label
     ^-  [@uwoo _gen]
@@ -529,11 +600,6 @@
   ++  copy
     |=  [feed=next seed=need]
     ^-  [next _gen]
-    !!
-  ::  sect - align subject needs for branching computation
-  ++  sect
-    |=  [zero=next once=next]
-    ^-  [[need @uwoo @uwoo] _gen]
     !!
   ::  phil - generate phi nodes
   ++  phil
