@@ -784,21 +784,120 @@
         $(rv [vr rv], salt [[%this vr] salt], tack t.tack)
       ==
     ==
-  ::  XX
-  ::  from - push need down by axis
+  ::  +from: push need down by axis
+  ::
   ++  from
     |=  [axe=@ =next]
     ^-  [^next _gen]
-    !!
+    ?<  =(0 axe)
+    =^  crap  gen
+      =/  crop  (sass what.next)
+      ?~  crop  rain
+      [u.crop gen]
+    =?  what.next  ?=(%none -.what.next)  [%this crap]
+    =|  bait=(list [r=@uvre c=?(%2 %3)])
+    |-  ^-  [_next _gen]
+    ?.  =(1 axe)
+      =^  barf  gen  rain
+      $(bait [[barf (cap axe)] bait], axe (mas axe))
+    =/  bits  (turn bait |=([r=@uvre *] r))
+    =^  fram  gen  (emit ~ [%ipb ~[crap]]~ %hop then.next)
+    =/  feed
+      %+  roll  bait
+      |=  [[r=@uvre c=?(%2 %3)] n=_what.next]
+      ?-  c
+        %2  [%both r n %none ~]
+        %3  [%both r [%none ~] n]
+      ==
+    [[%next feed fram] gen]
+  ::  +into: split need for edit
+  ::
+  ::    first returned need is for the patch noun,
+  ::    the second is for the noun to be edited
+  ::
+  ++  into
+    |=  [axe=@ =next]
+    ^-  [[need need @uwoo] _gen]
+    =*  twig  what.next
+    =|  tres=(list [lr=?(%2 %3) p=@uvre =need])
+    =|  pose=(list pole)
+    ?<  =(0 axe)
+    |-  ^-  [[need need @uwoo] _gen]
+    ?.  =(1 axe)
+      =^  p  gen  rain
+      ?-  (cap axe)
+          %2
+        ?-  -.twig
+            %both
+          %=  $
+            tres  [[%2 p rite.twig] tres]
+            twig  left.twig
+            axe   (mas axe)
+            pose  [[%mov p sass.twig] pose]
+          ==
+        ::
+            %this
+          =^  l  gen  rain
+          =^  r  gen  rain
+          %=  $
+            tres  [[%2 p %this r] tres]
+            twig  [%this l]
+            axe   (mas axe)
+            pose  [[%con l r sass.twig] pose]
+          ==
+        ::
+            %none
+          %=  $
+            tres  [[%2 p %none ~] tres]
+            axe   (mas axe)
+          ==
+        ==
+      ::
+          %3
+        ?-  -.twig
+            %both
+          %=  $
+            tres  [[%3 p left.twig] tres]
+            twig  rite.twig
+            axe   (mas axe)
+            pose  [[%mov p sass.twig] pose]
+          ==
+        ::
+            %this
+          =^  l  gen  rain
+          =^  r  gen  rain
+          %=  $
+            tres  [[%3 p %this l] tres]
+            twig  [%this r]
+            axe   (mas axe)
+            pose  [[%con l r sass.twig] pose]
+          ==
+        ::
+            %none
+          %=  $
+            tres  [[%3 p %none ~] tres]
+            axe   (mas axe)
+          ==
+        ==
+      ==
+    =^  flag  gen  rain
+    =/  tree=need  [%this flag]
+    |-  ^-  [[need need @uwoo] _gen]
+    ?~  tres
+      =^  tint  gen  (emit ~ [[%ipb ~[flag]] pose] %hop then.next)
+      [[twig tree tint] gen]
+    ?-  lr.i.tres
+        %2
+      $(tres t.tres, tree [%both p.i.tres tree need.i.tres])
+    ::
+        %3
+      $(tres t.tres, tree [%both p.i.tres need.i.tres tree])
+    ==
+  ::  XX
   ::  mede - immediates into need
   ++  mede
     |=  [u=@uwoo n=* =need]
     ^-  [@uwoo _gen]
-    !!
-  ::  into - split need for edit
-  ++  into
-    |=  [axe=@ =next]
-    ^-  [[need need @uwoo] _gen]
     !!
   --
 --
