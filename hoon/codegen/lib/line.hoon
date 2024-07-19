@@ -893,12 +893,30 @@
         %3
       $(tres t.tres, tree [%both p.i.tres need.i.tres tree])
     ==
-  ::  XX
-  ::  mede - immediates into need
+  ::  +mede: split immediate into registers of need
+  ::
   ++  mede
     |=  [u=@uwoo n=* =need]
     ^-  [@uwoo _gen]
-    !!
+    =|  todo=(list pole)
+    =/  tack=(list [n=(unit *) =_need])  [`n need]~
+    |-  ^-  [@uwoo _gen]
+    ?~  tack
+      (emit ~ todo %hop u)
+    ?-  -.need.i.tack
+        %none  $(tack t.tack)
+        %this
+      ?~  n.i.tack
+        $(todo [[%poi sass.need.i.tack] todo], tack t.tack)
+      $(todo [[%imm u.n.i.tack sass.need.i.tack] todo], tack t.tack)
+      ::
+        %both
+      ?~  n.i.tack
+        $(tack [[~ rite.need.i.tack] [~ left.need.i.tack] t.tack])
+      ?@  u.n.i.tack
+        $(tack [[~ rite.need.i.tack] [~ left.need.i.tack] t.tack])
+      $(tack [[`+.u.n.i.tack rite.need.i.tack] [`-.u.n.i.tack left.need.i.tack] t.tack])
+    ==
   --
 --
 =+  ver=%1
