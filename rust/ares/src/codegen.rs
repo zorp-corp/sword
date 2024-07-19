@@ -67,12 +67,10 @@ pub struct Block {
 impl Preserve for Block {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         stack.preserve(&mut self.blob);
-        // XX do we need to preserve jet?
     }
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         self.blob.assert_in_stack(stack);
-        // XX do we need to assert jet in stack?
     }
 }
 
@@ -547,7 +545,7 @@ pub fn cg_interpret_with_snapshot(
                     let formula = frame.vars()[lnk_f];
                     frame.salt = lnk_d;
                     frame.cont = lnk_t;
-                    let (register, new_block, new_pile) =
+                    let (_register, new_block, new_pile) =
                         cg_indirect(context, frame.slow, subject, formula);
                     let sire = pile_sire(new_pile);
                     push_interpreter_frame(&mut context.stack, new_pile);
@@ -557,7 +555,7 @@ pub fn cg_interpret_with_snapshot(
                 }
                 tas!(b"cal") => {
                     let cal_cell = inst_cell.tail().as_cell().unwrap();
-                    let mut cal_a = cal_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let cal_a = cal_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let cal_vdt = cal_cell.tail().as_cell().unwrap();
                     let mut cal_v = cal_vdt.head();
                     let cal_dt = cal_vdt.tail().as_cell().unwrap();
@@ -684,7 +682,7 @@ pub fn cg_interpret_with_snapshot(
                 }
                 tas!(b"jmp") => {
                     let jmp_cell = inst_cell.tail().as_cell().unwrap();
-                    let mut jmp_a = jmp_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let jmp_a = jmp_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let mut jmp_v = jmp_cell.tail();
                     let new_pile = cg_direct(context, &mut NOUN_NONE, jmp_a); // XX bell
                     let new_vars = pile_sans(new_pile);
@@ -711,7 +709,7 @@ pub fn cg_interpret_with_snapshot(
                 tas!(b"jmf") => {
                     // XX
                     let jmf_cell = inst_cell.tail().as_cell().unwrap();
-                    let mut jmf_a = jmf_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
+                    let jmf_a = jmf_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let jmf_vun = jmf_cell.tail().as_cell().unwrap();
                     let mut jmf_v = jmf_vun.head();
                     let jmf_un = jmf_vun.tail().as_cell().unwrap();
