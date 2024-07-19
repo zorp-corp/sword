@@ -416,6 +416,57 @@
     ::
         %elf  ~|  %todo  !!
     ==
+  ::
+  ::  +kerf: split single register into goal
+  ::
+  ::    given a destination, generate code which splits a noun in one
+  ::    register to the registers described by the $need, and return the
+  ::    one register and a label for the splitting code
+  ::
+  ++  kerf
+    |=  =next
+    ^-  [[@uwoo @uvre] _gen]
+    =^  ir  gen  (kern ~ what.next)
+    ?~  pose.ir
+      [[then.next out.ir] gen]
+    =^  thin  gen  (emit ~ (flop pose.ir) %hop then.next)
+    [[thin out.ir] gen]
+  ::  +kern: split register to need (instruction list)
+  ::
+  ::    like +kerf but return (reversed) instruction list
+  ::    instead of emitting basic block
+  ::
+  ++  kern
+    |=  [pose=(list pole) =need]
+    ^-  [[pose=(list pole) out=@uvre] _gen]
+    =/  tack=(list _need)  ~[need]
+    =/  ui  (sass need)
+    ?~  ui
+      =^  crap  gen  rain
+      [[~ crap] gen]
+    |-  ^-  [[pose=(list pole) out=@uvre] _gen]
+    ?~  tack
+      [[pose u.ui] gen]
+    =*  n  i.tack
+    ?:  ?=(%both -.n)
+      =/  lure  (sass left.n)
+      =/  rule  (sass rite.n)
+      =?  pose  ?=(^ lure)
+        [[%hed sass.n u.lure] pose]
+      =?  pose  ?=(^ rule)
+        [[%tal sass.n u.rule] pose]
+      $(tack [left.n rite.n t.tack])
+    $(tack t.tack)
+  ::  +sass:  outermost register
+  ::
+  ++  sass
+    |=  =need
+    ^-  (unit @uvre)
+    ?-  -.need
+      %this  `sass.need
+      %both  `sass.need
+      %none  ~
+    ==
   ::  XX 
   ::  rain - new register
   ++  rain
@@ -445,11 +496,6 @@
   ++  mede
     |=  [u=@uwoo n=* =need]
     ^-  [@uwoo _gen]
-    !!
-  ::  kerf - split single register into goal
-  ++  kerf
-    |=  =next
-    ^-  [[@uwoo @uvre] _gen]
     !!
   ::  args - look up subject registerization
   ++  args
