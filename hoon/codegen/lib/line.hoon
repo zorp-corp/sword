@@ -700,55 +700,42 @@
     =|  rack=(list need)
     |-  ^-  [next _gen]
     ?~  tack
-      ?>  ?=(^ rack)
-      ?>  ?=(~ t.rack)
+      ?>  ?=([^ ~] rack)
       =^  cody  gen  (emit ~ pose %hop then.feed)
       [[%next i.rack cody] gen]
     ?:  ?=(%& -.i.tack)
-      ?>  ?=(^ rack)
-      ?>  ?=(^ t.rack)
+      ?>  ?=([^ ^] rack)
       $(rack [[%both p.i.tack i.t.rack i.rack] t.t.rack], tack t.tack)
-    ?:  ?=(%none -.l.p.i.tack)  $(rack [r.p.i.tack rack], tack t.tack)
-    ?:  ?=(%none -.r.p.i.tack)  $(rack [l.p.i.tack rack], tack t.tack)
-    ?:  ?=(%this -.l.p.i.tack)
-      ?:  ?=(%this -.r.p.i.tack)
+    =*  l  l.p.i.tack
+    =*  r  r.p.i.tack
+    ?:  ?=(%none -.l)  $(rack [r rack], tack t.tack)
+    ?:  ?=(%none -.r)  $(rack [l rack], tack t.tack)
+    ?:  ?=(%this -.l)
+      ?:  ?=(%this -.r)
         :: both this
-        =?  pose  ?!  .=  sass.l.p.i.tack  sass.r.p.i.tack
-          [[%mov sass.l.p.i.tack sass.r.p.i.tack] pose]
-        $(rack [l.p.i.tack rack], tack t.tack)
+        =?  pose  !=(sass.l sass.r)  [[%mov sass.l sass.r] pose]
+        $(rack [l rack], tack t.tack)
       :: left this, right both
       ::
-      :: this case must be handled this way in case the code that needs
-      :: l.p.i.tack will crash explicitly in some way.
-      =^  rr  gen  (kern ~ r.p.i.tack)
+      ::    this case must be handled this way in case the code that needs
+      ::    [l] will crash explicitly in some way.
+      ::
+      =^  rr  gen  (kern ~ r)
       =.  pose  (weld (flop pose.rr) pose)
-      =?  pose  ?!(=(sass.l.p.i.tack out.rr))
-        [[%mov sass.l.p.i.tack out.rr] pose]
-      $(tack t.tack, rack [[%this sass.l.p.i.tack] rack])
-    ?:  ?=(%both -.r.p.i.tack)
+      =?  pose  !=(sass.l out.rr)  [[%mov sass.l out.rr] pose]
+      $(tack t.tack, rack [[%this sass.l] rack])
+    ?:  ?=(%both -.r)
       :: both both
       %=  $
-          pose  [[%mov sass.l.p.i.tack sass.r.p.i.tack] pose]
-          tack
-        :*  [%| left.l.p.i.tack left.r.p.i.tack]
-            [%| rite.l.p.i.tack rite.r.p.i.tack]
-            [%& sass.l.p.i.tack]
-            t.tack
-        ==
+        tack  [[%| left.l left.r] [%| rite.l rite.r] [%& sass.l] t.tack]
+        pose  [[%mov sass.l sass.r] pose]
       ==
     ::  left both, right this
-    =/  lu  (sass left.l.p.i.tack)
-    =/  ru  (sass rite.l.p.i.tack)
-    =^  l  gen  ?~(lu rain [u.lu gen])
-    =^  r  gen  ?~(ru rain [u.ru gen])
+    =^  ll  gen  ?~(lu=(sass left.l) rain [u.lu gen])
+    =^  rr  gen  ?~(ru=(sass rite.l) rain [u.ru gen])
     %=  $
-      pose  [[%con l r sass.r.p.i.tack] pose]
-      tack
-      :*  [%| left.l.p.i.tack %this l]
-          [%| rite.l.p.i.tack %this r]
-          [%& sass.l.p.i.tack]
-          t.tack
-      ==
+      tack  [[%| left.l %this ll] [%| rite.l %this rr] [%& sass.l] t.tack]
+      pose  [[%con ll rr sass.r] pose]
     ==
   ::
   ++  bomb                                              ::  crash
