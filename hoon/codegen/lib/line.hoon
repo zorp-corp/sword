@@ -656,6 +656,71 @@
     ^-  [@uwoo _gen]
     [chan.gen gen(chan +(chan.gen))]
   ::
+  ++  come                                              ::  label come-from
+    |=  [f=@uwoo t=@uwoo]
+    ^-  [@uwoo _gen]
+    [f (emir f [~ ~ %hip f t])]
+  ::  +phil: generate phi nodes
+  ::
+  ::    given a destination common to two branches, generate a phi node
+  ::    and come-from blocks
+  ::
+  ++  phil
+    |=  =next
+    ^-  [[^next ^next] _gen]
+    =/  tack=(list (each [zp=@uvre op=@uvre] need))  [%| what.next]~
+    =|  salt=(list [z=need o=need])
+    =|  biff=(map @uvre (map @uwoo @uvre))
+    =^  zb  gen  vial
+    =^  ob  gen  vial
+    |-  ^-  [[_next _next] _gen]
+    ?~  tack
+      ?>  ?=(^ salt)
+      ?>  ?=(~ t.salt)
+      =^  fill  gen  (emit biff ~ %hop then.next)
+      =^  zeke  gen  (come zb fill)
+      =^  oaks  gen  (come ob fill)
+      [[[%next z.i.salt zeke] [%next o.i.salt oaks]] gen]
+    ?-  -.i.tack
+        %&
+      ?>  ?=(^ salt)
+      ?>  ?=(^ t.salt)
+      %=  $
+          tack  t.tack
+          salt
+        :_  t.t.salt
+        :-  [%both zp.p.i.tack z.i.t.salt z.i.salt]
+        [%both op.p.i.tack o.i.t.salt o.i.salt]
+      ==
+    ::
+        %|
+      ?-  -.p.i.tack
+          %none  $(salt [[[%none ~] %none ~] salt], tack t.tack)
+          %this
+        =^  l  gen  rain
+        =^  r  gen  rain
+        =/  phi  (~(gas by *(map @uwoo @uvre)) ~[[zb l] [ob r]])
+        %=  $
+            biff  (~(put by biff) sass.p.i.tack phi)
+            tack  t.tack
+            salt  [[[%this l] %this r] salt]
+        ==
+      ::
+          %both
+        =^  hurl  gen  rain
+        =^  barf  gen  rain
+        =/  phi  (~(gas by *(map @uwoo @uvre)) ~[[zb hurl] [ob barf]])
+        %=  $
+            biff  (~(put by biff) sass.p.i.tack phi)
+            tack
+          :*  [%| left.p.i.tack]
+              [%| rite.p.i.tack]
+              [%& hurl barf]
+              t.tack
+          ==
+        ==
+      ==
+    ==
   ::  XX
   ::  from - push need down by axis
   ++  from
@@ -672,20 +737,10 @@
     |=  =bell
     ^-  [[v=(list @uvre) n=need r=?] _gen]
     !!
-  ::  phil - generate phi nodes
-  ++  phil
-    |=  =next
-    ^-  [[^next ^next] _gen]
-    !!
   ::  into - split need for edit
   ++  into
     |=  [axe=@ =next]
     ^-  [[need need @uwoo] _gen]
-    !!
-  ::
-  ++  come
-    |=  [f=@uwoo t=@uwoo]
-    ^-  [@uwoo _gen]
     !!
   --
 --
