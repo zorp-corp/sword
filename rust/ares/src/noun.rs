@@ -5,7 +5,6 @@ use either::{Either, Left, Right};
 use ibig::{Stack, UBig};
 use intmap::IntMap;
 use std::fmt;
-use std::os;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 

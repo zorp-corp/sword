@@ -304,9 +304,7 @@ impl Context {
         self.stack.preserve(&mut self.cache);
         self.stack.preserve(&mut self.cold);
         self.stack.preserve(&mut self.warm);
-        self.stack.preserve(&mut self.cg_context.line);
-        self.stack.preserve(&mut self.cg_context.fuji);
-        self.stack.preserve(&mut self.cg_context.blox);
+        self.stack.preserve(&mut self.cg_context);
     }
 
     /**

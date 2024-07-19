@@ -178,7 +178,7 @@ impl Context {
         let warm = Warm::init(&mut stack, &mut cold, &hot);
         let mug = mug_u32(&mut stack, arvo);
 
-        let mut cg_context = codegen::CgContext {
+        let cg_context = codegen::CgContext {
             line,
             fuji: NOUN_NONE,
             blox: Blocks {
