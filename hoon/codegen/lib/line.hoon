@@ -65,7 +65,8 @@
 +$  gen  [redo=(list [t=bell b=@uwoo]) =^fuji sans=@uvre chan=@uwoo]
 ::
 ++  jean
-  |_  =gen
+  |_  [=gen like=(map bell need)]
+  ::
   ::    core DDCG linearizer
   ::
   ++  cuts
@@ -721,6 +722,68 @@
         ==
       ==
     ==
+  ::  +args: look up subject registerization
+  ::
+  ::    when we emit code for a direct call, we hope to know the
+  ::    registerization already. If we don't, we need to add the call to
+  ::    the redo set. If we do, then we need a linear list of poison
+  ::    registers and a linear list of argument registers, as well as a
+  ::    need which describes which parts of the call subject go in which
+  ::    registers
+  ::
+  ++  args
+    |=  =bell
+    ^-  [[v=(list @uvre) n=need r=?] _gen]
+    =/  cn  (~(get by like) bell)
+    =?  cn  ?=(~ cn)
+      =/  dn  (~(get by gist.fuji) bell)
+      ?~  dn  ~
+      `want.u.dn
+    ?~  cn
+      =^  s  gen  rain
+      [[~[s] [%this s] &] gen]
+    =^  s  gen  (scar u.cn)
+    [[v n |]:s gen]
+  ::  +scar: generate fresh parameter lists
+  ::
+  ::    generate fresh parameter variables and provide them both in
+  ::    argument list and need form
+  ::
+  ++  scar
+    |=  n=need
+    =|  rv=(list @uvre)
+    =/  tack=(list (each @uvre need))  [%| n]~
+    =|  salt=(list need)
+    |-  ^-  [[v=(list @uvre) n=need] _gen]
+    ?~  tack
+      ?>  ?=(^ salt)
+      ?>  ?=(~ t.salt)
+      [[(flop rv) i.salt] gen]
+    ?-  -.i.tack
+        %&
+      ?>  ?=(^ salt)
+      ?>  ?=(^ t.salt)
+      $(tack t.tack, salt [[%both p.i.tack i.t.salt i.salt] t.t.salt])
+    ::
+        %|
+      ?-  -.p.i.tack
+          %both
+        =^  br  gen  rain
+        %=  $
+            tack
+          :*  [%| left.p.i.tack]
+              [%| rite.p.i.tack]
+              [%& br]
+              t.tack
+          ==
+        ==
+      ::
+          %none  $(tack t.tack, salt [[%none ~] salt])
+          %this
+        =^  vr  gen  rain
+        $(rv [vr rv], salt [[%this vr] salt], tack t.tack)
+      ==
+    ==
   ::  XX
   ::  from - push need down by axis
   ++  from
@@ -731,11 +794,6 @@
   ++  mede
     |=  [u=@uwoo n=* =need]
     ^-  [@uwoo _gen]
-    !!
-  ::  args - look up subject registerization
-  ++  args
-    |=  =bell
-    ^-  [[v=(list @uvre) n=need r=?] _gen]
     !!
   ::  into - split need for edit
   ++  into
