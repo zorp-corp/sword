@@ -1,14 +1,15 @@
 use crate::interpreter::{
     inc, interpret, Context, ContextSnapshot, Error, Result, WhichInterpreter, BAIL_EXIT, BAIL_FAIL,
 };
-use crate::jets::seam::util::{get_by, tap_by};
+use crate::jets::seam::util::get_by;
 use crate::jets::util::slot;
 use crate::jets::{Jet, JetErr::*};
-use crate::mem::NockStack;
+use crate::mem::{NockStack, Preserve};
 use crate::noun::{slot_bar, slot_pam, DirectAtom, Noun, D, NOUN_NONE, T};
 use crate::unifying_equality::unifying_equality;
 use ares_macros::tas;
 use either::{Left, Right};
+use std::borrow::BorrowMut;
 use std::mem::size_of;
 use std::ptr::{copy_nonoverlapping, write_bytes};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
@@ -59,14 +60,50 @@ impl Frame {
     }
 }
 
+pub struct Block {
+    pub blob: Noun,
+    pub jet: Option<Jet>,
+}
+
+impl Preserve for Block {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        stack.preserve(&mut self.blob);
+        // XX do we need to preserve jet?
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        self.blob.assert_in_stack(stack);
+        // XX do we need to assert jet in stack?
+    }
+}
+
 pub struct Blocks {
     pub data: *mut Block,
     pub lent: usize,
 }
 
-pub struct Block {
-    pub blob: Noun,
-    pub jet: Option<Jet>,
+impl Preserve for Blocks {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        let mut i = 0;
+        while i < self.lent {
+            let block = (self.data as *mut Block).add(i).as_mut().unwrap();
+            stack.preserve(block);
+            i += 1;
+        }
+    }
+
+    unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        let mut i = 0;
+        while i < self.lent {
+            (self.data as *const Block)
+                .add(i)
+                .as_ref()
+                .unwrap()
+                .blob
+                .assert_in_stack(stack);
+            i += 1;
+        }
+    }
 }
 
 pub struct CgContext {
@@ -88,6 +125,7 @@ fn blox_mut<'a>(cg_context: &mut CgContext) -> &'a mut [Block] {
 /// Transforms the $hill from the `CgContext` into a `Blocks` structure then
 /// allocates it on the NockStack.
 fn blox_init(context: &mut Context) {
+    let stack = &mut context.stack;
     let fuji = context.cg_context.fuji;
     let next = slot(fuji, slot_pam(5)) // total number of blocks
         .expect("Codegen fuji should have next")
@@ -95,17 +133,23 @@ fn blox_init(context: &mut Context) {
         .unwrap()
         .as_u64()
         .unwrap() as usize;
-    // XX allocate zeroed slice on NockStack
+    unsafe {
+        let blocks_p = stack.struct_alloc::<Blocks>(1);
+        *blocks_p = Blocks {
+            data: stack.struct_alloc::<Block>(next),
+            lent: next,
+        };
+    }
+    let blox = blox_mut(&mut context.cg_context);
     let mut hill = slot(fuji, slot_pam(1)).expect("Codegen fuji should have hill");
     let mut i = 0;
     while i < next {
         let blob = get_by(&mut context.stack, &mut hill, &mut D(i as u64))
             .expect("Codegen hill lookup failed")
-            .expect("Codegen hill lookup result should be Some");
+            .expect("Codegen hill lookup result is None");
         let jet = None; // XX jet match
         let block = Block { blob, jet };
-        // XX allocate on NockStack
-        blox_mut(&mut context.cg_context)[i] = block;
+        blox[i] = block;
         i += 1;
     }
 }
