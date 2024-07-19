@@ -457,6 +457,20 @@
         [[%tal sass.n u.rule] pose]
       $(tack [left.n rite.n t.tack])
     $(tack t.tack)
+  ::
+  ++  emit                                              ::  add block
+    |=  =blob
+    ^-  [@uwoo _gen]
+    =^(l gen vial [l (emir l blob)])
+  ::
+  ++  emir                                              ::  put block
+    |=  [l=@uwoo =blob]
+    ^+  gen
+    gen(hill.fuji (~(put by hill.fuji.gen) l blob))
+  ::
+  ++  rain                                              ::  new register
+    ^-  [@uvre _gen]
+    [sans.gen gen(sans .+(sans.gen))]
   ::  +sass:  outermost register
   ::
   ++  sass
@@ -467,16 +481,12 @@
       %both  `sass.need
       %none  ~
     ==
-  ::  XX 
-  ::  rain - new register
-  ++  rain
-     ^-  [@uvre _gen]
-     !!
-  ::  emit - add basic block
-  ++  emit
-    |=  =blob
+  ::
+  ++  vial                                              ::  new label
     ^-  [@uwoo _gen]
-    !!
+    [chan.gen gen(chan +(chan.gen))]
+  ::
+  ::  XX
   ::  lyse - split need for cons
   ++  lyse
     |=  =next
@@ -502,10 +512,6 @@
     |=  =bell
     ^-  [[v=(list @uvre) n=need r=?] _gen]
     !!
-  ::  vial - new basic block label
-  ++  vial
-     ^-  [@uwoo _gen]
-     !!
   ::  copy - align subject needs for sequential computation
   ++  copy
     |=  [feed=next seed=need]
