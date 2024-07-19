@@ -471,6 +471,24 @@
   ++  rain                                              ::  new register
     ^-  [@uvre _gen]
     [sans.gen gen(sans .+(sans.gen))]
+  ::  +lyse: split need for cons
+  ::
+  ++  lyse
+    |=  =next
+    ^-  [[@uwoo need need] _gen]
+    ?-  -.what.next
+        %both :: discards sick flag which is OK since we know we will fulfill the need
+      [[then.next left.what.next rite.what.next] gen]
+    ::
+        %none
+      [[then.next [%none ~] %none ~] gen]
+    ::
+        %this
+      =^  l  gen  rain
+      =^  r  gen  rain
+      =^  lizz  gen  (emit ~ [%con l r sass.what.next]~ %hop then.next)
+      [[lizz [%this l] [%this r]] gen]
+    ==
   ::  +sass:  outermost register
   ::
   ++  sass
@@ -487,11 +505,6 @@
     [chan.gen gen(chan +(chan.gen))]
   ::
   ::  XX
-  ::  lyse - split need for cons
-  ++  lyse
-    |=  =next
-    ^-  [[@uwoo need need] _gen]
-    !!
   ::  mine - set up deferred crash
   ++  mine
     |=  [r=@uvre t=@uwoo]
