@@ -640,16 +640,23 @@
       ==
     ==
   ::
+  ++  bomb                                              ::  crash
+    ^-  [next _gen]
+    =^  b  gen  (emit ~ ~ %bom ~)
+    [[%next [%none ~] b] gen]
+  ::  +mine: set up deferred crash
+  ::
+  ++  mine
+    |=  [r=@uvre t=@uwoo]
+    ^-  [next _gen]
+    =^  mile  gen  (emit ~ [%poi r]~ %hop t)
+    [[%next [%none ~] t] gen]
+  ::
   ++  vial                                              ::  new label
     ^-  [@uwoo _gen]
     [chan.gen gen(chan +(chan.gen))]
   ::
   ::  XX
-  ::  mine - set up deferred crash
-  ++  mine
-    |=  [r=@uvre t=@uwoo]
-    ^-  [next _gen]
-    !!
   ::  from - push need down by axis
   ++  from
     |=  [axe=@ =next]
@@ -676,10 +683,6 @@
     ^-  [[need need @uwoo] _gen]
     !!
   ::
-  ::
-  ++  bomb
-    ^-  [next _gen]
-    !!
   ++  come
     |=  [f=@uwoo t=@uwoo]
     ^-  [@uwoo _gen]
