@@ -633,61 +633,54 @@
     =|  salt=(list need)
     |-  ^-  [[need @uwoo @uwoo] _gen]
     ?~  tack
-      ?>  ?=(^ salt)
-      ?>  ?=(~ t.salt)
+      ?>  ?=([^ ~] salt)
       =^  loan  gen  (emit ~ (flop lose) %hop then.zero)
       =^  roan  gen  (emit ~ (flop rose) %hop then.once)
       [[i.salt loan roan] gen]
-    ?-  -.i.tack
-        %&
-      ?>  ?=(^ salt)
-      ?>  ?=(^ t.salt)
+    ::
+    ?:  ?=(%& -.i.tack)
+      ?>  ?=([^ ^] salt)
       $(tack t.tack, salt [[%both p.i.tack i.t.salt i.salt] t.t.salt])
     ::
-        %|
-      ?:  ?=(%none -.z.p.i.tack)
-        :: z side has no requirements
-        :: so we should do no splitting outside conditional
-        ?:  ?=(%none -.o.p.i.tack)
-          $(tack t.tack, salt [[%none ~] salt])
-        =^  rr  gen  (kern rose o.p.i.tack)
-        =.  rose  pose.rr
-        $(tack t.tack, salt [[%this out.rr] salt])
-      ?:  ?=(%none -.o.p.i.tack)
-        :: o side has no requirements
-        :: so we should do no splitting outside conditional
-        =^  lr  gen  (kern lose z.p.i.tack)
-        =.  lose  pose.lr
-        $(tack t.tack, salt [[%this out.lr] salt])
-      ?:  ?=(%both -.z.p.i.tack)
-        ::  z side splits
-        ?:  ?=(%both -.o.p.i.tack)
-          ::  both sides split, recursively build need
-          %=  $
-              tack
-            :*  [%| left.z.p.i.tack left.o.p.i.tack]
-                [%| rite.z.p.i.tack rite.o.p.i.tack]
-                [%& sass.z.p.i.tack]
-                t.tack
-            ==
-          ::
-            rose  [[%mov sass.z.p.i.tack sass.o.p.i.tack] rose]
-          ==
-        ::  z side splits, o side this
-        =^  lr  gen  (kern ~ z.p.i.tack)
-        =.  lose  [[%mov sass.o.p.i.tack out.lr] lose]
-        =.  lose  (weld pose.lr lose)
-        $(tack t.tack, salt [o.p.i.tack salt])
-      ?:  ?=(%both -.o.p.i.tack)
-        ::  z side this, o side splits
-        =^  rr  gen  (kern ~ o.p.i.tack)
-        =.  rose  [[%mov sass.z.p.i.tack out.rr] rose]
-        =.  rose  (weld pose.rr rose)
-        $(tack t.tack, salt [z.p.i.tack salt])
-      ::  both sides this
-      =.  rose  [[%mov sass.z.p.i.tack sass.o.p.i.tack] rose]
-      $(tack t.tack, salt [z.p.i.tack salt])
-    ==
+    =*  z  z.p.i.tack
+    =*  o  o.p.i.tack
+    ?:  ?=(%none -.z)
+      :: z side has no requirements
+      :: so we should do no splitting outside conditional
+      ?:  ?=(%none -.o)
+        $(tack t.tack, salt [[%none ~] salt])
+      =^  rr  gen  (kern rose o)
+      $(rose pose.rr, tack t.tack, salt [[%this out.rr] salt])
+    ?:  ?=(%none -.o)
+      :: o side has no requirements
+      :: so we should do no splitting outside conditional
+      =^  lr  gen  (kern lose z)
+      $(lose pose.lr, tack t.tack, salt [[%this out.lr] salt])
+    ?:  ?=(%both -.z)
+      ::  z side splits
+      ?:  ?=(%both -.o)
+        ::  both sides split, recursively build need
+        %=  $
+          tack  [[%| left.z left.o] [%| rite.z rite.o] [%& sass.z] t.tack]
+          rose  [[%mov sass.z sass.o] rose]
+        ==
+      ::  z side splits, o side this
+      =^  lr  gen  (kern ~ z)
+      %=  $
+        lose  (welp pose.lr [[%mov sass.o out.lr] lose])
+        tack  t.tack
+        salt  [o salt]
+      ==
+    ?:  ?=(%both -.o)
+      ::  z side this, o side splits
+      =^  rr  gen  (kern ~ o)
+      %=  $
+        rose  (welp pose.rr [[%mov sass.z out.rr] rose])
+        tack  t.tack
+        salt  [z salt]
+      ==
+    ::  both sides this
+    $(rose [[%mov sass.z sass.o] rose], tack t.tack, salt [z salt])
   ::  +copy: align subject needs for sequential computation
   ::
   ::    generate a need split as far as either input need is split,
