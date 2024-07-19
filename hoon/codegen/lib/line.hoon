@@ -570,6 +570,75 @@
       =.  rose  [[%mov sass.z.p.i.tack sass.o.p.i.tack] rose]
       $(tack t.tack, salt [z.p.i.tack salt])
     ==
+  ::  +copy: align subject needs for sequential computation
+  ::
+  ::    generate a need split as far as either input need is split,
+  ::    generating cons code for less-split need. This is used when two
+  ::    sequential subformulas read from the same subject
+  ::
+  ::    for correctness in crash handling it is vital that the needs are
+  ::    ordered by the evaluation order of the computations, so that the
+  ::    first need is from the first computation and the second need from
+  ::    the second.
+  ::
+  ++  copy
+    |=  [feed=next seed=need]
+    ^-  [next _gen]
+    =|  pose=(list pole)
+    =/  tack=(list (each @uvre [l=need r=need]))  [%| what.feed seed]~
+    =|  rack=(list need)
+    |-  ^-  [next _gen]
+    ?~  tack
+      ?>  ?=(^ rack)
+      ?>  ?=(~ t.rack)
+      =^  cody  gen  (emit ~ pose %hop then.feed)
+      [[%next i.rack cody] gen]
+    ?:  ?=(%& -.i.tack)
+      ?>  ?=(^ rack)
+      ?>  ?=(^ t.rack)
+      $(rack [[%both p.i.tack i.t.rack i.rack] t.t.rack], tack t.tack)
+    ?:  ?=(%none -.l.p.i.tack)  $(rack [r.p.i.tack rack], tack t.tack)
+    ?:  ?=(%none -.r.p.i.tack)  $(rack [l.p.i.tack rack], tack t.tack)
+    ?:  ?=(%this -.l.p.i.tack)
+      ?:  ?=(%this -.r.p.i.tack)
+        :: both this
+        =?  pose  ?!  .=  sass.l.p.i.tack  sass.r.p.i.tack
+          [[%mov sass.l.p.i.tack sass.r.p.i.tack] pose]
+        $(rack [l.p.i.tack rack], tack t.tack)
+      :: left this, right both
+      ::
+      :: this case must be handled this way in case the code that needs
+      :: l.p.i.tack will crash explicitly in some way.
+      =^  rr  gen  (kern ~ r.p.i.tack)
+      =.  pose  (weld (flop pose.rr) pose)
+      =?  pose  ?!(=(sass.l.p.i.tack out.rr))
+        [[%mov sass.l.p.i.tack out.rr] pose]
+      $(tack t.tack, rack [[%this sass.l.p.i.tack] rack])
+    ?:  ?=(%both -.r.p.i.tack)
+      :: both both
+      %=  $
+          pose  [[%mov sass.l.p.i.tack sass.r.p.i.tack] pose]
+          tack
+        :*  [%| left.l.p.i.tack left.r.p.i.tack]
+            [%| rite.l.p.i.tack rite.r.p.i.tack]
+            [%& sass.l.p.i.tack]
+            t.tack
+        ==
+      ==
+    ::  left both, right this
+    =/  lu  (sass left.l.p.i.tack)
+    =/  ru  (sass rite.l.p.i.tack)
+    =^  l  gen  ?~(lu rain [u.lu gen])
+    =^  r  gen  ?~(ru rain [u.ru gen])
+    %=  $
+      pose  [[%con l r sass.r.p.i.tack] pose]
+      tack
+      :*  [%| left.l.p.i.tack %this l]
+          [%| rite.l.p.i.tack %this r]
+          [%& sass.l.p.i.tack]
+          t.tack
+      ==
+    ==
   ::
   ++  vial                                              ::  new label
     ^-  [@uwoo _gen]
@@ -595,11 +664,6 @@
   ++  args
     |=  =bell
     ^-  [[v=(list @uvre) n=need r=?] _gen]
-    !!
-  ::  copy - align subject needs for sequential computation
-  ++  copy
-    |=  [feed=next seed=need]
-    ^-  [next _gen]
     !!
   ::  phil - generate phi nodes
   ++  phil
