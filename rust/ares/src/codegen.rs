@@ -9,7 +9,6 @@ use crate::noun::{slot_bar, slot_pam, DirectAtom, Noun, D, NOUN_NONE, T};
 use crate::unifying_equality::unifying_equality;
 use ares_macros::tas;
 use either::{Left, Right};
-use std::borrow::BorrowMut;
 use std::mem::size_of;
 use std::ptr::{copy_nonoverlapping, write_bytes};
 use std::slice::{from_raw_parts, from_raw_parts_mut};
@@ -122,6 +121,18 @@ fn blox_mut<'a>(cg_context: &mut CgContext) -> &'a mut [Block] {
     unsafe { from_raw_parts_mut(blox.data as *mut Block, blox.lent) }
 }
 
+fn blox_get(cg_context: &mut CgContext, idx: usize) -> &Block {
+    let blox = blox(cg_context);
+    assert!(idx < blox.len());
+    &blox[idx]
+}
+
+fn blox_set(cg_context: &mut CgContext, idx: usize, block: Block) {
+    let blox = blox_mut(cg_context);
+    assert!(idx < blox.len());
+    blox[idx] = block;
+}
+
 /// Transforms the $hill from the `CgContext` into a `Blocks` structure then
 /// allocates it on the NockStack.
 fn blox_init(context: &mut Context) {
@@ -147,8 +158,7 @@ fn blox_init(context: &mut Context) {
         let blob = get_by(&mut context.stack, &mut hill, &mut D(i as u64))
             .expect("Codegen hill lookup failed")
             .expect("Codegen hill lookup result is None");
-        let jet = None; // XX jet match
-        let block = Block { blob, jet };
+        let block = Block { blob, jet: None };
         blox[i] = block;
         i += 1;
     }
