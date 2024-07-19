@@ -562,23 +562,20 @@
     |=  [pose=(list pole) =need]
     ^-  [[pose=(list pole) out=@uvre] _gen]
     =/  tack=(list _need)  ~[need]
-    =/  ui  (sass need)
-    ?~  ui
+    ?~  ui=(sass need)
       =^  crap  gen  rain
       [[~ crap] gen]
     |-  ^-  [[pose=(list pole) out=@uvre] _gen]
     ?~  tack
       [[pose u.ui] gen]
     =*  n  i.tack
-    ?:  ?=(%both -.n)
-      =/  lure  (sass left.n)
-      =/  rule  (sass rite.n)
-      =?  pose  ?=(^ lure)
-        [[%hed sass.n u.lure] pose]
-      =?  pose  ?=(^ rule)
-        [[%tal sass.n u.rule] pose]
-      $(tack [left.n rite.n t.tack])
-    $(tack t.tack)
+    ?.  ?=(%both -.n)
+      $(tack t.tack)
+    =/  lure  (sass left.n)
+    =/  rule  (sass rite.n)
+    =?  pose  ?=(^ lure)  [[%hed sass.n u.lure] pose]
+    =?  pose  ?=(^ rule)  [[%tal sass.n u.rule] pose]
+    $(tack [left.n rite.n t.tack])
   ::
   ++  emit                                              ::  add block
     |=  =blob
