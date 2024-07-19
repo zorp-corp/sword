@@ -47,13 +47,23 @@
   ?:  (~(has in done.s) v)  s
   =.  done.s  (~(put in done.s) v)
   =/  e=(set bell)  (~(get ju sire) v)
+  :: =.  e  (~(dif in e) done.s)  :: XX restore?
   =.  s
     %-  ~(rep in e)
     |:  [n=*bell s=s]
     ^-  _s
     dfs(v n, s s)
-  s(tack [v tack.s])  
+  s(tack [v tack.s])
+::
+::    internal state
+::
+::  redo: arms called without knowing registerization
+::  fuji: code table
+::  sans: next SSA register
+::  chan: next basic-block label
+::
 +$  gen  [redo=(list [t=bell b=@uwoo]) =^fuji sans=@uvre chan=@uwoo]
+::
 ++  jean
   |_  =gen
   ::    core DDCG linearizer
