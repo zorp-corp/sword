@@ -866,19 +866,15 @@
       [u.crop gen]
     =?  what.next  ?=(%none -.what.next)  [%this crap]
     =|  bait=(list [r=@uvre c=?(%2 %3)])
-    |-  ^-  [_next _gen]
+    |-  ^-  [^next _gen]
     ?.  =(1 axe)
       =^  barf  gen  rain
       $(bait [[barf (cap axe)] bait], axe (mas axe))
-    =/  bits  (turn bait |=([r=@uvre *] r))
     =^  fram  gen  (emit ~ [%ipb ~[crap]]~ %hop then.next)
     =/  feed
       %+  roll  bait
       |=  [[r=@uvre c=?(%2 %3)] n=_what.next]
-      ?-  c
-        %2  [%both r n %none ~]
-        %3  [%both r [%none ~] n]
-      ==
+      [%both r ?:(?=(%2 c) [n %none ~] [[%none ~] n])]
     [[%next feed fram] gen]
   ::  +into: split need for edit
   ::
@@ -888,81 +884,40 @@
   ++  into
     |=  [axe=@ =next]
     ^-  [[need need @uwoo] _gen]
+    ?<  =(0 axe)
     =*  twig  what.next
     =|  tres=(list [lr=?(%2 %3) p=@uvre =need])
     =|  pose=(list pole)
-    ?<  =(0 axe)
     |-  ^-  [[need need @uwoo] _gen]
     ?.  =(1 axe)
       =^  p  gen  rain
-      ?-  (cap axe)
-          %2
-        ?-  -.twig
-            %both
-          %=  $
-            tres  [[%2 p rite.twig] tres]
-            twig  left.twig
-            axe   (mas axe)
-            pose  [[%mov p sass.twig] pose]
-          ==
-        ::
-            %this
-          =^  l  gen  rain
-          =^  r  gen  rain
-          %=  $
-            tres  [[%2 p %this r] tres]
-            twig  [%this l]
-            axe   (mas axe)
-            pose  [[%con l r sass.twig] pose]
-          ==
-        ::
-            %none
-          %=  $
-            tres  [[%2 p %none ~] tres]
-            axe   (mas axe)
-          ==
-        ==
+      =/  now  (cap axe)
+      =.  axe  (mas axe)
+      ?-  -.twig
+          %this
+        =^  l  gen  rain
+        =^  r  gen  rain
+        =/  =pole  [%con l r sass.twig]
+        =+  [a b]=?:(?=(%2 now) [l r] [r l])
+        $(tres [[now p %this b] tres], twig [%this a], pose [pole pose])
       ::
-          %3
-        ?-  -.twig
-            %both
-          %=  $
-            tres  [[%3 p left.twig] tres]
-            twig  rite.twig
-            axe   (mas axe)
-            pose  [[%mov p sass.twig] pose]
-          ==
-        ::
-            %this
-          =^  l  gen  rain
-          =^  r  gen  rain
-          %=  $
-            tres  [[%3 p %this l] tres]
-            twig  [%this r]
-            axe   (mas axe)
-            pose  [[%con l r sass.twig] pose]
-          ==
-        ::
-            %none
-          %=  $
-            tres  [[%3 p %none ~] tres]
-            axe   (mas axe)
-          ==
-        ==
+          %both
+        =/  =pole  [%mov p sass.twig]
+        =*  l  left.twig
+        =*  r  rite.twig
+        =+  [a b]=?:(?=(%2 now) [l r] [r l])
+        $(tres [[now p b] tres], twig a, pose [pole pose])
+      ::
+          %none  $(tres [[now p twig] tres])
       ==
-    =^  flag  gen  rain
-    =/  tree=need  [%this flag]
-    |-  ^-  [[need need @uwoo] _gen]
-    ?~  tres
-      =^  tint  gen  (emit ~ [[%ipb ~[flag]] pose] %hop then.next)
-      [[twig tree tint] gen]
-    ?-  lr.i.tres
-        %2
-      $(tres t.tres, tree [%both p.i.tres tree need.i.tres])
     ::
-        %3
-      $(tres t.tres, tree [%both p.i.tres need.i.tres tree])
-    ==
+    =^  flag  gen  rain
+    =^  tint  gen  (emit ~ [[%ipb ~[flag]] pose] %hop then.next)
+    =/  tree=need
+      %+  roll  tres
+      |=  [[lr=?(%2 %3) p=@uvre n=need] t=_`need`[%this flag]]
+      [%both p ?:(?=(%2 lr) [t n] [n t])]
+    [[twig tree tint] gen]
   ::  +mede: split immediate into registers of need
   ::
   ++  mede
