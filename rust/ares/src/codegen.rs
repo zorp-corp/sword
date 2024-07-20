@@ -21,7 +21,7 @@ struct Frame {
     mean: Noun,
     /// Code table for current arm
     pile: Noun,
-    /// Continuation block when returning to this frame
+    /// Continuation block index when returning to this frame
     cont: usize,
     /// Result register when returning to this frame
     salt: usize,
@@ -81,6 +81,52 @@ pub struct Blocks {
     pub lent: usize,
 }
 
+impl Blocks {
+    /// Transforms the $hill from the `CgContext` into a `Blocks` structure then
+    /// allocates it on the NockStack.
+    fn new(context: &mut Context) -> Self {
+        let stack = &mut context.stack;
+        let fuji = context.cg_context.fuji;
+        let next = slot(fuji, slot_pam(5)) // total number of blocks
+            .expect("Codegen fuji should have next")
+            .as_atom()
+            .unwrap()
+            .as_u64()
+            .unwrap() as usize;
+        unsafe {
+            let blox_p = stack.struct_alloc::<Blocks>(1);
+            *blox_p = Blocks {
+                data: stack.struct_alloc::<Block>(next),
+                lent: next,
+            };
+            let blox = from_raw_parts_mut((*blox_p).data, next);
+            let mut hill = slot(fuji, slot_pam(1)).expect("Codegen fuji should have hill");
+            let mut i = 0;
+            while i < next {
+                // XX walk tree manually
+                let blob = get_by(&mut context.stack, &mut hill, &mut D(i as u64))
+                    .expect("Codegen hill lookup failed")
+                    .expect("Codegen hill lookup result is None");
+                let blok = Block { blob, jet: None };
+                blox[i] = blok;
+                i += 1;
+            }
+            Self {
+                data: blox.as_mut_ptr(),
+                lent: next,
+            }
+        }
+    }
+
+    fn as_slice<'a>(&self) -> &'a [Block] {
+        unsafe { from_raw_parts(self.data as *const Block, self.lent) }
+    }
+
+    fn _as_mut_slice<'a>(&mut self) -> &'a mut [Block] {
+        unsafe { from_raw_parts_mut(self.data as *mut Block, self.lent) }
+    }
+}
+
 impl Preserve for Blocks {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
         let dest: *mut Blocks = stack.struct_alloc_in_previous_frame(1);
@@ -125,55 +171,6 @@ impl Preserve for CgContext {
         self.line.assert_in_stack(stack);
         self.fuji.assert_in_stack(stack);
         self.blox.assert_in_stack(stack);
-    }
-}
-
-/// XX move these functions to impl Block[s]?
-fn blox<'a>(cg_context: &mut CgContext) -> &'a [Block] {
-    let blox = &mut cg_context.blox;
-    unsafe { from_raw_parts(blox.data as *const Block, blox.lent) }
-}
-
-fn blox_mut<'a>(cg_context: &mut CgContext) -> &'a mut [Block] {
-    let blox = &mut cg_context.blox;
-    unsafe { from_raw_parts_mut(blox.data as *mut Block, blox.lent) }
-}
-
-fn blox_get(cg_context: &mut CgContext, idx: usize) -> &Block {
-    let blox = blox(cg_context);
-    assert!(idx < blox.len());
-    &blox[idx]
-}
-
-/// Transforms the $hill from the `CgContext` into a `Blocks` structure then
-/// allocates it on the NockStack.
-fn blox_init(context: &mut Context) {
-    let stack = &mut context.stack;
-    let fuji = context.cg_context.fuji;
-    let next = slot(fuji, slot_pam(5)) // total number of blocks
-        .expect("Codegen fuji should have next")
-        .as_atom()
-        .unwrap()
-        .as_u64()
-        .unwrap() as usize;
-    unsafe {
-        let blox_p = stack.struct_alloc::<Blocks>(1);
-        *blox_p = Blocks {
-            data: stack.struct_alloc::<Block>(next),
-            lent: next,
-        };
-    }
-    let blox = blox_mut(&mut context.cg_context);
-    let mut hill = slot(fuji, slot_pam(1)).expect("Codegen fuji should have hill");
-    let mut i = 0;
-    while i < next {
-        // XX walk tree manually
-        let blob = get_by(&mut context.stack, &mut hill, &mut D(i as u64))
-            .expect("Codegen hill lookup failed")
-            .expect("Codegen hill lookup result is None");
-        let blok = Block { blob, jet: None };
-        blox[i] = blok;
-        i += 1;
     }
 }
 
@@ -277,19 +274,21 @@ fn cg_indirect(
     subject: Noun,
     formula: Noun,
 ) -> (usize, usize, Noun) {
+    let mut poked = false;
     let (register, block_idx, fuji) = if let Some(res) = cg_peek(context, subject, formula) {
         res
     } else {
+        poked = true;
         cg_poke(context, slow, subject, formula);
         cg_peek(context, subject, formula).expect("Codegen peek should return value after poke.")
     };
-    // XX update fuji in context only immediately after poke
-    context.cg_context.fuji = fuji;
-    blox_init(context);
+    if poked {
+        context.cg_context.fuji = fuji;
+    }
+    let _blox = Blocks::new(context);
     (register, block_idx, fuji)
 }
 
-/// XX return block
 fn cg_direct(context: &mut Context, block_idx: usize) -> (Noun, Noun) {
     let fuji = context.cg_context.fuji;
     let mut gist = slot(fuji, slot_pam(4)).expect("Codegen fuji should have gist");
@@ -326,7 +325,7 @@ pub fn cg_interpret_with_snapshot(
     formula: Noun,
 ) -> Result {
     let (_register, block_idx, mut _pile) = cg_indirect(context, slow, subject, formula);
-    let blob = blox_get(&mut context.cg_context, block_idx).blob;
+    let blob = context.cg_context.blox.as_slice()[block_idx].blob;
     let fuji = NOUN_NONE; // XX
     let mut gist = slot(fuji, slot_pam(4)).expect("Codegen fuji should have gist");
     let mut bell = NOUN_NONE; // XX
@@ -511,10 +510,10 @@ pub fn cg_interpret_with_snapshot(
                     let clq_o = clq_zo.tail().as_atom().unwrap().as_u64().unwrap() as usize;
 
                     if frame.vars()[clq_s].is_cell() {
-                        let blob = blox_get(&mut context.cg_context, clq_z).blob;
+                        let blob = context.cg_context.blox.as_slice()[clq_z].blob;
                         goto(context, &mut body, &mut bend, blob);
                     } else {
-                        let blob = blox_get(&mut context.cg_context, clq_o).blob;
+                        let blob = context.cg_context.blox.as_slice()[clq_o].blob;
                         goto(context, &mut body, &mut bend, blob);
                     }
                 }
@@ -535,10 +534,10 @@ pub fn cg_interpret_with_snapshot(
                             r_ref as *mut Noun,
                         )
                     } {
-                        let blob = blox_get(&mut context.cg_context, eqq_z).blob;
+                        let blob = context.cg_context.blox.as_slice()[eqq_z].blob;
                         goto(context, &mut body, &mut bend, blob);
                     } else {
-                        let blob = blox_get(&mut context.cg_context, eqq_o).blob;
+                        let blob = context.cg_context.blox.as_slice()[eqq_o].blob;
                         goto(context, &mut body, &mut bend, blob);
                     }
                 }
@@ -549,10 +548,10 @@ pub fn cg_interpret_with_snapshot(
                     let brn_z = brn_zo.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let brn_o = brn_zo.tail().as_atom().unwrap().as_u64().unwrap() as usize;
                     if unsafe { frame.vars()[brn_s].raw_equals(D(0)) } {
-                        let blob = blox_get(&mut context.cg_context, brn_z).blob;
+                        let blob = context.cg_context.blox.as_slice()[brn_z].blob;
                         goto(context, &mut body, &mut bend, blob);
                     } else if unsafe { frame.vars()[brn_s].raw_equals(D(1)) } {
-                        let blob = blox_get(&mut context.cg_context, brn_o).blob;
+                        let blob = context.cg_context.blox.as_slice()[brn_o].blob;
                         goto(context, &mut body, &mut bend, blob);
                     } else {
                         break BAIL_EXIT;
@@ -560,7 +559,7 @@ pub fn cg_interpret_with_snapshot(
                 }
                 tas!(b"hop") => {
                     let hop_t = inst_cell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
-                    let blob = blox_get(&mut context.cg_context, hop_t).blob;
+                    let blob = context.cg_context.blox.as_slice()[hop_t].blob;
                     goto(context, &mut body, &mut bend, blob);
                 }
                 tas!(b"hip") => {
@@ -584,7 +583,7 @@ pub fn cg_interpret_with_snapshot(
                     push_interpreter_frame(&mut context.stack, new_pile);
                     let new_frame = unsafe { Frame::current_mut(&context.stack) };
                     new_frame.vars_mut()[sire] = subject;
-                    let new_blob = blox_get(&mut context.cg_context, new_block_idx).blob;
+                    let new_blob = context.cg_context.blox.as_slice()[new_block_idx].blob;
                     goto(context, &mut body, &mut bend, new_blob);
                 }
                 tas!(b"cal") => {
@@ -708,7 +707,7 @@ pub fn cg_interpret_with_snapshot(
                     let subject = frame.vars()[lnt_u];
                     let formula = frame.vars()[lnt_f];
                     let (_reg, idx, new_pile) = cg_indirect(context, frame.slow, subject, formula);
-                    let new_blob = blox_get(&mut context.cg_context, idx).blob;
+                    let new_blob = context.cg_context.blox.as_slice()[idx].blob;
                     let sire = pile_sire(new_pile);
                     tail_frame(&mut context.stack, new_pile);
                     let new_frame = unsafe { Frame::current_mut(&mut context.stack) };
@@ -774,7 +773,7 @@ pub fn cg_interpret_with_snapshot(
                                         unsafe { Frame::current_mut(&mut context.stack) };
                                     new_frame.vars_mut()[new_frame.salt] = r;
                                     let new_blob =
-                                        blox_get(&mut context.cg_context, new_frame.cont).blob;
+                                        context.cg_context.blox.as_slice()[new_frame.cont].blob;
                                     goto(context, &mut body, &mut bend, new_blob)
                                 }
                             }
@@ -844,7 +843,7 @@ pub fn cg_interpret_with_snapshot(
                     let spy_t = spy_dt.tail().as_atom().unwrap().as_u64().unwrap() as usize;
                     frame.vars_mut()[spy_d] =
                         scry(context, frame.vars()[spy_e], frame.vars()[spy_p])?;
-                    let blob = blox_get(&mut context.cg_context, spy_t).blob;
+                    let blob = context.cg_context.blox.as_slice()[spy_t].blob;
                     goto(context, &mut body, &mut bend, blob);
                 }
                 tas!(b"mer") => {
@@ -866,10 +865,10 @@ pub fn cg_interpret_with_snapshot(
                     );
                     if let Some(res) = context.cache.lookup(&mut context.stack, &mut key) {
                         frame.vars_mut()[mer_d] = res;
-                        let blob = blox_get(&mut context.cg_context, mer_i).blob;
+                        let blob = context.cg_context.blox.as_slice()[mer_i].blob;
                         goto(context, &mut body, &mut bend, blob);
                     } else {
-                        let blob = blox_get(&mut context.cg_context, mer_m).blob;
+                        let blob = context.cg_context.blox.as_slice()[mer_m].blob;
                         goto(context, &mut body, &mut bend, blob);
                     }
                 }
@@ -886,7 +885,7 @@ pub fn cg_interpret_with_snapshot(
                     } else {
                         let new_frame = unsafe { Frame::current_mut(&mut context.stack) };
                         new_frame.vars_mut()[new_frame.salt] = result;
-                        let blob = blox_get(&mut context.cg_context, new_frame.cont).blob;
+                        let blob = context.cg_context.blox.as_slice()[new_frame.cont].blob;
                         goto(context, &mut body, &mut bend, blob);
                     }
                 }
