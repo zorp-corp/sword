@@ -840,33 +840,19 @@
     =|  salt=(list need)
     |-  ^-  [[v=(list @uvre) n=need] _gen]
     ?~  tack
-      ?>  ?=(^ salt)
-      ?>  ?=(~ t.salt)
+      ?>  ?=([^ ~] salt)
       [[(flop rv) i.salt] gen]
-    ?-  -.i.tack
-        %&
-      ?>  ?=(^ salt)
-      ?>  ?=(^ t.salt)
+    ?:  ?=(%& -.i.tack)
+      ?>  ?=([^ ^] salt)
       $(tack t.tack, salt [[%both p.i.tack i.t.salt i.salt] t.t.salt])
     ::
-        %|
-      ?-  -.p.i.tack
-          %both
-        =^  br  gen  rain
-        %=  $
-            tack
-          :*  [%| left.p.i.tack]
-              [%| rite.p.i.tack]
-              [%& br]
-              t.tack
-          ==
-        ==
-      ::
-          %none  $(tack t.tack, salt [[%none ~] salt])
-          %this
-        =^  vr  gen  rain
-        $(rv [vr rv], salt [[%this vr] salt], tack t.tack)
-      ==
+    =*  p  p.i.tack
+    ?:  ?=(%none -.p)
+      $(tack t.tack, salt [p salt])
+    =^  vr  gen  rain
+    ?-  -.p
+      %both  $(tack [[%| left.p] [%| rite.p] [%& vr] t.tack])
+      %this  $(rv [vr rv], salt [[%this vr] salt], tack t.tack)
     ==
   ::  +from: push need down by axis
   ::
