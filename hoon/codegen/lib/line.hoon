@@ -924,23 +924,26 @@
     |=  [u=@uwoo n=* =need]
     ^-  [@uwoo _gen]
     =|  todo=(list pole)
-    =/  tack=(list [n=(unit *) =_need])  [`n need]~
+    =/  tack=(list [n=(unit) =_need])  [`n need]~
     |-  ^-  [@uwoo _gen]
     ?~  tack
       (emit ~ todo %hop u)
-    ?-  -.need.i.tack
-        %none  $(tack t.tack)
+    =*  ne  need.i.tack
+    =*  no  n.i.tack
+    ?-  -.ne
         %this
-      ?~  n.i.tack
-        $(todo [[%poi sass.need.i.tack] todo], tack t.tack)
-      $(todo [[%imm u.n.i.tack sass.need.i.tack] todo], tack t.tack)
-      ::
+      =/  =pole  ?~(no [%poi sass.ne] [%imm u.no sass.ne])
+      $(todo [pole todo], tack t.tack)
+    ::
         %both
-      ?~  n.i.tack
-        $(tack [[~ rite.need.i.tack] [~ left.need.i.tack] t.tack])
-      ?@  u.n.i.tack
-        $(tack [[~ rite.need.i.tack] [~ left.need.i.tack] t.tack])
-      $(tack [[`+.u.n.i.tack rite.need.i.tack] [`-.u.n.i.tack left.need.i.tack] t.tack])
+      %=    $
+          tack
+        ?:  ?=(?(~ [~ @]) no)
+          [[~ rite.ne] [~ left.ne] t.tack]
+        [[`+.u.no rite.ne] [`-.u.no left.ne] t.tack]
+      ==
+    ::
+        %none  $(tack t.tack)
     ==
   --
 ::  +sill: list of registers from a need
