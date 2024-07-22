@@ -14,6 +14,7 @@ use crate::mem::Preserve;
 use crate::newt::Newt;
 use crate::noun;
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
+use crate::serf::TERMINATOR;
 use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
 use crate::unifying_equality::unifying_equality;
 use ares_macros::tas;
@@ -21,6 +22,8 @@ use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::*;
 use std::result;
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::Instant;
 
 crate::gdb!();
@@ -1353,11 +1356,8 @@ mod hint {
     use crate::jets::cold;
     use crate::jets::nock::util::{mook, LEAF};
     use crate::noun::{tape, Atom, Cell, Noun, D, T};
-    use crate::serf::TERMINATOR;
     use crate::unifying_equality::unifying_equality;
     use ares_macros::tas;
-    use std::sync::atomic::Ordering;
-    use std::sync::Arc;
 
     pub fn is_tail(tag: Atom) -> bool {
         //  XX: handle IndirectAtom tags
