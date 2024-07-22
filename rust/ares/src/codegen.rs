@@ -22,10 +22,11 @@ struct Frame {
     /// Code table for current arm
     pile: Noun,
     /// Continuation block index when returning to this frame
+    /// XX use blob instead?
     cont: usize,
     /// Result register when returning to this frame
     salt: usize,
-    /// number of locals
+    /// Number of locals
     vars: usize,
 }
 
@@ -72,6 +73,7 @@ impl Preserve for Block {
     }
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
+        stack.assert_struct_is_in(self as *const Block, 1);
         self.blob.assert_in_stack(stack);
     }
 }
@@ -82,7 +84,7 @@ pub struct Blocks {
 }
 
 impl Blocks {
-    /// Transforms the $hill from the `CgContext` into a `Blocks` structure then
+    /// Transforms the $hill from the `CgContext` into a `Blocks` structure and
     /// allocates it on the NockStack.
     fn new(context: &mut Context) -> Self {
         let stack = &mut context.stack;
@@ -274,21 +276,21 @@ fn cg_indirect(
     subject: Noun,
     formula: Noun,
 ) -> (usize, usize, Noun) {
-    let mut poked = false;
-    let (register, block_idx, fuji) = if let Some(res) = cg_peek(context, subject, formula) {
-        res
-    } else {
-        poked = true;
-        cg_poke(context, slow, subject, formula);
-        cg_peek(context, subject, formula).expect("Codegen peek should return value after poke.")
+    let (reg, idx, fuji) = match cg_peek(context, subject, formula) {
+        Some((reg, idx, fuji)) => (reg, idx, fuji),
+        None => {
+            cg_poke(context, slow, subject, formula);
+            let (reg, idx, fuji) = cg_peek(context, subject, formula)
+                .expect("Codegen peek should return value after poke.");
+            context.cg_context.fuji = fuji;
+            (reg, idx, fuji)
+        }
     };
-    if poked {
-        context.cg_context.fuji = fuji;
-    }
-    let _blox = Blocks::new(context);
-    (register, block_idx, fuji)
+    Blocks::new(context);
+    (reg, idx, fuji)
 }
 
+/// Get the ($blob, $pile) for a direct arm
 fn cg_direct(context: &mut Context, block_idx: usize) -> (Noun, Noun) {
     let fuji = context.cg_context.fuji;
     let mut gist = slot(fuji, slot_pam(4)).expect("Codegen fuji should have gist");
@@ -667,7 +669,6 @@ pub fn cg_interpret_with_snapshot(
                                         new_frame.vars_mut()[walt_i] = frame.vars()[v_i];
                                     }
                                 }
-                                // XX block index
                                 goto(context, &mut body, &mut bend, new_blob);
                             }
                             Err(Fail(err)) => {
