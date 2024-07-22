@@ -412,7 +412,55 @@
           =^  fake  gen  $(n vice.n, goal [%next [%this mane] dint])
           (copy fake what.real)
         ==
-      :: XX TODO %live %slog %memo %bout
+      ::
+          ?(%live %slog)
+        =^  clue  gen  rain
+        =^  real  gen  $(n then.n)
+        =^  wave  gen
+          ?:  ?=(%live hint.n)
+            (emit ~ [%hit clue]~ %hop then.real)
+          (emit ~ [%slg clue]~ %hop then.real)
+        =^  fake  gen  $(n vice.n, goal [%next [%this clue] wave])
+        (copy fake what.real)
+      ::
+          %memo
+        =/  fork  (~(got by fizz.norm.u.h) hare.n)
+        =^  funk  gen  rain
+        =^  sunk  gen  rain
+        =^  gunk  gen  rain
+        =/  body=(list pole)  ~[[%imm 0 gunk] [%imm fork funk]]
+        ?-  -.goal
+            %done
+          =^  salt  gen  rain
+          =^  mode  gen  (emit ~ ~ %don salt)
+          $(goal [%next [%this salt] mode])
+        ::
+            %pick
+          =^  mere  gen  rain
+          =^  chit  gen  (emit ~ ~ %brn mere zero.goal once.goal)
+          =^  loot  gen  rain
+          =^  root  gen  rain
+          =^  loam  gen  (emit ~ ~[[%imm 0 loot] [%mew gunk sunk funk loot]] %hop zero.goal)
+          =^  rome  gen  (emit ~ ~[[%imm 1 root] [%mew gunk sunk funk root]] %hop once.goal)
+          =^  moog  gen  $(n then.n, zero.goal loam, once.goal rome)
+          =^  cast  gen  (emit ~ body %mer gunk sunk funk mere chit then.moog)
+          =^  fake  gen  $(n vice.n, goal [%next [%none ~] cast])
+          =^  fear  gen  (copy fake what.moog)
+          (copy fear [%this sunk])
+        ::
+            %next
+          =^  [chit=next miss=next]    gen  (phil goal)
+          =^  [chin=@uwoo mere=@uvre]  gen  (kerf chit)
+          =^  [misc=@uwoo salt=@uvre]  gen  (kerf miss)
+          =^  meow  gen  (emit ~ [%mew gunk sunk funk salt]~ %hop misc)
+          =^  real  gen  $(n then.n, goal [%next [%this salt] meow])
+          =^  cake  gen  (emit ~ body %mer gunk sunk funk mere chin misc)
+          =^  fake  gen  $(n vice.n, goal [%next [%none ~] cake])
+          =^  cope  gen  (copy fake what.real)
+          (copy cope [%this sunk])
+        ==
+      ::
+          %bout  ~|  %todo  !!
       ==
     ::
         %elf
