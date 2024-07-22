@@ -415,7 +415,27 @@
       :: XX TODO %live %slog %memo %bout
       ==
     ::
-        %elf  ~|  %todo  !!
+        %elf
+      ?-  -.goal
+          %done
+        =^  last  gen  rain
+        =^  deft  gen  (emit ~ ~ %don last)
+        $(goal [%next [%this last] deft])
+      ::
+          %pick
+        =^  flip  gen  rain
+        =^  heft  gen  (emit ~ ~ %brn flip [zero once]:goal)
+        $(goal [%next [%this flip] heft])
+      ::
+          %next
+        =^  [weft=@uwoo good=@uvre]  gen  (kerf goal)
+        =^  home  gen  rain
+        =^  path  gen  rain
+        =^  show  gen  (emit ~ ~ %spy home path good weft)
+        =^  trot  gen  $(n walk.n, goal [%next [%this path] show])
+        =^  paid  gen  $(n rent.n, goal [%next [%this home] then.trot])
+        (copy paid what.trot)
+      ==
     ==
   ::
   ::  +kerf: split single register into goal
