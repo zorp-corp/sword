@@ -1039,6 +1039,122 @@
       $(tack [[`+.u.n.i.tack rite.need.i.tack] [`-.u.n.i.tack left.need.i.tack] t.tack])
     ==
   --
+::  +sill: list of registers from a need
+::
+++  sill
+  |=  want=need
+  =|  wart=(list @uvre)
+  =/  tack=(list need)  ~[want]
+  |-  ^-  (list @uvre)
+  ?~  tack  wart
+  ?-  -.i.tack
+    %this  $(wart [sass.i.tack wart], tack t.tack)
+    %both  $(tack [rite.i.tack left.i.tack t.tack])
+    %none  $(tack t.tack)
+  ==
+::  +mill: loop over redos
+::
+::    run redo:jean on each arm in the redo list, which will generate
+::    code to properly registerize callsites whose registerization was
+::    deferred, without changing the registerization of the calling arm
+::
+++  mill
+  =|  todo=(list [=bell dire=next =gen])
+  =|  like=(map bell need)
+  =/  toil  work
+  =/  wurk  toil
+  |-  ^+  fuji
+  ?^  toil
+    =/  [dire=next =gen]  (~(cuts jean *gen like) i.toil)  :: XX init gen
+    %=  $
+       toil  t.toil
+       todo  [[i.toil dire gen] todo]
+       like  (~(put by like) i.toil what.dire)
+       :: XX fuji  fuji.gen
+    ==
+  |-  ^+  fuji
+  ?^  todo
+    =/  r  redo.gen.i.todo
+    |-  ^+  fuji
+    ?^  r
+      =.  gen.i.todo
+        ~|  =*  bel  bell.i.todo
+            =/  mot  (~(get ja moan) form.bel)
+            |-  ^-  ?(%redo-fail ~)
+            ?~  mot  ~
+            ?:  =(soot.i.mot text.bel)
+              ((outa:blot:sack "redo fail: " `@`0 [seat area]:norm.i.mot) %redo-fail)
+            $(mot t.mot)
+          (~(redo jean gen.i.todo like) i.r)
+      $(r t.r)
+    =^  [wish=@uwoo sire=@uvre]  gen.i.todo  (~(kerf jean gen.i.todo like) dire.i.todo)
+    ?.  (~(has by hill.fuji) wish)  ~&  %missing-wish  !!
+    %=  ^$
+        gist.fuji
+      =/  walt  (sill what.dire.i.todo)
+      %+  ~(put by gist.fuji)  bell.i.todo
+      [what.dire.i.todo walt sire sans.gen.i.todo]
+    ::
+        todo  t.todo
+    ==
+  ::  XX temporary: turn hip/phi into mov so we can run this as-is
+  ::  note that it's not safe to do mov coalescing on the output of this
+  ::  since we may now have multiple %mov's that target one register
+  =/  toil  wurk
+  |-  ^+  fuji
+  ?~  toil
+    fuji
+  %=  $
+      toil  t.toil
+  ::
+      hill.fuji
+    =/  =pile  (~(got by gist.fuji) i.toil)
+    =/  seen
+      %-  ~(gas in *(set @uwoo))
+      :~  (~(got by peal.fuji) i.toil)
+          (~(got by gong.fuji) i.toil)
+      ==
+    =/  queu=(list @uwoo)  ~(tap in seen)
+    =|  back=(list @uwoo)
+    !.
+    |-  ^+  hill.fuji
+    ?~  queu
+      ?~  back  hill.fuji
+      $(queu (flop back), back ~)
+
+    =/  blob  (~(got by hill.fuji) i.queu)
+    =^  more=(list @uwoo)  blob
+      ?-  -.bend.blob
+          %hip
+        :-  ~[t.bend.blob]
+        =/  movs
+          %-  ~(rep by biff:(~(got by hill.fuji) t.bend.blob))
+          |=  [[out=@uvre bin=(map @uwoo @uvre)] lit=(list pole)]
+          [[%mov (~(got by bin) c.bend.blob) out] lit]
+        [biff.blob (welp body.blob movs) %hop t.bend.blob]  :: XX flop?
+      ::
+          %clq  [~[z o]:bend.blob blob]
+          %eqq  [~[z o]:bend.blob blob]
+          %brn  [~[z o]:bend.blob blob]
+          %hop  [~[t.bend.blob] blob]
+          %lnk  [~[t.bend.blob] blob]
+          %cal  [~[t.bend.blob] blob]
+          %caf  [~[t.bend.blob] blob]
+          %lnt  `blob
+          %jmp  `blob
+          %jmf  `blob
+          %spy  [~[t.bend.blob] blob]
+          %mer  [~[i m]:bend.blob blob]
+          %don  `blob
+          %bom  `blob
+      ==
+    |-  ^+  hill.fuji
+    ?~  more
+      ^$(queu t.queu, hill.fuji (~(put by hill.fuji) i.queu blob))
+    ?:  (~(has in seen) i.more)
+      $(more t.more)
+    $(more t.more, back [i.more back], seen (~(put in seen) i.more))
+  ==
 --
 =+  ver=%1
 |%
