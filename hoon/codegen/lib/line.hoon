@@ -1174,6 +1174,26 @@
       (~(got by gist.fuji) [soot.i.moat f])
     `[sire.p u.u fuji]
 ::
-++  poke  ~|  %todo  !!
+++  poke
+  |=  =gist
+  ~>  %bout
+  ^-  [new=(set bell) old=(set bell) =_this]  :: XX fix product type
+  ?-    -.gist
+  ::
+  ::  analyze
+  ::
+      %comp
+    =.  sack
+      ~>  %bout.[0 %sack]
+      (rout:sack s.gist f.gist)
+    ?<  =(~ moan)
+    ::  save old codegen table keys
+    =/  hole  ~(key by gist.fuji)
+    ::  codegen
+    =.  fuji  mill
+    =/  heck  ~(key by gist.fuji)
+    [(~(dif in heck) hole) (~(dif in hole) heck) this]
+  ==
+::
 ++  xray  ~|  %todo  !!
 --
