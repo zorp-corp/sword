@@ -1159,7 +1159,21 @@
 =+  ver=%1
 |%
 ++  this  .
-++  peek  ~|  %todo  !!
+::
+++  peek
+   |=  [s=* f=*]
+    =/  moat  (~(get ja moan) f)
+    |-  ^-  (unit [@uvre @uwoo ^fuji])  :: XX fix product type
+    ?~  moat  ~
+    ?.  (~(huge so:sack soot.i.moat) [& s])
+      $(moat t.moat)
+    ?~  u=(~(get by gong.fuji) [soot.i.moat f])
+      ~|  %not-in-gong  !!
+    =/  p
+      ~|  %not-in-gist
+      (~(got by gist.fuji) [soot.i.moat f])
+    `[sire.p u.u fuji]
+::
 ++  poke  ~|  %todo  !!
 ++  xray  ~|  %todo  !!
 --
