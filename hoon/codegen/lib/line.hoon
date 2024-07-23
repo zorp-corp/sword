@@ -486,6 +486,59 @@
       ==
     ==
   ::
+  ::    redo callsite registerization
+  ::
+  ::  given recursion, we may not know the registerization for an arm
+  ::  when we generate a direct call to it. Thus, once we have generated
+  ::  code for all arms in the call tree and know their
+  ::  registerizations, we return to callsites and generate
+  ::  properly-registerized calls, without changing the registerization
+  ::  of the calling arm.
+  ++  redo
+    |=  [=bell u=@uwoo]
+    ^-  _gen
+    =/  blob  (~(got by hill.fuji.gen) u)
+    ?+  -.bend.blob  ~|  %redo-cant  !!
+        %cal
+      ?>  ?=(^ v.bend.blob)
+      ?>  ?=(~ t.v.bend.blob)
+      ?>  (~(has by like) bell)  :: XX fix
+      =^  urge  gen  (args bell)
+      =^  reed  gen  (emit ~ ~ bend.blob(v v.urge))
+      =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
+      =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
+      (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
+    ::
+        %caf
+      ?>  ?=(^ v.bend.blob)
+      ?>  ?=(~ t.v.bend.blob)
+      ?>  (~(has by like) bell)  :: XX fix
+      =^  urge  gen  (args bell)
+      =^  reed  gen  (emit ~ ~ bend.blob(v v.urge))
+      =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
+      =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
+      (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
+    ::
+        %jmp
+      ?>  ?=(^ v.bend.blob)
+      ?>  ?=(~ t.v.bend.blob)
+      ?>  (~(has by like) bell)  :: XX fix
+      =^  urge  gen  (args bell)
+      =^  reed  gen  (emit ~ ~ bend.blob(v v.urge))
+      =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
+      =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
+      (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
+    ::
+        %jmf
+      ?>  ?=(^ v.bend.blob)
+      ?>  ?=(~ t.v.bend.blob)
+      ?>  (~(has by like) bell)  :: XX fix
+      =^  urge  gen  (args bell)
+      =^  reed  gen  (emit ~ ~ bend.blob(v v.urge))
+      =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
+      =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
+      (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
+    ==
   ::  +kerf: split single register into goal
   ::
   ::    given a destination, generate code which splits a noun in one
