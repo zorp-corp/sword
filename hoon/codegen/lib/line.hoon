@@ -57,12 +57,11 @@
 ::
 ::    internal state
 ::
+::  sans: next SSA register
 ::  redo: arms called without knowing registerization
 ::  fuji: code table
-::  sans: next SSA register
-::  chan: next basic-block label
 ::
-+$  gen  [redo=(list [t=bell b=@uwoo]) =^fuji sans=@uvre chan=@uwoo]
++$  gen  [sans=@uvre redo=(list [t=bell b=@uwoo]) =^fuji]
 ::
 ++  jean
   |_  [=gen like=(map bell need)]
@@ -776,7 +775,9 @@
   ::
   ++  vial                                              ::  new label
     ^-  [@uwoo _gen]
-    [chan.gen gen(chan +(chan.gen))]
+    ?^  free.fuji.gen
+      [i.free.fuji.gen gen(free.fuji t.free.fuji.gen)]
+    [next.fuji.gen gen(next.fuji +(next.fuji.gen))]
   ::
   ++  come                                              ::  label come-from
     |=  [f=@uwoo t=@uwoo]
