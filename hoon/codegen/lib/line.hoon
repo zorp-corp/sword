@@ -497,13 +497,14 @@
     |=  [=bell u=@uwoo]
     ^-  _gen
     =/  blob  (~(got by hill.fuji.gen) u)
+    =/  wool  (~(got by peal.fuji.gen) bell)
     ?+  -.bend.blob  ~|  %redo-cant  !!
         %cal
       ?>  ?=(^ v.bend.blob)
       ?>  ?=(~ t.v.bend.blob)
       ?>  (~(has by like) bell)  :: XX fix
       =^  urge  gen  (args bell)
-      =^  reed  gen  (emit ~ ~ bend.blob(v v.urge))
+      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge))
       =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
       =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
       (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
@@ -513,7 +514,7 @@
       ?>  ?=(~ t.v.bend.blob)
       ?>  (~(has by like) bell)  :: XX fix
       =^  urge  gen  (args bell)
-      =^  reed  gen  (emit ~ ~ bend.blob(v v.urge))
+      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge))
       =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
       =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
       (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
@@ -523,7 +524,7 @@
       ?>  ?=(~ t.v.bend.blob)
       ?>  (~(has by like) bell)  :: XX fix
       =^  urge  gen  (args bell)
-      =^  reed  gen  (emit ~ ~ bend.blob(v v.urge))
+      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge))
       =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
       =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
       (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
@@ -533,7 +534,7 @@
       ?>  ?=(~ t.v.bend.blob)
       ?>  (~(has by like) bell)  :: XX fix
       =^  urge  gen  (args bell)
-      =^  reed  gen  (emit ~ ~ bend.blob(v v.urge))
+      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge))
       =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
       =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
       (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
@@ -858,7 +859,7 @@
     ^-  [[v=(list @uvre) n=need r=?] _gen]
     =/  cn  (~(get by like) bell)
     =?  cn  ?=(~ cn)
-      =/  dn  (~(get by gist.fuji) bell)
+      =/  dn  (~(get by gist.fuji.gen) bell)
       ?~  dn  ~
       `want.u.dn
     ?~  cn
@@ -1066,13 +1067,14 @@
   =/  wurk  toil
   |-  ^+  fuji
   ?^  toil
-    =/  [dire=next =gen]  (~(cuts jean *gen like) i.toil)  :: XX init gen
+    =/  [dire=next =gen]  (~(cuts jean [*@uvre ~ fuji] like) i.toil)
     %=  $
        toil  t.toil
        todo  [[i.toil dire gen] todo]
        like  (~(put by like) i.toil what.dire)
-       :: XX fuji  fuji.gen
-    ==
+       fuji  %=  fuji.gen
+               peal  (~(put by peal.fuji.gen) i.toil then.dire)
+    ==       ==
   |-  ^+  fuji
   ?^  todo
     =/  r  redo.gen.i.todo
@@ -1086,18 +1088,19 @@
             ?:  =(soot.i.mot text.bel)
               ((outa:blot:sack "redo fail: " `@`0 [seat area]:norm.i.mot) %redo-fail)
             $(mot t.mot)
-          (~(redo jean gen.i.todo like) i.r)
+          (~(redo jean gen.i.todo(redo ~, fuji fuji) like) i.r)
       $(r t.r)
-    =^  [wish=@uwoo sire=@uvre]  gen.i.todo  (~(kerf jean gen.i.todo like) dire.i.todo)
-    ?.  (~(has by hill.fuji) wish)  ~&  %missing-wish  !!
+    =^  [wish=@uwoo sire=@uvre]  gen.i.todo  (~(kerf jean gen.i.todo(redo ~, fuji fuji) like) dire.i.todo)
+    =*  f  fuji.gen.i.todo
+    ?.  (~(has by hill.f) wish)  ~&  %missing-wish  !!
+    =/  walt   (sill what.dire.i.todo)
+    =/  =pile  [what.dire.i.todo walt sire sans.gen.i.todo]
     %=  ^$
-        gist.fuji
-      =/  walt  (sill what.dire.i.todo)
-      %+  ~(put by gist.fuji)  bell.i.todo
-      [what.dire.i.todo walt sire sans.gen.i.todo]
-    ::
-        todo  t.todo
-    ==
+      todo  t.todo
+      fuji  %=  f
+              gist  (~(put by gist.f) bell.i.todo pile)
+              gong  (~(put by gong.f) bell.i.todo wish)
+    ==      ==
   ::  XX temporary: turn hip/phi into mov so we can run this as-is
   ::  note that it's not safe to do mov coalescing on the output of this
   ::  since we may now have multiple %mov's that target one register
