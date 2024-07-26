@@ -64,7 +64,7 @@
 +$  gen  [sans=@uvre redo=(list [t=bell b=@uwoo]) =^fuji]
 ::
 ++  jean
-  |_  [=gen like=(map bell need)]
+  |_  [=gen like=(map bell (pair need @ud))]
   ::
   ::    core DDCG linearizer
   ::
@@ -158,21 +158,37 @@
           (copy cost what.corn)
         ==
       :: direct call
-      ::  XX we need a placeholder for the @uwoo for a recursive call
       =/  hope  (~(get by call.cole) u.bull)
-      =^  a  gen  (args u.bull)
-      =/  wool=@uwoo
-        ?.  r.a  (~(got by peal.fuji.gen) u.bull)
-        `@`0
+      ::
+      ::    when we emit code for a direct call, we hope to know the
+      ::    registerization already. If we don't, we need to add the call to
+      ::    the redo set. If we do, then we need a linear list of argument
+      ::    registers, as well as a need which describes which parts of the
+      ::    call subject go in which registers
+      ::
+      =^  a=[r=? wool=@uwoo walt=(list @uvre) sans=@ud v=(list @uvre) n=need]  gen
+        =/  cn=(unit (trel need @ud (list @uvre)))
+          ?^  dn=(~(get by gist.fuji.gen) u.bull)
+            `[want.u.dn `@`sans.u.dn walt.u.dn]
+          ?~  en=(~(get by like) bell)  ~
+          `[p.u.en q.u.en (sill p.u.en)]
+        ?~  cn
+          :: XX only sometimes ~&  recur=(~(has in loop.norm.u.h) u.bull)
+          =^  s  gen  rain
+          [[& `@`0 ~ 0 ~[s] [%this s]] gen]
+        =^  s  gen  (scar p.u.cn)
+        =/  w  (~(got by peal.fuji.gen) u.bull)
+        [[| w r.u.cn q.u.cn s] gen]
+      ::
       ?-  -.goal
           %done
         =^  [dire=@uwoo seed=need]  gen
           ?~  hope
-            =^  dike  gen  (emit ~ ~ %jmp wool v.a)
+            =^  dike  gen  (emit ~ ~ %jmp wool.a v.a walt.a sans.a)
             =?  redo.gen  r.a  [[u.bull dike] redo.gen]
             [[dike n.a] gen]
           =^  s  gen  rain
-          =^  dial  gen  (emit ~ ~ %jmf wool v.a s u.hope)
+          =^  dial  gen  (emit ~ ~ %jmf wool.a v.a walt.a sans.a s u.hope)
           =?  redo.gen  r.a  [[u.bull dial] redo.gen]
           =^  nest  gen  (copy [%next n.a dial] [%this s])
           [[then.nest what.nest] gen]
@@ -184,11 +200,11 @@
         =^  [post=@uwoo salt=@uvre]  gen  (kerf goal)
         =^  [dire=@uwoo seed=need]  gen
           ?~  hope
-            =^  dine  gen  (emit ~ ~ %cal wool v.a salt post)
+            =^  dine  gen  (emit ~ ~ %cal wool.a v.a walt.a sans.a salt post)
             =?  redo.gen  r.a  [[u.bull dine] redo.gen]
             [[dine n.a] gen]
           =^  s  gen  rain
-          =^  dime  gen  (emit ~ ~ %caf wool v.a salt post s u.hope)
+          =^  dime  gen  (emit ~ ~ %caf wool.a v.a walt.a sans.a salt post s u.hope)
           =?  redo.gen  r.a  [[u.bull dime] redo.gen]
           =^  nest  gen  (copy [%next n.a dime] [%this s])
           [[then.nest what.nest] gen]
@@ -488,13 +504,22 @@
     ^-  _gen
     =/  blob  (~(got by hill.fuji.gen) u)
     =/  wool  (~(got by peal.fuji.gen) bell)
+    ::
+    =^  urge=[walt=(list @uvre) sans=@ud v=(list @uvre) n=need]  gen
+      =/  cn=(trel need @ud (list @uvre))
+        ?^  dn=(~(get by gist.fuji.gen) bell)
+          ?>  (~(has by like) bell) :: XX necessary?
+          [want.u.dn `@`sans.u.dn walt.u.dn]
+        =/  en  (~(got by like) bell)
+        [p.en q.en (sill p.en)]
+      =^  s  gen  (scar p.cn)
+      [[r.cn q.cn s] gen]
+    ::
     ?+  -.bend.blob  ~|  %redo-cant  !!
         %cal
       ?>  ?=(^ v.bend.blob)
       ?>  ?=(~ t.v.bend.blob)
-      ?>  (~(has by like) bell)  :: XX fix
-      =^  urge  gen  (args bell)
-      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge))
+      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge, w walt.urge, x sans.urge))
       =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
       =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
       (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
@@ -502,9 +527,7 @@
         %caf
       ?>  ?=(^ v.bend.blob)
       ?>  ?=(~ t.v.bend.blob)
-      ?>  (~(has by like) bell)  :: XX fix
-      =^  urge  gen  (args bell)
-      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge))
+      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge, w walt.urge, x sans.urge))
       =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
       =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
       (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
@@ -512,9 +535,7 @@
         %jmp
       ?>  ?=(^ v.bend.blob)
       ?>  ?=(~ t.v.bend.blob)
-      ?>  (~(has by like) bell)  :: XX fix
-      =^  urge  gen  (args bell)
-      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge))
+      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge, w walt.urge, x sans.urge))
       =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
       =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
       (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
@@ -522,9 +543,7 @@
         %jmf
       ?>  ?=(^ v.bend.blob)
       ?>  ?=(~ t.v.bend.blob)
-      ?>  (~(has by like) bell)  :: XX fix
-      =^  urge  gen  (args bell)
-      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge))
+      =^  reed  gen  (emit ~ ~ bend.blob(a wool, v v.urge, w walt.urge, x sans.urge))
       =^  [rush=@uwoo i=@uvre]  gen  (kerf [%next n.urge reed])
       =.  hill.fuji.gen  (~(del by hill.fuji.gen) u)
       (emir u ~ [%mov i.v.bend.blob i]~ %hop rush)
@@ -796,28 +815,6 @@
                biff  (~(put by biff) sass.p fib)
                tack  [[%| left.p] [%| rite.p] [%& l r] t.tack]
     ==       ==
-  ::  +args: look up subject registerization
-  ::
-  ::    when we emit code for a direct call, we hope to know the
-  ::    registerization already. If we don't, we need to add the call to
-  ::    the redo set. If we do, then we need a linear list of poison
-  ::    registers and a linear list of argument registers, as well as a
-  ::    need which describes which parts of the call subject go in which
-  ::    registers
-  ::
-  ++  args
-    |=  =bell
-    ^-  [[v=(list @uvre) n=need r=?] _gen]
-    =/  cn  (~(get by like) bell)
-    =?  cn  ?=(~ cn)
-      =/  dn  (~(get by gist.fuji.gen) bell)
-      ?~  dn  ~
-      `want.u.dn
-    ?~  cn
-      =^  s  gen  rain
-      [[~[s] [%this s] &] gen]
-    =^  s  gen  (scar u.cn)
-    [[v n |]:s gen]
   ::  +scar: generate fresh parameter lists
   ::
   ::    generate fresh parameter variables and provide them both in
@@ -957,7 +954,7 @@
 ::
 ++  mill
   =|  todo=(list [=bell dire=next =gen])
-  =|  like=(map bell need)
+  =|  like=(map bell (pair need @ud))
   =/  toil  work
   =/  wurk  toil
   |-  ^+  fuji
@@ -966,7 +963,7 @@
     %=  $
        toil  t.toil
        todo  [[i.toil dire gen] todo]
-       like  (~(put by like) i.toil what.dire)
+       like  (~(put by like) i.toil [what.dire `@`sans.gen])
        fuji  %=  fuji.gen
                peal  (~(put by peal.fuji.gen) i.toil then.dire)
     ==       ==
@@ -1062,7 +1059,7 @@
 ++  peek
    |=  [s=* f=*]
     =/  moat  (~(get ja moan) f)
-    |-  ^-  (unit [@uvre @uwoo ^fuji])  :: XX fix product type
+    |-  ^-  (unit [sire=@uvre @uwoo sans=@ud ^fuji])
     ?~  moat  ~
     ?.  (~(huge so:sack soot.i.moat) [& s])
       $(moat t.moat)
@@ -1071,7 +1068,7 @@
     =/  p
       ~|  %not-in-gist
       (~(got by gist.fuji) [soot.i.moat f])
-    `[sire.p u.u fuji]
+    `[sire.p u.u `@`sans.p fuji]
 ::
 ++  poke
   |=  =gist
@@ -1087,11 +1084,12 @@
       (rout:sack s.gist f.gist)
     ?<  =(~ moan)
     ::  save old codegen table keys
-    =/  hole  ~(key by gist.fuji)
+    :: =/  hole  ~(key by gist.fuji)
     ::  codegen
     =.  fuji  mill
-    =/  heck  ~(key by gist.fuji)
-    [(~(dif in heck) hole) (~(dif in hole) heck) this]
+    :: =/  heck  ~(key by gist.fuji)
+    :: [(~(dif in heck) hole) (~(dif in hole) heck) this]
+    [~ ~ this]
   ==
 ::
 ++  xray  ~|  %todo  !!
