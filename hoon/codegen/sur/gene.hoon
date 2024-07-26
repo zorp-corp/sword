@@ -177,6 +177,10 @@
       [%hip c=@uwoo t=@uwoo]
       [%lnk u=@uvre f=@uvre d=@uvre t=@uwoo]
       [%cal a=@uwoo v=(list @uvre) d=@uvre t=@uwoo]
+      ::  XX if we use this v,t we wouldn't need to dereference $pile
+      ::     this makes the "line up two lists of registers", ensure
+      ::     equal length, etc. operation unnecessary
+      ::  [%cal a=@uwoo v=(list (pair @uvre @uvre)) d=@uvre t=[@uwoo sans]]
       [%caf a=@uwoo v=(list @uvre) d=@uvre t=@uwoo u=@uvre n=[path @]]
       [%lnt u=@uvre f=@uvre]
       [%jmp a=@uwoo v=(list @uvre)]
@@ -223,6 +227,9 @@
   $:  hill=(map @uwoo blob)
       peal=(map bell @uwoo)
       gong=(map bell @uwoo)
+      ::  XX
+      ::  peal=(map bell (pair @uwoo (list @uvre)))
+      ::  gong=(map bell (pair @uwoo @uvre)
       gist=(map bell pile)
       next=@uwoo
       free=(list @uwoo)
