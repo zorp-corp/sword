@@ -176,15 +176,11 @@
       [%hop t=@uwoo]
       [%hip c=@uwoo t=@uwoo]
       [%lnk u=@uvre f=@uvre d=@uvre t=@uwoo]
-      [%cal a=@uwoo v=(list @uvre) d=@uvre t=@uwoo]
-      ::  XX if we use this v,t we wouldn't need to dereference $pile
-      ::     this makes the "line up two lists of registers", ensure
-      ::     equal length, etc. operation unnecessary
-      ::  [%cal a=@uwoo v=(list (pair @uvre @uvre)) d=@uvre t=[@uwoo sans]]
-      [%caf a=@uwoo v=(list @uvre) d=@uvre t=@uwoo u=@uvre n=[path @]]
+      [%cal a=@uwoo v=(list @uvre) w=(list @uvre) x=@ud d=@uvre t=@uwoo]
+      [%caf a=@uwoo v=(list @uvre) w=(list @uvre) x=@ud d=@uvre t=@uwoo u=@uvre n=[path @]]
       [%lnt u=@uvre f=@uvre]
-      [%jmp a=@uwoo v=(list @uvre)]
-      [%jmf a=@uwoo v=(list @uvre) u=@uvre n=[path @]]
+      [%jmp a=@uwoo v=(list @uvre) w=(list @uvre) x=@ud]
+      [%jmf a=@uwoo v=(list @uvre) w=(list @uvre) x=@ud u=@uvre n=[path @]]
       [%spy e=@uvre p=@uvre d=@uvre t=@uwoo]
       [%mer k=@uvre u=@uvre f=@uvre d=@uvre i=@uwoo m=@uwoo]
       [%don s=@uvre]
