@@ -178,6 +178,8 @@
           [[& `@`0 ~ 0 ~[s] [%this s]] gen]
         =^  s  gen  (scar p.u.cn)
         =/  w  (~(got by peal.fuji.gen) u.bull)
+        :: ?.  =((lent r.u.cn) (lent v.s))
+        ::   ~|  %bad-shit  !!
         [[| w r.u.cn q.u.cn s] gen]
       ::
       ?-  -.goal
@@ -514,6 +516,9 @@
         [p.en q.en (sill p.en)]
       =^  s  gen  (scar p.cn)
       [[r.cn q.cn s] gen]
+    ::
+    :: ?.  =((lent walt.urge) (lent v.urge))
+    ::       ~|  %bad-shit2  !!
     ::
     ?+  -.bend.blob  ~|  %redo-cant  !!
         %cal
@@ -981,7 +986,7 @@
               ((outa:blot:sack "redo fail: " `@`0 [seat area]:norm.i.mot) %redo-fail)
             $(mot t.mot)
           (~(redo jean gen.i.todo(redo ~, fuji fuji) like) i.r)
-      $(r t.r)
+      $(r t.r, fuji fuji.gen.i.todo)
     =^  [wish=@uwoo sire=@uvre]  gen.i.todo  (~(kerf jean gen.i.todo(redo ~, fuji fuji) like) dire.i.todo)
     =*  f  fuji.gen.i.todo
     ?.  (~(has by hill.f) wish)  ~&  %missing-wish  !!
