@@ -290,7 +290,7 @@
   |%
   ++  peep
     |=  [s=* f=*]
-    ^-  [[=bell hall=_hill] _line]
+    ^-  [[@uvre @uwoo ^fuji] _line]
     =/  bull  (peek:line s f)
     ?:  ?=(^ bull)  [u.bull line]
     =.  line  this:(poke:line [%comp ~ s f])
