@@ -675,6 +675,7 @@ pub fn cg_interpret_with_snapshot(
                 }
                 tas!(b"jmp") => {
                     // [%jmp a=@uwoo v=(list @uvre) w=(list @uvre) x=@ud]
+                    eprintln!("jmp : {}", inst_cell);
                     let t_jmp = inst_cell.tail().as_cell().unwrap();
                     let tt_jmp = t_jmp.tail().as_cell().unwrap();
                     let ttt_jmp = tt_jmp.tail().as_cell().unwrap();
@@ -687,6 +688,7 @@ pub fn cg_interpret_with_snapshot(
                     let mut walt = jmp_w;
                     tail_frame(&mut context.stack, jmp_x);
                     let new_frame = unsafe { Frame::current_mut(&mut context.stack) };
+                    eprintln!("sans: {}", new_frame.sans);
                     'args: loop {
                         if unsafe { jmp_v.raw_equals(D(0)) } {
                             assert!(unsafe { walt.raw_equals(D(0)) });

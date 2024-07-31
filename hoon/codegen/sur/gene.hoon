@@ -148,6 +148,8 @@
 ::  t - target block
 ::  u - subject
 ::  v - subject but registerized
+::  w - walt
+::  x - sans
 ::  z - "zero" / true case
 ::
 ::  cases:
@@ -223,9 +225,6 @@
   $:  hill=(map @uwoo blob)
       peal=(map bell @uwoo)
       gong=(map bell @uwoo)
-      ::  XX
-      ::  peal=(map bell (pair @uwoo (list @uvre)))
-      ::  gong=(map bell (pair @uwoo @uvre)
       gist=(map bell pile)
       next=@uwoo
       free=(list @uwoo)

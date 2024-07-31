@@ -18,7 +18,6 @@
   ?<  ?=(~ h)
   ?:  =(text.b soot.i.h)  `i.h
   $(h t.h)
---
 ::    compute which analysis results are not linearized and return in
 ::    toposorted order
 ::
@@ -1064,17 +1063,17 @@
 ::
 ++  peek
    |=  [s=* f=*]
-    =/  moat  (~(get ja moan) f)
-    |-  ^-  (unit [sire=@uvre @uwoo sans=@ud ^fuji])
-    ?~  moat  ~
-    ?.  (~(huge so:sack soot.i.moat) [& s])
-      $(moat t.moat)
-    ?~  u=(~(get by gong.fuji) [soot.i.moat f])
-      ~|  %not-in-gong  !!
-    =/  p
-      ~|  %not-in-gist
-      (~(got by gist.fuji) [soot.i.moat f])
-    `[sire.p u.u `@`sans.p fuji]
+   =/  moat  (~(get ja moan) f)
+   |-  ^-  (unit [sire=@uvre @uwoo sans=@ud ^fuji])
+   ?~  moat  ~
+   ?.  (~(huge so:sack soot.i.moat) [& s])
+     $(moat t.moat)
+   ?~  u=(~(get by gong.fuji) [soot.i.moat f])
+     ~|  %not-in-gong  !!
+   =/  p
+     ~|  %not-in-gist
+     (~(got by gist.fuji) [soot.i.moat f])
+   `[sire.p u.u `@`sans.p fuji]
 ::
 ++  poke
   |=  =gist
