@@ -199,18 +199,18 @@
 ::
 ::  basic blocks and entry information for an arm
 ::
-::  bell: structure label            +2
+::  sans: next register              +2
 ::  walt: input register list        +6
-::  sans: next register              +14
+::  well: next block                 +14
 ::  will: basic-block table          +30
-::  well: next block                 +31
+::  bell: structure label            +31
 ::
 +$  pile
-  $:  =bell
+  $:  sans=$~(0v1 @uvre)  :: 0v0 reserved for indirect
       walt=(list @uvre)
-      sans=$~(0v1 @uvre)  :: 0v0 reserved for indirect
-      will=(map @uwoo blob)
       well=$~(0w2 @uwoo)  :: 0w0 indirect, 0w1 direct
+      will=(map @uwoo blob)
+      =bell
   ==
 ::    code table state
 ::
