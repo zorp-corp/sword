@@ -176,11 +176,11 @@
       [%hop t=@uwoo]
       [%hip c=@uwoo t=@uwoo]
       [%lnk u=@uvre f=@uvre d=@uvre t=@uwoo]
-      [%cal a=@uwoo v=(list @uvre) w=(list @uvre) x=@ud d=@uvre t=@uwoo]
-      [%caf a=@uwoo v=(list @uvre) w=(list @uvre) x=@ud d=@uvre t=@uwoo u=@uvre n=[path @]]
+      [%cal a=@uxor v=(list @uvre) d=@uvre t=@uwoo]
+      [%caf a=@uxor v=(list @uvre) d=@uvre t=@uwoo u=@uvre n=[path @]]
       [%lnt u=@uvre f=@uvre]
-      [%jmp a=@uwoo v=(list @uvre) w=(list @uvre) x=@ud]
-      [%jmf a=@uwoo v=(list @uvre) w=(list @uvre) x=@ud u=@uvre n=[path @]]
+      [%jmp a=@uxor v=(list @uvre)]
+      [%jmf a=@uxor v=(list @uvre) u=@uvre n=[path @]]
       [%spy e=@uvre p=@uvre d=@uvre t=@uwoo]
       [%mer k=@uvre u=@uvre f=@uvre d=@uvre i=@uwoo m=@uwoo]
       [%don s=@uvre]
@@ -199,35 +199,32 @@
 ::
 ::  basic blocks and entry information for an arm
 ::
-::  long: starting label for direct calls    axis 2
-::  want: input registers for direct calls   axis 6
-::  walt: input starting registers LR        axis 14
-::  wish: starting label for indirect calls  axis 30
-::  sire: input register for indirect calls  axis 62
-::  will: code table for arm                 axis 126
-::  sans: next SSA register                  axis 127
+::  bell: structure label            +2
+::  walt: input register list        +6
+::  sans: next register              +14
+::  will: basic-block table          +30
+::  well: next block                 +31
+::
 +$  pile
-  $:  want=need
+  $:  =bell
       walt=(list @uvre)
-      sire=@uvre
-      sans=@uvre
+      sans=$~(0v1 @uvre)  :: 0v0 reserved for indirect
+      will=(map @uwoo blob)
+      well=$~(0w2 @uwoo)  :: 0w0 indirect, 0w1 direct
   ==
 ::    code table state
 ::
 ::  Code table
 ::
-::  hill: basic block table
-::  peal: direct entry points
-::  gong: indirect entry points
-::  gist: register information
-::  next: next free register
+::  peal: index
+::  hill: arm table
+::  next: next free label
 ::  free: free label spaces
+::
 +$  fuji
-  $:  hill=(map @uwoo blob)
-      peal=(map bell @uwoo)
-      gong=(map bell @uwoo)
-      gist=(map bell pile)
-      next=@uwoo
-      free=(list @uwoo)
+  $:  peal=(map bell (pair @uxor need))
+      hill=(map @uxor pile)
+      next=@uxor
+      free=(list @uxor)
   ==
 --
