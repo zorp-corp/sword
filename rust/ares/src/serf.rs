@@ -1,4 +1,4 @@
-use crate::codegen::{self, cg_interpret, Block, Blocks};
+use crate::codegen::{self, cg_interpret, Blocks, Hill, Pile};
 use crate::hamt::Hamt;
 use crate::interpreter::{inc, interpret, Error, Mote, WhichInterpreter};
 use crate::jets::cold::Cold;
@@ -181,8 +181,8 @@ impl Context {
         let cg_context = codegen::CgContext {
             line,
             fuji: NOUN_NONE,
-            blox: Blocks {
-                data: std::ptr::null_mut() as *mut Block,
+            hill: Hill {
+                data: std::ptr::null_mut() as *mut Pile,
                 lent: 0,
             },
         };

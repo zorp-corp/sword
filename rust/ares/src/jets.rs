@@ -16,7 +16,7 @@ pub mod serial;
 pub mod sort;
 pub mod tree;
 
-use crate::codegen::{Block, Blocks, CgContext};
+use crate::codegen::{Blocks, CgContext, Hill, Pile};
 use crate::flog;
 use crate::interpreter::{Context, Error, Mote, WhichInterpreter};
 use crate::jets::bits::*;
@@ -328,8 +328,8 @@ pub mod util {
             let cg_context = CgContext {
                 line,
                 fuji,
-                blox: Blocks {
-                    data: std::ptr::null_mut() as *mut Block,
+                hill: Hill {
+                    data: std::ptr::null_mut() as *mut Pile,
                     lent: 0,
                 },
             };

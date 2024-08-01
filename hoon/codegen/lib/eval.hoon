@@ -259,14 +259,15 @@
     |=  [s=@uvre d=@uvre]
     ^-  _rasp
     =/  mv  (~(get by rasp) s)
-    ?~  mv  ~&  [%rasp-miss s (~(has in vile) s)]  rasp
+    ?~  mv
+    ~?  ip  [%rasp-miss s (~(has in vile) s)]  rasp
     ~?  ip  [%p d u.mv]  (~(put by rasp) d u.mv)
   ++  goto  |=(b=@uwoo ^$(blob (~(got by hill.mont) b)))
   ++  afar
     |=  [v=(list @uvre) walt=(list @uvre)]
     =|  m=(map @uvre *)
     |-  ^-  (map @uvre *)
-    ?~  v  ?>  =(~ walt)  ~&  [%c m]  m
+    ?~  v  ?>  =(~ walt)  ~?  ip  [%c m]  m
     ?>  ?=(^ walt)
     =/  mv  (~(get by rasp) i.v)
     ?~  mv
