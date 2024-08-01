@@ -5,7 +5,8 @@ use crate::jets::seam::util::get_by;
 use crate::jets::util::slot;
 use crate::jets::{Jet, JetErr::*};
 use crate::mem::{NockStack, Preserve};
-use crate::noun::{slot_pam, DirectAtom, Noun, D, NOUN_NONE, T};
+use crate::mug::mug_u32;
+use crate::noun::{slot_bar, slot_pam, DirectAtom, Noun, D, NOUN_NONE, T};
 use crate::unifying_equality::unifying_equality;
 use ares_macros::tas;
 use either::{Left, Right};
@@ -82,14 +83,14 @@ pub struct Pile {
 
 impl Pile {
     pub fn new(context: &mut Context, pile: Noun) -> Self {
-        let well = slot(pile, slot_pam(5))
+        let well = slot(pile, slot_pam(3))
             .unwrap()
             .as_atom()
             .unwrap()
             .as_u64()
             .unwrap() as usize;
         Self {
-            sans: slot(pile, slot_pam(3))
+            sans: slot(pile, slot_pam(1))
                 .unwrap()
                 .as_atom()
                 .unwrap()
@@ -114,15 +115,6 @@ impl Preserve for Pile {
     }
 }
 
-// +$  pile
-//   $:  =bell
-//       walt=(list @uvre)
-//       sans=$~(0v1 @uvre)  :: 0v0 reserved for indirect
-//       will=(map @uwoo blob)
-//       well=$~(0w2 @uwoo)  :: 0w0 indirect, 0w1 direct
-//   ==
-// hill=(map @uxor pile)
-
 #[derive(Copy, Clone)]
 pub struct Hill {
     pub lent: usize,
@@ -130,12 +122,13 @@ pub struct Hill {
 }
 
 impl Hill {
-    /// Transforms the $hill from the `CgContext` into a `Hill` structure and
+    /// Transforms the $hill from the `CgContext.fuji` into a `Hill` structure and
     /// allocates it on the NockStack.
     fn new(context: &mut Context) -> Self {
         let stack = &mut context.stack;
         let fuji = context.cg_context.fuji;
-        let well = slot(fuji, slot_pam(5)) // total number of blocks
+        let mut hill = slot(fuji, slot_pam(2)).expect("Codegen fuji should have hill");
+        let next = slot(fuji, slot_pam(3)) // total number of piles
             .expect("Codegen fuji should have next")
             .as_atom()
             .unwrap()
@@ -144,24 +137,23 @@ impl Hill {
         unsafe {
             let hill_p = stack.struct_alloc::<Hill>(1);
             *hill_p = Hill {
-                data: stack.struct_alloc::<Pile>(well),
-                lent: well,
+                data: stack.struct_alloc::<Pile>(next),
+                lent: next,
             };
-            let piles: &mut [Pile] = from_raw_parts_mut((*hill_p).data, well);
-            let mut hill = slot(fuji, slot_pam(2)).expect("Codegen fuji should have hill");
+            let pils: &mut [Pile] = from_raw_parts_mut((*hill_p).data, next);
             let mut i = 0;
-            while i < well {
+            while i < next {
                 // XX walk tree manually
                 let piln = get_by(&mut context.stack, &mut hill, &mut D(i as u64))
                     .unwrap()
                     .unwrap();
                 let pile = Pile::new(context, piln);
-                piles[i] = pile;
+                pils[i] = pile;
                 i += 1;
             }
             Self {
-                data: piles.as_mut_ptr(),
-                lent: well,
+                data: pils.as_mut_ptr(),
+                lent: next,
             }
         }
     }
@@ -170,21 +162,26 @@ impl Hill {
         unsafe { from_raw_parts(self.data as *const Pile, self.lent) }
     }
 
-    fn _as_mut_slice<'a>(&mut self) -> &'a mut [Pile] {
+    fn as_mut_slice<'a>(&mut self) -> &'a mut [Pile] {
         unsafe { from_raw_parts_mut(self.data as *mut Pile, self.lent) }
     }
 }
 
 impl Preserve for Hill {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        // if stack.is_in_frame(self as *const Hill) {
         let dest: *mut Hill = stack.struct_alloc_in_previous_frame(1);
-        copy_nonoverlapping(self as *mut Hill, dest, 1);
+        (*dest).data = stack.struct_alloc_in_previous_frame::<Pile>(self.lent);
+        (*dest).lent = self.lent;
+        copy_nonoverlapping::<Pile>(self.data, (*dest).data, self.lent);
         let mut i = 0;
         while i < self.lent {
-            let pile = (self.data as *mut Pile).add(i).as_mut().unwrap();
+            let pile = ((*dest).data as *mut Pile).add(i).as_mut().unwrap();
             stack.preserve(pile);
             i += 1;
         }
+        (*self) = *dest;
+        // }
     }
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
@@ -208,7 +205,7 @@ pub struct Blocks {
 }
 
 impl Blocks {
-    /// Transforms the $hill from the `CgContext` into a `Blocks` structure and
+    /// Transforms the $will into a `Blocks` structure and
     /// allocates it on the NockStack.
     fn new(context: &mut Context, will: &mut Noun, well: usize) -> Self {
         let stack = &mut context.stack;
@@ -239,21 +236,26 @@ impl Blocks {
         unsafe { from_raw_parts(self.data as *const Noun, self.lent) }
     }
 
-    fn _as_mut_slice<'a>(&mut self) -> &'a mut [Noun] {
+    fn as_mut_slice<'a>(&mut self) -> &'a mut [Noun] {
         unsafe { from_raw_parts_mut(self.data as *mut Noun, self.lent) }
     }
 }
 
 impl Preserve for Blocks {
     unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        // if stack.is_in_frame(self as *const Blocks) {
         let dest: *mut Blocks = stack.struct_alloc_in_previous_frame(1);
-        copy_nonoverlapping(self as *mut Blocks, dest, 1);
+        (*dest).data = stack.struct_alloc_in_previous_frame::<Noun>(self.lent);
+        (*dest).lent = self.lent;
+        copy_nonoverlapping::<Noun>(self.data, (*dest).data, self.lent);
         let mut i = 0;
         while i < self.lent {
-            let block = (self.data as *mut Noun).add(i).as_mut().unwrap();
-            stack.preserve(block);
+            let blob = ((*dest).data as *mut Noun).add(i).as_mut().unwrap();
+            stack.preserve(blob);
             i += 1;
         }
+        (*self) = *dest;
+        // }
     }
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
@@ -779,7 +781,6 @@ pub fn cg_interpret_with_snapshot(
                 }
                 tas!(b"jmp") => {
                     // [%jmp a=@uxor v=(list @uvre)]
-                    eprintln!("jmp : {}", inst_cell);
                     let t_jmp = inst_cell.tail().as_cell().unwrap();
 
                     let jmp_a = t_jmp.head().as_atom().unwrap().as_u64().unwrap() as usize;

@@ -148,8 +148,6 @@
 ::  t - target block
 ::  u - subject
 ::  v - subject but registerized
-::  w - walt
-::  x - sans
 ::  z - "zero" / true case
 ::
 ::  cases:

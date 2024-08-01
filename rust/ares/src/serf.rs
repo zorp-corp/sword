@@ -1,4 +1,4 @@
-use crate::codegen::{self, cg_interpret, Blocks, Hill, Pile};
+use crate::codegen::{self, cg_interpret, Hill, Pile};
 use crate::hamt::Hamt;
 use crate::interpreter::{inc, interpret, Error, Mote, WhichInterpreter};
 use crate::jets::cold::Cold;
@@ -88,6 +88,8 @@ struct SnapshotMem {
     pub arvo: Noun,
     pub cold: Cold,
     pub line: Noun,
+    pub fuji: Noun,
+    pub hill: Hill,
 }
 
 const PMA_CURRENT_SNAPSHOT_VERSION: u64 = 1;
@@ -132,6 +134,8 @@ impl Context {
                 (*snapshot_mem_ptr).arvo = self.arvo;
                 (*snapshot_mem_ptr).cold = self.nock_context.cold;
                 (*snapshot_mem_ptr).line = self.nock_context.cg_context.line;
+                // (*snapshot_mem_ptr).fuji = self.nock_context.cg_context.fuji;
+                // (*snapshot_mem_ptr).hill = self.nock_context.cg_context.hill;
                 snapshot_mem_ptr
             });
 
@@ -142,6 +146,8 @@ impl Context {
             self.event_num = (*snapshot.0).event_num;
             self.nock_context.cold = (*snapshot.0).cold;
             self.nock_context.cg_context.line = (*snapshot.0).line;
+            // self.nock_context.cg_context.fuji = (*snapshot.0).fuji;
+            // self.nock_context.cg_context.hill = (*snapshot.0).hill;
 
             handle
         };
@@ -247,6 +253,8 @@ impl Context {
     /// [event_update] and invocation of this function
     pub unsafe fn preserve_event_update_leftovers(&mut self) {
         let stack = &mut self.nock_context.stack;
+        stack.preserve(&mut self.nock_context.cg_context.fuji);
+        stack.preserve(&mut self.nock_context.cg_context.hill);
         stack.preserve(&mut self.nock_context.warm);
         stack.preserve(&mut self.nock_context.hot);
         stack.flip_top_frame(0);
