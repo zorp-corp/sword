@@ -68,6 +68,13 @@ pub struct Newt {
 }
 
 impl Newt {
+    pub fn new_from_files(input: std::fs::File, output: std::fs::File) -> Newt {
+        Newt {
+            input,
+            output,
+        }
+    }
+
     pub fn new() -> Newt {
         Newt {
             input: unsafe { std::fs::File::from_raw_fd(0) },
