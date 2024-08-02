@@ -1090,4 +1090,136 @@
   ==
 ::
 ++  xray  ~|  %todo  !!
+::
+++  back
+  =>  |%
+      ++  r  |=(r=@uvre `tape`['r' '_' (scow %uv r)])
+      ++  l  |=(l=@uwoo `tape`['l' '_' (scow %uv l)])
+      ++  f  |=(f=@uxor `tape`['f' '_' (scow %ux f)])
+      ++  sym  |=(s=@ta `tape`['%' (trip s)]) :: XX
+      ++  c-args
+        |=  v=(list @uvre)
+        `tape`(zing (join ", " (turn v r)))
+      ++  d-args
+        |=  v=(list @uvre)
+        `tape`(zing (join ", " (turn v |=(i=@uvre (weld "NOUN_DECL " (r i))))))
+      ++  c-pole
+        |=  p=pole
+        ^-  tape
+        ?-  -.p
+          %imm  "NOUN_DECL {(r d.p)} = 0; // XX mug={(scow %ux (mug n.p))}"
+          %mov  "NOUN_DECL {(r d.p)} = {(r s.p)};"
+          %inc  "NOUN_DECL {(r d.p)} = BUMP({(r s.p)});"
+          %con  "NOUN_DECL {(r d.p)} = CONS({(r h.p)}, {(r t.p)});"
+          %hed  "NOUN_DECL {(r d.p)} = HEAD({(r s.p)});"
+          %tal  "NOUN_DECL {(r d.p)} = TAIL({(r s.p)});"
+          %men  "MEAN_PUSH(SYMBOL({(sym l.p)}), {(r s.p)});"
+          %man  "MEAN_POP();"
+          %slo  "SLOW_PUSH({(r s.p)});"
+          %sld  "SLOW_POP();"
+          %hit  "PROF_HIT({(r s.p)});"
+          %slg  "SLOG({(r s.p)});"
+          %mew  "MEMO_PUT({(r k.p)}, {(r u.p)}, {(r f.p)}, {(r r.p)});"
+          %tim  "BOUT_START();"
+          %tom  "BOUT_STOP();"
+          %mem  "MEME_SLOG();"
+          %poi  "POISON({(r p.p)});"
+          %ipb  (roll p.p |=([i=@uvre o=tape] (weld "CHECK({(r i)});" o)))
+        ==
+      ++  c-site
+        |=  s=site
+        ^-  [[(unit @uxor) (list @uwoo)] wall]
+        ?-  -.s
+          %clq  :~  `[z.s o.s ~]
+                    "if ( IS_CELL({(r s.s)}) ) goto {(l z.s)};"
+                    "else goto {(l o.s)};"
+                ==
+          %eqq  :~  `[z.s o.s ~]
+                    "if ( IS_EQUAL({(r l.s)}, {(r r.s)}) ) goto {(l z.s)};"
+                    "else goto {(l o.s)};"
+                ==
+          %brn  :~  `[z.s o.s ~]
+                    "switch ( {(r s.s)} ) \{"
+                    "  case 0: goto {(l z.s)};"
+                    "  case 1: goto {(l o.s)};"
+                    "  default: BAIL();"
+                    "}"
+                ==
+          %hop  [`[t.s ~] "goto {(l t.s)};" ~]
+          %hip  ~|(%strange-hip !!)
+          %lnk  :~  `[t.s ~]
+                    "NOUN_DECL {(r d.s)} = NOCK({(r u.s)}, {(r f.s)});"
+                    "goto {(l t.s)};"
+                ==
+          %cal  :~  [`a.s t.s ~]
+                    "NOUN_DECL {(r d.s)} = {(f a.s)}({(c-args v.s)});"
+                    "goto {(l t.s)};"
+                ==
+          %caf  :~  [`a.s t.s ~]
+                    "// jet: {(spud -.n.s)} +{(scow %ud +.n.s)}"
+                    "NOUN_DECL {(r d.s)} = {(f a.s)}({(c-args v.s)});"
+                    "goto {(l t.s)};"
+                ==
+          %lnt  [`~ "return NOCK({(r u.s)}, {(r f.s)});" ~]
+          %jmp  [[`a.s ~] "return {(f a.s)}({(c-args v.s)});" ~]
+          %jmf  :~  [`a.s ~]
+                    "// jet: {(spud -.n.s)} +{(scow %ud +.n.s)}"
+                    "return {(f a.s)}({(c-args v.s)});"
+                ==
+          %spy  :~  `[t.s ~]
+                    "NOUN_DECL {(r d.s)} = SCRY({(r e.s)}, {(r p.s)});"
+                    "goto {(l t.s)};"
+                ==
+          %mer  :~  `[i.s m.s ~]
+                    "MEMO_DECL {(r d.s)} = CHECK_MEMO({(r k.s)}, {(r u.s)}, {(r f.s)});"
+                    "if ( IS_MEMO({(r d.s)}) ) goto {(l i.s)};"
+                    "else goto {(l m.s)};"
+                ==
+          %don  [`~ "return {(r s.s)};" ~]
+          %bom  [`~ "BAIL();" ~]
+        ==
+      ++  c-blob
+        |=  [u=@uwoo b=blob]
+        ^-  [(unit @uxor) (list @uwoo) wain]
+        =|  w=wain
+        =/  [[ux=(unit @uxor) uw=(list @uwoo)] wa=wall]  (c-site bend.b)
+        =.  w  (weld (turn wa |=(t=tape (crip [' ' ' ' t]))) w)
+        =.  w  (roll body.b |=([p=pole =_w] [(crip [' ' ' ' (c-pole p)]) w]))
+        [ux uw ['' (crip (weld (l u) ":")) w]]
+      --
+  |=  u=@uxor
+  ^-  wain
+  =|  fot=(list wain)
+  =/  fox=(list @uxor)  [u ~]
+  =/  fen  (~(gas in *(set @uxor)) fox)
+  |-  ^-  wain
+  ?~  fox
+    (zing (join `wain`['\0a' ~] fot))
+  ~&  call-loop+i.fox
+  =/  p=pile  (~(got by hill.fuji) i.fox)
+  =|  xof=(list @uxor)
+  =|  bot=(list wain)
+  =|  xob=(list @uwoo)
+  =/  box=(list @uwoo)  [0w1 ~]
+  =/  ben  (~(gas in *(set @uwoo)) box)
+  |-  ^-  wain
+  ?~  box
+    ?.  =(~ xob)
+      $(box (flop xob), xob ~)
+    =/  fun=wain
+      :-  (crip "NOUN_DECL {(f i.fox)}({(d-args walt.p)}) \{")
+      (zing (flop [`wain`['}' ~] bot]))
+    ^$(fot [fun fot], fox (weld (flop xof) t.fox))
+  =/  [ux=(unit @uxor) uw=(list @uwoo) wa=wain]
+    (c-blob i.box (~(got by will.p) i.box))
+  =.  ux  `(unit @uxor)`?:(|(?=(~ ux) (~(has in fen) u.ux)) ~ `u.ux)
+  =.  uw  (skip uw ~(has in ben))
+  %=  $
+    xof  ?~(ux xof [u.ux xof])
+    fen  ?~(ux fen (~(put in fen) u.ux))
+    bot  [wa bot]
+    box  t.box
+    xob  (weld uw xob)
+    ben  (~(gas in ben) uw)
+  ==
 --
