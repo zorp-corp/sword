@@ -5483,7 +5483,7 @@
           |=  [q=@ s=? r=tape]
           :-  !s
           %+  weld
-           (trip (?:(s tod:po tos:po) q))
+           (trip ?:(s (tod:po q) (tos:po q)))
           ?.(&(s !=(r "")) r ['-' r])
         ::
             %r
@@ -8593,7 +8593,7 @@
       [%cnhp ~(factory ax p.gen) q.gen]
     ::
         [%tsbr *]
-      [%tsls ~(example ax p.gen) q.gen]
+      [%tsls [%kttr p.gen] q.gen]
     ::
         [%tstr *]
       :+  %tsgl

@@ -468,7 +468,7 @@
         =^  cope  gen  (copy fake ned)
         (copy cope [%this sunk])
       ::
-          %bout  ~|  %todo  !!
+          :: %bout  ~|  %todo  !!
       ==
     ::
         %elf
