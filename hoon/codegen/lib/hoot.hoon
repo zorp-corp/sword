@@ -5483,7 +5483,7 @@
           |=  [q=@ s=? r=tape]
           :-  !s
           %+  weld
-           (trip (?:(s tod:po tos:po) q))
+           (trip ?:(s (tod:po q) (tos:po q)))
           ?.(&(s !=(r "")) r ['-' r])
         ::
             %r
