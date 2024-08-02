@@ -5,8 +5,7 @@ use crate::jets::seam::util::get_by;
 use crate::jets::util::slot;
 use crate::jets::{Jet, JetErr::*};
 use crate::mem::{NockStack, Preserve};
-use crate::mug::mug_u32;
-use crate::noun::{slot_bar, slot_pam, DirectAtom, Noun, D, NOUN_NONE, T};
+use crate::noun::{slot_pam, DirectAtom, Noun, D, NOUN_NONE, T};
 use crate::unifying_equality::unifying_equality;
 use ares_macros::tas;
 use either::{Left, Right};
@@ -162,7 +161,7 @@ impl Hill {
         unsafe { from_raw_parts(self.data as *const Pile, self.lent) }
     }
 
-    fn as_mut_slice<'a>(&mut self) -> &'a mut [Pile] {
+    fn _as_mut_slice<'a>(&mut self) -> &'a mut [Pile] {
         unsafe { from_raw_parts_mut(self.data as *mut Pile, self.lent) }
     }
 }
@@ -236,7 +235,7 @@ impl Blocks {
         unsafe { from_raw_parts(self.data as *const Noun, self.lent) }
     }
 
-    fn as_mut_slice<'a>(&mut self) -> &'a mut [Noun] {
+    fn _as_mut_slice<'a>(&mut self) -> &'a mut [Noun] {
         unsafe { from_raw_parts_mut(self.data as *mut Noun, self.lent) }
     }
 }

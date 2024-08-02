@@ -16,7 +16,7 @@ pub mod serial;
 pub mod sort;
 pub mod tree;
 
-use crate::codegen::{Blocks, CgContext, Hill, Pile};
+use crate::codegen::{CgContext, Hill, Pile};
 use crate::flog;
 use crate::interpreter::{Context, Error, Mote, WhichInterpreter};
 use crate::jets::bits::*;
@@ -32,6 +32,7 @@ use crate::jets::lute::*;
 use crate::jets::math::*;
 use crate::jets::nock::*;
 use crate::jets::parse::*;
+use crate::jets::seam::*;
 use crate::jets::serial::*;
 use crate::jets::sort::*;
 
