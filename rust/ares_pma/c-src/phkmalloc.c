@@ -10,6 +10,17 @@
 
 #include <sys/cdefs.h>
 #include <stdint.h>
+#include "btree.h"
+
+#define PHKPMA
+#define PHKPMA_PATH "./phkpma"
+/* ;;: tmp. for main test function */
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+/* ;;: end */
+
 /* <eric>__FBSDID("$FreeBSD: /repoman/r/ncvs/src/lib/libc/stdlib/malloc.c,v 1.89 2004/07/04 16:11:01 stefanf Exp $"); */
 
 /*
@@ -96,8 +107,8 @@
     static int fdzero;
 #   define MMAP_FD	fdzero
 #   define INIT_MMAP() \
-	{ if ((fdzero = _open(_PATH_DEVZERO, O_RDWR, 0000)) == -1) \
-	    wrterror("open of /dev/zero"); }
+        { if ((fdzero = _open(_PATH_DEVZERO, O_RDWR, 0000)) == -1) \
+            wrterror("open of /dev/zero"); }
 #   define MADV_FREE			MADV_DONTNEED
 #endif /* __sparc__ */
 
@@ -171,13 +182,13 @@ struct pgfree {
  * Magic values to put in the page_directory
  */
 #define MALLOC_NOT_MINE	((struct pginfo*) 0)
-#define MALLOC_FREE 	((struct pginfo*) 1)
+#define MALLOC_FREE     ((struct pginfo*) 1)
 #define MALLOC_FIRST	((struct pginfo*) 2)
 #define MALLOC_FOLLOW	((struct pginfo*) 3)
 #define MALLOC_MAGIC	((struct pginfo*) 4)
 
 #ifndef malloc_pageshift
-#define malloc_pageshift		12U
+#define malloc_pageshift		14U /* ;;: Consider: should we make this the pma pagesize (14) */
 #endif
 
 #ifndef malloc_minsize
@@ -231,6 +242,8 @@ static u_long last_index;
 /* Pointer to page directory. Allocated "as if with" malloc */
 static struct	pginfo **page_dir;
 
+static BT_state *bt_state;
+
 /* How many slots in the page directory */
 static unsigned	malloc_ninfo;
 
@@ -273,8 +286,8 @@ struct ut { void *p; size_t s; void *r; };
 void utrace(struct ut *, int);
 
 #define UTRACE(a, b, c) \
-	if (malloc_utrace) \
-		{struct ut u; u.p=a; u.s = b; u.r=c; utrace(&u, sizeof u);}
+        if (malloc_utrace) \
+                {struct ut u; u.p=a; u.s = b; u.r=c; utrace(&u, sizeof u);}
 #else /* !HAS_UTRACE */
 #define UTRACE(a,b,c)
 #endif /* HAS_UTRACE */
@@ -292,9 +305,13 @@ const char *_malloc_options;
 static const char *malloc_func;
 
 /* Macro for mmap */
+#ifndef PHKPMA
 #define MMAP(size) \
-	mmap(NULL, (size), PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, \
-	    MMAP_FD, (off_t)0);
+        mmap(NULL, (size), PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, \
+            MMAP_FD, (off_t)0);
+#else
+#define MMAP(size) bt_malloc(bt_state, (size))
+#endif
 
 /*
  * Necessary function declarations
@@ -315,7 +332,7 @@ wrtmessage(const char *p1, const char *p2, const char *p3, const char *p4)
 }
 
 void (*_malloc_message)(const char *p1, const char *p2, const char *p3,
-	    const char *p4) = wrtmessage;
+            const char *p4) = wrtmessage;
 
 static void
 wrterror(char const *p)
@@ -335,7 +352,7 @@ wrtwarning(char *p)
      * setgid, root and wheel cannot afford to have malloc mistakes.
      */
     if (malloc_abort || issetugid() || getuid() == 0 || getgid() == 0)
-	wrterror(p);
+        wrterror(p);
     _malloc_message(_getprogname(), malloc_func, " warning: ", p);
 }
 
@@ -344,29 +361,37 @@ wrtwarning(char *p)
  */
 static void *
 map_pages(size_t pages)
+#ifndef PHKPMA
 {
     caddr_t result, tail;
 
     result = (caddr_t)pageround((u_long)sbrk(0));
     tail = result + (pages << malloc_pageshift);
     if (tail < result)
-	return (NULL);
+        return (NULL);
 
     if (brk(tail)) {
 #ifdef MALLOC_EXTRA_SANITY
-	wrterror("(ES): map_pages fails\n");
+        wrterror("(ES): map_pages fails\n");
 #endif /* MALLOC_EXTRA_SANITY */
-	return (NULL);
+        return (NULL);
     }
 
     last_index = ptr2index(tail) - 1;
     malloc_brk = tail;
 
     if ((last_index+1) >= malloc_ninfo && !extend_pgdir(last_index))
-	return (NULL);
+        return (NULL);
 
     return (result);
 }
+#else
+{
+  /* ;;: I don't quite follow the conditional extension above. Ensure this is
+       correct */
+  return bt_malloc(bt_state, pages);
+}
+#endif
 
 /*
  * Extend page directory
@@ -403,11 +428,11 @@ extend_pgdir(u_long index)
     /* Get new pages */
     nEW = (struct pginfo**) MMAP(i * malloc_pagesize);
     if (nEW == MAP_FAILED)
-	return (0);
+        return (0);
 
     /* Copy the old stuff */
     memcpy(nEW, page_dir,
-	    malloc_ninfo * sizeof *page_dir);
+            malloc_ninfo * sizeof *page_dir);
 
     /* register the new size */
     malloc_ninfo = i * malloc_pagesize / sizeof *page_dir;
@@ -426,7 +451,7 @@ extend_pgdir(u_long index)
  */
 static void
 malloc_init(void)
-{
+{                               /* ;;: call _pma_open() */
     const char *p;
     char b[64];
     int i, j;
@@ -439,49 +464,49 @@ malloc_init(void)
 #endif /* MALLOC_EXTRA_SANITY */
 
     for (i = 0; i < 3; i++) {
-	if (i == 0) {
-	    j = readlink("/etc/malloc.conf", b, sizeof b - 1);
-	    if (j <= 0)
-		continue;
-	    b[j] = '\0';
-	    p = b;
-	} else if (i == 1 && issetugid() == 0) {
-	    p = getenv("MALLOC_OPTIONS");
-	} else if (i == 1) {
-	    continue;
-	} else {
-	    p = _malloc_options;
-	}
-	for (; p != NULL && *p != '\0'; p++) {
-	    switch (*p) {
-		case '>': malloc_cache   <<= 1; break;
-		case '<': malloc_cache   >>= 1; break;
-		case 'a': malloc_abort   = 0; break;
-		case 'A': malloc_abort   = 1; break;
+        if (i == 0) {
+            j = readlink("/etc/malloc.conf", b, sizeof b - 1);
+            if (j <= 0)
+                continue;
+            b[j] = '\0';
+            p = b;
+        } else if (i == 1 && issetugid() == 0) {
+            p = getenv("MALLOC_OPTIONS");
+        } else if (i == 1) {
+            continue;
+        } else {
+            p = _malloc_options;
+        }
+        for (; p != NULL && *p != '\0'; p++) {
+            switch (*p) {
+                case '>': malloc_cache   <<= 1; break;
+                case '<': malloc_cache   >>= 1; break;
+                case 'a': malloc_abort   = 0; break;
+                case 'A': malloc_abort   = 1; break;
 #if defined(MADV_FREE)
-		case 'h': malloc_hint    = 0; break;
-		case 'H': malloc_hint    = 1; break;
+                case 'h': malloc_hint    = 0; break;
+                case 'H': malloc_hint    = 1; break;
 #endif
-		case 'r': malloc_realloc = 0; break;
-		case 'R': malloc_realloc = 1; break;
-		case 'j': malloc_junk    = 0; break;
-		case 'J': malloc_junk    = 1; break;
+                case 'r': malloc_realloc = 0; break;
+                case 'R': malloc_realloc = 1; break;
+                case 'j': malloc_junk    = 0; break;
+                case 'J': malloc_junk    = 1; break;
 #ifdef HAS_UTRACE
-		case 'u': malloc_utrace  = 0; break;
-		case 'U': malloc_utrace  = 1; break;
+                case 'u': malloc_utrace  = 0; break;
+                case 'U': malloc_utrace  = 1; break;
 #endif
-		case 'v': malloc_sysv    = 0; break;
-		case 'V': malloc_sysv    = 1; break;
-		case 'x': malloc_xmalloc = 0; break;
-		case 'X': malloc_xmalloc = 1; break;
-		case 'z': malloc_zero    = 0; break;
-		case 'Z': malloc_zero    = 1; break;
-		default:
-		    _malloc_message(_getprogname(), malloc_func,
-			 " warning: ", "unknown char in MALLOC_OPTIONS\n");
-		    break;
-	    }
-	}
+                case 'v': malloc_sysv    = 0; break;
+                case 'V': malloc_sysv    = 1; break;
+                case 'x': malloc_xmalloc = 0; break;
+                case 'X': malloc_xmalloc = 1; break;
+                case 'z': malloc_zero    = 0; break;
+                case 'Z': malloc_zero    = 1; break;
+                default:
+                    _malloc_message(_getprogname(), malloc_func,
+                         " warning: ", "unknown char in MALLOC_OPTIONS\n");
+                    break;
+            }
+        }
     }
 
 
@@ -492,13 +517,21 @@ malloc_init(void)
      * the user asked for.
      */
     if (malloc_zero)
-	malloc_junk=1;
+        malloc_junk=1;
+
+    bt_state_new(&bt_state);
+    if (mkdir(PHKPMA_PATH, 0774) == -1)
+      abort();
+    if (bt_state_open(bt_state, PHKPMA_PATH, 0, 0644) != 0) {
+      fprintf(stderr, "Error opening PMA: %s\n", strerror(errno));
+      abort();
+    }
 
     /* Allocate one page for the page directory */
-    page_dir = (struct pginfo **) MMAP(malloc_pagesize);
+    page_dir = (struct pginfo **) MMAP(malloc_pagesize); /* ;;: call _bt_malloc() */
 
     if (page_dir == MAP_FAILED)
-	wrterror("mmap(2) failed, check limits\n");
+        wrterror("mmap(2) failed, check limits\n");
 
     /*
      * We need a maximum of malloc_pageshift buckets, steal these from the
@@ -512,7 +545,7 @@ malloc_init(void)
     /* Recalculate the cache size in bytes, and make sure it's nonzero */
 
     if (!malloc_cache)
-	malloc_cache++;
+        malloc_cache++;
 
     malloc_cache <<= malloc_pageshift;
 
@@ -529,7 +562,7 @@ malloc_init(void)
  */
 static void *
 malloc_pages(size_t size)
-{
+{                               /* ;;: call bt_malloc() */
     void *p, *delay_free = NULL;
     size_t i;
     struct pgfree *pf;
@@ -543,67 +576,67 @@ malloc_pages(size_t size)
     for(pf = free_list.next; pf; pf = pf->next) {
 
 #ifdef MALLOC_EXTRA_SANITY
-	if (pf->size & malloc_pagemask)
-	    wrterror("(ES): junk length entry on free_list\n");
-	if (!pf->size)
-	    wrterror("(ES): zero length entry on free_list\n");
-	if (pf->page == pf->end)
-	    wrterror("(ES): zero entry on free_list\n");
-	if (pf->page > pf->end)
-	    wrterror("(ES): sick entry on free_list\n");
-	if ((void*)pf->page >= (void*)sbrk(0))
-	    wrterror("(ES): entry on free_list past brk\n");
-	if (page_dir[ptr2index(pf->page)] != MALLOC_FREE)
-	    wrterror("(ES): non-free first page on free-list\n");
-	if (page_dir[ptr2index(pf->end)-1] != MALLOC_FREE)
-	    wrterror("(ES): non-free last page on free-list\n");
+        if (pf->size & malloc_pagemask)
+            wrterror("(ES): junk length entry on free_list\n");
+        if (!pf->size)
+            wrterror("(ES): zero length entry on free_list\n");
+        if (pf->page == pf->end)
+            wrterror("(ES): zero entry on free_list\n");
+        if (pf->page > pf->end)
+            wrterror("(ES): sick entry on free_list\n");
+        if ((void*)pf->page >= (void*)sbrk(0))
+            wrterror("(ES): entry on free_list past brk\n");
+        if (page_dir[ptr2index(pf->page)] != MALLOC_FREE)
+            wrterror("(ES): non-free first page on free-list\n");
+        if (page_dir[ptr2index(pf->end)-1] != MALLOC_FREE)
+            wrterror("(ES): non-free last page on free-list\n");
 #endif /* MALLOC_EXTRA_SANITY */
 
-	if (pf->size < size)
-	    continue;
+        if (pf->size < size)
+            continue;
 
-	if (pf->size == size) {
-	    p = pf->page;
-	    if (pf->next != NULL)
-		    pf->next->prev = pf->prev;
-	    pf->prev->next = pf->next;
-	    delay_free = pf;
-	    break;
-	}
+        if (pf->size == size) {
+            p = pf->page;
+            if (pf->next != NULL)
+                    pf->next->prev = pf->prev;
+            pf->prev->next = pf->next;
+            delay_free = pf;
+            break;
+        }
 
-	p = pf->page;
-	pf->page = (char *)pf->page + size;
-	pf->size -= size;
-	break;
+        p = pf->page;
+        pf->page = (char *)pf->page + size;
+        pf->size -= size;
+        break;
     }
 
 #ifdef MALLOC_EXTRA_SANITY
     if (p != NULL && page_dir[ptr2index(p)] != MALLOC_FREE)
-	wrterror("(ES): allocated non-free page on free-list\n");
+        wrterror("(ES): allocated non-free page on free-list\n");
 #endif /* MALLOC_EXTRA_SANITY */
 
     size >>= malloc_pageshift;
 
     /* Map new pages */
     if (p == NULL)
-	p = map_pages(size);
+        p = map_pages(size);
 
     if (p != NULL) {
 
-	index = ptr2index(p);
-	page_dir[index] = MALLOC_FIRST;
-	for (i=1;i<size;i++)
-	    page_dir[index+i] = MALLOC_FOLLOW;
+        index = ptr2index(p);
+        page_dir[index] = MALLOC_FIRST;
+        for (i=1;i<size;i++)
+            page_dir[index+i] = MALLOC_FOLLOW;
 
-	if (malloc_junk)
-	    memset(p, SOME_JUNK, size << malloc_pageshift);
+        if (malloc_junk)
+            memset(p, SOME_JUNK, size << malloc_pageshift);
     }
 
     if (delay_free) {
-	if (px == NULL)
-	    px =  (struct pgfree *) delay_free;
-	else
-	    ifree(delay_free);
+        if (px == NULL)
+            px =  (struct pgfree *) delay_free;
+        else
+            ifree(delay_free);
     }
 
     return (p);
@@ -615,7 +648,7 @@ malloc_pages(size_t size)
 
 static __inline int
 malloc_make_chunks(int bits)
-{
+{                 /* ;;: I'd guess we can avoid calling into bt routines here */
     struct  pginfo *bp;
     void *pp;
     int i, k, l;
@@ -623,22 +656,22 @@ malloc_make_chunks(int bits)
     /* Allocate a new bucket */
     pp = malloc_pages(malloc_pagesize);
     if (pp == NULL)
-	return (0);
+        return (0);
 
     /* Find length of admin structure */
     l = offsetof(struct pginfo, bits[0]);
     l += sizeof bp->bits[0] *
-	(((malloc_pagesize >> bits)+MALLOC_BITS-1) / MALLOC_BITS);
+        (((malloc_pagesize >> bits)+MALLOC_BITS-1) / MALLOC_BITS);
 
     /* Don't waste more than two chunks on this */
     if ((1<<(bits)) <= l+l) {
-	bp = (struct  pginfo *)pp;
+        bp = (struct  pginfo *)pp;
     } else {
-	bp = (struct  pginfo *)imalloc(l);
-	if (bp == NULL) {
-	    ifree(pp);
-	    return (0);
-	}
+        bp = (struct  pginfo *)imalloc(l);
+        if (bp == NULL) {
+            ifree(pp);
+            return (0);
+        }
     }
 
     bp->size = (1<<bits);
@@ -652,19 +685,19 @@ malloc_make_chunks(int bits)
 
     /* Do a bunch at a time */
     for(;k-i >= MALLOC_BITS; i += MALLOC_BITS)
-	bp->bits[i / MALLOC_BITS] = ~0;
+        bp->bits[i / MALLOC_BITS] = ~0;
 
     for(; i < k; i++)
         bp->bits[i/MALLOC_BITS] |= 1<<(i%MALLOC_BITS);
 
     if (bp == bp->page) {
-	/* Mark the ones we stole for ourselves */
-	for(i=0;l > 0;i++) {
-	    bp->bits[i/MALLOC_BITS] &= ~(1<<(i%MALLOC_BITS));
-	    bp->free--;
-	    bp->total--;
-	    l -= (1 << bits);
-	}
+        /* Mark the ones we stole for ourselves */
+        for(i=0;l > 0;i++) {
+            bp->bits[i/MALLOC_BITS] &= ~(1<<(i%MALLOC_BITS));
+            bp->free--;
+            bp->total--;
+            l -= (1 << bits);
+        }
     }
 
     /* MALLOC_LOCK */
@@ -684,7 +717,7 @@ malloc_make_chunks(int bits)
  */
 static void *
 malloc_bytes(size_t size)
-{
+{                 /* ;;: I'd guess we can avoid calling into bt routines here */
     int i,j;
     u_int u;
     struct  pginfo *bp;
@@ -693,37 +726,37 @@ malloc_bytes(size_t size)
 
     /* Don't bother with anything less than this */
     if (size < malloc_minsize)
-	size = malloc_minsize;
+        size = malloc_minsize;
 
     /* Find the right bucket */
     j = 1;
     i = size-1;
     while (i >>= 1)
-	j++;
+        j++;
 
     /* If it's empty, make a page more of that size chunks */
     if (page_dir[j] == NULL && !malloc_make_chunks(j))
-	return (NULL);
+        return (NULL);
 
     bp = page_dir[j];
 
     /* Find first word of bitmap which isn't empty */
     for (lp = bp->bits; !*lp; lp++)
-	;
+        ;
 
     /* Find that bit, and tweak it */
     u = 1;
     k = 0;
     while (!(*lp & u)) {
-	u += u;
-	k++;
+        u += u;
+        k++;
     }
     *lp ^= u;
 
     /* If there are no more free, remove from free-list */
     if (!--bp->free) {
-	page_dir[j] = bp->next;
-	bp->next = NULL;
+        page_dir[j] = bp->next;
+        bp->next = NULL;
     }
 
     /* Adjust to the real offset of that chunk */
@@ -731,7 +764,7 @@ malloc_bytes(size_t size)
     k <<= bp->shift;
 
     if (malloc_junk)
-	memset((u_char *)bp->page + k, SOME_JUNK, bp->size);
+        memset((u_char *)bp->page + k, SOME_JUNK, bp->size);
 
     return ((u_char *)bp->page + k);
 }
@@ -745,19 +778,19 @@ imalloc(size_t size)
     void *result;
 
     if (suicide)
-	abort();
+        abort();
 
     if ((size + malloc_pagesize) < size)	/* Check for overflow */
-	result = NULL;
+        result = NULL;
     else if ((size + malloc_pagesize) >= (uintptr_t)page_dir)
-	result = NULL;
+        result = NULL;
     else if (size <= malloc_maxsize)
-	result = malloc_bytes(size);
+        result = malloc_bytes(size);
     else
-	result = malloc_pages(size);
+        result = malloc_pages(size);
 
     if (malloc_zero && result != NULL)
-	memset(result, 0, size);
+        memset(result, 0, size);
 
     return (result);
 }
@@ -774,19 +807,19 @@ irealloc(void *ptr, size_t size)
     int i;
 
     if (suicide)
-	abort();
+        abort();
 
     index = ptr2index(ptr);
 
 #ifdef MALLOC_SANITY	/* <eric> */
     if (index < malloc_pageshift) {
-	wrtwarning("junk pointer, too low to make sense\n");
-	return (NULL);
+        wrtwarning("junk pointer, too low to make sense\n");
+        return (NULL);
     }
 
     if (index > last_index) {
-	wrtwarning("junk pointer, too high to make sense\n");
-	return (NULL);
+        wrtwarning("junk pointer, too high to make sense\n");
+        return (NULL);
     }
 #endif	/* <eric> MALLOC_SANITY */
 
@@ -795,71 +828,71 @@ irealloc(void *ptr, size_t size)
     if (*mp == MALLOC_FIRST) {			/* Page allocation */
 
 #ifdef MALLOC_SANITY	/* <eric> */
-	/* Check the pointer */
-	if ((u_long)ptr & malloc_pagemask) {
-	    wrtwarning("modified (page-) pointer\n");
-	    return (NULL);
-	}
+        /* Check the pointer */
+        if ((u_long)ptr & malloc_pagemask) {
+            wrtwarning("modified (page-) pointer\n");
+            return (NULL);
+        }
 #endif	/* <eric> MALLOC_SANITY	*/
 
-	/* Find the size in bytes */
-	for (osize = malloc_pagesize; *(++mp) == MALLOC_FOLLOW;)
-	    osize += malloc_pagesize;
+        /* Find the size in bytes */
+        for (osize = malloc_pagesize; *(++mp) == MALLOC_FOLLOW;)
+            osize += malloc_pagesize;
 
-        if (!malloc_realloc && 			/* Unless we have to, */
-	  size <= osize && 			/* .. or are too small, */
-	  size > (osize - malloc_pagesize)) {	/* .. or can free a page, */
-	    if (malloc_junk)
-		memset((u_char *)ptr + size, SOME_JUNK, osize-size);
-	    return (ptr);			/* ..don't do anything else. */
-	}
+        if (!malloc_realloc &&                  /* Unless we have to, */
+          size <= osize &&                      /* .. or are too small, */
+          size > (osize - malloc_pagesize)) {	/* .. or can free a page, */
+            if (malloc_junk)
+                memset((u_char *)ptr + size, SOME_JUNK, osize-size);
+            return (ptr);			/* ..don't do anything else. */
+        }
 
     } else if (*mp >= MALLOC_MAGIC) {		/* Chunk allocation */
 
 #ifdef MALLOC_SANITY	/* <eric> */
-	/* Check the pointer for sane values */
-	if (((u_long)ptr & ((*mp)->size-1))) {
-	    wrtwarning("modified (chunk-) pointer\n");
-	    return (NULL);
-	}
+        /* Check the pointer for sane values */
+        if (((u_long)ptr & ((*mp)->size-1))) {
+            wrtwarning("modified (chunk-) pointer\n");
+            return (NULL);
+        }
 #endif	/* <eric> MALLOC_SANITY */
 
-	/* Find the chunk index in the page */
-	i = ((u_long)ptr & malloc_pagemask) >> (*mp)->shift;
+        /* Find the chunk index in the page */
+        i = ((u_long)ptr & malloc_pagemask) >> (*mp)->shift;
 
-	/* Verify that it isn't a free chunk already */
+        /* Verify that it isn't a free chunk already */
         if ((*mp)->bits[i/MALLOC_BITS] & (1<<(i%MALLOC_BITS))) {
-	    wrtwarning("chunk is already free\n");
-	    return (NULL);
-	}
+            wrtwarning("chunk is already free\n");
+            return (NULL);
+        }
 
-	osize = (*mp)->size;
+        osize = (*mp)->size;
 
-	if (!malloc_realloc &&		/* Unless we have to, */
-	  size <= osize && 		/* ..or are too small, */
-	  (size > osize/2 ||	 	/* ..or could use a smaller size, */
-	  osize == malloc_minsize)) {	/* ..(if there is one) */
-	    if (malloc_junk)
-		memset((u_char *)ptr + size, SOME_JUNK, osize-size);
-	    return (ptr);		/* ..don't do anything else. */
-	}
+        if (!malloc_realloc &&		/* Unless we have to, */
+          size <= osize &&              /* ..or are too small, */
+          (size > osize/2 ||	        /* ..or could use a smaller size, */
+          osize == malloc_minsize)) {	/* ..(if there is one) */
+            if (malloc_junk)
+                memset((u_char *)ptr + size, SOME_JUNK, osize-size);
+            return (ptr);		/* ..don't do anything else. */
+        }
 
     } else {
-	wrtwarning("pointer to wrong page\n");
-	return (NULL);
+        wrtwarning("pointer to wrong page\n");
+        return (NULL);
     }
 
     p = imalloc(size);
 
     if (p != NULL) {
-	/* copy the lesser of the two sizes, and free the old one */
-	if (!size || !osize)
-	    ;
-	else if (osize < size)
-	    memcpy(p, ptr, osize);
-	else
-	    memcpy(p, ptr, size);
-	ifree(ptr);
+        /* copy the lesser of the two sizes, and free the old one */
+        if (!size || !osize)
+            ;
+        else if (osize < size)
+            memcpy(p, ptr, osize);
+        else
+            memcpy(p, ptr, size);
+        ifree(ptr);
     }
     return (p);
 }
@@ -878,34 +911,34 @@ free_pages(void *ptr, u_long index, struct pginfo const *info)
 
 #ifdef MALLOC_SANITY	/* <eric> */
     if (info == MALLOC_FREE) {
-	wrtwarning("page is already free\n");
-	return;
+        wrtwarning("page is already free\n");
+        return;
     }
 
     if (info != MALLOC_FIRST) {
-	wrtwarning("pointer to wrong page\n");
-	return;
+        wrtwarning("pointer to wrong page\n");
+        return;
     }
 
     if ((u_long)ptr & malloc_pagemask) {
-	wrtwarning("modified (page-) pointer\n");
-	return;
+        wrtwarning("modified (page-) pointer\n");
+        return;
     }
 #endif	/* <eric> MALLOC_SANITY	*/
 
     /* Count how many pages and mark them free at the same time */
     page_dir[index] = MALLOC_FREE;
     for (i = 1; page_dir[index+i] == MALLOC_FOLLOW; i++)
-	page_dir[index + i] = MALLOC_FREE;
+        page_dir[index + i] = MALLOC_FREE;
 
     l = i << malloc_pageshift;
 
     if (malloc_junk)
-	memset(ptr, SOME_JUNK, l);
+        memset(ptr, SOME_JUNK, l);
 
 #if defined(MADV_FREE)
-	if (malloc_hint)
-	madvise(ptr, l, MADV_FREE);
+        if (malloc_hint)
+        madvise(ptr, l, MADV_FREE);
 
 #endif
 
@@ -913,63 +946,63 @@ free_pages(void *ptr, u_long index, struct pginfo const *info)
 
     /* add to free-list */
     if (px == NULL)
-	px =  (struct pgfree *) imalloc(sizeof *px);	/* This cannot fail... */
+        px =  (struct pgfree *) imalloc(sizeof *px);	/* This cannot fail... */
     px->page = ptr;
     px->end =  tail;
     px->size = l;
     if (free_list.next == NULL) {
 
-	/* Nothing on free list, put this at head */
-	px->next = free_list.next;
-	px->prev = &free_list;
-	free_list.next = px;
-	pf = px;
-	px = NULL;
+        /* Nothing on free list, put this at head */
+        px->next = free_list.next;
+        px->prev = &free_list;
+        free_list.next = px;
+        pf = px;
+        px = NULL;
 
     } else {
 
-	/* Find the right spot, leave pf pointing to the modified entry. */
-	tail = (char *)ptr+l;
+        /* Find the right spot, leave pf pointing to the modified entry. */
+        tail = (char *)ptr+l;
 
-	for(pf = free_list.next; pf->end < ptr && pf->next != NULL;
-	    pf = pf->next)
-	    ; /* Race ahead here */
+        for(pf = free_list.next; pf->end < ptr && pf->next != NULL;
+            pf = pf->next)
+            ; /* Race ahead here */
 
-	if (pf->page > tail) {
-	    /* Insert before entry */
-	    px->next = pf;
-	    px->prev = pf->prev;
-	    pf->prev = px;
-	    px->prev->next = px;
-	    pf = px;
-	    px = NULL;
-	} else if (pf->end == ptr ) {
-	    /* Append to the previous entry */
-	    pf->end = (char *)pf->end + l;
-	    pf->size += l;
-	    if (pf->next != NULL && pf->end == pf->next->page ) {
-		/* And collapse the next too. */
-		pt = pf->next;
-		pf->end = pt->end;
-		pf->size += pt->size;
-		pf->next = pt->next;
-		if (pf->next != NULL)
-		    pf->next->prev = pf;
-	    }
-	} else if (pf->page == tail) {
-	    /* Prepend to entry */
-	    pf->size += l;
-	    pf->page = ptr;
-	} else if (pf->next == NULL) {
-	    /* Append at tail of chain */
-	    px->next = NULL;
-	    px->prev = pf;
-	    pf->next = px;
-	    pf = px;
-	    px = NULL;
-	} else {
-	    wrterror("freelist is destroyed\n");
-	}
+        if (pf->page > tail) {
+            /* Insert before entry */
+            px->next = pf;
+            px->prev = pf->prev;
+            pf->prev = px;
+            px->prev->next = px;
+            pf = px;
+            px = NULL;
+        } else if (pf->end == ptr ) {
+            /* Append to the previous entry */
+            pf->end = (char *)pf->end + l;
+            pf->size += l;
+            if (pf->next != NULL && pf->end == pf->next->page ) {
+                /* And collapse the next too. */
+                pt = pf->next;
+                pf->end = pt->end;
+                pf->size += pt->size;
+                pf->next = pt->next;
+                if (pf->next != NULL)
+                    pf->next->prev = pf;
+            }
+        } else if (pf->page == tail) {
+            /* Prepend to entry */
+            pf->size += l;
+            pf->page = ptr;
+        } else if (pf->next == NULL) {
+            /* Append at tail of chain */
+            px->next = NULL;
+            px->prev = pf;
+            pf->next = px;
+            pf = px;
+            px = NULL;
+        } else {
+            wrterror("freelist is destroyed\n");
+        }
     }
 
     /* Return something to OS ? */
@@ -978,27 +1011,27 @@ free_pages(void *ptr, u_long index, struct pginfo const *info)
       pf->end == malloc_brk &&			/* ..and none behind us, */
       malloc_brk == sbrk(0)) {			/* ..and it's OK to do... */
 
-	/*
-	 * Keep the cache intact.  Notice that the '>' above guarantees that
-	 * the pf will always have at least one page afterwards.
-	 */
-	pf->end = (char *)pf->page + malloc_cache;
-	pf->size = malloc_cache;
+        /*
+         * Keep the cache intact.  Notice that the '>' above guarantees that
+         * the pf will always have at least one page afterwards.
+         */
+        pf->end = (char *)pf->page + malloc_cache;
+        pf->size = malloc_cache;
 
-	brk(pf->end);
-	malloc_brk = pf->end;
+        brk(pf->end);
+        malloc_brk = pf->end;
 
-	index = ptr2index(pf->end);
+        index = ptr2index(pf->end);
 
-	for(i=index;i <= last_index;)
-	    page_dir[i++] = MALLOC_NOT_MINE;
+        for(i=index;i <= last_index;)
+            page_dir[i++] = MALLOC_NOT_MINE;
 
-	last_index = index - 1;
+        last_index = index - 1;
 
-	/* XXX: We could realloc/shrink the pagedir here I guess. */
+        /* XXX: We could realloc/shrink the pagedir here I guess. */
     }
     if (pt != NULL)
-	ifree(pt);
+        ifree(pt);
 }
 
 /*
@@ -1017,18 +1050,18 @@ free_bytes(void *ptr, u_long index, struct pginfo *info)
 
 #ifdef MALLOC_SANITY	/* <eric> */
     if (((u_long)ptr & (info->size-1))) {
-	wrtwarning("modified (chunk-) pointer\n");
-	return;
+        wrtwarning("modified (chunk-) pointer\n");
+        return;
     }
 #endif	/* <eric> MALLOC_SANITY */
 
     if (info->bits[i/MALLOC_BITS] & (1<<(i%MALLOC_BITS))) {
-	wrtwarning("chunk is already free\n");
-	return;
+        wrtwarning("chunk is already free\n");
+        return;
     }
 
     if (malloc_junk)
-	memset(ptr, SOME_JUNK, info->size);
+        memset(ptr, SOME_JUNK, info->size);
 
     info->bits[i/MALLOC_BITS] |= 1<<(i%MALLOC_BITS);
     info->free++;
@@ -1037,26 +1070,26 @@ free_bytes(void *ptr, u_long index, struct pginfo *info)
 
     if (info->free == 1) {
 
-	/* Page became non-full */
+        /* Page became non-full */
 
-	mp = page_dir + info->shift;
-	/* Insert in address order */
-	while (*mp && (*mp)->next && (*mp)->next->page < info->page)
-	    mp = &(*mp)->next;
-	info->next = *mp;
-	*mp = info;
-	return;
+        mp = page_dir + info->shift;
+        /* Insert in address order */
+        while (*mp && (*mp)->next && (*mp)->next->page < info->page)
+            mp = &(*mp)->next;
+        info->next = *mp;
+        *mp = info;
+        return;
     }
 
     if (info->free != info->total)
-	return;
+        return;
 
     /* Find & remove this page in the queue */
     while (*mp != info) {
-	mp = &((*mp)->next);
+        mp = &((*mp)->next);
 #ifdef MALLOC_EXTRA_SANITY
-	if (!*mp)
-		wrterror("(ES): Not on queue\n");
+        if (!*mp)
+                wrterror("(ES): Not on queue\n");
 #endif /* MALLOC_EXTRA_SANITY */
     }
     *mp = info->next;
@@ -1065,7 +1098,7 @@ free_bytes(void *ptr, u_long index, struct pginfo *info)
     page_dir[ptr2index(info->page)] = MALLOC_FIRST;
     vp = info->page;		/* Order is important ! */
     if(vp != (void*)info)
-	ifree(info);
+        ifree(info);
     ifree(vp);
 }
 
@@ -1077,23 +1110,23 @@ ifree(void *ptr)
 
     /* This is legal */
     if (ptr == NULL)
-	return;
+        return;
 
     /* If we're already sinking, don't make matters any worse. */
     if (suicide)
-	return;
+        return;
 
     index = ptr2index(ptr);
 
 #ifdef MALLOC_SANITY	/* <eric> */
     if (index < malloc_pageshift) {
-	wrtwarning("junk pointer, too low to make sense\n");
-	return;
+        wrtwarning("junk pointer, too low to make sense\n");
+        return;
     }
 
     if (index > last_index) {
-	wrtwarning("junk pointer, too high to make sense\n");
-	return;
+        wrtwarning("junk pointer, too high to make sense\n");
+        return;
     }
 #endif	/* <eric> MALLOC_SANITY */
 
@@ -1102,7 +1135,7 @@ ifree(void *ptr)
     if (info < MALLOC_MAGIC)
         free_pages(ptr, index, info);
     else
-	free_bytes(ptr, index, info);
+        free_bytes(ptr, index, info);
     return;
 }
 
@@ -1123,45 +1156,45 @@ pubrealloc(void *ptr, size_t size, const char *func)
      */
     malloc_func = func;
     if (malloc_active > 0) {
-	if (malloc_active == 1) {
-	    wrtwarning("recursive call\n");
-	    malloc_active = 2;
-	}
+        if (malloc_active == 1) {
+            wrtwarning("recursive call\n");
+            malloc_active = 2;
+        }
         _MALLOC_UNLOCK();
-	errno = EDOOFUS;
-	return (NULL);
-    } 
+        errno = EDOOFUS;
+        return (NULL);
+    }
     malloc_active = 1;
 #endif	/* <eric> MALLOC_SANITY */
 
     if (!malloc_started) {
         if (ptr != NULL) {
-	    wrtwarning("malloc() has never been called\n");
-	    malloc_active = 0;
+            wrtwarning("malloc() has never been called\n");
+            malloc_active = 0;
             _MALLOC_UNLOCK();
-	    errno = EDOOFUS;
-	    return (NULL);
-	}
-	malloc_init();
-	malloc_started = 1;
+            errno = EDOOFUS;
+            return (NULL);
+        }
+        malloc_init();
+        malloc_started = 1;
     }
-   
+
     if (ptr == ZEROSIZEPTR)
-	ptr = NULL;
+        ptr = NULL;
     if (malloc_sysv && !size) {
-	if (ptr != NULL)
-	    ifree(ptr);
-	r = NULL;
+        if (ptr != NULL)
+            ifree(ptr);
+        r = NULL;
     } else if (!size) {
-	if (ptr != NULL)
-	    ifree(ptr);
-	r = ZEROSIZEPTR;
+        if (ptr != NULL)
+            ifree(ptr);
+        r = ZEROSIZEPTR;
     } else if (ptr == NULL) {
-	r = imalloc(size);
-	err = (r == NULL);
+        r = imalloc(size);
+        err = (r == NULL);
     } else {
         r = irealloc(ptr, size);
-	err = (r == NULL);
+        err = (r == NULL);
     }
 #ifdef MALLOC_SANITY	/* <eric> */
     UTRACE(ptr, size, r);
@@ -1170,12 +1203,12 @@ pubrealloc(void *ptr, size_t size, const char *func)
 
     _MALLOC_UNLOCK();
 
-#ifdef MALLOC_SANITY 
+#ifdef MALLOC_SANITY
     if (malloc_xmalloc && err)
-	wrterror("out of memory\n");
+        wrterror("out of memory\n");
 #endif	/* <eric> MALLOC_SANITY */
     if (err)
-	errno = ENOMEM;
+        errno = ENOMEM;
     return (r);
 }
 
@@ -1189,6 +1222,8 @@ phkmalloc(size_t size)	/* <eric> */
 
     return (pubrealloc(NULL, size, " in malloc():"));
 }
+
+/* ;;: export a sync routine. Or I guess client program can just call pma_sync() */
 
 void
 phkfree(void *ptr)		/* <eric> */
@@ -1217,7 +1252,7 @@ phkmalloc_usable_size(void * ptr) {			/* <eric> */
   }
 
   struct pginfo * info = page_dir[index];
-  
+
   if (info < MALLOC_MAGIC) {
     if (info == MALLOC_FREE) {
       return 0;
@@ -1227,12 +1262,12 @@ phkmalloc_usable_size(void * ptr) {			/* <eric> */
       wrtwarning("page is already free\n");
       return 0;
     }
-    
+
     if (info != MALLOC_FIRST) {
       wrtwarning("pointer to wrong page\n");
       return 0;
     }
-    
+
     if ((u_long)ptr & malloc_pagemask) {
       wrtwarning("modified (page-) pointer\n");
       return 0;
@@ -1246,7 +1281,7 @@ phkmalloc_usable_size(void * ptr) {			/* <eric> */
     u_long i;
     for (i = 1; page_dir[index+i] == MALLOC_FOLLOW; i++)
       ;
-    
+
     sz = i << malloc_pageshift  - ((size_t) ptr & (malloc_pagesize - 1));
   }
   else {
@@ -1267,7 +1302,7 @@ phkmalloc_normalize (void * ptr) {
   }
 
   struct pginfo * info = page_dir[index];
-  
+
   if (info < MALLOC_MAGIC) {
     if (info == MALLOC_FREE) {
       return 0;
@@ -1277,12 +1312,12 @@ phkmalloc_normalize (void * ptr) {
       wrtwarning("page is already free\n");
       return 0;
     }
-    
+
     if (info != MALLOC_FIRST) {
       wrtwarning("pointer to wrong page\n");
       return 0;
     }
-    
+
     if ((u_long)ptr & malloc_pagemask) {
       wrtwarning("modified (page-) pointer\n");
       return 0;
@@ -1301,4 +1336,26 @@ phkmalloc_normalize (void * ptr) {
     return (void *) ((size_t) ptr & ~(info->size - 1));
   }
 
+}
+
+/* test code */
+int main(int argc, char *argv[])
+{
+  int *a, *b, *c;
+  a = phkmalloc(sizeof *a);
+  b = phkmalloc(sizeof *b);
+  c = phkmalloc(sizeof *c);
+  *a = 10;
+  *b = 20;
+  *c = 30;
+  fprintf(stderr, "a: %i, b: %i, c: %i", *a, *b, *c);
+  bt_state_close(bt_state);
+  if (bt_state_open(bt_state, PHKPMA_PATH, 0, 0644) != 0) {
+    fprintf(stderr, "Error opening PMA: %s\n", strerror(errno));
+    abort();
+  }
+  fprintf(stderr, "a: %i, b: %i, c: %i", *a, *b, *c);
+  bt_state_close(bt_state);
+
+  return 0;
 }
