@@ -151,6 +151,8 @@
   =/  blob  (~(got by will.pile) `@uwoo`0)
   =/  rasp  (star `@uvre`0 s)
   =|  vile=(set @uvre)
+  =|  mean=(list [@ta *])
+  =|  ment=(list (list [@ta *]))
   |^  ^-  (unit *)
     ?^  body.blob
       =*  i  i.body.blob
@@ -181,8 +183,16 @@
           $(vile (~(put in vile) d.i), body.blob t.body.blob)
         $(rasp (p d.i +.c), body.blob t.body.blob)
       ::
-          %men  ~&  %mean-todo  $(body.blob t.body.blob)
-          %man  ~&  %mean-todo  $(body.blob t.body.blob)
+          %men
+        %=  $
+          body.blob  t.body.blob
+          mean       [[l.i (g s.i)] mean]
+        ==
+          %man
+        %=  $
+          body.blob  t.body.blob
+          mean       ~|(%missing-mean +.mean)
+        ==
           %slo  ~&  %slow-todo  $(body.blob t.body.blob)
           %sld  ~&  %slow-todo  $(body.blob t.body.blob)
           %hit  ~&  %skip-hit  $(body.blob t.body.blob)
@@ -216,7 +226,7 @@
         %lnk
       =/  s  (g u.i)
       =/  f  (g f.i)
-      =/  r  (tine s f)
+      =/  r  $(s s, f f, ment [mean ment])
       ?~  r  ~
       =.  rasp  (p d.i u.r)
       (goto t.i)
@@ -229,6 +239,7 @@
           pile  pyle
           rasp  (afar v.i walt.pyle)
           vile  (soil v.i walt.pyle)
+          ment  [mean ment]
         ==
       ?~  r  ~
       =.  rasp  (p d.i u.r)
@@ -249,7 +260,10 @@
         %jmf  ~|  %jmf-todo  !!
         %spy  ~&  %no-scry  !!
         %mer  ~&  %skip-mem  (goto m.i)
-        %don  `(g s.i)
+        %don
+          =?  ment  !=(~ ment)
+            +.ment
+          `(g s.i)
         %bom  ~
     ==
   ++  g
