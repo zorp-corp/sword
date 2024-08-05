@@ -146,9 +146,10 @@
 ++  tine
   |=  [s=* f=*]
   =<
-  =^  [sire=@uvre indy=@uwoo sans=@ud mont=_fuji]  line  (peep s f)
-  =/  blob  (~(got by hill.mont) indy)
-  =/  rasp  (star sire s)
+  =^  [indy=@uxor mont=_fuji]  line  (peep s f)
+  =/  pile  (~(got by hill.mont) indy)
+  =/  blob  (~(got by will.pile) `@uwoo`0)
+  =/  rasp  (star `@uvre`0 s)
   =|  vile=(set @uvre)
   |^  ^-  (unit *)
     ?^  body.blob
@@ -221,12 +222,13 @@
       (goto t.i)
     ::
         %cal
-      =/  blub  (~(got by hill.mont) a.i)
+      =/  pyle  (~(got by hill.mont) a.i)
       =/  r
         %=  $
-          blob  blub
-          rasp  (afar v.i w.i)
-          vile  (soil v.i w.i)
+          blob  (~(got by will.pyle) 0w1)
+          pile  pyle
+          rasp  (afar v.i walt.pyle)
+          vile  (soil v.i walt.pyle)
         ==
       ?~  r  ~
       =.  rasp  (p d.i u.r)
@@ -235,11 +237,13 @@
         %caf  ~|  %caf-todo  !!
         %lnt  (tine (g u.i) (g f.i))
         %jmp
-      =/  blub  (~(got by hill.mont) a.i)
+      =/  pyle  (~(got by hill.mont) a.i)
+      =/  blub  (~(got by will.pyle) 0w1)
       %=  $
+        pile  pyle
         blob  blub
-        rasp  (afar v.i w.i)
-        vile  (soil v.i w.i)
+        rasp  (afar v.i walt.pyle)
+        vile  (soil v.i walt.pyle)
       ==
     ::
         %jmf  ~|  %jmf-todo  !!
@@ -262,7 +266,7 @@
     ?~  mv
     ~?  ip  [%rasp-miss s (~(has in vile) s)]  rasp
     ~?  ip  [%p d u.mv]  (~(put by rasp) d u.mv)
-  ++  goto  |=(b=@uwoo ^$(blob (~(got by hill.mont) b)))
+  ++  goto  |=(b=@uwoo ^$(blob (~(got by will.pile) b)))
   ++  afar
     |=  [v=(list @uvre) walt=(list @uvre)]
     =|  m=(map @uvre *)
@@ -286,7 +290,7 @@
   |%
   ++  peep
     |=  [s=* f=*]
-    ^-  [[@uvre @uwoo @ud ^fuji] _line]
+    ^-  [[@uxor ^fuji] _line]
     =/  bull  (peek:line s f)
     ?:  ?=(^ bull)  [u.bull line]
     =.  line  this:(poke:line [%comp ~ s f])
