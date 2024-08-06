@@ -471,6 +471,7 @@ pub fn cg_interpret_with_snapshot(
                     let con_tell = con_cell.tail().as_cell().unwrap();
                     let con_t = con_tell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let con_d = con_tell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
+                    // XX put NOUN_NONE into d if either is poisoned
                     frame.vars_mut()[con_d] = T(
                         &mut context.stack,
                         &[frame.vars()[con_h], frame.vars()[con_t]],
@@ -593,6 +594,7 @@ pub fn cg_interpret_with_snapshot(
                 .expect("codegen instruction tag should convert to u64");
             match inst_tag {
                 tas!(b"clq") => {
+                    // XX check for poisons?
                     let clq_cell = inst_cell.tail().as_cell().unwrap();
                     let clq_s = clq_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let clq_zo = clq_cell.tail().as_cell().unwrap();
