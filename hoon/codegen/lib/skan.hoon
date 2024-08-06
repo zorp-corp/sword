@@ -669,7 +669,7 @@
       cole
     ?~  calm.i.queu  cole.gen
     =/  boot
-      :_  form
+      :_  form.i.queu
       =/  want  (fall (~(get by want.gen) `@hail`0x0) |) :: first site is always 0x0
       =>  [s=soot.i.queu w=want so=so ca=ca]
       ~+  ~(norm so (~(app ca w) s))

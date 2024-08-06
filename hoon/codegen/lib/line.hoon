@@ -1096,6 +1096,20 @@
       ++  r  |=(r=@uvre `tape`['r' '_' (scow %uv r)])
       ++  l  |=(l=@uwoo `tape`['l' '_' (scow %uv l)])
       ++  f  |=(f=@uxor `tape`['f' '_' (scow %ux f)])
+      ++  n
+        |=  n=need
+        =|  out=tape
+        |-  ^+  out
+        ?-  -.n
+            %this  (weld (r sass.n) out)
+            %none  ['~' out]
+            %both  =/  l=(lest need)
+                      |-  ^-  (lest need)
+                      ?.  ?=(%both -.rite.n)
+                        [left.n rite.n ~]
+                      [left.n $(n rite.n)]
+                   ['[' $(n i.l, out (reel t.l |=([n=need out=_[']' out]] [' ' ^$(n n, out out)])))]
+        ==
       ++  sym  |=(s=@ta `tape`['%' (trip s)]) :: XX
       ++  c-args
         |=  v=(list @uvre)
@@ -1184,7 +1198,7 @@
         =|  w=wain
         =/  [[ux=(unit @uxor) uw=(list @uwoo)] wa=wall]  (c-site bend.b)
         =.  w  (weld (turn wa |=(t=tape (crip [' ' ' ' t]))) w)
-        =.  w  (roll body.b |=([p=pole =_w] [(crip [' ' ' ' (c-pole p)]) w]))
+        =.  w  (reel body.b |=([p=pole =_w] [(crip [' ' ' ' (c-pole p)]) w]))
         [ux uw ['' (crip (weld (l u) ":")) w]]
       --
   |=  u=@uxor
@@ -1195,7 +1209,6 @@
   |-  ^-  wain
   ?~  fox
     (zing (join `wain`['\0a' ~] fot))
-  ~&  call-loop+i.fox
   =/  p=pile  (~(got by hill.fuji) i.fox)
   =|  xof=(list @uxor)
   =|  bot=(list wain)
@@ -1206,9 +1219,22 @@
   ?~  box
     ?.  =(~ xob)
       $(box (flop xob), xob ~)
-    =/  fun=wain
-      :-  (crip "NOUN_DECL {(f i.fox)}({(d-args walt.p)}) \{")
-      (zing (flop [`wain`['}' ~] bot]))
+    =/  fun=wain  (zing (flop [`wain`['}' ~] bot]))
+    =.  fun
+      :*  (crip ['/' '/' ' ' ' ' (n q:(~(got by peal.fuji) bell.p))])
+          '//'
+          (crip "NOUN_DECL {(f i.fox)}({(d-args walt.p)}) \{")
+          fun
+      ==
+    =/  n  norm.u.+:(puck bell.p)
+    =?  fun  ?=(^ seat.n)
+      :*  '//    as called from:'
+          (crip ['/' '/' ' ' ' ' ' ' ' ' ~(ram re (ren:blot:sack u.seat.n))])
+          '//'
+          fun
+      ==
+    =?  fun  ?=(^ area.n)
+      [(crip ['/' '/' ' ' ' ' ~(ram re (ren:blot:sack u.area.n))]) fun]
     ^$(fot [fun fot], fox (weld (flop xof) t.fox))
   =/  [ux=(unit @uxor) uw=(list @uwoo) wa=wain]
     (c-blob i.box (~(got by will.p) i.box))
