@@ -110,9 +110,9 @@
   =>  [b=b m=moan ..hone]
   ~+
   =/  h  (~(get ja m) form.b)
-  |-  ^-  (unit hone)  :: XX just hone?
+  |-  ^-  hone
   ?<  ?=(~ h)
-  ?:  =(text.b soot.i.h)  `i.h
+  ?:  =(text.b soot.i.h)  i.h
   $(h t.h)
 ::    compute which analysis results are not linearized and return in
 ::    toposorted order
@@ -128,9 +128,8 @@
     %-  ~(rep in novo)
     |=  [b=bell sire=(jug bell bell)]
     =/  hues  (puck b)
-    ?<  ?=(~ hues)
-    =/  team  (~(gas in *(set bell)) ~(val by ices.norm.u.hues))
-    =.  team  (~(dif in team) loop.norm.u.hues)
+    =/  team  (~(gas in *(set bell)) ~(val by ices.norm.hues))
+    =.  team  (~(dif in team) loop.norm.hues)
     =.  team  (~(int in team) novo)
     %-  ~(rep in team)
     |:  [k=*bell s=sire]
@@ -166,9 +165,9 @@
   ++  cuts
     =/  =goal  [%done ~]
     |=  =bell
+    =.  bell.pile.gen  bell
     =/  h  (puck bell)
-    ?<  ?=(~ h)
-    =*  n  nomm.norm.u.h
+    =*  n  nomm.norm.h
     |-  ^-  [next _gen]
     ?-  -.n
         %par
@@ -231,7 +230,7 @@
         =^  flip  gen  rain
         =^  bird  gen  (emit ~ ~ %brn flip [zero once]:goal)
         $(goal [%next [%this flip] bird])
-      =/  bull  (~(get by ices.norm.u.h) rail.n)
+      =/  bull  (~(get by ices.norm.h) rail.n)
       ?~  bull
         :: indirect call
         ?-  -.goal
@@ -265,7 +264,7 @@
         ?^  wip=(~(get by like) u.bull)
           =^  s  gen  (scar q.u.wip)
           [[| p.u.wip s] gen]
-        :: XX only sometimes ~&  recur=(~(has in loop.norm.u.h) u.bull)
+        :: XX only sometimes ~&  recur=(~(has in loop.norm.h) u.bull)
         =^  s  gen  rain
         [[& 0x0 ~[s] [%this s]] gen]
       ::
@@ -555,7 +554,7 @@
             [[what.real [%mer gunk sunk funk mere chin misc]] gen]
           ==
         =/  body=(list pole)
-          ~[[%imm 0 gunk] [%imm (~(got by fizz.norm.u.h) hare.n) funk]]
+          ~[[%imm 0 gunk] [%imm (~(got by fizz.norm.h) hare.n) funk]]
         =^  cake  gen  (emit ~ body site)
         =^  fake  gen  $(n vice.n, goal [%next [%none ~] cake])
         =^  cope  gen  (copy fake ned)
@@ -591,7 +590,10 @@
   ++  redo
     |=  [=bell u=@uwoo]
     ^-  _gen
-    =/  [wool=@uxor n=need]  (~(got by like) bell)  :: XX
+    =/  [wool=@uxor n=need]
+      ~|  =/  h  ~|(%puck-bell (puck bell.pile.gen))
+          ((outa:blot:sack "redo fail: " `@`0 [seat area]:norm.h) %redo-fail)
+      (~(got by like) bell)  :: XX
     =/  blob  (~(got by will.pile.gen) u)
     ::
     =^  urge=[v=(list @uvre) n=need]  gen  (scar n)
@@ -1051,7 +1053,7 @@
 ::    deferred, without changing the registerization of the calling arm
 ::
 ++  mill
-  =|  todo=(list [=bell labe=@uxor dire=next =gen])
+  =|  todo=(list [labe=@uxor dire=next =gen])
   =/  like  peal.fuji
   =/  toil  work
   =/  band  |2.fuji
@@ -1076,36 +1078,25 @@
     ::
     =.  like  (~(put by like) i.toil [labe what.dire])
     ?^  redo.gen
-      $(toil t.toil, todo [[i.toil labe dire gen] todo])
+      $(toil t.toil, todo [[labe dire gen] todo])
     %=    $
         toil  t.toil
         hill.fuji
       %+  ~(put by hill.fuji)  labe
-      ~(bake py pile.gen(walt (sill what.dire), bell i.toil))
+      ~(bake py pile.gen(walt (sill what.dire)))
     ==
   |-  ^+  fuji
   ?^  todo
-    =/  r  redo.gen.i.todo
-    |-  ^+  fuji
-    ?^  r
-      =.  gen.i.todo
-        ~|  =*  bel  bell.i.todo
-            =/  mot  (~(get ja moan) form.bel)
-            |-  ^-  ?(%redo-fail ~)
-            ?~  mot  ~
-            ?:  =(soot.i.mot text.bel)
-              ((outa:blot:sack "redo fail: " `@`0 [seat area]:norm.i.mot) %redo-fail)
-            $(mot t.mot)
-          (~(redo jean gen.i.todo like) i.r)
-      $(r t.r)
-    %=    ^$
-      todo       t.todo
-      hill.fuji  %+  ~(put by hill.fuji)  labe.i.todo
-                 %~  bake  py
-                 %=  pile.gen.i.todo
-                   walt  (sill what.dire.i.todo)
-                   bell  bell.i.todo
-    ==           ==
+    =*  gen  gen.i.todo
+    =.  gen
+      %+  roll  redo.gen
+      |=([[b=bell u=@uwoo] =_gen] (~(redo jean gen like) b u))
+    %=    $
+        todo  t.todo
+        hill.fuji
+      %+  ~(put by hill.fuji)  labe.i.todo
+      ~(bake py pile.gen(walt (sill what.dire.i.todo)))
+    ==
   ::
   fuji(peal like, |2 band)
 --
@@ -1282,7 +1273,7 @@
           (crip "NOUN_DECL {(f i.fox)}({(d-args walt.p)}) \{")
           fun
       ==
-    =/  n  norm.u.+:(puck bell.p)
+    =/  n  norm:(puck bell.p)
     =?  fun  ?=(^ seat.n)
       :*  '//    as called from:'
           (crip ['/' '/' ' ' ' ' ' ' ' ' ~(ram re (ren:blot:sack u.seat.n))])
