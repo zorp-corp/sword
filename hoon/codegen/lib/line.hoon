@@ -26,6 +26,15 @@
 ++  py
   |_  p=pile
   ::
+  ++  bake
+    ^+  p
+    =.  p  fuse
+    ::  XX temporary: turn hip/phi into mov so we can run this as-is
+    ::  note that it's not safe to do mov coalescing on the output of this
+    ::  since we may now have multiple %mov's that target one register
+    ::
+    defi
+  ::
   ++  defi
     ^+  p
     =|  back=(list @uwoo)
@@ -51,6 +60,48 @@
       back  (weld more back)
       seen  (~(gas in seen) more)
     ==
+  ::
+  ++  from
+    ^-  (jar @uwoo @uwoo)
+    %-  ~(rep by will.p)
+    |=  [[u=@uwoo b=blob] fum=(jar @uwoo @uwoo)]
+    (roll (heed bend.b) |=([i=@uwoo =_fum] (~(add ja fum) i u)))
+  ::
+  ++  fuse
+    =-  p(will -)
+    ::  bogus entry prevents 0w1 from being coalesced into 0w0
+    ::
+    =/  fum  (~(put by from) 0w1 [0w0 0w0 ~])
+    =/  wan  ^+(will.p ~)
+    =/  hav=(set @uwoo)   [0w0 ~ ~]
+    =/  for=(list @uwoo)  [0w0 ~]
+    =|  bak=(list @uwoo)
+    |-  ^+  wan
+    ?~  for
+      ?^  bak
+        $(for (flop bak), bak ~)
+      ?>(&((~(has by wan) 0w0) (~(has by wan) 0w1)) wan)
+    =/  b  (link i.for fum)
+    =/  nex  (flop (skip (heed bend.b) ~(has in hav)))
+    %=  $
+      for  t.for
+      wan  (~(put by wan) i.for b)
+      bak  (weld nex bak)
+      hav  (~(gas in hav) nex)
+    ==
+  ::
+  ++  link
+    |=  [i=@uwoo fum=(jar @uwoo @uwoo)]
+    ^-  blob
+    =/  b  (~(got by will.p) i)
+    :-  biff.b
+    |-  ^-  (pair (list pole) site)
+    ?.  ?=(%hop -.bend.b)  +.b
+    =/  tar  ~|  [missing=t.bend.b from=i ~(key by fum)]  (~(got by fum) t.bend.b)
+    ?.  ?=([* ~] tar)  +.b
+    ?>  =(i i.tar)
+    =/  nex  $(b (~(got by will.p) t.bend.b), i t.bend.b)
+    [(weld body.b p.nex) q.nex]
   --
 ::    get analysis result by bell
 ::
@@ -1003,7 +1054,6 @@
   =|  todo=(list [=bell labe=@uxor dire=next =gen])
   =/  like  peal.fuji
   =/  toil  work
-  =/  wurk  toil
   =/  band  |2.fuji
   |-  ^+  fuji
   ?^  toil
@@ -1030,7 +1080,8 @@
     %=    $
         toil  t.toil
         hill.fuji
-      (~(put by hill.fuji) labe pile.gen(walt (sill what.dire), bell i.toil))
+      %+  ~(put by hill.fuji)  labe
+      ~(bake py pile.gen(walt (sill what.dire), bell i.toil))
     ==
   |-  ^+  fuji
   ?^  todo
@@ -1050,28 +1101,13 @@
     %=    ^$
       todo       t.todo
       hill.fuji  %+  ~(put by hill.fuji)  labe.i.todo
+                 %~  bake  py
                  %=  pile.gen.i.todo
                    walt  (sill what.dire.i.todo)
                    bell  bell.i.todo
     ==           ==
   ::
-  =.  fuji  fuji(peal like, |2 band)
-  ::
-  ::  XX temporary: turn hip/phi into mov so we can run this as-is
-  ::  note that it's not safe to do mov coalescing on the output of this
-  ::  since we may now have multiple %mov's that target one register
-  =/  toil  wurk
-  |-  ^+  fuji
-  ?~  toil
-    fuji
-  %=  $
-      toil  t.toil
-  ::
-      hill.fuji
-    =/  labe   p:(~(got by peal.fuji) i.toil)
-    =/  =pile  (~(got by hill.fuji) labe)
-    (~(put by hill.fuji) labe ~(defi py pile))
-  ==
+  fuji(peal like, |2 band)
 --
 =+  ver=%1
 |%
