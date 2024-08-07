@@ -918,6 +918,26 @@
         %none  $(tack t.tack)
     ==
   --
+::  +sede: restrict need by sock
+::
+++  sede
+  |=  [n=need s=sock]
+  =|  out=(list pole)
+  |-  ^-  (pair (list pole) need)
+  ?-  -.n
+    %this  ?.  ?=(%& cape.s)  [out n]
+           [[[%imm data.s sass.n] out] [%none ~]]
+  ::
+    %both  ?:  |(?=(%| cape.s) ?=(~ data.s))  [out n]
+           =/  c  ?@(cape.s [& &] cape.s)
+           =/  r  $(n rite.n, data.s +.data.s, cape.s -.c)
+           =/  l  $(n left.n, data.s -.data.s, cape.s +.c, out p.r)
+           :-  p.l
+           ?:  &(?=(%none -.q.l) ?=(%none -.q.r))  q.l
+           n(left q.l, rite q.r)
+  ::
+    %none  [out n]
+  ==
 ::  +sill: list of registers from a need
 ::
 ++  sill
@@ -973,16 +993,18 @@
     ::
     ::  reserved entrypoints
     ::
+    =^  lit=(list pole)  what.dire.i.todo
+      (sede what.dire.i.todo text.bell.i.todo)
+    ~?  ?=(%none -.what.dire.i.todo)  [%need-none labe.i.todo]
     =.  gen.i.todo
+      =.  will.pile.gen.i.todo
+        (~(put by will.pile.gen.i.todo) 0w1 [~ lit %hop then.dire.i.todo])
       =^  [wish=@uwoo sire=@uvre]  gen.i.todo
-        (~(kerf jean gen.i.todo like) dire.i.todo)
-      ?.  (~(has by will.pile.gen.i.todo) wish)  ~&  %missing-wish  !!
-      %=  gen.i.todo
-        will.pile
-          %-  ~(gas by will.pile.gen.i.todo)
-          :~  [0w0 [~ [%mov 0v0 sire]~ %hop wish]]
-              [0w1 [~ ~ %hop then.dire.i.todo]]
-      ==  ==
+        (~(kerf jean gen.i.todo like) dire.i.todo(then 0w1))
+      %=    gen.i.todo
+          will.pile
+        (~(put by will.pile.gen.i.todo) 0w0 [~ [%mov 0v0 sire]~ %hop wish])
+      ==
     ::
     %=  ^$
       todo  t.todo
