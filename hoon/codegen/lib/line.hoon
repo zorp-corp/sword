@@ -1286,7 +1286,7 @@
   =/  [ux=(unit @uxor) uw=(list @uwoo) wa=wain]
     (c-blob i.box (~(got by will.p) i.box))
   =.  ux  `(unit @uxor)`?:(|(?=(~ ux) (~(has in fen) u.ux)) ~ `u.ux)
-  =.  uw  (skip uw ~(has in ben))
+  =.  uw  (flop (skip uw ~(has in ben)))
   %=  $
     xof  ?~(ux xof [u.ux xof])
     fen  ?~(ux fen (~(put in fen) u.ux))
