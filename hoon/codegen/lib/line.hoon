@@ -7,6 +7,51 @@
 =|  =fuji
 =>
 |%
+++  heed
+  |=  s=site
+  ^-  (list @uwoo)
+  ?+  -.s  ~
+    %clq  ~[z.s o.s]
+    %eqq  ~[z.s o.s]
+    %brn  ~[z.s o.s]
+    %hop  ~[t.s]
+    %hip  ~[t.s]
+    %lnk  ~[t.s]
+    %cal  ~[t.s]
+    %caf  ~[t.s]
+    %spy  ~[t.s]
+    %mer  ~[i.s m.s]
+  ==
+::
+++  py
+  |_  p=pile
+  ::
+  ++  defi
+    ^+  p
+    =|  back=(list @uwoo)
+    =/  queu=(list @uwoo)  [0w0 0w1 ~]
+    =/  seen  (~(gas in *(set @uwoo)) queu)
+    |-  ^+  p
+    ?~  queu
+      ?~  back  p
+      $(queu (flop back), back ~)
+    =/  blob  (~(got by will.p) i.queu)
+    ::
+    =?  will.p  ?=(%hip -.bend.blob)
+      %+  ~(put by will.p)  i.queu
+      =/  movs
+        %-  ~(rep by biff:(~(got by will.p) t.bend.blob))
+        |=  [[out=@uvre bin=(map @uwoo @uvre)] lit=(list pole)]
+        [[%mov (~(got by bin) c.bend.blob) out] lit]
+      [biff.blob (welp body.blob movs) %hop t.bend.blob]  :: XX flop?
+    ::
+    =/  more  (skip (heed bend.blob) ~(has in seen))
+    %=  $
+      queu  t.queu
+      back  (weld more back)
+      seen  (~(gas in seen) more)
+    ==
+  --
 ::    get analysis result by bell
 ::
 ++  puck
@@ -1025,48 +1070,7 @@
       hill.fuji
     =/  labe   p:(~(got by peal.fuji) i.toil)
     =/  =pile  (~(got by hill.fuji) labe)
-    =|  back=(list @uwoo)
-    =/  queu=(list @uwoo)  [0w0 0w1 ~]
-    =/  seen  (~(gas in *(set @uwoo)) queu)
-    !.
-    |-  ^+  hill.fuji
-    ?~  queu
-      ?~  back
-        (~(put by hill.fuji) labe pile)
-      $(queu (flop back), back ~)
-    =/  blob  (~(got by will.pile) i.queu)
-    ::
-    =^  more=(list @uwoo)  blob
-      ?-  -.bend.blob
-          %hip
-        :-  ~[t.bend.blob]
-        =/  movs
-          %-  ~(rep by biff:(~(got by will.pile) t.bend.blob))
-          |=  [[out=@uvre bin=(map @uwoo @uvre)] lit=(list pole)]
-          [[%mov (~(got by bin) c.bend.blob) out] lit]
-        [biff.blob (welp body.blob movs) %hop t.bend.blob]  :: XX flop?
-      ::
-          %clq  [~[z o]:bend.blob blob]
-          %eqq  [~[z o]:bend.blob blob]
-          %brn  [~[z o]:bend.blob blob]
-          %hop  [~[t.bend.blob] blob]
-          %lnk  [~[t.bend.blob] blob]
-          %cal  [~[t.bend.blob] blob]
-          %caf  [~[t.bend.blob] blob]
-          %lnt  `blob
-          %jmp  `blob
-          %jmf  `blob
-          %spy  [~[t.bend.blob] blob]
-          %mer  [~[i m]:bend.blob blob]
-          %don  `blob
-          %bom  `blob
-      ==
-    |-  ^+  hill.fuji
-    ?~  more
-      ^$(queu t.queu, will.pile (~(put by will.pile) i.queu blob))
-    ?:  (~(has in seen) i.more)
-      $(more t.more)
-    $(more t.more, back [i.more back], seen (~(put in seen) i.more))
+    (~(put by hill.fuji) labe ~(defi py pile))
   ==
 --
 =+  ver=%1
