@@ -166,9 +166,6 @@
       ::    call subject go in which registers
       ::
       =^  a=[r=? wool=@uxor v=(list @uvre) n=need]  gen
-        ?^  lab=(~(get by peal.fuji) u.bull)
-          =^  s  gen  (scar q.u.lab)
-          [[| p.u.lab s] gen]
         ?^  wip=(~(get by like) u.bull)
           =^  s  gen  (scar q.u.wip)
           [[| p.u.wip s] gen]
@@ -959,7 +956,7 @@
 ::
 ++  mill
   =|  todo=(list [=bell labe=@uxor dire=next =gen])
-  =|  like=(map bell (pair @uxor need))
+  =/  like  peal.fuji
   =/  toil  work
   =/  wurk  toil
   =/  band  |2.fuji
@@ -981,10 +978,14 @@
     =.  gen
       =^  [wish=@uwoo sire=@uvre]  gen  (~(kerf jean gen like) dire)
       (~(emir jean gen like) 0w0 [~ [%mov 0v0 sire]~ %hop wish])
-    %=  $
-       toil  t.toil
-       todo  [[i.toil labe dire gen] todo]
-       like  (~(put by like) i.toil [labe what.dire])
+    ::
+    =.  like  (~(put by like) i.toil [labe what.dire])
+    ?^  redo.gen
+      $(toil t.toil, todo [[i.toil labe dire gen] todo])
+    %=    $
+        toil  t.toil
+        hill.fuji
+      (~(put by hill.fuji) labe pile.gen(walt (sill what.dire), bell i.toil))
     ==
   |-  ^+  fuji
   ?^  todo
@@ -1001,18 +1002,15 @@
             $(mot t.mot)
           (~(redo jean gen.i.todo like) i.r)
       $(r t.r)
-    ::
-    %=  ^$
-      todo  t.todo
-      fuji  %=  fuji
-              peal  (~(put by peal.fuji) [bell labe what.dire]:i.todo)
-              hill  %+  ~(put by hill.fuji)  labe.i.todo
-                    %=   pile.gen.i.todo
-                      walt  (sill what.dire.i.todo)
-                      bell  bell.i.todo
-    ==      ==      ==
+    %=    ^$
+      todo       t.todo
+      hill.fuji  %+  ~(put by hill.fuji)  labe.i.todo
+                 %=  pile.gen.i.todo
+                   walt  (sill what.dire.i.todo)
+                   bell  bell.i.todo
+    ==           ==
   ::
-  =.  |2.fuji  band
+  =.  fuji  fuji(peal like, |2 band)
   ::
   ::  XX temporary: turn hip/phi into mov so we can run this as-is
   ::  note that it's not safe to do mov coalescing on the output of this
