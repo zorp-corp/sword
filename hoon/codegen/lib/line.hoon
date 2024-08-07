@@ -970,6 +970,17 @@
       ?^  free.band
         [i.free.band band(free t.free.band)]
       [next.band band(next +(next.band))]
+    =^  lit=(list pole)  what.dire
+      (sede what.dire text.i.toil)
+    ~?  ?=(%none -.what.dire)  [%need-none labe]
+    ::
+    ::  reserved entrypoints
+    ::
+    =.  gen  (~(emir jean [gen like]) 0w1 [~ lit %hop then.dire])
+    =.  then.dire  0w1
+    =.  gen
+      =^  [wish=@uwoo sire=@uvre]  gen  (~(kerf jean gen like) dire)
+      (~(emir jean gen like) 0w0 [~ [%mov 0v0 sire]~ %hop wish])
     %=  $
        toil  t.toil
        todo  [[i.toil labe dire gen] todo]
@@ -990,21 +1001,6 @@
             $(mot t.mot)
           (~(redo jean gen.i.todo like) i.r)
       $(r t.r)
-    ::
-    ::  reserved entrypoints
-    ::
-    =^  lit=(list pole)  what.dire.i.todo
-      (sede what.dire.i.todo text.bell.i.todo)
-    ~?  ?=(%none -.what.dire.i.todo)  [%need-none labe.i.todo]
-    =.  gen.i.todo
-      =.  will.pile.gen.i.todo
-        (~(put by will.pile.gen.i.todo) 0w1 [~ lit %hop then.dire.i.todo])
-      =^  [wish=@uwoo sire=@uvre]  gen.i.todo
-        (~(kerf jean gen.i.todo like) dire.i.todo(then 0w1))
-      %=    gen.i.todo
-          will.pile
-        (~(put by will.pile.gen.i.todo) 0w0 [~ [%mov 0v0 sire]~ %hop wish])
-      ==
     ::
     %=  ^$
       todo  t.todo
