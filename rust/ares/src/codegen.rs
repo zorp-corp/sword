@@ -273,7 +273,7 @@ impl Preserve for Blocks {
 
 pub struct CgContext {
     pub line: Noun,
-    pub fuji: Noun, // XX probably don't want to store here
+    pub fuji: Noun,
     pub hill: Hill,
 }
 
@@ -350,7 +350,6 @@ fn slam_line(context: &mut Context, arm_axis: u64, sample: Noun) -> Noun {
 fn cg_peek(context: &mut Context, subject: Noun, formula: Noun) -> Option<(usize, Noun)> {
     assert!(!context.cg_context.line.is_none());
     let sample = T(&mut context.stack, &[subject, formula]);
-    //  XX redefine PEEK_AXIS after linearizer rewrite?
     let peek_result = slam_line(context, PEEK_AXIS, sample);
     if unsafe { peek_result.raw_equals(D(0)) } {
         None
@@ -471,11 +470,14 @@ pub fn cg_interpret_with_snapshot(
                     let con_tell = con_cell.tail().as_cell().unwrap();
                     let con_t = con_tell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let con_d = con_tell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
-                    // XX put NOUN_NONE into d if either is poisoned
-                    frame.vars_mut()[con_d] = T(
-                        &mut context.stack,
-                        &[frame.vars()[con_h], frame.vars()[con_t]],
-                    );
+                    if frame.vars()[con_h].is_none() || frame.vars()[con_t].is_none() {
+                        frame.vars_mut()[con_d] = NOUN_NONE;
+                    } else {
+                        frame.vars_mut()[con_d] = T(
+                            &mut context.stack,
+                            &[frame.vars()[con_h], frame.vars()[con_t]],
+                        );
+                    }
                 }
                 tas!(b"hed") => {
                     let hed_cell = inst_cell.tail().as_cell().unwrap();
@@ -484,9 +486,10 @@ pub fn cg_interpret_with_snapshot(
                     let s_noun = frame.vars()[hed_s];
                     if s_noun.is_none() {
                         frame.vars_mut()[hed_d] = NOUN_NONE;
-                    } else if let Ok(s_cell) = frame.vars()[hed_s].as_cell() {
+                    } else if let Ok(s_cell) = s_noun.as_cell() {
                         frame.vars_mut()[hed_d] = s_cell.head();
                     } else {
+                        frame.vars_mut()[hed_s] = NOUN_NONE; // XX poison s if it's an atom
                         frame.vars_mut()[hed_d] = NOUN_NONE;
                     }
                 }
@@ -497,9 +500,10 @@ pub fn cg_interpret_with_snapshot(
                     let s_noun = frame.vars()[tal_s];
                     if s_noun.is_none() {
                         frame.vars_mut()[tal_d] = NOUN_NONE;
-                    } else if let Ok(s_cell) = frame.vars()[tal_s].as_cell() {
+                    } else if let Ok(s_cell) = s_noun.as_cell() {
                         frame.vars_mut()[tal_d] = s_cell.tail();
                     } else {
+                        frame.vars_mut()[tal_s] = NOUN_NONE; // XX poison s if it's an atom
                         frame.vars_mut()[tal_d] = NOUN_NONE;
                     }
                 }

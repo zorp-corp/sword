@@ -151,6 +151,7 @@
   =/  blob  (~(got by will.pile) `@uwoo`0)
   =/  rasp=(map @uvre (unit))  [[0v0 `s] ~ ~]
   =|  mean=(list [@ta *])
+  =|  jets=(map [path @] $-(* *))
   |^  ^-  tone
     ?^  body.blob
       =*  i  i.body.blob
@@ -241,7 +242,22 @@
       =.  rasp  (p d.i `product.r)
       (goto t.i)
     ::
-        %caf  ~|  %caf-todo  !!
+        %caf
+      =/  gate=(unit $-(* *))  (~(get by jets) n.i)
+      =/  subj  +:(g u.i)
+      ?.  ?=(~ gate)
+        =/  r  (mack gate +6.subj)
+        ?~  r  [%2 mean]  [%0 u.r]
+      =/  pyle  (~(got by hill.mont) a.i)
+      =/  r
+        %=  $
+          blob  (~(got by will.pyle) 0w1)
+          pile  pyle
+          rasp  (afar v.i walt.pyle)
+        ==
+      ?.  ?=(%0 -.r)  r
+      =.  rasp  (p d.i `product.r)
+      (goto t.i)
         %lnt  (tine +:(g u.i) +:(g f.i))
         %jmp
       =/  pyle  (~(got by hill.mont) a.i)
@@ -251,7 +267,18 @@
         rasp  (afar v.i walt.pyle)
       ==
     ::
-        %jmf  ~|  %jmf-todo  !!
+        %jmf
+      =/  gate=(unit $-(* *))  (~(get by jets) n.i)
+      =/  subj  +:(g u.i)
+      ?.  ?=(~ gate)
+        =/  r  (|=(s=* (mack gate +6.subj)))
+        ?~  r  [%2 mean]  [%0 u.r]
+      =/  pyle  (~(got by hill.mont) a.i)
+      %=  $
+        pile  pyle
+        blob  (~(got by will.pyle) 0w1)
+        rasp  (afar v.i walt.pyle)
+      ==
         %spy  ~&  %no-scry  !!
         %mer  ~&  %skip-mem  (goto m.i)
         %don  [%0 +:(g s.i)]
