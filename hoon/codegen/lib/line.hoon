@@ -837,7 +837,8 @@
     :: ~&  [%copy-cons labe well.pile.gen [ll rr] into=sass.r]
     %=  $
       tack  [[%| left.l %this ll] [%| rite.l %this rr] [%& sass.l] t.tack]
-      pose  [[%con ll rr sass.r] pose]
+      :: pose  [[%con ll rr sass.r] pose]
+      pose  ?:(=(sass.l sass.r) pose [[%mov sass.l sass.r] pose])
     ==
   ::
   ++  bomb                                              ::  crash
