@@ -219,9 +219,13 @@ impl Blocks {
             while i < well {
                 // XX walk tree manually
                 let blob = get_by(&mut context.stack, will, &mut D(i as u64))
-                    .expect("Codegen hill lookup failed")
-                    .expect("Codegen hill lookup result is None");
-                blox[i] = blob;
+                    .expect("Codegen will is not a map");
+                match blob {
+                    Some(b) => {
+                        blox[i] = b;
+                    }
+                    None => {}
+                }
                 i += 1;
             }
             Self {

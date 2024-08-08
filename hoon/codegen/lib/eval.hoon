@@ -4,6 +4,19 @@
 =/  ip=?  |
 |%
 ++  this  .
+++  fire
+  =>  |%
+      ++  fake
+        |=  gat=*
+        |=  sam=*
+        (mack gat(+6 +6.sam) [9 2 0 1])
+      --
+  ^~  ^-  (map [path @] gate)
+  %-  malt
+  :~
+    [[/dec/one/'k.139' 1] (fake dec)]
+    [[/add/one/'k.139' 1] (fake add)]
+  ==
 ++  hour
   =*  thus  .
   |=  [s=* f=*]
@@ -150,12 +163,6 @@
   =/  pile  (~(got by hill.mont) indy)
   =/  blob  (~(got by will.pile) `@uwoo`0)
   =/  rasp=(map @uvre (unit))  [[0v0 `s] ~ ~]
-  =/  jets=(map [path @] gate)  ::  XX extract to file
-    %-  malt
-    :~
-      [[/'k.139'/one/dec 1] |=(a=* (mack dec +6.a))]
-      [[/'k.139'/one/add 1] |=(a=* (mack add +6.a))]
-    ==
   =|  mean=(list [@ta *])
   |^  ^-  tone
     ?^  body.blob
@@ -209,7 +216,8 @@
           %ipb
         |-  ^-  tone
         ?~  p.i  ^$(body.blob t.body.blob)
-        ?~  (g i.p.i)  [%2 mean]
+        =/  r  (~(get by rasp) i.p.i)
+        ?:  ?=([~ ~] r)  [%2 mean]
         $(p.i t.p.i)
       ==
     =*  i  bend.blob
@@ -248,10 +256,11 @@
       (goto t.i)
     ::
         %caf
-      =/  gate=(unit $-(* *))  (~(get by jets) n.i)
+      =/  gate=(unit $-(* *))  (~(get by fire) n.i)
       =/  subj  +:(g u.i)
       ?.  ?=(~ gate)
         =/  r  (u.gate subj)
+        ~&  %caf-fire
         ?:  ?=(~ r)  [%2 mean]  [%0 +:r]
       =/  pyle  (~(got by hill.mont) a.i)
       =/  r
@@ -273,10 +282,11 @@
       ==
     ::
         %jmf
-      =/  gate=(unit $-(* *))  (~(get by jets) n.i)
+      =/  gate=(unit $-(* *))  (~(get by fire) n.i)
       =/  subj  +:(g u.i)
       ?.  ?=(~ gate)
         =/  r  (u.gate subj)
+        ~&  %jmf-fire
         ?:  ?=(~ r)  [%2 mean]  [%0 +:r]
       =/  pyle  (~(got by hill.mont) a.i)
       %=  $
