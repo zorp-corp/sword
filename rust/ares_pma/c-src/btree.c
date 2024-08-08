@@ -609,10 +609,6 @@ _bt_nalloc(BT_state *state)
     abort();
   }
 
-  /* ;;: kludge. try to fix with madvise(MADV_DONTNEED) */
-  /* zero the page */
-  /* ZERO(ret, sizeof(BT_page)); */
-
   return ret;
 }
 
@@ -803,27 +799,21 @@ _bt_cleanchild(BT_page *parent, size_t child_idx)
 /* _bt_split_datcopy: copy right half of left node to right node */
 static int
 _bt_split_datcopy(BT_page *left, BT_page *right)
-{                               /* ;;: TODO: copy dirty bitset over */
+{
   size_t mid = BT_DAT_MAXKEYS / 2;
-  size_t bytelen = mid * sizeof(left->datk[0]);
+  size_t len_b = mid * sizeof(left->datk[0]);
   /* copy rhs of left to right */
-  memcpy(right->datk, &left->datk[mid], bytelen);
+  memcpy(right->datk, &left->datk[mid], len_b);
   /* zero rhs of left */
-  ZERO(&left->datk[mid], bytelen); /* ;;: note, this would be unnecessary if we stored node.N */
+  ZERO(&left->datk[mid], len_b); /* ;;: note, this would be unnecessary if we stored node.N */
   /* the last entry in left should be the first entry in right */
   left->datk[mid].va = right->datk[0].va;
 
   /* copy rhs of left's dirty bitmap to lhs of right's */
-  /* ;;: TODO make this more efficient with memcpy. (Difficulty with first
-       member in lhs since it may be partial. Multiple ways to handle this.) */
-  size_t l_i, r_i;
-  l_i = mid; r_i = 0;
-  for (; l_i < BT_DAT_MAXKEYS; l_i++, r_i++) {
-    if (_bt_ischilddirty(left, l_i)) {
-      _bt_dirtychild(right, r_i);
-      _bt_cleanchild(left, l_i);
-    }
-  }
+  uint8_t *l = &left->head.dirty[mid];
+  uint8_t *r = &right->head.dirty[0];
+  memcpy(r, l, len_b);
+  ZERO(l, len_b);
 
   return BT_SUCC;
 }
