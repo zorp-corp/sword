@@ -73,9 +73,9 @@
     ::
     =/  fum  (~(put by from) 0w1 [0w0 0w0 ~])
     =/  wan  ^+(will.p ~)
-    =/  hav=(set @uwoo)   [0w0 ~ ~]
-    =/  for=(list @uwoo)  [0w0 ~]
     =|  bak=(list @uwoo)
+    =/  for=(list @uwoo)  [0w0 0w1 ~]
+    =/  hav  (~(gas in *(set @uwoo)) for)
     |-  ^+  wan
     ?~  for
       ?^  bak
@@ -1012,13 +1012,32 @@
     ::
         %none  $(tack t.tack)
     ==
+  ::  +bede: balance need and emit %cons (reversed)
+  ::
+  ++  bede
+    |=  n=need
+    ^-  [(pair (list pole) need) _gen]
+    ?:  =(%none -.n)  [[~ n] gen]
+    =|  out=(list pole)
+    |-  ^-  [(pair (list pole) $<(%none need)) _gen]
+    ?-    -.n
+        %this  [[out n] gen]
+        %both
+      =^  r  gen  $(n rite.n)
+      =^  l  gen  $(n left.n, out p.r)
+      =/  p  [%con +:(sass q.l) +:(sass q.r) sass.n]
+      [[[p p.l] n(left q.l, rite q.r)] gen]
+    ::
+        %none
+      =^  r  gen  rain
+      [[out [%this r]] gen]
+    ==
   --
 ::  +sede: restrict need by sock
 ::
 ++  sede
-  |=  [n=need s=sock]
-  =|  out=(list pole)
-  |-  ^-  (pair (list pole) need)
+  |=  [n=need s=sock out=(list pole)]
+  ^-  (pair (list pole) need)
   ?-  -.n
     %this  ?.  ?=(%& cape.s)  [out n]
            [[[%imm data.s sass.n] out] [%none ~]]
@@ -1059,22 +1078,27 @@
   =/  band  |2.fuji
   |-  ^+  fuji
   ?^  toil
-    =/  [dire=next =gen]  (~(cuts jean [*gen like]) i.toil)
     =^  labe  band
       ?^  free.band
         [i.free.band band(free t.free.band)]
       [next.band band(next +(next.band))]
-    =^  lit=(list pole)  what.dire
-      (sede what.dire text.i.toil)
-    ~?  ?=(%none -.what.dire)  [%need-none labe]
+    =/  [dire=next =gen]  (~(cuts jean [*gen like]) i.toil)
     ::
     ::  reserved entrypoints
     ::
-    =.  gen  (~(emir jean [gen like]) 0w1 [~ lit %hop then.dire])
-    =.  then.dire  0w1
     =.  gen
       =^  [wish=@uwoo sire=@uvre]  gen  (~(kerf jean gen like) dire)
       (~(emir jean gen like) 0w0 [~ [%mov 0v0 sire]~ %hop wish])
+    =>  =*  dot  .
+        =^  [con=(list pole) ned=need]  gen
+          (~(bede jean [gen like]) what.dire)
+        =^  lit=(list pole)  what.dire
+          (sede ned text.i.toil (flop con))
+        ~?  ?=(%none -.what.dire)  [%need-none labe]
+        %=  dot
+          what.dire  what.dire
+          gen  (~(emir jean [gen like]) 0w1 [~ lit %hop then.dire])
+        ==
     ::
     =.  like  (~(put by like) i.toil [labe what.dire])
     ?^  redo.gen
@@ -1267,6 +1291,7 @@
     ?.  =(~ xob)
       $(box (flop xob), xob ~)
     =/  fun=wain  (zing (flop [`wain`['}' ~] bot]))
+    =.  fun  (welp ['/*' +>+:(c-blob 0w0 (~(got by will.p) 0w0))] ['*/' fun])
     =.  fun
       :*  (crip ['/' '/' ' ' ' ' (n q:(~(got by peal.fuji) bell.p))])
           '//'
