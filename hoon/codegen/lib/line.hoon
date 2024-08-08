@@ -693,9 +693,19 @@
       =^  lizz  gen  (emit ~ [%con l r sass.what.next]~ %hop then.next)
       [[lizz [%this l] [%this r]] gen]
     ::
-    ::  discards sick flag which is OK since we know we will fulfill the need
+        %both
+      =^  ln=$<(%none need)  gen
+        ?.  ?=(%none -.left.what.next)  [left.what.next gen]
+        =^(r gen rain [[%this r] gen])
+      =^  rn=$<(%none need)  gen
+        ?.  ?=(%none -.rite.what.next)  [rite.what.next gen]
+        =^(r gen rain [[%this r] gen])
+      =/  l  +:(sass ln)
+      =/  r  +:(sass rn)
+      =^  lizz  gen  (emit ~ [%con l r sass.what.next]~ %hop then.next)
+      ^-  [[@uwoo need need] _gen]
+      [[lizz ln rn] gen]
     ::
-        %both  [[then.next left.what.next rite.what.next] gen]
         %none  [[then.next what.next what.next] gen]
     ==
   ::  +sass:  outermost register
