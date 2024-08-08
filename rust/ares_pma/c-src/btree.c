@@ -229,6 +229,7 @@ struct BT_kv {
 #endif
 #define BT_DAT_MAXVALS BT_DAT_MAXKEYS
 static_assert(BT_DAT_MAXENTRIES % 2 == 0);
+static_assert(BT_DAT_MAXKEYS % 8 == 0);
 /* we assume off_t is 64 bit */
 static_assert(sizeof(off_t) == sizeof(uint64_t));
 
@@ -610,7 +611,7 @@ _bt_nalloc(BT_state *state)
 
   /* ;;: kludge. try to fix with madvise(MADV_DONTNEED) */
   /* zero the page */
-  ZERO(ret, sizeof(BT_page));
+  /* ZERO(ret, sizeof(BT_page)); */
 
   return ret;
 }
@@ -752,22 +753,6 @@ _bt_datshift(BT_page *node, size_t i, size_t n)
   return BT_SUCC;
 }
 
-/* _bt_split_datcopy: copy right half of left node to right node */
-static int
-_bt_split_datcopy(BT_page *left, BT_page *right)
-{                               /* ;;: TODO: copy dirty bitset over */
-  size_t mid = BT_DAT_MAXKEYS / 2;
-  size_t bytelen = mid * sizeof(left->datk[0]);
-  /* copy rhs of left to right */
-  memcpy(right->datk, &left->datk[mid], bytelen);
-  /* zero rhs of left */
-  ZERO(&left->datk[mid], bytelen); /* ;;: note, this would be unnecessary if we stored node.N */
-  /* the last entry in left should be the first entry in right */
-  left->datk[mid].va = right->datk[0].va;
-
-  return BT_SUCC;
-}
-
 static int
 _bt_ischilddirty(BT_page *parent, size_t child_idx)
 {
@@ -808,17 +793,45 @@ _bt_dirtydata(BT_page *leaf, size_t child_idx)
 
 static int
 _bt_cleanchild(BT_page *parent, size_t child_idx)
-{
+{                               /* ;;: Is this correct? --yes */
   assert(_bt_ischilddirty(parent, child_idx));
   uint8_t *flag = &parent->head.dirty[child_idx >> 3];
   *flag ^= 1 << (child_idx & 0x7);
   return BT_SUCC;
 }
 
+/* _bt_split_datcopy: copy right half of left node to right node */
+static int
+_bt_split_datcopy(BT_page *left, BT_page *right)
+{                               /* ;;: TODO: copy dirty bitset over */
+  size_t mid = BT_DAT_MAXKEYS / 2;
+  size_t bytelen = mid * sizeof(left->datk[0]);
+  /* copy rhs of left to right */
+  memcpy(right->datk, &left->datk[mid], bytelen);
+  /* zero rhs of left */
+  ZERO(&left->datk[mid], bytelen); /* ;;: note, this would be unnecessary if we stored node.N */
+  /* the last entry in left should be the first entry in right */
+  left->datk[mid].va = right->datk[0].va;
+
+  /* copy rhs of left's dirty bitmap to lhs of right's */
+  /* ;;: TODO make this more efficient with memcpy. (Difficulty with first
+       member in lhs since it may be partial. Multiple ways to handle this.) */
+  size_t l_i, r_i;
+  l_i = mid; r_i = 0;
+  for (; l_i < BT_DAT_MAXKEYS; l_i++, r_i++) {
+    if (_bt_ischilddirty(left, l_i)) {
+      _bt_dirtychild(right, r_i);
+      _bt_cleanchild(left, l_i);
+    }
+  }
+
+  return BT_SUCC;
+}
+
 static int
 _bt_dirtyshift(BT_page *node, size_t idx, size_t n)
 /* shift dirty bitset at idx over by n bits */
-{
+{                               /* ;;: is this correct? */
   assert(idx + n < 2048);
   uint8_t copy[256] = {0};
   /* copy bitset left of idx */
@@ -1610,6 +1623,9 @@ _bt_insert(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo)
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _node_get(state, meta->root);
 
+  if (fo == 0x8)
+    bp(0);
+
   /* the root MUST be dirty (zero checksum in metapage) */
   assert(meta->chk == 0);
 
@@ -2200,6 +2216,7 @@ _bt_state_restore_maps2(BT_state *state, BT_page *node,
   /* leaf */
   if (depth == maxdepth) {
     for (size_t i = 0; i < N-1; i++) {
+      assert(_bt_ischilddirty(node, i) == 0);
       vaof_t lo = node->datk[i].va;
       vaof_t hi = node->datk[i+1].va;
       pgno_t pg = node->datk[i].fo;
@@ -2660,7 +2677,7 @@ _bt_sync_hasdirtypage(BT_state *state, BT_page *node) __attribute((unused));
 static int
 _bt_sync_hasdirtypage(BT_state *state, BT_page *node)
 /* ;;: could be more efficiently replaced by a gcc vectorized builtin */
-{
+{                               /* ;;: check callers to this routine use it correctly */
   for (size_t i = 0; i < NMEMB(node->head.dirty); i++) {
     if (node->head.dirty[i] != 0)
       return 1;

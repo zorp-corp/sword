@@ -162,6 +162,19 @@ int main(int argc, char *argv[])
      override these values at a per-test level without altering a code?
   */
 
+  BT_page *testnode = calloc(0, sizeof *testnode);
+  for (size_t i = 0; i <= 10; i++) {
+    assert(!_bt_ischilddirty(testnode, i));
+  }
+  for (size_t i = 0; i <= 10; i++) {
+    _bt_dirtychild(testnode, i);
+    assert(_bt_ischilddirty(testnode, i));
+  }
+  for (size_t i = 0; i <= 10; i++) {
+    assert(_bt_ischilddirty(testnode, i));
+  }
+  assert(!_bt_ischilddirty(testnode, 11));
+
 
   DPUTS("== test 3: ephemeral structure restoration");
   BT_state *state3;
@@ -190,8 +203,8 @@ int main(int argc, char *argv[])
   size_t N;
 
   /* ;;: testing huge alloc for ted */
-  bp(0);
-  void *foo = bt_malloc(state3, 0x40000);
+  /* bp(0); */
+  /* void *foo = bt_malloc(state3, 0x40000); */
   
   bp(0);
   for (size_t i = 0; i < ITERATIONS; i++) {

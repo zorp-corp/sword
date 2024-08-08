@@ -1,9 +1,6 @@
 #ifndef __BTEST_OVERRIDES_H__
 #define __BTEST_OVERRIDES_H__
 
-/* ;;: debugging mem corruption */
-#if 0
-
 /*
   For overriding constants defined in btree.h and btree.c in tests. This isn't
   very flexible though because these can't be overriden on per-test basis. Maybe
@@ -11,20 +8,11 @@
 */
 
 #undef BT_DAT_MAXKEYS
-#define BT_DAT_MAXKEYS 10
+#define BT_DAT_MAXKEYS 16
 
 /* maxdepth expanded because when BT_DAT_MAXKEYS is shrunk, the depth of the
    btree can grow higher than usual */
 #undef BT_MAXDEPTH
 #define BT_MAXDEPTH 10
 
-#endif
-
-/* ;;: tmp modifications go HERE!  *******************************************/
-
-#undef BT_DAT_MAXKEYS
-#define BT_DAT_MAXKEYS 10
-
-/* above ^^^ *****************************************************************/
-
-#endif
+#endif  /* __BTEST_OVERRIDES_H__ */
