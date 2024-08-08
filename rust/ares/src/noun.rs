@@ -4,6 +4,7 @@ use bitvec::prelude::{BitSlice, Lsb0};
 use either::{Either, Left, Right};
 use ibig::{Stack, UBig};
 use intmap::IntMap;
+use std::error;
 use std::fmt;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
@@ -170,6 +171,21 @@ pub enum Error {
     NotIndirectAtom,
     /** The value can't be represented by the given type. */
     NotRepresentable,
+}
+
+impl error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::NotAllocated => f.write_str("not an allocated noun"),
+            Error::NotAtom => f.write_str("not an atom"),
+            Error::NotCell => f.write_str("not a cell"),
+            Error::NotDirectAtom => f.write_str("not a direct atom"),
+            Error::NotIndirectAtom => f.write_str("not an indirect atom"),
+            Error::NotRepresentable => f.write_str("unrepresentable value"),
+        }
+    }
 }
 
 impl From<Error> for () {
