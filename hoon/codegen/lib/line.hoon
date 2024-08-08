@@ -851,7 +851,7 @@
     |=  [r=@uvre t=@uwoo]
     ^-  [next _gen]
     =^  mile  gen  (emit ~ [%poi r]~ %hop t)
-    [[%next [%none ~] t] gen]
+    [[%next [%none ~] mile] gen]
   ::
   ++  vial                                              ::  new label
     ^-  [@uwoo _gen]
@@ -1223,7 +1223,7 @@
           %tim  "BOUT_START();"
           %tom  "BOUT_STOP();"
           %mem  "MEME_SLOG();"
-          %poi  "POISON({(r p.p)});"
+          %poi  "NOUN_DECL {(r p.p)} = POISON;"
           %ipb  (roll p.p |=([i=@uvre o=tape] (weld "CHECK({(r i)});" o)))
         ==
       ++  c-site
