@@ -158,7 +158,7 @@
 +$  gen  [redo=(list [t=bell b=@uwoo]) =pile]
 ::
 ++  jean
-  |_  [=gen like=(map bell (pair @uxor need))]
+  |_  [labe=@uxor like=(map bell (pair @uxor need)) =gen]
   ::
   ::    core DDCG linearizer
   ::
@@ -264,7 +264,7 @@
         ?^  wip=(~(get by like) u.bull)
           =^  s  gen  (scar q.u.wip)
           [[| p.u.wip s] gen]
-        :: XX only sometimes ~&  recur=(~(has in loop.norm.h) u.bull)
+        :: XX only sometimes recur=(~(has in loop.norm.h) u.bull)
         =^  s  gen  rain
         [[& 0x0 ~[s] [%this s]] gen]
       ::
@@ -834,6 +834,7 @@
     ::  left both, right this
     =^  ll  gen  ?~(lu=(sass left.l) rain [u.lu gen])
     =^  rr  gen  ?~(ru=(sass rite.l) rain [u.ru gen])
+    :: ~&  [%copy-cons labe well.pile.gen [ll rr] into=sass.r]
     %=  $
       tack  [[%| left.l %this ll] [%| rite.l %this rr] [%& sass.l] t.tack]
       pose  [[%con ll rr sass.r] pose]
@@ -942,6 +943,9 @@
       ?~  crop  rain
       [u.crop gen]
     =?  what.next  ?=(%none -.what.next)  [%this crap]
+    ::  XX skip poison on +1 ?
+    :: ?:  =(1 axe)
+    ::   [next gen]
     =|  bait=(list [r=@uvre c=?(%2 %3)])
     |-  ^-  [^next _gen]
     ?.  =(1 axe)
@@ -1092,22 +1096,22 @@
       ?^  free.band
         [i.free.band band(free t.free.band)]
       [next.band band(next +(next.band))]
-    =/  [dire=next =gen]  (~(cuts jean [*gen like]) i.toil)
+    =/  [dire=next =gen]  (~(cuts jean [labe like *gen]) i.toil)
     ::
     ::  reserved entrypoints
     ::
     =.  gen
-      =^  [wish=@uwoo sire=@uvre]  gen  (~(kerf jean gen like) dire)
-      (~(emir jean gen like) 0w0 [~ [%mov 0v0 sire]~ %hop wish])
+      =^  [wish=@uwoo sire=@uvre]  gen  (~(kerf jean [labe like gen]) dire)
+      (~(emir jean [labe like gen]) 0w0 [~ [%mov 0v0 sire]~ %hop wish])
     =>  =*  dot  .
         =^  [con=(list pole) ned=need]  gen
-          (~(bede jean [gen like]) what.dire)
+          (~(bede jean [labe like gen]) what.dire)
         =^  lit=(list pole)  what.dire
           (sede ned text.i.toil (flop con))
         ~?  ?=(%none -.what.dire)  [%need-none labe]
         %=  dot
           what.dire  what.dire
-          gen  (~(emir jean [gen like]) 0w1 [~ lit %hop then.dire])
+          gen  (~(emir jean [labe like gen]) 0w1 [~ lit %hop then.dire])
         ==
     ::
     =.  like  (~(put by like) i.toil [labe what.dire])
@@ -1124,7 +1128,7 @@
     =*  gen  gen.i.todo
     =.  gen
       %+  roll  redo.gen
-      |=([[b=bell u=@uwoo] =_gen] (~(redo jean gen like) b u))
+      |=([[b=bell u=@uwoo] =_gen] (~(redo jean [labe.i.todo like gen]) b u))
     %=    $
         todo  t.todo
         hill.fuji
