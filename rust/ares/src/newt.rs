@@ -69,10 +69,7 @@ pub struct Newt {
 
 impl Newt {
     pub fn new_from_files(input: std::fs::File, output: std::fs::File) -> Newt {
-        Newt {
-            input,
-            output,
-        }
+        Newt { input, output }
     }
 
     pub fn new() -> Newt {
