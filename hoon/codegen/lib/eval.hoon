@@ -150,8 +150,13 @@
   =/  pile  (~(got by hill.mont) indy)
   =/  blob  (~(got by will.pile) `@uwoo`0)
   =/  rasp=(map @uvre (unit))  [[0v0 `s] ~ ~]
+  =/  jets=(map [path @] gate)  ::  XX extract to file
+    %-  malt
+    :~
+      [[/'k.139'/one/dec 1] |=(a=* (mack dec +6.a))]
+      [[/'k.139'/one/add 1] |=(a=* (mack add +6.a))]
+    ==
   =|  mean=(list [@ta *])
-  =|  jets=(map [path @] $-(* *))
   |^  ^-  tone
     ?^  body.blob
       =*  i  i.body.blob
@@ -246,8 +251,8 @@
       =/  gate=(unit $-(* *))  (~(get by jets) n.i)
       =/  subj  +:(g u.i)
       ?.  ?=(~ gate)
-        =/  r  (mack gate +6.subj)
-        ?~  r  [%2 mean]  [%0 u.r]
+        =/  r  (u.gate subj)
+        ?:  ?=(~ r)  [%2 mean]  [%0 +:r]
       =/  pyle  (~(got by hill.mont) a.i)
       =/  r
         %=  $
@@ -271,8 +276,8 @@
       =/  gate=(unit $-(* *))  (~(get by jets) n.i)
       =/  subj  +:(g u.i)
       ?.  ?=(~ gate)
-        =/  r  (|=(s=* (mack gate +6.subj)))
-        ?~  r  [%2 mean]  [%0 u.r]
+        =/  r  (u.gate subj)
+        ?:  ?=(~ r)  [%2 mean]  [%0 +:r]
       =/  pyle  (~(got by hill.mont) a.i)
       %=  $
         pile  pyle
