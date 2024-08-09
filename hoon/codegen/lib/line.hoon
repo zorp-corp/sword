@@ -1206,8 +1206,20 @@
       ++  c-pole
         |=  p=pole
         ^-  tape
-        ?-  -.p
-          %imm  "NOUN_DECL {(r d.p)} = 0; // XX mug={(scow %ux (mug n.p))}"
+        ?-    -.p
+            %imm
+          %+  weld  "NOUN_DECL {(r d.p)} = "
+          ?-  n.p
+            ^   "CELL_BYTES(\{ mug: {(scow %x (mug n.p))} }); // XX lit"
+            %0  "NUL;"
+            %1  "ONE;"
+            @   =/  wid  (met 5 n.p)
+                ?-  wid
+                  %1  (zing "ATOM32(" (scow %x n.p) "U);" ~)
+                  %2  (zing "ATOM64(" (scow %x n.p) "ULL);" ~)
+                  @   "ATOM_BYTES(\{ mug: {(scow %x (mug n.p))} }); // XX lit"
+          ==    ==
+        ::
           %mov  "NOUN_DECL {(r d.p)} = {(r s.p)};"
           %inc  "NOUN_DECL {(r d.p)} = BUMP({(r s.p)});"
           %con  "NOUN_DECL {(r d.p)} = CONS({(r h.p)}, {(r t.p)});"
