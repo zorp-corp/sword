@@ -174,7 +174,7 @@
           %inc
         =/  v  +:(g s.i)
         ?^  v  [%2 mean]
-        $(rasp (p d.i .+(v)), body.blob t.body.blob)
+        $(rasp (p d.i `+(v)), body.blob t.body.blob)
       ::
           %con
         $(rasp (p d.i (both (g h.i) (g t.i))), body.blob t.body.blob)
