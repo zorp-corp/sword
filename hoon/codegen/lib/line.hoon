@@ -7,6 +7,102 @@
 =|  =fuji
 =>
 |%
+++  heed
+  |=  s=site
+  ^-  (list @uwoo)
+  ?+  -.s  ~
+    %clq  ~[z.s o.s]
+    %eqq  ~[z.s o.s]
+    %brn  ~[z.s o.s]
+    %hop  ~[t.s]
+    %hip  ~[t.s]
+    %lnk  ~[t.s]
+    %cal  ~[t.s]
+    %caf  ~[t.s]
+    %spy  ~[t.s]
+    %mer  ~[i.s m.s]
+  ==
+::
+++  py
+  |_  p=pile
+  ::
+  ++  bake
+    ^+  p
+    =.  p  fuse
+    ::  XX temporary: turn hip/phi into mov so we can run this as-is
+    ::  note that it's not safe to do mov coalescing on the output of this
+    ::  since we may now have multiple %mov's that target one register
+    ::
+    defi
+  ::
+  ++  defi
+    ^+  p
+    =|  back=(list @uwoo)
+    =/  queu=(list @uwoo)  [0w0 0w1 ~]
+    =/  seen  (~(gas in *(set @uwoo)) queu)
+    |-  ^+  p
+    ?~  queu
+      ?~  back  p
+      $(queu (flop back), back ~)
+    =/  blob  (~(got by will.p) i.queu)
+    ::
+    =?  will.p  ?=(%hip -.bend.blob)
+      %+  ~(put by will.p)  i.queu
+      =/  movs
+        %-  ~(rep by biff:(~(got by will.p) t.bend.blob))
+        |=  [[out=@uvre bin=(map @uwoo @uvre)] lit=(list pole)]
+        [[%mov (~(got by bin) c.bend.blob) out] lit]
+      [biff.blob (welp body.blob movs) %hop t.bend.blob]  :: XX flop?
+    ::
+    =/  more  (skip (heed bend.blob) ~(has in seen))
+    %=  $
+      queu  t.queu
+      back  (weld more back)
+      seen  (~(gas in seen) more)
+    ==
+  ::
+  ++  from
+    ^-  (jar @uwoo @uwoo)
+    %-  ~(rep by will.p)
+    |=  [[u=@uwoo b=blob] fum=(jar @uwoo @uwoo)]
+    (roll (heed bend.b) |=([i=@uwoo =_fum] (~(add ja fum) i u)))
+  ::
+  ++  fuse
+    =-  p(will -)
+    ::  bogus entry prevents 0w1 from being coalesced into 0w0
+    ::
+    =/  fum  (~(put by from) 0w1 [0w0 0w0 ~])
+    =/  wan  ^+(will.p ~)
+    =|  bak=(list @uwoo)
+    =/  for=(list @uwoo)  [0w0 0w1 ~]
+    =/  hav  (~(gas in *(set @uwoo)) for)
+    |-  ^+  wan
+    ?~  for
+      ?^  bak
+        $(for (flop bak), bak ~)
+      ?>(&((~(has by wan) 0w0) (~(has by wan) 0w1)) wan)
+    =/  b  (link i.for fum)
+    =/  nex  (flop (skip (heed bend.b) ~(has in hav)))
+    %=  $
+      for  t.for
+      wan  (~(put by wan) i.for b)
+      bak  (weld nex bak)
+      hav  (~(gas in hav) nex)
+    ==
+  ::
+  ++  link
+    |=  [i=@uwoo fum=(jar @uwoo @uwoo)]
+    ^-  blob
+    =/  b  (~(got by will.p) i)
+    :-  biff.b
+    |-  ^-  (pair (list pole) site)
+    ?.  ?=(%hop -.bend.b)  +.b
+    =/  tar  ~|  [missing=t.bend.b from=i ~(key by fum)]  (~(got by fum) t.bend.b)
+    ?.  ?=([* ~] tar)  +.b
+    ?>  =(i i.tar)
+    =/  nex  $(b (~(got by will.p) t.bend.b), i t.bend.b)
+    [(weld body.b p.nex) q.nex]
+  --
 ::    get analysis result by bell
 ::
 ++  puck
@@ -14,9 +110,9 @@
   =>  [b=b m=moan ..hone]
   ~+
   =/  h  (~(get ja m) form.b)
-  |-  ^-  (unit hone)  :: XX just hone?
+  |-  ^-  hone
   ?<  ?=(~ h)
-  ?:  =(text.b soot.i.h)  `i.h
+  ?:  =(text.b soot.i.h)  i.h
   $(h t.h)
 ::    compute which analysis results are not linearized and return in
 ::    toposorted order
@@ -32,9 +128,8 @@
     %-  ~(rep in novo)
     |=  [b=bell sire=(jug bell bell)]
     =/  hues  (puck b)
-    ?<  ?=(~ hues)
-    =/  team  (~(gas in *(set bell)) ~(val by ices.norm.u.hues))
-    =.  team  (~(dif in team) loop.norm.u.hues)
+    =/  team  (~(gas in *(set bell)) ~(val by ices.norm.hues))
+    =.  team  (~(dif in team) loop.norm.hues)
     =.  team  (~(int in team) novo)
     %-  ~(rep in team)
     |:  [k=*bell s=sire]
@@ -63,16 +158,16 @@
 +$  gen  [redo=(list [t=bell b=@uwoo]) =pile]
 ::
 ++  jean
-  |_  [=gen like=(map bell (pair @uxor need))]
+  |_  [labe=@uxor like=(map bell (pair @uxor need)) =gen]
   ::
   ::    core DDCG linearizer
   ::
   ++  cuts
     =/  =goal  [%done ~]
     |=  =bell
+    =.  bell.pile.gen  bell
     =/  h  (puck bell)
-    ?<  ?=(~ h)
-    =*  n  nomm.norm.u.h
+    =*  n  nomm.norm.h
     |-  ^-  [next _gen]
     ?-  -.n
         %par
@@ -135,7 +230,7 @@
         =^  flip  gen  rain
         =^  bird  gen  (emit ~ ~ %brn flip [zero once]:goal)
         $(goal [%next [%this flip] bird])
-      =/  bull  (~(get by ices.norm.u.h) rail.n)
+      =/  bull  (~(get by ices.norm.h) rail.n)
       ?~  bull
         :: indirect call
         ?-  -.goal
@@ -166,13 +261,10 @@
       ::    call subject go in which registers
       ::
       =^  a=[r=? wool=@uxor v=(list @uvre) n=need]  gen
-        ?^  lab=(~(get by peal.fuji) u.bull)
-          =^  s  gen  (scar q.u.lab)
-          [[| p.u.lab s] gen]
         ?^  wip=(~(get by like) u.bull)
           =^  s  gen  (scar q.u.wip)
           [[| p.u.wip s] gen]
-        :: XX only sometimes ~&  recur=(~(has in loop.norm.u.h) u.bull)
+        :: XX only sometimes recur=(~(has in loop.norm.h) u.bull)
         =^  s  gen  rain
         [[& 0x0 ~[s] [%this s]] gen]
       ::
@@ -462,7 +554,7 @@
             [[what.real [%mer gunk sunk funk mere chin misc]] gen]
           ==
         =/  body=(list pole)
-          ~[[%imm 0 gunk] [%imm (~(got by fizz.norm.u.h) hare.n) funk]]
+          ~[[%imm 0 gunk] [%imm (~(got by fizz.norm.h) hare.n) funk]]
         =^  cake  gen  (emit ~ body site)
         =^  fake  gen  $(n vice.n, goal [%next [%none ~] cake])
         =^  cope  gen  (copy fake ned)
@@ -498,7 +590,10 @@
   ++  redo
     |=  [=bell u=@uwoo]
     ^-  _gen
-    =/  [wool=@uxor n=need]  (~(got by like) bell)  :: XX
+    =/  [wool=@uxor n=need]
+      ~|  =/  h  ~|(%puck-bell (puck bell.pile.gen))
+          ((outa:blot:sack "redo fail: " `@`0 [seat area]:norm.h) %redo-fail)
+      (~(got by like) bell)  :: XX
     =/  blob  (~(got by will.pile.gen) u)
     ::
     =^  urge=[v=(list @uvre) n=need]  gen  (scar n)
@@ -598,9 +693,19 @@
       =^  lizz  gen  (emit ~ [%con l r sass.what.next]~ %hop then.next)
       [[lizz [%this l] [%this r]] gen]
     ::
-    ::  discards sick flag which is OK since we know we will fulfill the need
+        %both
+      =^  ln=$<(%none need)  gen
+        ?.  ?=(%none -.left.what.next)  [left.what.next gen]
+        =^(r gen rain [[%this r] gen])
+      =^  rn=$<(%none need)  gen
+        ?.  ?=(%none -.rite.what.next)  [rite.what.next gen]
+        =^(r gen rain [[%this r] gen])
+      =/  l  +:(sass ln)
+      =/  r  +:(sass rn)
+      =^  lizz  gen  (emit ~ [%con l r sass.what.next]~ %hop then.next)
+      ^-  [[@uwoo need need] _gen]
+      [[lizz ln rn] gen]
     ::
-        %both  [[then.next left.what.next rite.what.next] gen]
         %none  [[then.next what.next what.next] gen]
     ==
   ::  +sass:  outermost register
@@ -729,9 +834,11 @@
     ::  left both, right this
     =^  ll  gen  ?~(lu=(sass left.l) rain [u.lu gen])
     =^  rr  gen  ?~(ru=(sass rite.l) rain [u.ru gen])
+    :: ~&  [%copy-cons labe well.pile.gen [ll rr] into=sass.r]
     %=  $
       tack  [[%| left.l %this ll] [%| rite.l %this rr] [%& sass.l] t.tack]
-      pose  [[%con ll rr sass.r] pose]
+      :: pose  [[%con ll rr sass.r] pose]
+      pose  ?:(=(sass.l sass.r) pose [[%mov sass.l sass.r] pose])
     ==
   ::
   ++  bomb                                              ::  crash
@@ -744,7 +851,7 @@
     |=  [r=@uvre t=@uwoo]
     ^-  [next _gen]
     =^  mile  gen  (emit ~ [%poi r]~ %hop t)
-    [[%next [%none ~] t] gen]
+    [[%next [%none ~] mile] gen]
   ::
   ++  vial                                              ::  new label
     ^-  [@uwoo _gen]
@@ -837,6 +944,9 @@
       ?~  crop  rain
       [u.crop gen]
     =?  what.next  ?=(%none -.what.next)  [%this crap]
+    ::  XX skip poison on +1 ?
+    :: ?:  =(1 axe)
+    ::   [next gen]
     =|  bait=(list [r=@uvre c=?(%2 %3)])
     |-  ^-  [^next _gen]
     ?.  =(1 axe)
@@ -917,7 +1027,46 @@
     ::
         %none  $(tack t.tack)
     ==
+  ::  +bede: balance need and emit %cons (reversed)
+  ::
+  ++  bede
+    |=  n=need
+    ^-  [(pair (list pole) need) _gen]
+    ?:  =(%none -.n)  [[~ n] gen]
+    =|  out=(list pole)
+    |-  ^-  [(pair (list pole) $<(%none need)) _gen]
+    ?-    -.n
+        %this  [[out n] gen]
+        %both
+      =^  r  gen  $(n rite.n)
+      =^  l  gen  $(n left.n, out p.r)
+      =/  p  [%con +:(sass q.l) +:(sass q.r) sass.n]
+      [[[p p.l] n(left q.l, rite q.r)] gen]
+    ::
+        %none
+      =^  r  gen  rain
+      [[out [%this r]] gen]
+    ==
   --
+::  +sede: restrict need by sock
+::
+++  sede
+  |=  [n=need s=sock out=(list pole)]
+  ^-  (pair (list pole) need)
+  ?-  -.n
+    %this  ?.  ?=(%& cape.s)  [out n]
+           [[[%imm data.s sass.n] out] [%none ~]]
+  ::
+    %both  ?:  |(?=(%| cape.s) ?=(~ data.s))  [out n]
+           =/  c  ?@(cape.s [& &] cape.s)
+           =/  r  $(n rite.n, data.s +.data.s, cape.s -.c)
+           =/  l  $(n left.n, data.s -.data.s, cape.s +.c, out p.r)
+           :-  p.l
+           ?:  &(?=(%none -.q.l) ?=(%none -.q.r))  q.l
+           n(left q.l, rite q.r)
+  ::
+    %none  [out n]
+  ==
 ::  +sill: list of registers from a need
 ::
 ++  sill
@@ -938,120 +1087,57 @@
 ::    deferred, without changing the registerization of the calling arm
 ::
 ++  mill
-  =|  todo=(list [=bell labe=@uxor dire=next =gen])
-  =|  like=(map bell (pair @uxor need))
+  =|  todo=(list [labe=@uxor dire=next =gen])
+  =/  like  peal.fuji
   =/  toil  work
-  =/  wurk  toil
   =/  band  |2.fuji
   |-  ^+  fuji
   ?^  toil
-    =/  [dire=next =gen]  (~(cuts jean [*gen like]) i.toil)
     =^  labe  band
       ?^  free.band
         [i.free.band band(free t.free.band)]
       [next.band band(next +(next.band))]
-    %=  $
-       toil  t.toil
-       todo  [[i.toil labe dire gen] todo]
-       like  (~(put by like) i.toil [labe what.dire])
-    ==
-  |-  ^+  fuji
-  ?^  todo
-    =/  r  redo.gen.i.todo
-    |-  ^+  fuji
-    ?^  r
-      =.  gen.i.todo
-        ~|  =*  bel  bell.i.todo
-            =/  mot  (~(get ja moan) form.bel)
-            |-  ^-  ?(%redo-fail ~)
-            ?~  mot  ~
-            ?:  =(soot.i.mot text.bel)
-              ((outa:blot:sack "redo fail: " `@`0 [seat area]:norm.i.mot) %redo-fail)
-            $(mot t.mot)
-          (~(redo jean gen.i.todo like) i.r)
-      $(r t.r)
+    =/  [dire=next =gen]  (~(cuts jean [labe like *gen]) i.toil)
     ::
     ::  reserved entrypoints
     ::
-    =.  gen.i.todo
-      =^  [wish=@uwoo sire=@uvre]  gen.i.todo
-        (~(kerf jean gen.i.todo like) dire.i.todo)
-      ?.  (~(has by will.pile.gen.i.todo) wish)  ~&  %missing-wish  !!
-      %=  gen.i.todo
-        will.pile
-          %-  ~(gas by will.pile.gen.i.todo)
-          :~  [0w0 [~ [%mov 0v0 sire]~ %hop wish]]
-              [0w1 [~ ~ %hop then.dire.i.todo]]
-      ==  ==
+    =.  gen
+      =^  [wish=@uwoo sire=@uvre]  gen  (~(kerf jean [labe like gen]) dire)
+      (~(emir jean [labe like gen]) 0w0 [~ [%mov 0v0 sire]~ %hop wish])
+    =>  =*  dot  .
+        =^  [con=(list pole) ned=need]  gen
+          (~(bede jean [labe like gen]) what.dire)
+        =^  lit=(list pole)  what.dire
+          (sede ned text.i.toil (flop con))
+        ~?  ?=(%none -.what.dire)  [%need-none labe]
+        %=  dot
+          what.dire  what.dire
+          gen  (~(emir jean [labe like gen]) 0w1 [~ lit %hop then.dire])
+        ==
     ::
-    %=  ^$
-      todo  t.todo
-      fuji  %=  fuji
-              peal  (~(put by peal.fuji) [bell labe what.dire]:i.todo)
-              hill  %+  ~(put by hill.fuji)  labe.i.todo
-                    %=   pile.gen.i.todo
-                      walt  (sill what.dire.i.todo)
-                      bell  bell.i.todo
-    ==      ==      ==
-  ::
-  =.  |2.fuji  band
-  ::
-  ::  XX temporary: turn hip/phi into mov so we can run this as-is
-  ::  note that it's not safe to do mov coalescing on the output of this
-  ::  since we may now have multiple %mov's that target one register
-  =/  toil  wurk
+    =.  like  (~(put by like) i.toil [labe what.dire])
+    ?^  redo.gen
+      $(toil t.toil, todo [[labe dire gen] todo])
+    %=    $
+        toil  t.toil
+        hill.fuji
+      %+  ~(put by hill.fuji)  labe
+      ~(bake py pile.gen(walt (sill what.dire)))
+    ==
   |-  ^+  fuji
-  ?~  toil
-    fuji
-  %=  $
-      toil  t.toil
+  ?^  todo
+    =*  gen  gen.i.todo
+    =.  gen
+      %+  roll  redo.gen
+      |=([[b=bell u=@uwoo] =_gen] (~(redo jean [labe.i.todo like gen]) b u))
+    %=    $
+        todo  t.todo
+        hill.fuji
+      %+  ~(put by hill.fuji)  labe.i.todo
+      ~(bake py pile.gen(walt (sill what.dire.i.todo)))
+    ==
   ::
-      hill.fuji
-    =/  labe   p:(~(got by peal.fuji) i.toil)
-    =/  =pile  (~(got by hill.fuji) labe)
-    =|  back=(list @uwoo)
-    =/  queu=(list @uwoo)  [0w0 0w1 ~]
-    =/  seen  (~(gas in *(set @uwoo)) queu)
-    !.
-    |-  ^+  hill.fuji
-    ?~  queu
-      ?~  back
-        (~(put by hill.fuji) labe pile)
-      $(queu (flop back), back ~)
-    =/  blob  (~(got by will.pile) i.queu)
-    ::
-    =^  more=(list @uwoo)  blob
-      ?-  -.bend.blob
-          %hip
-        :-  ~[t.bend.blob]
-        =/  movs
-          %-  ~(rep by biff:(~(got by will.pile) t.bend.blob))
-          |=  [[out=@uvre bin=(map @uwoo @uvre)] lit=(list pole)]
-          [[%mov (~(got by bin) c.bend.blob) out] lit]
-        [biff.blob (welp body.blob movs) %hop t.bend.blob]  :: XX flop?
-      ::
-          %clq  [~[z o]:bend.blob blob]
-          %eqq  [~[z o]:bend.blob blob]
-          %brn  [~[z o]:bend.blob blob]
-          %hop  [~[t.bend.blob] blob]
-          %lnk  [~[t.bend.blob] blob]
-          %cal  [~[t.bend.blob] blob]
-          %caf  [~[t.bend.blob] blob]
-          %lnt  `blob
-          %jmp  `blob
-          %jmf  `blob
-          %spy  [~[t.bend.blob] blob]
-          %mer  [~[i m]:bend.blob blob]
-          %don  `blob
-          %bom  `blob
-      ==
-    |-  ^+  hill.fuji
-    ?~  more
-      ^$(queu t.queu, will.pile (~(put by will.pile) i.queu blob))
-    ?:  (~(has in seen) i.more)
-      $(more t.more)
-    $(more t.more, back [i.more back], seen (~(put in seen) i.more))
-  ==
+  fuji(peal like, |2 band)
 --
 =+  ver=%1
 |%
@@ -1120,8 +1206,20 @@
       ++  c-pole
         |=  p=pole
         ^-  tape
-        ?-  -.p
-          %imm  "NOUN_DECL {(r d.p)} = 0; // XX mug={(scow %ux (mug n.p))}"
+        ?-    -.p
+            %imm
+          %+  weld  "NOUN_DECL {(r d.p)} = "
+          ?-  n.p
+            ^   "CELL_BYTES(\{ mug: {(scow %x (mug n.p))} }); // XX lit"
+            %0  "NUL;"
+            %1  "ONE;"
+            @   =/  wid  (met 5 n.p)
+                ?-  wid
+                  %1  (zing "ATOM32(" (scow %x n.p) "U);" ~)
+                  %2  (zing "ATOM64(" (scow %x n.p) "ULL);" ~)
+                  @   "ATOM_BYTES(\{ mug: {(scow %x (mug n.p))} }); // XX lit"
+          ==    ==
+        ::
           %mov  "NOUN_DECL {(r d.p)} = {(r s.p)};"
           %inc  "NOUN_DECL {(r d.p)} = BUMP({(r s.p)});"
           %con  "NOUN_DECL {(r d.p)} = CONS({(r h.p)}, {(r t.p)});"
@@ -1137,7 +1235,7 @@
           %tim  "BOUT_START();"
           %tom  "BOUT_STOP();"
           %mem  "MEME_SLOG();"
-          %poi  "POISON({(r p.p)});"
+          %poi  "NOUN_DECL {(r p.p)} = POISON;"
           %ipb  (roll p.p |=([i=@uvre o=tape] (weld "CHECK({(r i)});" o)))
         ==
       ++  c-site
@@ -1220,13 +1318,14 @@
     ?.  =(~ xob)
       $(box (flop xob), xob ~)
     =/  fun=wain  (zing (flop [`wain`['}' ~] bot]))
+    =.  fun  (welp ['/*' +>+:(c-blob 0w0 (~(got by will.p) 0w0))] ['*/' fun])
     =.  fun
       :*  (crip ['/' '/' ' ' ' ' (n q:(~(got by peal.fuji) bell.p))])
           '//'
           (crip "NOUN_DECL {(f i.fox)}({(d-args walt.p)}) \{")
           fun
       ==
-    =/  n  norm.u.+:(puck bell.p)
+    =/  n  norm:(puck bell.p)
     =?  fun  ?=(^ seat.n)
       :*  '//    as called from:'
           (crip ['/' '/' ' ' ' ' ' ' ' ' ~(ram re (ren:blot:sack u.seat.n))])
@@ -1239,7 +1338,7 @@
   =/  [ux=(unit @uxor) uw=(list @uwoo) wa=wain]
     (c-blob i.box (~(got by will.p) i.box))
   =.  ux  `(unit @uxor)`?:(|(?=(~ ux) (~(has in fen) u.ux)) ~ `u.ux)
-  =.  uw  (skip uw ~(has in ben))
+  =.  uw  (flop (skip uw ~(has in ben)))
   %=  $
     xof  ?~(ux xof [u.ux xof])
     fen  ?~(ux fen (~(put in fen) u.ux))

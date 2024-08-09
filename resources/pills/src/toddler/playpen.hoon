@@ -800,11 +800,9 @@
         ^-  tape
         ~+
         ?.  ?=(%$ -.lot)  !!
-        =+  [yed=(end 3 p.p.lot) hay=(cut 3 [1 1] p.p.lot)]
-        |-  ^-  tape
-        ?+    yed  !!
+        ^-  tape
+        ?+    p.p.lot  !!
             %ud
-          ::
           =/  gam=tape
             ((ox-co [10 3] |=(a=@ ~(d ne a))) q.p.lot)
           ?:  =(0 q.p.lot)
