@@ -161,7 +161,8 @@
   =<
   =^  [indy=@uxor mont=_fuji]  line  (peep s f)
   =/  pile  (~(got by hill.mont) indy)
-  =/  blob  (~(got by will.pile) `@uwoo`0)
+  =/  b=@uwoo  0w0
+  =/  blob  (~(got by will.pile) b)
   =/  rasp=(map @uvre (unit))  [[0v0 `s] ~ ~]
   =|  mean=(list [@ta *])
   |^  ^-  tone
@@ -245,6 +246,8 @@
       =/  pyle  (~(got by hill.mont) a.i)
       =/  r
         %=  $
+          indy  a.i
+          b     0w1
           blob  (~(got by will.pyle) 0w1)
           pile  pyle
           rasp  (afar v.i walt.pyle)
@@ -263,6 +266,8 @@
       =/  pyle  (~(got by hill.mont) a.i)
       =/  r
         %=  $
+          indy  a.i
+          b     0w1
           blob  (~(got by will.pyle) 0w1)
           pile  pyle
           rasp  (afar v.i walt.pyle)
@@ -274,6 +279,8 @@
         %jmp
       =/  pyle  (~(got by hill.mont) a.i)
       %=  $
+        indy  a.i
+        b     0w1
         pile  pyle
         blob  (~(got by will.pyle) 0w1)
         rasp  (afar v.i walt.pyle)
@@ -288,6 +295,8 @@
         ?:  ?=(~ r)  [%2 mean]  [%0 +:r]
       =/  pyle  (~(got by hill.mont) a.i)
       %=  $
+        indy  a.i
+        b     0w1
         pile  pyle
         blob  (~(got by will.pyle) 0w1)
         rasp  (afar v.i walt.pyle)
@@ -299,7 +308,8 @@
     ==
   ++  g
     |=  r=@uvre
-    ~|  r   (~(got by rasp) r)
+    ~|  [labe=indy blob=b r=r]
+    (~(got by rasp) r)
   ++  p
     ::  XX assert not present (bc SSA)
     |=  [r=@uvre v=(unit)]
@@ -309,7 +319,8 @@
     |=  [s=@uvre d=@uvre]
     ^-  _rasp
     (~(put by rasp) d (~(got by rasp) s))
-  ++  goto  |=(b=@uwoo ^$(blob (~(got by will.pile) b)))
+  ++  goto
+    |=(b=@uwoo ^$(b b, blob (~(got by will.pile) b)))
   ++  afar
     |=  [v=(list @uvre) walt=(list @uvre)]
     =|  m=(map @uvre (unit))
