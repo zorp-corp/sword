@@ -614,7 +614,7 @@ _bt_nalloc(BT_state *state)
 
 static int
 _node_cow(BT_state *state, BT_page *node, pgno_t *pgno)
-{                                   /* ;;: !!! HERE HERE HERE */
+{
   BT_page *ret = _bt_nalloc(state); /* ;;: todo: assert node has no dirty entries */
   memcpy(ret->datk, node->datk, sizeof node->datk[0] * BT_DAT_MAXKEYS);
   *pgno = _fo_get(state, ret);
@@ -693,7 +693,7 @@ _bt_find2(BT_state *state,
 }
 
 static void
-_bt_root_new(BT_meta *meta, BT_page *root) /* ;;: todo: remove meta param */
+_bt_root_new(BT_page *root)
 {
   /* The first usable address in the PMA is just beyond the btree segment */
   root->datk[0].va = B2PAGES(BLK_BASE_LEN_TOTAL);
@@ -789,7 +789,7 @@ _bt_dirtydata(BT_page *leaf, size_t child_idx)
 
 static int
 _bt_cleanchild(BT_page *parent, size_t child_idx)
-{                               /* ;;: Is this correct? --yes */
+{
   assert(_bt_ischilddirty(parent, child_idx));
   uint8_t *flag = &parent->head.dirty[child_idx >> 3];
   *flag ^= 1 << (child_idx & 0x7);
@@ -821,7 +821,7 @@ _bt_split_datcopy(BT_page *left, BT_page *right)
 static int
 _bt_dirtyshift(BT_page *node, size_t idx, size_t n)
 /* shift dirty bitset at idx over by n bits */
-{                               /* ;;: is this correct? */
+{
   assert(idx + n < 2048);
   uint8_t copy[256] = {0};
   /* copy bitset left of idx */
@@ -911,7 +911,6 @@ _bt_insertdat(vaof_t lo, vaof_t hi, pgno_t fo,
     return BT_SUCC;
   }
 
-  /* ;;: todo: any calls to datshift need to also shift the dirty bitset */
   if (llo == lo) {
     _bt_datshift(parent, childidx + 1, 1);
     _bt_dirtyshift(parent, childidx + 1, 1);
@@ -1570,22 +1569,6 @@ _bt_insert2(BT_state *state, vaof_t lo, vaof_t hi, pgno_t fo,
     node->datk[childidx].fo = pgno;
     _bt_dirtychild(node, childidx);
   }
-  else {
-#if 0                           /* ;;: ... so where are we failing to mprotect
-                                     writable a dirty node? Doesn't really make
-                                     sense */
-    /* ;;: tmp  **************************************************************/
-    BT_page *child = _node_get(state, node->datk[childidx].fo);
-    if (mprotect(child, sizeof(BT_page), BT_PROT_DIRTY) != 0) {
-      DPRINTF("mprotect of node: %p failed with %s", child, strerror(errno));
-      abort();
-    }
-    /* - *********************************************************************/
-#endif
-  }
-  /* ;;: the issue seems to be fundamentally that we've marked a node as dirty
-       (and therefore not requiring an mprotect(DIRTY)) when it isn't in fact
-       dirty. The node while marked dirty, remains read-only - hence, SIGSEGV */
 
   /* do we need to split the child node? */
   if (N >= BT_DAT_MAXKEYS - 2) {
@@ -2419,7 +2402,7 @@ _bt_state_meta_inject_root(BT_state *state)
   assert(state->nlist);
   BT_meta *meta = state->meta_pages[state->which];
   BT_page *root = _bt_nalloc(state);
-  _bt_root_new(meta, root);
+  _bt_root_new(root);
   meta->root = _fo_get(state, root);
   assert(meta->root == INITIAL_ROOTPG);
   return BT_SUCC;
@@ -2667,7 +2650,7 @@ _bt_sync_hasdirtypage(BT_state *state, BT_page *node) __attribute((unused));
 static int
 _bt_sync_hasdirtypage(BT_state *state, BT_page *node)
 /* ;;: could be more efficiently replaced by a gcc vectorized builtin */
-{                               /* ;;: check callers to this routine use it correctly */
+{
   for (size_t i = 0; i < NMEMB(node->head.dirty); i++) {
     if (node->head.dirty[i] != 0)
       return 1;
@@ -2806,7 +2789,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
 
   /* do dfs */
   for (size_t i = 0; i < N-1; i++) {
-    if (!_bt_ischilddirty(node, i)) /* ;;: consider removing case until dirty logic is foolproof */
+    if (!_bt_ischilddirty(node, i))
       continue;                 /* not dirty. nothing to do */
 
     BT_page *child = _node_get(state, node->datk[i].fo);
@@ -2818,9 +2801,7 @@ _bt_sync(BT_state *state, BT_page *node, uint8_t depth, uint8_t maxdepth)
 
  e:
   /* zero out the dirty bitmap */
-  /* ZERO(&node->head.dirty[0], sizeof node->head.dirty); */
-  for (size_t i = 0; i < 256; i++)
-    node->head.dirty[i] = 0;
+  ZERO(&node->head.dirty[0], sizeof node->head.dirty);
 
   /* all modifications done in node, mark it read-only */
   if (mprotect(node, sizeof(BT_page), BT_PROT_CLEAN) != 0) {
