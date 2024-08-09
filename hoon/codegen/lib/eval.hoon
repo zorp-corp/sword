@@ -172,11 +172,9 @@
           %imm  $(rasp (p d.i `n.i), body.blob t.body.blob)
           %mov  $(rasp (mov s.i d.i), body.blob t.body.blob)
           %inc
-        =/  c  (g s.i)
-        %=  $
-          rasp       (p d.i ?.(?=([~ @] c) ~ `+(u.c)))
-          body.blob  t.body.blob
-        ==
+        =/  v  +:(g s.i)
+        ?^  v  [%2 mean]
+        $(rasp (p d.i .+(v)), body.blob t.body.blob)
       ::
           %con
         $(rasp (p d.i (both (g h.i) (g t.i))), body.blob t.body.blob)

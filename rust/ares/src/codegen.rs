@@ -439,6 +439,7 @@ pub fn cg_interpret_with_snapshot(
                 .head()
                 .as_cell()
                 .expect("Codegen instruction should be a cell");
+            eprintln!("{}\r", inst_cell);
             let inst_tag = inst_cell
                 .head()
                 .as_atom()
@@ -456,6 +457,9 @@ pub fn cg_interpret_with_snapshot(
                     let mov_cell = inst_cell.tail().as_cell().unwrap();
                     let mov_s = mov_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let mov_d = mov_cell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
+                    if mov_s == 6 && mov_d == 5 {
+                        eprintln!("s none: {}\r", frame.vars()[mov_s].is_none());
+                    }
                     frame.vars_mut()[mov_d] = frame.vars()[mov_s];
                 }
                 tas!(b"inc") => {
@@ -475,6 +479,7 @@ pub fn cg_interpret_with_snapshot(
                     let con_t = con_tell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let con_d = con_tell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
                     if frame.vars()[con_h].is_none() || frame.vars()[con_t].is_none() {
+                        eprintln!("con: poisoned {}\r", con_d);
                         frame.vars_mut()[con_d] = NOUN_NONE;
                     } else {
                         frame.vars_mut()[con_d] = T(
@@ -488,13 +493,11 @@ pub fn cg_interpret_with_snapshot(
                     let hed_s = hed_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let hed_d = hed_cell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
                     let s_noun = frame.vars()[hed_s];
-                    if s_noun.is_none() {
+                    if s_noun.is_none() || !s_noun.is_cell() {
+                        eprintln!("hed: poisoned {}\r", hed_d);
                         frame.vars_mut()[hed_d] = NOUN_NONE;
-                    } else if let Ok(s_cell) = s_noun.as_cell() {
-                        frame.vars_mut()[hed_d] = s_cell.head();
                     } else {
-                        frame.vars_mut()[hed_s] = NOUN_NONE; // XX poison s if it's an atom
-                        frame.vars_mut()[hed_d] = NOUN_NONE;
+                        frame.vars_mut()[hed_d] = s_noun.as_cell().unwrap().head();
                     }
                 }
                 tas!(b"tal") => {
@@ -502,13 +505,11 @@ pub fn cg_interpret_with_snapshot(
                     let tal_s = tal_cell.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let tal_d = tal_cell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
                     let s_noun = frame.vars()[tal_s];
-                    if s_noun.is_none() {
+                    if s_noun.is_none() || !s_noun.is_cell() {
+                        eprintln!("tal: poisoned {}\r", tal_d);
                         frame.vars_mut()[tal_d] = NOUN_NONE;
-                    } else if let Ok(s_cell) = s_noun.as_cell() {
-                        frame.vars_mut()[tal_d] = s_cell.tail();
                     } else {
-                        frame.vars_mut()[tal_s] = NOUN_NONE; // XX poison s if it's an atom
-                        frame.vars_mut()[tal_d] = NOUN_NONE;
+                        frame.vars_mut()[tal_d] = s_noun.as_cell().unwrap().tail();
                     }
                 }
                 tas!(b"men") => {
@@ -536,9 +537,9 @@ pub fn cg_interpret_with_snapshot(
                 }
                 tas!(b"slg") => {
                     let slg_s = inst_cell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
-                    context
-                        .newt
-                        .slog(&mut context.stack, 0, frame.vars()[slg_s]);
+                    eprintln!("slg s is none: {}\r", frame.vars()[slg_s].is_none());
+                    context.newt.slog2(&mut context.stack, frame.vars()[slg_s]);
+                    eprintln!("slgged\r");
                 }
                 tas!(b"mew") => {
                     let mew_kufr = inst_cell.tail().as_cell().unwrap();
@@ -569,6 +570,7 @@ pub fn cg_interpret_with_snapshot(
                 }
                 tas!(b"poi") => {
                     let poi_p = inst_cell.tail().as_atom().unwrap().as_u64().unwrap() as usize;
+                    eprintln!("poi: poisoned {}\r", poi_p);
                     frame.vars_mut()[poi_p] = NOUN_NONE;
                 }
                 tas!(b"ipb") => {
@@ -594,6 +596,7 @@ pub fn cg_interpret_with_snapshot(
             let inst_cell = bend
                 .as_cell()
                 .expect("Codegen instruction should be a cell");
+            eprintln!("{}\r", inst_cell);
             let inst_tag = inst_cell
                 .head()
                 .as_atom()
@@ -608,6 +611,8 @@ pub fn cg_interpret_with_snapshot(
                     let clq_zo = clq_cell.tail().as_cell().unwrap();
                     let clq_z = clq_zo.head().as_atom().unwrap().as_u64().unwrap() as usize;
                     let clq_o = clq_zo.tail().as_atom().unwrap().as_u64().unwrap() as usize;
+
+                    eprintln!("clq: s is none: {}\r", frame.vars()[clq_s].is_none());
 
                     if frame.vars()[clq_s].is_cell() {
                         goto(context, &mut body, &mut bend, clq_z);

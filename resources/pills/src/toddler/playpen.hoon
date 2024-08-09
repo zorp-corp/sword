@@ -1,7 +1,7 @@
 ::  This file aims to approach hoon.hoon, as the pieces necessary to run a live
 ::  ship with Ares as Serf are written. Required to run toddler.hoon as an Arvo.
 ::
-!.
+!:
 =>  %a50
 ~%  %a.50  ~  ~
 |%
@@ -178,7 +178,7 @@
 ::  Tree addressing
 ::
 ++  cap                                                 ::  index in head or tail
-  ~/  %cap                                              
+  ~/  %cap
   |=  a=@
   ~>  %sham.%cap
   ^-  ?(%2 %3)
