@@ -984,9 +984,13 @@
         $(tres [[now p %this b] tres], twig [%this a], pose [pole pose])
       ::
           %both
-        =/  =pole  [%mov p sass.twig]
-        =*  l  left.twig
-        =*  r  rite.twig
+        =^  l=$<(%none need)  gen
+          ?.  ?=(%none -.left.twig)  [left.twig gen]
+          =^(r gen rain [[%this r] gen])
+        =^  r=$<(%none need)  gen
+          ?.  ?=(%none -.rite.twig)  [rite.twig gen]
+          =^(r gen rain [[%this r] gen])
+        =/  =pole  [%con +:(sass l) +:(sass r) sass.twig]
         =+  [a b]=?:(?=(%2 now) [l r] [r l])
         $(tres [[now p b] tres], twig a, pose [pole pose])
       ::
@@ -1018,12 +1022,9 @@
       $(todo [pole todo], tack t.tack)
     ::
         %both
-      %=    $
-          tack
-        ?:  ?=(?(~ [~ @]) no)
-          [[~ rite.ne] [~ left.ne] t.tack]
-        [[`+.u.no rite.ne] [`-.u.no left.ne] t.tack]
-      ==
+      =^  [y=@uwoo r=@uvre]  gen  (kerf [%next ne u])
+      =/  =pole  ?~(no [%poi r] [%imm u.no r])
+      $(u y, todo [pole todo], tack t.tack)
     ::
         %none  $(tack t.tack)
     ==
