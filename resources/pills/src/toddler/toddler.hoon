@@ -2,7 +2,7 @@
 ::  scaffolding directory.
 ::
 /+  playpen
-!.
+!:
 =/  core
   =>  playpen
   !=
@@ -58,6 +58,8 @@
     |=  [now=@da ovo=ovum]
     ^-  ^
     ::
+    ~>  %slog.[0 p.card.ovo]
+    ~>  %slog.[0 [%rose ["/" "/" ""] wire.ovo]]
     ?.  ?=(?(%crud %wack %wyrd) p.card.ovo)
       ~>  %slog.[0 leaf+(scow %ud (slow (bex 23)))]
       [~ ..poke]

@@ -151,6 +151,11 @@ impl Newt {
         self.write_noun(stack, slog);
     }
 
+    pub fn slog2(&mut self, stack: &mut NockStack, arg: Noun) {
+        let slog = T(stack, &[D(tas!(b"slog")), arg]);
+        self.write_noun(stack, slog);
+    }
+
     /** Send %flog, raw debug output. */
     pub fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
         let flog = T(stack, &[D(tas!(b"flog")), cord]);

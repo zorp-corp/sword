@@ -15,6 +15,7 @@ pub mod mug;
 pub mod newt;
 pub mod noun;
 pub mod serf;
+pub mod site;
 //pub mod bytecode;
 pub mod persist;
 pub mod serialization;

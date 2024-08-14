@@ -100,6 +100,11 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
         jet_turn,
     ),
     (
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"roll")],
+        1,
+        jet_roll,
+    ),
+    (
         &[K_139, Left(b"one"), Left(b"two"), Left(b"zing")],
         1,
         jet_zing,
@@ -218,6 +223,16 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
         &[K_139, Left(b"one"), Left(b"two"), Left(b"jam")],
         1,
         jet_jam,
+    ),
+    (
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"by"), Left(b"rep")],
+        1,
+        jet_by_rep,
+    ),
+    (
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"in"), Left(b"rep")],
+        1,
+        jet_by_rep, // +rep:in has the same signature as +rep:by
     ),
     //
     (

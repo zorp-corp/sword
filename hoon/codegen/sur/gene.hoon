@@ -96,7 +96,7 @@
 ::  %tom - Pop a timer from the timer stack, stop it, and print elapsed
 ::  %mem - Print memory usage
 ::  %poi - Poison d
-::  %ibp - If any register in s is poisoned, crash.
+::  %ipp - If any register in s is poisoned, crash.
 +$  pole
   $%  [%imm n=* d=@uvre]
       [%mov s=@uvre d=@uvre]
