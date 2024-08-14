@@ -1022,12 +1022,9 @@
       $(todo [pole todo], tack t.tack)
     ::
         %both
-      %=    $
-          tack
-        ?:  ?=(?(~ [~ @]) no)
-          [[~ rite.ne] [~ left.ne] t.tack]
-        [[`+.u.no rite.ne] [`-.u.no left.ne] t.tack]
-      ==
+      =^  [y=@uwoo r=@uvre]  gen  (kerf [%next ne u])
+      =/  =pole  ?~(no [%poi r] [%imm u.no r])
+      $(u y, todo [pole todo], tack t.tack)
     ::
         %none  $(tack t.tack)
     ==
