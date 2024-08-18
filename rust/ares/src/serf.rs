@@ -85,6 +85,7 @@ struct Context {
     event_num: u64,
     arvo: Noun,
     mug: u32,
+    newt: Newt,
     nock_context: interpreter::Context,
 }
 
@@ -162,10 +163,11 @@ impl Context {
         let hot = Hot::init(&mut stack, constant_hot_state);
         let warm = Warm::init(&mut stack, &mut cold, &hot);
         let mug = mug_u32(&mut stack, arvo);
+        let slogger = newt.slogger().expect("Newt should make slogger");
 
         let nock_context = interpreter::Context {
             stack,
-            newt,
+            slogger,
             cold,
             warm,
             hot,
@@ -178,6 +180,7 @@ impl Context {
             epoch,
             event_num,
             arvo,
+            newt,
             mug,
             nock_context,
         }
@@ -223,11 +226,11 @@ impl Context {
     //
 
     pub fn next(&mut self) -> Option<Noun> {
-        self.nock_context.newt.next(&mut self.nock_context.stack)
+        self.newt.next(&mut self.nock_context.stack)
     }
 
     pub fn ripe(&mut self) {
-        self.nock_context.newt.ripe(
+        self.newt.ripe(
             &mut self.nock_context.stack,
             self.event_num,
             self.mug as u64,
@@ -235,23 +238,20 @@ impl Context {
     }
 
     pub fn live(&mut self) {
-        self.nock_context.newt.live(&mut self.nock_context.stack);
+        self.newt.live(&mut self.nock_context.stack);
     }
 
     pub fn peek_done(&mut self, dat: Noun) {
-        self.nock_context
-            .newt
-            .peek_done(&mut self.nock_context.stack, dat);
+        self.newt.peek_done(&mut self.nock_context.stack, dat);
     }
 
     pub fn play_done(&mut self) {
-        self.nock_context
-            .newt
+        self.newt
             .play_done(&mut self.nock_context.stack, self.mug as u64);
     }
 
     pub fn play_bail(&mut self, dud: Noun) {
-        self.nock_context.newt.play_bail(
+        self.newt.play_bail(
             &mut self.nock_context.stack,
             self.event_num,
             self.mug as u64,
@@ -260,7 +260,7 @@ impl Context {
     }
 
     pub fn work_done(&mut self, fec: Noun) {
-        self.nock_context.newt.work_done(
+        self.newt.work_done(
             &mut self.nock_context.stack,
             self.event_num,
             self.mug as u64,
@@ -269,7 +269,7 @@ impl Context {
     }
 
     pub fn work_swap(&mut self, job: Noun, fec: Noun) {
-        self.nock_context.newt.work_swap(
+        self.newt.work_swap(
             &mut self.nock_context.stack,
             self.event_num,
             self.mug as u64,
@@ -279,9 +279,7 @@ impl Context {
     }
 
     pub fn work_bail(&mut self, lud: Noun) {
-        self.nock_context
-            .newt
-            .work_bail(&mut self.nock_context.stack, lud);
+        self.newt.work_bail(&mut self.nock_context.stack, lud);
     }
 }
 

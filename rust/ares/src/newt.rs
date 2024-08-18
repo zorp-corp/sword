@@ -1,3 +1,4 @@
+use crate::interpreter::Slogger;
 /** Newt: IPC to the king
  *
  * This manages an IPC connection to the king over stdin and stdout.  The protocol is jammed nouns,
@@ -57,6 +58,7 @@ use ares_macros::tas;
 use either::Either;
 use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
+use std::pin::Pin;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts_mut;
 
@@ -149,22 +151,6 @@ impl Newt {
         self.write_noun(stack, live);
     }
 
-    /** Send %slog, pretty-printed debug output.
-     *
-     * pri  =   debug priority
-     * tank =   output as tank
-     */
-    pub fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
-        let slog = T(stack, &[D(tas!(b"slog")), D(pri), tank]);
-        self.write_noun(stack, slog);
-    }
-
-    /** Send %flog, raw debug output. */
-    pub fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
-        let flog = T(stack, &[D(tas!(b"flog")), cord]);
-        self.write_noun(stack, flog);
-    }
-
     /** Send %peek %done, successfully scried. */
     pub fn peek_done(&mut self, stack: &mut NockStack, dat: Noun) {
         let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"done")), dat]);
@@ -232,6 +218,12 @@ impl Newt {
         self.write_noun(stack, work);
     }
 
+    pub fn slogger(&self) -> Result<Pin<Box<dyn Slogger + Unpin>>, std::io::Error> {
+        let input = self.input.try_clone()?;
+        let output = self.output.try_clone()?;
+        Ok(std::boxed::Box::pin(NewtSlogger(Newt { input, output })))
+    }
+
     /** Send %work %bail, failed to run event.
      *
      * lud  =   list of goof
@@ -270,8 +262,32 @@ impl Newt {
     }
 }
 
+impl Slogger for Newt {
+    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
+        let slog = T(stack, &[D(tas!(b"slog")), D(pri), tank]);
+        self.write_noun(stack, slog);
+    }
+
+    fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
+        let flog = T(stack, &[D(tas!(b"flog")), cord]);
+        self.write_noun(stack, flog);
+    }
+}
+
 impl Default for Newt {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+struct NewtSlogger(Newt);
+
+impl Slogger for NewtSlogger {
+    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
+        self.0.slog(stack, pri, tank);
+    }
+
+    fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
+        self.0.flog(stack, cord);
     }
 }

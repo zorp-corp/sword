@@ -36,7 +36,6 @@ use crate::jets::sort::*;
 use crate::jets::tree::*;
 use crate::jets::warm::Warm;
 use crate::mem::{NockStack, Preserve};
-use crate::newt::Newt;
 use crate::noun::{self, Noun, Slots, D};
 use ares_macros::tas;
 
@@ -308,23 +307,36 @@ pub mod util {
     pub mod test {
         use super::*;
         use crate::hamt::Hamt;
+        use crate::interpreter::Slogger;
         use crate::mem::NockStack;
         use crate::noun::{Atom, Noun, D, T};
         use crate::unifying_equality::unifying_equality;
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
 
+        struct TestSlogger {}
+
+        impl Slogger for TestSlogger {
+            fn slog(&mut self, _stack: &mut NockStack, _pri: u64, _noun: Noun) {
+                eprintln!("Jet slogged.");
+            }
+
+            fn flog(&mut self, _stack: &mut NockStack, _cord: Noun) {
+                eprintln!("Jet flogged.");
+            }
+        }
+
         pub fn init_context() -> Context {
             let mut stack = NockStack::new(8 << 10 << 10, 0);
-            let newt = Newt::new_mock();
             let cold = Cold::new(&mut stack);
             let warm = Warm::new(&mut stack);
             let hot = Hot::init(&mut stack, URBIT_HOT_STATE);
             let cache = Hamt::<Noun>::new(&mut stack);
+            let slogger = std::boxed::Box::pin(TestSlogger {});
 
             Context {
                 stack,
-                newt,
+                slogger,
                 cold,
                 warm,
                 hot,

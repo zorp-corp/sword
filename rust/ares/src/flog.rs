@@ -61,7 +61,7 @@ pub fn nock_fmt(context: &mut Context, fmt: Arguments<'_>) -> Result<Atom> {
 
 pub fn flog_fmt(context: &mut Context, fmt: Arguments<'_>) -> Result<()> {
     let cord = nock_fmt(context, fmt)?;
-    context.newt.flog(&mut context.stack, cord.as_noun());
+    context.slogger.flog(&mut context.stack, cord.as_noun());
     Ok(())
 }
 

@@ -11,7 +11,6 @@ use crate::jets::warm::Warm;
 use crate::jets::JetErr;
 use crate::mem::NockStack;
 use crate::mem::Preserve;
-use crate::newt::Newt;
 use crate::noun;
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
 use crate::serf::TERMINATOR;
@@ -21,6 +20,8 @@ use ares_macros::tas;
 use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::*;
+use std::ops::DerefMut;
+use std::pin::Pin;
 use std::result;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -257,6 +258,35 @@ enum NockWork {
     Work12(Nock12),
 }
 
+pub trait Slogger {
+    // type SlogTarget;
+    // DerefMut<Target = SlogTarget>;
+    /** Send %slog, pretty-printed debug output.
+     *
+     * pri  =   debug priority
+     * tank =   output as tank
+     */
+    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun);
+
+    /** Send %flog, raw debug output. */
+    fn flog(&mut self, stack: &mut NockStack, cord: Noun);
+}
+
+impl<T: Slogger + DerefMut + Unpin + Sized> Slogger for Pin<&mut T>
+where
+    T::Target: Slogger + DerefMut + Unpin + Sized,
+{
+    // + Unpin
+    // type SlogTarget = T::Target;
+    fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
+        (*self).deref_mut().flog(stack, cord);
+    }
+
+    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
+        (**self).slog(stack, pri, tank);
+    }
+}
+
 pub struct ContextSnapshot {
     cold: Cold,
     warm: Warm,
@@ -264,7 +294,7 @@ pub struct ContextSnapshot {
 
 pub struct Context {
     pub stack: NockStack,
-    pub newt: Newt,
+    pub slogger: Pin<Box<dyn Slogger + Unpin>>,
     pub cold: Cold,
     pub warm: Warm,
     pub hot: Hot,
@@ -1472,14 +1502,15 @@ mod hint {
         match tag.direct()?.data() {
             tas!(b"slog") => {
                 let stack = &mut context.stack;
-                let newt = &mut context.newt;
+                let slogger = &mut context.slogger;
 
                 let (_form, clue) = hint?;
                 let slog_cell = clue.cell()?;
                 let pri = slog_cell.head().direct()?.data();
                 let tank = slog_cell.tail();
 
-                newt.slog(stack, pri, tank);
+                let s = (*slogger).deref_mut();
+                s.slog(stack, pri, tank);
             }
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
                 let terminator = Arc::clone(&TERMINATOR);
@@ -1504,7 +1535,7 @@ mod hint {
                 match mook(context, tone, true) {
                     Ok(toon) => {
                         let stack = &mut context.stack;
-                        let newt = &mut context.newt;
+                        let slogger = &mut context.slogger;
 
                         if unsafe { !toon.head().raw_equals(D(2)) } {
                             // +mook will only ever return a $toon with non-%2 head if that's what it was given as
@@ -1520,12 +1551,12 @@ mod hint {
                             }
 
                             if let Ok(cell) = list.as_cell() {
-                                newt.slog(stack, 0, cell.head());
+                                slogger.slog(stack, 0, cell.head());
                                 list = cell.tail();
                             } else {
                                 let stack = &mut context.stack;
                                 let tape = tape(stack, "serf: %hela: list ends without ~");
-                                slog_leaf(stack, newt, tape);
+                                slog_leaf(stack, slogger, tape);
                                 break;
                             }
                         }
@@ -1553,7 +1584,7 @@ mod hint {
         res: Noun,
     ) -> Option<Noun> {
         let stack = &mut context.stack;
-        let newt = &mut context.newt;
+        let slogger = &mut context.slogger;
         let cold = &mut context.cold;
         let hot = &context.hot;
         let cache = &mut context.cache;
@@ -1605,7 +1636,7 @@ mod hint {
                                         stack,
                                         "serf: cold: register: invalid root parent axis",
                                     );
-                                    slog_leaf(stack, newt, tape);
+                                    slog_leaf(stack, slogger, tape);
                                     Ok(false)
                                 }
                             } else {
@@ -1622,19 +1653,19 @@ mod hint {
                                     stack,
                                     "serf: cold: register: could not find parent battery at given axis",
                                 );
-                                slog_leaf(stack, newt, tape);
+                                slog_leaf(stack, slogger, tape);
                             }
                             Err(cold::Error::BadNock) => {
                                 //  XX: Need better message in slog; need better slogging tools
                                 //      format!("bad clue formula: {}", clue)
                                 let tape = tape(stack, "serf: cold: register: bad clue formula");
-                                slog_leaf(stack, newt, tape);
+                                slog_leaf(stack, slogger, tape);
                             }
                             _ => {}
                         }
                     } else {
                         let tape = tape(stack, "serf: cold: register: no clue for %fast");
-                        slog_leaf(stack, newt, tape);
+                        slog_leaf(stack, slogger, tape);
                     }
                 }
             }
@@ -1644,9 +1675,9 @@ mod hint {
         None
     }
 
-    fn slog_leaf(stack: &mut NockStack, newt: &mut Newt, tape: Noun) {
+    fn slog_leaf(stack: &mut NockStack, slogger: &mut Pin<Box<dyn Slogger + Unpin>>, tape: Noun) {
         let tank = T(stack, &[LEAF, tape]);
-        newt.slog(stack, 0u64, tank);
+        slogger.slog(stack, 0u64, tank);
     }
 }
 
