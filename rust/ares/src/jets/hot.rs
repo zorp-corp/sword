@@ -283,6 +283,19 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
             Left(b"two"),
             Left(b"tri"),
             Left(b"qua"),
+            Left(b"trip"),
+        ],
+        1,
+        jet_trip,
+    ),
+    //
+    (
+        &[
+            K_139,
+            Left(b"one"),
+            Left(b"two"),
+            Left(b"tri"),
+            Left(b"qua"),
             Left(b"last"),
         ],
         1,

@@ -1,13 +1,44 @@
 /** Parsing jets
  */
 use crate::interpreter::Context;
+use crate::jets::bits::util::met;
 use crate::jets::math::util::{gte_b, lte_b, lth_b};
 use crate::jets::util::{kick, slam, slot, BAIL_FAIL};
 use crate::jets::Result;
-use crate::noun::{Noun, D, T};
+use crate::noun::{Cell, Noun, D, T};
 use either::{Left, Right};
 
 crate::gdb!();
+
+//
+//  Text conversion
+//
+pub fn jet_trip(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?.as_atom()?;
+    let chars = met(3, sam);
+    if chars == 0 {
+        return Ok(D(0));
+    };
+
+    let bytes = &sam.as_bytes()[0..chars];
+
+    let mut result = D(0);
+    let mut dest = &mut result as *mut Noun;
+
+    for byte in bytes {
+        unsafe {
+            let (it, it_mem) = Cell::new_raw_mut(&mut context.stack);
+
+            // safe because a byte can't overflow a direct atom
+            (*it_mem).head = D((*byte) as u64);
+
+            *dest = it.as_noun();
+            dest = &mut (*it_mem).tail as *mut Noun;
+        }
+    }
+    unsafe { *dest = D(0) };
+    Ok(result)
+}
 
 //
 //  Tracing
