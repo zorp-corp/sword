@@ -4,3 +4,4 @@ urbit
 *.jam.out
 *.o
 *.a
+target/

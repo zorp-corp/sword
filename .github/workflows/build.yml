@@ -1,0 +1,36 @@
+name: Build
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+  CI: 1
+  RUST_BACKTRACE: short
+  RUSTFLAGS: "-D warnings -W rust-2021-compatibility"
+  RUSTUP_MAX_RETRIES: 10
+
+on:
+  pull_request:
+    branches: [ "master" ]
+  push:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    name: "Build Sword"
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: zorp-corp/rust-cache@v2
+      with:
+        workspaces: ". -> target"
+    # Test building and running are split for caching and build time tracking purposes
+    # XX need to fix all the tests
+    #- name: Build tests
+    #  run: cargo test --no-run
+    #- name: Run tests
+    #  run: cargo test
+    - name: Build
+      run: cargo build
+
