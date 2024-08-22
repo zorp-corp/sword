@@ -1,6 +1,6 @@
-# Contributing to Ares
+# Contributing to Sword
 
-Below are guidelines for contributions to Ares. For information on building and hacking on ares, see [DEVELOPERS.md](DEVELOPERS.md).
+Below are guidelines for contributions to Sword. For information on building and hacking on Sword, see [DEVELOPERS.md](DEVELOPERS.md).
 
 ## Style
 Hoon should generally follow the [Hoon Style Guide](https://docs.urbit.org/language/hoon/guides/style).

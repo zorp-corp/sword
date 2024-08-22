@@ -1,0 +1,10 @@
+[workspace]
+members = [
+  "rust/assert_no_alloc",
+  "rust/ibig",
+  "rust/sword",
+  "rust/sword_crypto",
+  "rust/sword_guard",
+  "rust/sword_macros",
+  "rust/sword_pma",
+]

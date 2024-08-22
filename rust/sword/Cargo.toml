@@ -1,0 +1,53 @@
+[package]
+name = "sword"
+version = "0.1.0"
+authors = ["Edward Amsden <edward@tlon.io>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+# Please keep these alphabetized
+[dependencies]
+sword_guard = { path = "../sword_guard" }
+sword_crypto = { path = "../sword_crypto" }
+sword_macros = { path = "../sword_macros" }
+sword_pma = { path = "../sword_pma" }
+assert_no_alloc = { path = "../assert_no_alloc" }
+bitvec = "1.0.0"
+criterion = "0.4"
+either = "1.9.0"
+ibig = { path = "../ibig" }
+intmap = "1.1.0"
+json = "0.12.4"
+lazy_static = "1.4.0"
+libc = "0.2.126"
+memmap = "0.7.0"
+murmur3 = { git = "https://github.com/tloncorp/murmur3", rev = "7878a0f" }
+num-derive = "0.3"
+num-traits = "0.2"
+signal-hook = "0.3"
+static_assertions = "1.1.0"
+
+[build-dependencies]
+autotools = "0.2"
+cc = "1.0"
+
+[[bin]]
+name = "sword"
+path = "src/main.rs"
+
+[profile.dev]
+opt-level = 3
+
+[profile.dev.package."*"]
+opt-level = 3
+
+# run with e.g. 'cargo build --features check_forwarding,check_acyclic'
+[features]
+# FOR DEBUGGING MEMORY ISSUES ONLY
+check_all = [ "check_acyclic", "check_forwarding", "check_junior" ]
+check_acyclic = []
+check_forwarding = []
+check_junior = []
+sham_hints = []
+stop_for_debug = []
