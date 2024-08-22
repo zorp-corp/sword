@@ -4,7 +4,7 @@
 
 ### Build
 
-To build Sword, start a nix development shell as above. Within the shell, in the `rust/sword` directory, you can run:
+To build Sword, make sure Rust is installed, then run:
 
 ```bash
 cargo build
@@ -22,13 +22,7 @@ video of its development](https://youtu.be/fOVhCx1a-9A))
 - **full.pill**: the complete Urbit `v2.11` pill
 - **slim.pill**: a slimmed down version of the Urbit `v2.11` pill that has had every desk and agent not necessary for booting to dojo removed
 
-More information on the pills used by Sword can be found [here](https://github.com/urbit/sword/blob/status/docs/pills.md).
-
-To launch a ship with a local pill (instead of downloading the default pill from urbit.org), the `-B` option is used:
-
-```bash
-bazel-bin/pkg/vere/urbit -F zod -B /path/to/sword/repo/resources/pills/baby.pill
-```
+More information on the pills used by Sword can be found [here](https://github.com/zorp-corp/sword/blob/status/docs/pills.md).
 
 ### Test
 
