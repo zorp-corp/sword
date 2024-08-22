@@ -1,27 +1,5 @@
 # Developing Sword
 
-## Nix
-Sword uses a Nix developer shell to set up the environment for rust builds. Please [Install Nix](https://nixos.org/download#download-nix).
-With Nix installed, you can run
-
-```bash
-nix develop
-```
-
-in `rust/` or any subdirectory, and you will be dropped into a BASH shell with the build environment set up. This will provide proper versions of non-rust dependencies, as well as the rust environment.
-
-If you receive the error
-
-```
-error: experimental Nix feature 'nix-command' is disabled; use '--extra-experimental-features nix-command' to override
-```
-
-edit your `$HOME/.config/nix/nix.conf` to include the line
-
-```
-extra-experimental-features = nix-command
-```
-
 ## Rust
 
 ### Build
@@ -33,23 +11,6 @@ cargo build
 ```
 
 to build the Sword executable. This will place the built executable at `target/debug/sword` under the `rust/sword` directory.
-
-### Run
-
-Sword is made to run as an urbit "serf", meaning it is intended to be invoked by a "king" which sends it commands and performs side-effects specified by its output. We use the Vere king.
-
-To run the Vere king with Sword as serf, it's necessary to modify the Vere king to launch Sword instead of its own serf. This is done by modifying the executable of the serf protocol in the `u3_lord_init` function in `lord.c` of the Vere source:
-
-```C
-// arg_c[0] = god_u->bin_c;
-arg_c[0] = "/path/to/sword/repo/rust/sword/target/debug/sword";
-```
-
-Then, it is necessary to follow the [Vere build instrcutions](https://github.com/urbit/vere/blob/develop/INSTALL.md). (You should exit the `nix develop` shell first for such a build.) Afterwards, it's possible to launch Vere with Sword as the serf using the usual commands:
-
-```bash
-bazel-bin/pkg/vere/urbit -F zod
-```
 
 #### Pills
 
