@@ -7,4 +7,6 @@ members = [
   "rust/sword_guard",
   "rust/sword_macros",
   "rust/sword_pma",
+  "rust/murmur3",
+  "rust/murmur3/murmur3-sys",
 ]
