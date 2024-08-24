@@ -1500,6 +1500,13 @@ mod hint {
     ) -> Option<Result> {
         //  XX: handle IndirectAtom tags
         match tag.direct()?.data() {
+            tas!(b"dont") => {
+                if cfg!(feature = "hint_dont") {
+                    Some(Err(Error::NonDeterministic(Mote::Fail, D(0))))
+                } else {
+                    None
+                }
+            },
             tas!(b"slog") => {
                 let stack = &mut context.stack;
                 let slogger = &mut context.slogger;
@@ -1511,6 +1518,7 @@ mod hint {
 
                 let s = (*slogger).deref_mut();
                 s.slog(stack, pri, tank);
+                None
             }
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
                 let terminator = Arc::clone(&TERMINATOR);
@@ -1522,6 +1530,7 @@ mod hint {
                 let (_form, clue) = hint?;
                 let noun = T(stack, &[tag.as_noun(), clue]);
                 mean_push(stack, noun);
+                None
             }
             tas!(b"hela") => {
                 //  XX: This only prints the trace down to the bottom of THIS
@@ -1560,6 +1569,7 @@ mod hint {
                                 break;
                             }
                         }
+                        None
                     }
                     Err(_) => {
                         // +mook should only ever bail if the input is not [%2 (list)]. Since we control the input
@@ -1568,10 +1578,8 @@ mod hint {
                     }
                 }
             }
-            _ => {}
-        };
-
-        None
+            _ => { None }
+        }
     }
 
     /** Match static and dynamic hints after the nock formula is evaluated */
