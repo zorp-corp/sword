@@ -690,7 +690,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
         self.0 = stem_ptr;
 
         let stem_buffer_size = (*stem_ptr).size();
-        if pma_contains((*stem_ptr).buffer, stem_buffer_size) {
+        if stem_buffer_size == 0 || pma_contains((*stem_ptr).buffer, stem_buffer_size) {
             return;
         }
         let stem_buffer_ptr = *buffer as *mut Entry<T>;
@@ -740,7 +740,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
                 let stem_ptr: *mut Stem<T> = &mut (*next_entry_ptr).stem;
                 let stem_size = (*stem_ptr).size();
 
-                if pma_contains((*stem_ptr).buffer, stem_size) {
+                if stem_size == 0 || pma_contains((*stem_ptr).buffer, stem_size) {
                     continue;
                 }
 
