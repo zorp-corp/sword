@@ -1,4 +1,5 @@
 use crate::mem::{word_size_of, NockStack};
+use crate::persist::{pma_contains,pma_dirty};
 use sword_macros::tas;
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::{Either, Left, Right};
@@ -984,6 +985,10 @@ impl Allocated {
     }
 
     pub unsafe fn set_metadata(self, metadata: u64) {
+        let ptr = self.const_to_raw_pointer_mut();
+        if pma_contains(ptr, 1) {
+            pma_dirty(ptr, 1);
+        }
         *(self.const_to_raw_pointer_mut()) = metadata;
     }
 
