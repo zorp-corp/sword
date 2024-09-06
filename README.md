@@ -1,6 +1,6 @@
 # Sword
 
-A Nock runtime.
+A modern Nock runtime with automatic persistence.
 
 ## Installation
 
