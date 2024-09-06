@@ -258,7 +258,7 @@ impl Newt {
             atom.normalize_as_atom()
         };
 
-        Some(cue(stack, atom))
+        Some(cue(stack, atom).expect("bad jammed noun"))
     }
 }
 
