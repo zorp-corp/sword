@@ -1,7 +1,9 @@
 use crate::assert_acyclic;
 use crate::hamt::MutHamt;
+use crate::interpreter::Error::{self,*};
+use crate::interpreter::Mote::{self,*};
 use crate::mem::NockStack;
-use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun};
+use crate::noun::{Atom, Cell, D, DirectAtom, IndirectAtom, Noun};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
 
@@ -23,132 +25,134 @@ pub fn met0_u64_to_usize(x: u64) -> usize {
     }
 }
 
-pub fn cue(stack: &mut NockStack, buffer: Atom) -> Noun {
-    let buffer_bitslice = buffer.as_bitslice();
-    let mut cursor: usize = 0;
-    let backref_map = MutHamt::<Noun>::new(stack);
-    stack.frame_push(1);
-    unsafe {
-        *(stack.push::<*mut Noun>()) = stack.local_noun_pointer(0);
-    };
-    loop {
-        if stack.stack_is_empty() {
-            let mut result = unsafe { *stack.local_noun_pointer(0) };
-            assert_acyclic!(result);
-            unsafe {
-                stack.preserve(&mut result);
-                stack.frame_pop();
-            }
-            break result;
-        } else {
-            let dest_ptr: *mut Noun = unsafe { *(stack.top()) };
-            if buffer_bitslice[cursor] {
-                // 1 bit
-                if buffer_bitslice[cursor + 1] {
-                    // 11 bits - cue backreference
-                    cursor += 2;
-                    unsafe {
-                        let mut backref_noun =
-                            Atom::new(stack, rub_backref(&mut cursor, buffer_bitslice)).as_noun();
-                        let reffed_noun = backref_map
-                            .lookup(stack, &mut backref_noun)
-                            .expect("Invalid backref in cue");
-                        assert_acyclic!(reffed_noun);
-                        if let Ok(indirect) = reffed_noun.as_indirect() {
-                            debug_assert!(indirect.size() > 0);
-                        }
-                        *dest_ptr = reffed_noun;
-                        assert_acyclic!(reffed_noun);
-                        stack.pop::<*mut Noun>();
-                    }
-                    continue;
-                } else {
-                    // 10 bits - cue cell
-                    let backref = cursor;
-                    cursor += 2;
-                    unsafe {
-                        let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
-                        *dest_ptr = cell.as_noun();
-                        let mut backref_atom = Atom::new(stack, backref as u64).as_noun();
-                        backref_map.insert(stack, &mut backref_atom, *dest_ptr);
-                        stack.pop::<*mut Noun>();
-                        (*cell_mem_ptr).tail =
-                            DirectAtom::new_unchecked(0xEDBEEF).as_atom().as_noun();
-                        (*cell_mem_ptr).head =
-                            DirectAtom::new_unchecked(0xDEBEEF).as_atom().as_noun();
-                        *(stack.push()) = &mut (*cell_mem_ptr).tail;
-                        *(stack.push()) = &mut (*cell_mem_ptr).head;
-                    }
-                    continue;
-                }
-            } else {
-                // 0 bit - cue atom
-                let backref = cursor;
-                cursor += 1;
-                unsafe {
-                    *dest_ptr = rub_atom(stack, &mut cursor, buffer_bitslice).as_noun();
-                    let mut backref_atom = Atom::new(stack, backref as u64).as_noun();
-                    backref_map.insert(stack, &mut backref_atom, *dest_ptr);
-                    stack.pop::<*mut Noun>();
-                };
-                continue;
-            }
-        };
+pub fn next_bit(cursor: &mut usize, slice: &BitSlice<u64, Lsb0>) -> bool {
+    if (*slice).len() > *cursor {
+        let res = slice[*cursor];
+        *cursor += 1;
+        res
+    } else {
+        false
     }
+}
+
+pub fn next_n_bits<'a>(cursor: &mut usize, slice: &'a BitSlice<u64, Lsb0>, n: usize) -> &'a BitSlice<u64, Lsb0> {
+    let res = 
+        if (slice).len() >= *cursor + n {
+            &slice[*cursor..*cursor + n]
+        } else if slice.len() > *cursor {
+            &slice[*cursor..]
+        } else {
+            BitSlice::<u64, Lsb0>::empty()
+        };
+    *cursor += n;
+    res
+}
+
+pub fn rest_bits<'a>(cursor: usize, slice: &'a BitSlice<u64, Lsb0>) -> &'a BitSlice<u64, Lsb0> {
+    if slice.len() > cursor {
+        &slice[cursor..]
+    } else {
+        BitSlice::<u64, Lsb0>::empty()
+    }
+}
+
+
+pub fn cue_bitslice(stack: &mut NockStack, mut buffer: &BitSlice<u64, Lsb0>) -> Result<Noun, Error> {
+    let backref_map = MutHamt::<Noun>::new(stack);
+    let mut result = D(0);
+    let mut cursor = 0;
+    unsafe {
+        stack.with_frame(0, |stack: &mut NockStack| {
+            unsafe { *(stack.push::<*mut Noun>()) = &mut result as *mut Noun; };
+            loop {
+                if stack.stack_is_empty() {
+                    break Ok(result);
+                };
+                let dest_ptr: *mut Noun = unsafe { *(stack.top::<*mut Noun>()) };
+                unsafe { stack.pop::<*mut Noun>(); };
+                if next_bit(&mut cursor, buffer) { // 1 bit
+                    if next_bit(&mut cursor, buffer) { // 11 tag: backref
+                        let mut backref_noun = Atom::new(stack, rub_backref(&mut cursor, buffer)?).as_noun();
+                        unsafe { *dest_ptr = backref_map.lookup(stack, &mut backref_noun).ok_or(Deterministic(Exit, D(0)))?; };
+
+                    } else { // 10 tag: cell
+                        unsafe {
+                            let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
+                            *dest_ptr = cell.as_noun();
+                            let mut backref_atom = Atom::new(stack, (cursor - 2) as u64).as_noun();
+                            backref_map.insert(stack, &mut backref_atom, *dest_ptr);
+                            *(stack.push()) = &mut (*cell_mem_ptr).tail;
+                            *(stack.push()) = &mut (*cell_mem_ptr).head;
+                        };
+                    }
+                } else { // 0 tag: atom
+                    let backref: u64 = (cursor - 1) as u64;
+                    *dest_ptr = rub_atom(stack, &mut cursor, buffer)?.as_noun();
+                    let mut backref_atom = Atom::new(stack, backref).as_noun();
+                    backref_map.insert(stack, &mut backref_atom, *dest_ptr);
+                }
+            }
+        })
+    }
+}
+
+pub fn cue(stack: &mut NockStack, buffer: Atom) -> Result<Noun,Error> {
+    let buffer_bitslice = buffer.as_bitslice();
+    cue_bitslice(stack, buffer_bitslice)
 }
 
 // TODO: use first_zero() on a slice of the buffer
-fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> usize {
-    let buff_at_cursor = &buffer[*cursor..];
+fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<usize, Error> {
+    let buff_at_cursor = rest_bits(*cursor, buffer);
     let bitsize = buff_at_cursor
         .first_one()
-        .expect("Size encoding must terminate with a 1 bit");
+        .ok_or(Deterministic(Exit, D(0)))?;
     if bitsize == 0 {
         *cursor += 1;
-        0
+        Ok(0)
     } else {
         let mut size: u64 = 0;
+        *cursor += bitsize + 1;
+        let size_bits = next_n_bits(cursor, buffer, bitsize - 1);
         BitSlice::from_element_mut(&mut size)[0..bitsize - 1]
-            .copy_from_bitslice(&buffer[*cursor + bitsize + 1..*cursor + bitsize + bitsize]);
-        *cursor += bitsize + bitsize;
-        (size as usize) + (1 << (bitsize - 1))
+            .copy_from_bitslice(size_bits);
+        Ok((size as usize) + (1 << (bitsize - 1)))
     }
 }
 
-fn rub_atom(stack: &mut NockStack, cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Atom {
-    let size = get_size(cursor, buffer);
+fn rub_atom(stack: &mut NockStack, cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<Atom,Error> {
+    let size = get_size(cursor, buffer)?;
+    let bits = next_n_bits(cursor, buffer, size);
     if size == 0 {
-        unsafe { DirectAtom::new_unchecked(0).as_atom() }
+        unsafe { Ok(DirectAtom::new_unchecked(0).as_atom()) }
     } else if size < 64 {
         // fits in a direct atom
         let mut direct_raw = 0;
-        BitSlice::from_element_mut(&mut direct_raw)[0..size]
-            .copy_from_bitslice(&buffer[*cursor..*cursor + size]);
-        *cursor += size;
-        unsafe { DirectAtom::new_unchecked(direct_raw).as_atom() }
+        BitSlice::from_element_mut(&mut direct_raw)[0..bits.len()]
+            .copy_from_bitslice(bits);
+        unsafe { Ok(DirectAtom::new_unchecked(direct_raw).as_atom()) }
     } else {
         // need an indirect atom
         let wordsize = (size + 63) >> 6;
-        let (atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, wordsize) }; // fast round to wordsize
-        slice[0..size].copy_from_bitslice(&buffer[*cursor..*cursor + size]);
+        let (mut atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, wordsize) }; // fast round to wordsize
+        slice[0..bits.len()].copy_from_bitslice(bits);
         debug_assert!(atom.size() > 0);
-        *cursor += size;
-        atom.as_atom()
+        unsafe { Ok(atom.normalize_as_atom()) }
     }
 }
 
-fn rub_backref(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> u64 {
-    let size = get_size(cursor, buffer);
+fn rub_backref(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<u64, Error> {
+    let size = get_size(cursor, buffer)?;
     if size == 0 {
-        0
+        Ok(0)
     } else if size <= 64 {
         let mut backref: u64 = 0;
         BitSlice::from_element_mut(&mut backref)[0..size]
             .copy_from_bitslice(&buffer[*cursor..*cursor + size]);
         *cursor += size;
-        backref
+        Ok(backref)
     } else {
-        panic!("Backreference size too big for vere")
+        Err(NonDeterministic(Fail, D(0)))
     }
 }
 
