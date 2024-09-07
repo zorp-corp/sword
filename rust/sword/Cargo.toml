@@ -4,7 +4,8 @@ version = "0.1.0"
 authors = ["Edward Amsden <edward@tlon.io>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lints.clippy]
+missing_safety_doc = "allow"
 
 # Please keep these alphabetized
 [dependencies]
@@ -35,12 +36,6 @@ cc = "1.0"
 [[bin]]
 name = "sword"
 path = "src/main.rs"
-
-[profile.dev]
-opt-level = 3
-
-[profile.dev.package."*"]
-opt-level = 3
 
 # run with e.g. 'cargo build --features check_forwarding,check_acyclic'
 [features]
