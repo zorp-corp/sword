@@ -13,6 +13,9 @@ homepage = "https://github.com/tczajka/ibig-rs"
 readme = "README.md"
 exclude = ["generate_coverage.sh"]
 
+[lints.clippy]
+missing_safety_doc = "allow"
+
 [package.metadata.docs.rs]
 all-features = true
 

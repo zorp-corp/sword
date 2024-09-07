@@ -1,7 +1,6 @@
-use crate::assert_acyclic;
 use crate::hamt::MutHamt;
 use crate::interpreter::Error::{self,*};
-use crate::interpreter::Mote::{self,*};
+use crate::interpreter::Mote::*;
 use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, D, DirectAtom, IndirectAtom, Noun};
 use bitvec::prelude::{BitSlice, Lsb0};
@@ -48,7 +47,7 @@ pub fn next_n_bits<'a>(cursor: &mut usize, slice: &'a BitSlice<u64, Lsb0>, n: us
     res
 }
 
-pub fn rest_bits<'a>(cursor: usize, slice: &'a BitSlice<u64, Lsb0>) -> &'a BitSlice<u64, Lsb0> {
+pub fn rest_bits(cursor: usize, slice: &BitSlice<u64, Lsb0>) -> &BitSlice<u64, Lsb0> {
     if slice.len() > cursor {
         &slice[cursor..]
     } else {
@@ -56,34 +55,34 @@ pub fn rest_bits<'a>(cursor: usize, slice: &'a BitSlice<u64, Lsb0>) -> &'a BitSl
     }
 }
 
-
-pub fn cue_bitslice(stack: &mut NockStack, mut buffer: &BitSlice<u64, Lsb0>) -> Result<Noun, Error> {
+// TODO: What is this function doing? I gather that it's deserializing a noun from a buffer, but I don't understand the details.
+// It seems like this is dealing with parsing arbitrarily nested structures and scalar values from a buffer.
+pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Result<Noun, Error> {
     let backref_map = MutHamt::<Noun>::new(stack);
     let mut result = D(0);
     let mut cursor = 0;
     unsafe {
         stack.with_frame(0, |stack: &mut NockStack| {
-            unsafe { *(stack.push::<*mut Noun>()) = &mut result as *mut Noun; };
+            // TODO: Pushing initial noun onto the stack to be used as a destination pointer? Why?
+            *(stack.push::<*mut Noun>()) = &mut result as *mut Noun;
             loop {
                 if stack.stack_is_empty() {
                     break Ok(result);
                 };
-                let dest_ptr: *mut Noun = unsafe { *(stack.top::<*mut Noun>()) };
-                unsafe { stack.pop::<*mut Noun>(); };
+                // We capture the destination pointer and then pop it off the stack.
+                let dest_ptr: *mut Noun = *(stack.top::<*mut Noun>());
+                stack.pop::<*mut Noun>();
                 if next_bit(&mut cursor, buffer) { // 1 bit
                     if next_bit(&mut cursor, buffer) { // 11 tag: backref
                         let mut backref_noun = Atom::new(stack, rub_backref(&mut cursor, buffer)?).as_noun();
-                        unsafe { *dest_ptr = backref_map.lookup(stack, &mut backref_noun).ok_or(Deterministic(Exit, D(0)))?; };
-
+                        *dest_ptr = backref_map.lookup(stack, &mut backref_noun).ok_or(Deterministic(Exit, D(0)))?;
                     } else { // 10 tag: cell
-                        unsafe {
-                            let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
-                            *dest_ptr = cell.as_noun();
-                            let mut backref_atom = Atom::new(stack, (cursor - 2) as u64).as_noun();
-                            backref_map.insert(stack, &mut backref_atom, *dest_ptr);
-                            *(stack.push()) = &mut (*cell_mem_ptr).tail;
-                            *(stack.push()) = &mut (*cell_mem_ptr).head;
-                        };
+                        let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
+                        *dest_ptr = cell.as_noun();
+                        let mut backref_atom = Atom::new(stack, (cursor - 2) as u64).as_noun();
+                        backref_map.insert(stack, &mut backref_atom, *dest_ptr);
+                        *(stack.push()) = &mut (*cell_mem_ptr).tail;
+                        *(stack.push()) = &mut (*cell_mem_ptr).head;
                     }
                 } else { // 0 tag: atom
                     let backref: u64 = (cursor - 1) as u64;
@@ -120,6 +119,7 @@ fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<usize, E
     }
 }
 
+// TODO: rub_atom needs explanation. It's not clear what it's doing. It seems to be deserializing an atom from a buffer.
 fn rub_atom(stack: &mut NockStack, cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<Atom,Error> {
     let size = get_size(cursor, buffer)?;
     let bits = next_n_bits(cursor, buffer, size);
@@ -141,11 +141,14 @@ fn rub_atom(stack: &mut NockStack, cursor: &mut usize, buffer: &BitSlice<u64, Ls
     }
 }
 
+// TODO: rub_backref needs explanation. It's not clear what it's doing. It seems to be deserializing a backreference from a buffer.
 fn rub_backref(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<u64, Error> {
+    // TODO: What's size here usually?
     let size = get_size(cursor, buffer)?;
     if size == 0 {
         Ok(0)
     } else if size <= 64 {
+        // TODO: Size <= 64, so we can fit the backref in a direct atom?
         let mut backref: u64 = 0;
         BitSlice::from_element_mut(&mut backref)[0..size]
             .copy_from_bitslice(&buffer[*cursor..*cursor + size]);
