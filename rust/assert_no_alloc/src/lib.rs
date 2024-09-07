@@ -33,11 +33,11 @@ compile_error!("disable_release cannot be active at the same time with warn_rele
 
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
 thread_local! {
-	static ALLOC_FORBID_COUNT: Cell<u32> = Cell::new(0);
-	static ALLOC_PERMIT_COUNT: Cell<u32> = Cell::new(0);
+	static ALLOC_FORBID_COUNT: Cell<u32> = const { Cell::new(0) };
+	static ALLOC_PERMIT_COUNT: Cell<u32> = const { Cell::new(0) };
 
 	#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))]
-	static ALLOC_VIOLATION_COUNT: Cell<u32> = Cell::new(0);
+	static ALLOC_VIOLATION_COUNT: Cell<u32> = const { Cell::new(0) };
 }
 
 #[cfg(all(feature = "disable_release", not(debug_assertions)))] // if disabled
@@ -88,7 +88,7 @@ pub fn assert_no_alloc<T, F: FnOnce() -> T> (func: F) -> T {
 		eprintln!("Tried to (de)allocate memory in a thread that forbids allocator calls!");
 	}
 
-	return ret;
+	ret
 }
 
 /// Calls the `func` closure, but ensures that the forbid and permit counters
@@ -104,7 +104,7 @@ pub fn ensure_alloc_counters<T, F: FnOnce() -> T> (func: F) -> T {
 	ALLOC_FORBID_COUNT.with(|c| c.set(forbid_counter));
 	ALLOC_PERMIT_COUNT.with(|c| c.set(permit_counter));
 
-	return ret;
+	ret
 }
 
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
@@ -129,7 +129,7 @@ pub fn permit_alloc<T, F: FnOnce() -> T> (func: F) -> T {
 	let ret = func();
 	std::mem::drop(guard);    // decrement the forbid counter
 
-	return ret;
+	ret
 }
 
 #[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))] // if warn mode is selected

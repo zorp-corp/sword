@@ -1,0 +1,3 @@
+array_width = 95
+short_array_element_width_threshold = 100
+imports_granularity = "Module"
