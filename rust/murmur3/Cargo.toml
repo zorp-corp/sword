@@ -13,7 +13,3 @@ edition = "2018"
 [dev-dependencies]
 murmur3-sys = { path = "./murmur3-sys"}
 quickcheck = "0.9"
-
-[profile.bench]
-lto = true
-codegen-units = 1

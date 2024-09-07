@@ -40,30 +40,12 @@ impl num_traits::One for IBig {
     }
 }
 
-impl num_traits::Pow<usize> for UBig {
-    type Output = UBig;
-
-    #[inline]
-    fn pow(self, rhs: usize) -> UBig {
-        (&self).pow(rhs)
-    }
-}
-
 impl num_traits::Pow<usize> for &UBig {
     type Output = UBig;
 
     #[inline]
     fn pow(self, rhs: usize) -> UBig {
         self.pow(rhs)
-    }
-}
-
-impl num_traits::Pow<usize> for IBig {
-    type Output = IBig;
-
-    #[inline]
-    fn pow(self, rhs: usize) -> IBig {
-        (&self).pow(rhs)
     }
 }
 
