@@ -33,7 +33,7 @@ fn main() -> io::Result<()> {
             break;
         };
         i += 1;
-        input = cue(&mut stack, jammed_input);
+        input = cue(&mut stack, jammed_input).unwrap();
     }
 
     match now.elapsed() {

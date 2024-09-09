@@ -5,7 +5,6 @@ use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, D, DirectAtom, IndirectAtom, Noun};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
-use std::borrow::Cow;
 
 crate::gdb!();
 
@@ -58,7 +57,7 @@ pub fn rest_bits(cursor: usize, slice: &BitSlice<u64, Lsb0>) -> &BitSlice<u64, L
     }
 }
 
-/// Deserialize a noun from either an Atom or a BitSlice
+/// Deserialize a noun from a BitSlice
 ///
 /// This function implements the inverse of jam, unpacking a serialized noun.
 ///
@@ -93,23 +92,17 @@ pub fn rest_bits(cursor: usize, slice: &BitSlice<u64, Lsb0>) -> &BitSlice<u64, L
 ///
 /// # Arguments
 /// * `stack` - A mutable reference to the NockStack
-/// * `buffer` - Either an Atom or a reference to a BitSlice containing the serialized noun
+/// * `buffer` - A reference to a BitSlice containing the serialized noun
 ///
 /// # Returns
 /// A Result containing either the deserialized Noun or an Error
-pub fn cue<'a>(stack: &mut NockStack, buffer: impl Into<CueInput<'a>>) -> Result<Noun, Error> {
-    let input = buffer.into();
-    let bitslice = match input {
-        CueInput::Atom(atom) => Cow::Owned(atom.as_bitslice().to_bitvec()),
-        CueInput::BitSlice(slice) => Cow::Borrowed(slice),
-    };
-
+pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Result<Noun, Error> {
     let backref_map = MutHamt::<Noun>::new(stack);
     let mut result = D(0);
     let mut cursor = 0;
 
     let stack_size = stack.size();
-    let input_size = input.size();
+    let input_size = buffer.len();
     if stack_size < input_size {
         eprintln!("stack too small: {} < {}", stack_size, input_size);
         return Err(Error::NonDeterministic(Fail, D(0)));
@@ -117,7 +110,6 @@ pub fn cue<'a>(stack: &mut NockStack, buffer: impl Into<CueInput<'a>>) -> Result
 
     unsafe {
         stack.with_frame(0, |stack: &mut NockStack| {
-            // TODO: Pushing initial noun onto the stack to be used as a destination pointer? Why?
             *(stack.push::<*mut Noun>()) = &mut result as *mut Noun;
             loop {
                 if stack.stack_is_empty() {
@@ -126,11 +118,11 @@ pub fn cue<'a>(stack: &mut NockStack, buffer: impl Into<CueInput<'a>>) -> Result
                 // Capture the destination pointer and pop it off the stack
                 let dest_ptr: *mut Noun = *(stack.top::<*mut Noun>());
                 stack.pop::<*mut Noun>();
-                if next_bit(&mut cursor, &bitslice) {
-                    // 1 bit
-                    if next_bit(&mut cursor, &bitslice) {
-                        // 11 tag: backref
-                        let mut backref_noun = Atom::new(stack, rub_backref(&mut cursor, &bitslice)?).as_noun();
+                // 1 bit
+                if next_bit(&mut cursor, buffer) {
+                    // 11 tag: backref
+                    if next_bit(&mut cursor, buffer) {
+                        let mut backref_noun = Atom::new(stack, rub_backref(&mut cursor, buffer)?).as_noun();
                         *dest_ptr = backref_map
                             .lookup(stack, &mut backref_noun)
                             .ok_or(Deterministic(Exit, D(0)))?;
@@ -146,7 +138,7 @@ pub fn cue<'a>(stack: &mut NockStack, buffer: impl Into<CueInput<'a>>) -> Result
                 } else {
                     // 0 tag: atom
                     let backref: u64 = (cursor - 1) as u64;
-                    *dest_ptr = rub_atom(stack, &mut cursor, &bitslice)?.as_noun();
+                    *dest_ptr = rub_atom(stack, &mut cursor, buffer)?.as_noun();
                     let mut backref_atom = Atom::new(stack, backref).as_noun();
                     backref_map.insert(stack, &mut backref_atom, *dest_ptr);
                 }
@@ -155,35 +147,22 @@ pub fn cue<'a>(stack: &mut NockStack, buffer: impl Into<CueInput<'a>>) -> Result
     }
 }
 
-/// Input types for the cue function
-pub enum CueInput<'a> {
-    Atom(Atom),
-    BitSlice(&'a BitSlice<u64, Lsb0>),
-}
-
-impl<'a> From<Atom> for CueInput<'a> {
-    fn from(atom: Atom) -> Self {
-        CueInput::Atom(atom)
-    }
-}
-
-impl<'a> From<&'a BitSlice<u64, Lsb0>> for CueInput<'a> {
-    fn from(slice: &'a BitSlice<u64, Lsb0>) -> Self {
-        CueInput::BitSlice(slice)
-    }
-}
-
-impl<'a> CueInput<'a> {
-    pub fn size(&self) -> usize {
-        match self {
-            CueInput::Atom(atom) => atom.as_noun().mass(),
-            CueInput::BitSlice(slice) => slice.len(),
-        }
-    }
+/// Deserialize a noun from an Atom
+///
+/// This function is a wrapper around cue_bitslice that takes an Atom as input.
+///
+/// # Arguments
+/// * `stack` - A mutable reference to the NockStack
+/// * `buffer` - An Atom containing the serialized noun
+///
+/// # Returns
+/// A Result containing either the deserialized Noun or an Error
+pub fn cue(stack: &mut NockStack, buffer: Atom) -> Result<Noun, Error> {
+    let buffer_bitslice = buffer.as_bitslice();
+    cue_bitslice(stack, buffer_bitslice)
 }
 
 /// Get the size of an encoded atom or backref
-///
 /// TODO: use first_zero() on a slice of the buffer
 fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<usize, Error> {
     let buff_at_cursor = rest_bits(*cursor, buffer);
@@ -248,8 +227,6 @@ fn rub_atom(
 }
 
 /// Deserialize a backreference from the buffer
-///
-/// Corresponds to `++rub` in the hoon stdlib.
 fn rub_backref(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<u64, Error> {
     // TODO: What's size here usually?
     let size = get_size(cursor, buffer)?;
@@ -276,34 +253,9 @@ struct JamState<'a> {
 
 /// Serialize a noun into an atom
 ///
-/// Corresponds to `++jam` in the hoon stdlib.
+/// Corresponds to ++jam in the hoon stdlib.
 ///
 /// Implements a compact encoding scheme for nouns, with backreferences for shared structures.
-///
-/// ```hoon
-/// ++  jam                                                 ::  pack
-///   ~/  %jam
-///   |=  a=*
-///   ^-  @
-///   =+  b=0
-///   =+  m=`(map * @)`~
-///   =<  q
-///   |-  ^-  [p=@ q=@ r=(map * @)]
-///   =+  c=(~(get by m) a)
-///   ?~  c
-///     =>  .(m (~(put by m) a b))
-///     ?:  ?=(@ a)
-///   =+  d=(mat a)
-///   [(add 1 p.d) (lsh 0 q.d) m]
-///   =>  .(b (add 2 b))
-///   =+  d=$(a -.a)
-///   =+  e=$(a +.a, b (add b p.d), m r.d)
-///   [(add 2 (add p.d p.e)) (mix 1 (lsh [0 2] (cat 0 q.d q.e))) r.e]
-///   ?:  ?&(?=(@ a) (lte (met 0 a) (met 0 u.c)))
-///   =+  d=(mat a)
-///   [(add 1 p.d) (lsh 0 q.d) m]
-///   [(add 2 p.d) (mix 3 (lsh [0 2] q.d)) m]
-/// ```
 pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
     let backref_map = MutHamt::new(stack);
     let size = 8;
@@ -440,21 +392,6 @@ fn double_atom_size(traversal: &mut NockStack, state: &mut JamState) {
 
 /// Encode an atom's size and value into the jam state
 ///
-/// Corresponds to `++mat` in the hoon stdlib:
-///
-/// ```hoon
-/// ++  mat                                                 ::  length-encode
-///   ~/  %mat
-///   |=  a=@
-///   ^-  [p=@ q=@]
-///   ?:  =(0 a)
-///     [1 1]
-///   =+  b=(met 0 a)
-///   =+  c=(met 0 b)
-///   :-  (add (add c c) b)
-///   (cat 0 (bex c) (mix (end [0 (dec c)] b) (lsh [0 (dec c)] a)))
-/// ```
-///
 /// INVARIANT: mat must not modify state.cursor unless it will also return `Ok(())`
 fn mat(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> Result<(), ()> {
     let b_atom_size = met0_usize(atom);
@@ -487,7 +424,6 @@ fn mat(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> Result<()
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryInto;
 
     use rand::prelude::*;
 
@@ -658,6 +594,7 @@ mod tests {
                     (top_noun, total_size)
                 }
             } else {
+                // println!("Size: {:.2} KB, depth: {}", noun.mass() as f64 / 1024.0, depth);
                 (noun, total_size)
             }
         }
@@ -692,19 +629,19 @@ mod tests {
         let jammed = jam(&mut big_stack, large_atom);
 
         // make a smaller stack to try to cause a nondeterministic error
-        // NOTE: if the stack is big enough to fit the jammed atom, the nondeterministic error will not occur
-        // and cue will panic.
+        // NOTE: if the stack is big enough to fit the jammed atom, cue panics
         let mut stack = NockStack::new(jammed.as_noun().mass() / 2 as usize, 0);
 
         // Attempt to cue the jammed noun with limited stack space
         let result: Result<_, Error> = match cue(&mut stack, jammed) {
-            Ok(res) => {
+            Ok(_res) => {
                 assert!(false, "Unexpected success: cue operation did not fail");
                 Ok(())
             },
             Err(e) => Err(e),
         };
 
+        // Check if we got a nondeterministic error
         println!("Result: {:?}", result);
         assert!(result.is_err());
         if let Err(e) = result {
