@@ -695,21 +695,21 @@ mod tests {
         let ans_jam = A(&mut c.stack, &ubig!(1720922644868600060465749189))
             .as_atom()
             .unwrap();
-        let ans = cue(&mut c.stack, ans_jam);
+        let ans = cue(&mut c.stack, ans_jam).unwrap();
         let ctx = T(&mut c.stack, &[D(0), D(97), D(0)]);
-        assert_jet_door(c, jet_easy, sam, ctx, ans);
+        assert_jet_door(c, jet_easy, sam.unwrap(), ctx, ans);
 
         // ((easy %foo) [[1 1] "abc"])
         //  [[1 1] "abc"]
         let sam_jam = A(&mut c.stack, &ubig!(3205468216717221061))
             .as_atom()
             .unwrap();
-        let sam = cue(&mut c.stack, sam_jam);
+        let sam = cue(&mut c.stack, sam_jam).unwrap();
         //  [p=[p=1 q=1] q=[~ [p=%foo q=[p=[p=1 q=1] q="abc"]]]]
         let ans_jam = A(&mut c.stack, &ubig!(3609036366588910247778413036281029))
             .as_atom()
             .unwrap();
-        let ans = cue(&mut c.stack, ans_jam);
+        let ans = cue(&mut c.stack, ans_jam).unwrap();
         let ctx = T(&mut c.stack, &[D(0), D(0x6f6f66), D(0)]);
         assert_jet_door(c, jet_easy, sam, ctx, ans);
     }
