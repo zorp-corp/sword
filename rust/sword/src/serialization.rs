@@ -2,7 +2,7 @@ use crate::hamt::MutHamt;
 use crate::interpreter::Error::{self, *};
 use crate::interpreter::Mote::*;
 use crate::mem::NockStack;
-use crate::noun::{Atom, Cell, D, DirectAtom, IndirectAtom, Noun};
+use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
 
@@ -122,7 +122,8 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
                 if next_bit(&mut cursor, buffer) {
                     // 11 tag: backref
                     if next_bit(&mut cursor, buffer) {
-                        let mut backref_noun = Atom::new(stack, rub_backref(&mut cursor, buffer)?).as_noun();
+                        let mut backref_noun =
+                            Atom::new(stack, rub_backref(&mut cursor, buffer)?).as_noun();
                         *dest_ptr = backref_map
                             .lookup(stack, &mut backref_noun)
                             .ok_or(Deterministic(Exit, D(0)))?;
@@ -162,7 +163,7 @@ pub fn cue(stack: &mut NockStack, buffer: Atom) -> Result<Noun, Error> {
     cue_bitslice(stack, buffer_bitslice)
 }
 
-/// Get the size of an encoded atom or backref
+/// Get the size in bits of an encoded atom or backref
 /// TODO: use first_zero() on a slice of the buffer
 fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<usize, Error> {
     let buff_at_cursor = rest_bits(*cursor, buffer);
@@ -429,8 +430,8 @@ mod tests {
 
     use super::*;
     use crate::jets::util::test::assert_noun_eq;
-    use crate::noun::{Atom, Cell, Noun};
     use crate::mem::NockStack;
+    use crate::noun::{Atom, Cell, Noun};
     use crate::persist::Persist;
     fn setup_stack() -> NockStack {
         NockStack::new(1 << 30, 0)
@@ -528,10 +529,16 @@ mod tests {
         let mut rng_clone = rng.clone();
         let (original, total_size) = generate_deeply_nested_noun(&mut stack, depth, &mut rng_clone);
 
-        println!("Total size of all generated nouns: {:.2} KB", total_size as f64 / 1024.0);
+        println!(
+            "Total size of all generated nouns: {:.2} KB",
+            total_size as f64 / 1024.0
+        );
         println!("Original size: {:.2} KB", original.mass() as f64 / 1024.0);
         let jammed = jam(&mut stack, original.clone());
-        println!("Jammed size: {:.2} KB", jammed.as_noun().mass() as f64 / 1024.0);
+        println!(
+            "Jammed size: {:.2} KB",
+            jammed.as_noun().mass() as f64 / 1024.0
+        );
         let cued = cue(&mut stack, jammed).unwrap();
         println!("Cued size: {:.2} KB", cued.mass() as f64 / 1024.0);
 
@@ -540,10 +547,15 @@ mod tests {
 
     fn generate_random_noun(stack: &mut NockStack, bits: usize, rng: &mut StdRng) -> (Noun, usize) {
         const MAX_DEPTH: usize = 100; // Adjust this value as needed
-        fn inner(stack: &mut NockStack, bits: usize, rng: &mut StdRng, depth: usize, accumulated_size: usize) -> (Noun, usize) {
+        fn inner(
+            stack: &mut NockStack,
+            bits: usize,
+            rng: &mut StdRng,
+            depth: usize,
+            accumulated_size: usize,
+        ) -> (Noun, usize) {
             let mut done = false;
             if depth >= MAX_DEPTH || stack.size() < 1024 || accumulated_size > stack.size() - 1024 {
-
                 // println!("Done at depth and size: {} {:.2} KB", depth, accumulated_size as f64 / 1024.0);
                 done = true;
             }
@@ -563,7 +575,10 @@ mod tests {
             };
 
             if unsafe { result.0.space_needed(stack) } > stack.size() {
-                eprintln!("Stack size exceeded with noun size {:.2} KB", result.0.mass() as f64 / 1024.0);
+                eprintln!(
+                    "Stack size exceeded with noun size {:.2} KB",
+                    result.0.mass() as f64 / 1024.0
+                );
                 unsafe {
                     let top_noun = *stack.top::<Noun>();
                     (top_noun, result.1)
@@ -576,7 +591,11 @@ mod tests {
         inner(stack, bits, rng, 0, 0)
     }
 
-    fn generate_deeply_nested_noun(stack: &mut NockStack, depth: usize, rng: &mut StdRng) -> (Noun, usize) {
+    fn generate_deeply_nested_noun(
+        stack: &mut NockStack,
+        depth: usize,
+        rng: &mut StdRng,
+    ) -> (Noun, usize) {
         if depth == 0 {
             let (noun, size) = generate_random_noun(stack, 100, rng);
             (noun, size)
@@ -588,7 +607,11 @@ mod tests {
             let total_size = left_size + right_size + noun.mass();
 
             if unsafe { noun.space_needed(stack) } > stack.size() {
-                eprintln!("Stack size exceeded at depth {} with noun size {:.2} KB", depth, noun.mass() as f64 / 1024.0);
+                eprintln!(
+                    "Stack size exceeded at depth {} with noun size {:.2} KB",
+                    depth,
+                    noun.mass() as f64 / 1024.0
+                );
                 unsafe {
                     let top_noun = *stack.top::<Noun>();
                     (top_noun, total_size)
@@ -613,11 +636,9 @@ mod tests {
             println!("Error: {:?}", e);
             assert!(matches!(e, Error::Deterministic(_, _)));
         }
-
     }
     #[test]
     fn test_cue_nondeterministic_error() {
-
         let mut big_stack = NockStack::new(1 << 30, 0);
 
         let mut rng = StdRng::seed_from_u64(1);
@@ -625,7 +646,7 @@ mod tests {
         // Create an atom with a very large value to potentially cause overflow
         let (large_atom, _) = generate_deeply_nested_noun(&mut big_stack, 5, &mut rng);
 
-        // Attempt to jam and then cue the large ato in the big stackm
+        // Attempt to jam and then cue the large atom in the big stack
         let jammed = jam(&mut big_stack, large_atom);
 
         // make a smaller stack to try to cause a nondeterministic error
@@ -637,7 +658,7 @@ mod tests {
             Ok(_res) => {
                 assert!(false, "Unexpected success: cue operation did not fail");
                 Ok(())
-            },
+            }
             Err(e) => Err(e),
         };
 
