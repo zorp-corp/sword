@@ -61,7 +61,30 @@ pub fn rest_bits(cursor: usize, slice: &BitSlice<u64, Lsb0>) -> &BitSlice<u64, L
 /// Deserialize a noun from either an Atom or a BitSlice
 ///
 /// This function implements the inverse of jam, unpacking a serialized noun.
-/// It uses a stack-based approach to handle nested structures efficiently.
+///
+/// Corresponds to `++cue` in the hoon stdlib, but uses a stack-based approach instead of recursion:
+///
+/// ```hoon
+/// ++  cue                                                 ::  unpack
+///   ~/  %cue
+///   |=  a=@
+///   ^-  *
+///   =+  b=0
+///   =+  m=`(map @ *)`~
+///   =<  q
+///   |-  ^-  [p=@ q=* r=(map @ *)]
+///   ?:  =(0 (cut 0 [b 1] a))
+///     =+  c=(rub +(b) a)
+///     [+(p.c) q.c (~(put by m) b q.c)]
+///   =+  c=(add 2 b)
+///   ?:  =(0 (cut 0 [+(b) 1] a))
+///     =+  u=$(b c)
+///     =+  v=$(b (add p.u c), m r.u)
+///     =+  w=[q.u q.v]
+///     [(add 2 (add p.u p.v)) w (~(put by r.v) b w)]
+///   =+  d=(rub c a)
+///   [(add 2 p.d) (need (~(get by m) q.d)) m]
+/// ```
 ///
 /// The deserialization process works as follows:
 /// - 0 bit: Indicates an atom follows
@@ -160,6 +183,7 @@ impl<'a> CueInput<'a> {
 }
 
 /// Get the size of an encoded atom or backref
+///
 /// TODO: use first_zero() on a slice of the buffer
 fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<usize, Error> {
     let buff_at_cursor = rest_bits(*cursor, buffer);
@@ -178,7 +202,27 @@ fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<usize, E
     }
 }
 
-/// Deserialize an atom from the buffer
+/// Length-decode an atom from the buffer
+///
+/// Corresponds to `++rub` in the hoon stdlib.
+///
+/// ```hoon
+/// ++  rub                                                 ::  length-decode
+///   ~/  %rub
+///   |=  [a=@ b=@]
+///   ^-  [p=@ q=@]
+///   =+  ^=  c
+///       =+  [c=0 m=(met 0 b)]
+///       |-  ?<  (gth c m)
+///       ?.  =(0 (cut 0 [(add a c) 1] b))
+///         c
+///       $(c +(c))
+///   ?:  =(0 c)
+///     [1 0]
+///   =+  d=(add a +(c))
+///   =+  e=(add (bex (dec c)) (cut 0 [d (dec c)] b))
+///   [(add (add c c) e) (cut 0 [(add d (dec c)) e] b)]
+/// ```
 fn rub_atom(
     stack: &mut NockStack,
     cursor: &mut usize,
@@ -204,6 +248,8 @@ fn rub_atom(
 }
 
 /// Deserialize a backreference from the buffer
+///
+/// Corresponds to `++rub` in the hoon stdlib.
 fn rub_backref(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<u64, Error> {
     // TODO: What's size here usually?
     let size = get_size(cursor, buffer)?;
@@ -230,9 +276,34 @@ struct JamState<'a> {
 
 /// Serialize a noun into an atom
 ///
-/// Corresponds to ++jam in the hoon stdlib.
+/// Corresponds to `++jam` in the hoon stdlib.
 ///
 /// Implements a compact encoding scheme for nouns, with backreferences for shared structures.
+///
+/// ```hoon
+/// ++  jam                                                 ::  pack
+///   ~/  %jam
+///   |=  a=*
+///   ^-  @
+///   =+  b=0
+///   =+  m=`(map * @)`~
+///   =<  q
+///   |-  ^-  [p=@ q=@ r=(map * @)]
+///   =+  c=(~(get by m) a)
+///   ?~  c
+///     =>  .(m (~(put by m) a b))
+///     ?:  ?=(@ a)
+///   =+  d=(mat a)
+///   [(add 1 p.d) (lsh 0 q.d) m]
+///   =>  .(b (add 2 b))
+///   =+  d=$(a -.a)
+///   =+  e=$(a +.a, b (add b p.d), m r.d)
+///   [(add 2 (add p.d p.e)) (mix 1 (lsh [0 2] (cat 0 q.d q.e))) r.e]
+///   ?:  ?&(?=(@ a) (lte (met 0 a) (met 0 u.c)))
+///   =+  d=(mat a)
+///   [(add 1 p.d) (lsh 0 q.d) m]
+///   [(add 2 p.d) (mix 3 (lsh [0 2] q.d)) m]
+/// ```
 pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
     let backref_map = MutHamt::new(stack);
     let size = 8;
@@ -301,7 +372,7 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
     }
 }
 
-/// Serialize an atom
+/// Serialize an atom into the jam state
 fn jam_atom(traversal: &mut NockStack, state: &mut JamState, atom: Atom) {
     loop {
         if state.cursor + 1 > state.slice.len() {
@@ -368,6 +439,21 @@ fn double_atom_size(traversal: &mut NockStack, state: &mut JamState) {
 }
 
 /// Encode an atom's size and value into the jam state
+///
+/// Corresponds to `++mat` in the hoon stdlib:
+///
+/// ```hoon
+/// ++  mat                                                 ::  length-encode
+///   ~/  %mat
+///   |=  a=@
+///   ^-  [p=@ q=@]
+///   ?:  =(0 a)
+///     [1 1]
+///   =+  b=(met 0 a)
+///   =+  c=(met 0 b)
+///   :-  (add (add c c) b)
+///   (cat 0 (bex c) (mix (end [0 (dec c)] b) (lsh [0 (dec c)] a)))
+/// ```
 ///
 /// INVARIANT: mat must not modify state.cursor unless it will also return `Ok(())`
 fn mat(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> Result<(), ()> {
@@ -572,7 +658,6 @@ mod tests {
                     (top_noun, total_size)
                 }
             } else {
-                // println!("Size: {:.2} KB, depth: {}", noun.mass() as f64 / 1024.0, depth);
                 (noun, total_size)
             }
         }
@@ -620,7 +705,6 @@ mod tests {
             Err(e) => Err(e),
         };
 
-        // Check if we got a nondeterministic error
         println!("Result: {:?}", result);
         assert!(result.is_err());
         if let Err(e) = result {
