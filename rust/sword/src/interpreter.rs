@@ -1657,9 +1657,10 @@ mod hint {
                             Err(cold::Error::NoParent) => {
                                 //  XX: Need better message in slog; need better slogging tools
                                 //      format!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
+                                let chum = clue.slot(2).ok()?;
                                 let tape = tape(
                                     stack,
-                                    "serf: cold: register: could not find parent battery at given axis",
+                                    &format!("serf: cold: register: could not find parent battery at given axis: {}", chum),
                                 );
                                 slog_leaf(stack, slogger, tape);
                             }
