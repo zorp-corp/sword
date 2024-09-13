@@ -22,46 +22,7 @@ pub fn jet_can(context: &mut Context, subject: Noun) -> Result {
     let bloq = bloq(slot(arg, 2)?)?;
     let original_list = slot(arg, 3)?;
 
-    let mut len = 0usize;
-    let mut list = original_list;
-    loop {
-        if unsafe { list.raw_equals(D(0)) } {
-            break;
-        }
-
-        let cell = list.as_cell()?;
-        let item = cell.head().as_cell()?;
-        let step = item.head().as_direct()?.data() as usize;
-
-        len = checked_add(len, step)?;
-        list = cell.tail();
-    }
-
-    if len == 0 {
-        Ok(D(0))
-    } else {
-        unsafe {
-            let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(&mut context.stack, bite_to_word(bloq, len)?);
-            let mut pos = 0;
-            let mut list = original_list;
-            loop {
-                if list.raw_equals(D(0)) {
-                    break;
-                }
-
-                let cell = list.as_cell()?;
-                let item = cell.head().as_cell()?;
-                let step = item.head().as_direct()?.data() as usize;
-                let atom = item.tail().as_atom()?;
-                chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
-
-                pos += step;
-                list = cell.tail();
-            }
-            Ok(new_indirect.normalize_as_atom().as_noun())
-        }
-    }
+    util::can(&mut context.stack, bloq, original_list)
 }
 
 pub fn jet_cat(context: &mut Context, subject: Noun) -> Result {
@@ -105,6 +66,28 @@ pub fn jet_cut(context: &mut Context, subject: Noun) -> Result {
     };
     Ok(new_indirect.as_noun())
 }
+
+//++  sew                                                 ::  stitch into
+//  ~/  %sew
+//  |=  [a=bloq [b=step c=step d=@] e=@]
+//  ^-  @
+//  %+  add
+//    (can a b^e c^d ~)
+//  =/  f  [a (add b c)]
+//  (lsh f (rsh f e))
+//
+//  create the the new atom to stich from the right side
+//  overwrite the bits in the receiver atom e by doing the lsh and rsh
+//
+//pub fn jet_sew(context: &mut Context, subject: Noun) -> Result {
+//    let sam = slot(subject, 6)?;
+//    let a = slot(sam, 2)?;
+//    let sell = slot(sam, 6)?;
+//    let e = slot(sam, 7)?.as_atom()?;
+//    let b = slot(sell, 2)?.as_atom()?;
+//    let c = slot(sell, 6)?.as_atom()?;
+//    let d = slot(sell, 7)?.as_atom()?;
+//}
 
 pub fn jet_end(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
@@ -328,6 +311,49 @@ pub mod util {
             let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
             chop(bloq, 0, len, step, dest, a.as_bitslice())?;
             Ok(atom.normalize_as_atom().as_noun())
+        }
+    }
+
+    pub fn can(stack: &mut NockStack, bloq: usize, original_list: Noun) -> Result {
+        let mut len = 0usize;
+        let mut list = original_list;
+        loop {
+            if unsafe { list.raw_equals(D(0)) } {
+                break;
+            }
+
+            let cell = list.as_cell()?;
+            let item = cell.head().as_cell()?;
+            let step = item.head().as_direct()?.data() as usize;
+
+            len = checked_add(len, step)?;
+            list = cell.tail();
+        }
+
+        if len == 0 {
+            Ok(D(0))
+        } else {
+            unsafe {
+                let (mut new_indirect, new_slice) =
+                    IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+                let mut pos = 0;
+                let mut list = original_list;
+                loop {
+                    if list.raw_equals(D(0)) {
+                        break;
+                    }
+
+                    let cell = list.as_cell()?;
+                    let item = cell.head().as_cell()?;
+                    let step = item.head().as_direct()?.data() as usize;
+                    let atom = item.tail().as_atom()?;
+                    chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
+
+                    pos += step;
+                    list = cell.tail();
+                }
+                Ok(new_indirect.normalize_as_atom().as_noun())
+            }
         }
     }
 
