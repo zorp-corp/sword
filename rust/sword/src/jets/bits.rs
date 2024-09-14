@@ -3,6 +3,8 @@
 use crate::interpreter::Context;
 use crate::jets::util::*;
 use crate::jets::Result;
+use crate::noun::Atom;
+use crate::noun::T;
 use crate::noun::{IndirectAtom, Noun, D};
 use std::cmp;
 
@@ -79,15 +81,28 @@ pub fn jet_cut(context: &mut Context, subject: Noun) -> Result {
 //  create the the new atom to stich from the right side
 //  overwrite the bits in the receiver atom e by doing the lsh and rsh
 //
-//pub fn jet_sew(context: &mut Context, subject: Noun) -> Result {
-//    let sam = slot(subject, 6)?;
-//    let a = slot(sam, 2)?;
-//    let sell = slot(sam, 6)?;
-//    let e = slot(sam, 7)?.as_atom()?;
-//    let b = slot(sell, 2)?.as_atom()?;
-//    let c = slot(sell, 6)?.as_atom()?;
-//    let d = slot(sell, 7)?.as_atom()?;
-//}
+// There is a simpler way to do this as a bitslice
+pub fn jet_sew(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let a = slot(sam, 2)?;
+    let a_usize = a.as_atom()?.as_u64()? as usize;
+    let sell = slot(sam, 6)?;
+    let e = slot(sam, 7)?;
+    let b = slot(sell, 2)?;
+    let c = slot(sell, 6)?;
+    let d = slot(sell, 7)?;
+
+    let b_e = T(&mut context.stack, &[b, e]);
+    let c_d = T(&mut context.stack, &[c, d]);
+    let lis = T(&mut context.stack, &[a, b_e, c_d, D(0)]);
+
+    let concat = util::can(&mut context.stack, a_usize, lis)?;
+
+    let total_offset = a_usize + b.as_atom()?.as_u64()? as usize;
+
+    let left = util::rsh(&mut context.stack, a_usize, total_offset, e)?;
+    let left = util::lsh(&mut context.stack, a_usize, total_offset, left)?;
+}
 
 pub fn jet_end(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
