@@ -5,6 +5,7 @@ use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
+use std::collections::HashSet;
 
 crate::gdb!();
 
@@ -100,6 +101,7 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
     let backref_map = MutHamt::<Noun>::new(stack);
     let mut result = D(0);
     let mut cursor = 0;
+    let mut in_progress = HashSet::new();
 
     let stack_size = stack.size();
     let input_size = buffer.len();
@@ -118,12 +120,20 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
                 // Capture the destination pointer and pop it off the stack
                 let dest_ptr: *mut Noun = *(stack.top::<*mut Noun>());
                 stack.pop::<*mut Noun>();
+
+                let current_backref = cursor as u64;
+
                 // 1 bit
                 if next_bit(&mut cursor, buffer) {
                     // 11 tag: backref
                     if next_bit(&mut cursor, buffer) {
+                        let backref = rub_backref(&mut cursor, buffer)?;
                         let mut backref_noun =
-                            Atom::new(stack, rub_backref(&mut cursor, buffer)?).as_noun();
+                            Atom::new(stack, backref).as_noun();
+                        in_progress.insert(current_backref);
+                        if in_progress.contains(&backref) {
+                            panic!("Cyclic structure detected during deserialization");
+                        }
                         *dest_ptr = backref_map
                             .lookup(stack, &mut backref_noun)
                             .ok_or(Deterministic(Exit, D(0)))?;
@@ -131,18 +141,20 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
                         // 10 tag: cell
                         let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
                         *dest_ptr = cell.as_noun();
-                        let mut backref_atom = Atom::new(stack, (cursor - 2) as u64).as_noun();
+                        let mut backref_atom = Atom::new(stack, (current_backref - 2) as u64).as_noun();
                         backref_map.insert(stack, &mut backref_atom, *dest_ptr);
                         *(stack.push()) = &mut (*cell_mem_ptr).tail;
                         *(stack.push()) = &mut (*cell_mem_ptr).head;
                     }
                 } else {
                     // 0 tag: atom
-                    let backref: u64 = (cursor - 1) as u64;
+                    let backref: u64 = (current_backref - 1) as u64;
                     *dest_ptr = rub_atom(stack, &mut cursor, buffer)?.as_noun();
                     let mut backref_atom = Atom::new(stack, backref).as_noun();
                     backref_map.insert(stack, &mut backref_atom, *dest_ptr);
                 }
+
+                in_progress.remove(&current_backref);
             }
         })
     }
