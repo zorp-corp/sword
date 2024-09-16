@@ -84,26 +84,24 @@ pub fn jet_cut(context: &mut Context, subject: Noun) -> Result {
 // There is a simpler way to do this as a bitslice
 pub fn jet_sew(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
-    let a = slot(sam, 2)?;
-    let a_usize = a.as_atom()?.as_u64()? as usize;
+    let bloq = slot(sam, 2)?.as_atom()?.as_u64()? as usize;
+
     let sell = slot(sam, 6)?;
-    let e = slot(sam, 7)?;
-    let b = slot(sell, 2)?;
-    let c = slot(sell, 6)?;
-    let d = slot(sell, 7)?;
+    let e = slot(sam, 7)?.as_atom()?;
+    let b = slot(sell, 2)?.as_atom()?.as_u64()? as usize;
+    let step = slot(sell, 6)?.as_atom()?.as_u64()? as usize;
+    let d = slot(sell, 7)?.as_atom()?;
+    eprintln!("sew: donor: {:?}, receiver: {:?}", d.as_bitslice(), e.as_bitslice());
 
-    let b_e = T(&mut context.stack, &[b, e]);
-    let c_d = T(&mut context.stack, &[c, d]);
-    let lis = T(&mut context.stack, &[a, b_e, c_d, D(0)]);
+    unsafe {
+        let (mut new_indirect, new_slice) =
+            IndirectAtom::new_raw_mut_bitslice(&mut context.stack, e.size());
+        new_slice.copy_from_bitslice(&e.as_bitslice());
+        chop(bloq, 0, step, b, new_slice, d.as_bitslice())?;
+        Ok(new_indirect.normalize_as_atom().as_noun())
+    }
 
-    let concat = util::can(&mut context.stack, a_usize, lis)?;
-
-    let total_offset = a_usize + b.as_atom()?.as_u64()? as usize;
-
-    let left = util::rsh(&mut context.stack, a_usize, total_offset, e)?;
-    let left = util::lsh(&mut context.stack, a_usize, total_offset, left)?;
 }
-
 pub fn jet_end(context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let (bloq, step) = bite(slot(arg, 2)?)?;
@@ -827,6 +825,17 @@ mod tests {
         let bit = T(&mut c.stack, &[D(4), D(6)]);
         let sam = T(&mut c.stack, &[bit, a96]);
         assert_jet(c, jet_rsh, sam, D(0));
+    }
+
+    #[test]
+    fn test_sew() {
+        let c = &mut init_context();
+        let (a0, a24, _a63, a96, a128) = atoms(&mut c.stack);
+        let bloq16 = D(2);
+        let bcd = T(&mut c.stack, &[D(3), D(2), D(0xbaa)]);
+        let sam = T(&mut c.stack, &[bloq16, bcd, a96]);
+        let res = A(&mut c.stack, &ubig!(0xfaceb00c15deadbeef1aa456));
+        assert_jet(c, jet_sew, sam, res);
     }
 
     /*

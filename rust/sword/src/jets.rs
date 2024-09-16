@@ -283,6 +283,8 @@ pub mod util {
             step_b -= end_b - source.len();
         }
 
+        eprintln!("source: {:?}", &source[from_b..from_b + step_b]);
+
         dest[to_b..to_b + step_b].copy_from_bitslice(&source[from_b..from_b + step_b]);
         Ok(())
     }
