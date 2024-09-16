@@ -87,29 +87,22 @@ pub fn jet_sew(context: &mut Context, subject: Noun) -> Result {
     let step_b = step << bloq;
     let end_b = offset + step_b;
 
-    eprintln!("e_bitslice len: {:?}", e_bitslice.len());
-
-    let d_offset = if step_b > donor.len() {
-        donor.len()
+    let d_offset = if step_b > d.bit_size() {
+        d.bit_size()
     }
     else{ step_b };
 
-    // e = 0xdead.beef
-    // d = 0x0
-    // a = 2
-    // b = 1
-    // c = 2
-    // 0xdead.b00f
     unsafe {
         let (mut dest_indirect, dest) =
             IndirectAtom::new_raw_mut_bitslice(&mut context.stack, end_b);
-        dest[..e_bitslice.len()].copy_from_bitslice(&e_bitslice);
+        dest[..e.bit_size()].copy_from_bitslice(&e_bitslice[0..e.bit_size()]);
 
         let (mut dee_indirect, dee) =
             IndirectAtom::new_raw_mut_bitslice(&mut context.stack, step_b);
         dee[0..d_offset].copy_from_bitslice(&donor[0..d_offset]);
+        eprintln!("dee_indirect: {:?}", dee_indirect.as_noun());
 
-        dest[offset..offset + dee.len()].copy_from_bitslice(&dee);
+        dest[offset..offset + step_b].copy_from_bitslice(&dee[0..step_b]);
         Ok(dest_indirect.normalize_as_atom().as_noun())
     }
 }
@@ -847,10 +840,10 @@ mod tests {
         let bloq16 = D(2);
 
         //D(0x876543)
-        //let bcd = T(&mut c.stack, &[D(7), D(2), D(0xbad)]);
-        //let sam = T(&mut c.stack, &[bloq16, bcd, a24]);
-        //let res = A(&mut c.stack, &ubig!(0xad0876543));
-        //assert_jet(c, jet_sew, sam, res);
+        let bcd = T(&mut c.stack, &[D(7), D(2), D(0xbad)]);
+        let sam = T(&mut c.stack, &[bloq16, bcd, a24]);
+        let res = A(&mut c.stack, &ubig!(0xad0876543));
+        assert_jet(c, jet_sew, sam, res);
 
         let bcd = T(&mut c.stack, &[D(1), D(2), D(0)]);
         let sam = T(&mut c.stack, &[bloq16, bcd, D(0xdeadbeef)]);
