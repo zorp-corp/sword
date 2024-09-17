@@ -835,17 +835,16 @@ mod tests {
     fn test_sew() {
         let c = &mut init_context();
         let (a0, a24, a63, a96, a128) = atoms(&mut c.stack);
-        let bloq16 = D(2);
 
         // 0xfaceb00c15deadbeef123456
         let bcd = T(&mut c.stack, &[D(7), D(2), D(0)]);
-        let sam = T(&mut c.stack, &[bloq16, bcd, a96]);
+        let sam = T(&mut c.stack, &[D(2), bcd, a96]);
         let res = A(&mut c.stack, &ubig!(0xfaceb00c15deadb00f123456));
         assert_jet(c, jet_sew, sam, res);
 
         //D(0x876543)
         let bcd = T(&mut c.stack, &[D(6), D(3), D(0xbad)]);
-        let sam = T(&mut c.stack, &[bloq16, bcd, a24]);
+        let sam = T(&mut c.stack, &[D(2), bcd, a24]);
         let res = A(&mut c.stack, &ubig!(0xbad876543));
         assert_jet(c, jet_sew, sam, res);
 
@@ -863,12 +862,12 @@ mod tests {
 
         //D(0x876543)
         let bcd = T(&mut c.stack, &[D(7), D(0), D(0xbad)]);
-        let sam = T(&mut c.stack, &[bloq16, bcd, a24]);
+        let sam = T(&mut c.stack, &[D(2), bcd, a24]);
         assert_jet(c, jet_sew, sam, a24);
 
         // D(0x0)
         let bcd = T(&mut c.stack, &[D(7), D(3), D(0xbad)]);
-        let sam = T(&mut c.stack, &[bloq16, bcd, a0]);
+        let sam = T(&mut c.stack, &[D(2), bcd, a0]);
         let res = A(&mut c.stack, &ubig!(0xbad0000000));
         assert_jet(c, jet_sew, sam, res);
 
