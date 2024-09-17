@@ -50,14 +50,17 @@ fn mum_u32(syd: u32, fal: u32, key: Atom) -> u32 {
     }
 }
 
-fn calc_atom_mug_u32(atom: Atom) -> u32 {
+pub fn calc_atom_mug_u32(atom: Atom) -> u32 {
     mum_u32(0xCAFEBABE, 0x7FFF, atom)
 }
 
 /** Unsafe because this passes a direct atom to mum_u32 made by concatenating the two mugs,
  * so we must ensure that the tail_mug conforms to the mug invariant and is only 31 bits
+ *
+ * # Safety
+ * head_mug and tail_mug both have msb 0.
  */
-unsafe fn calc_cell_mug_u32(head_mug: u32, tail_mug: u32) -> u32 {
+pub unsafe fn calc_cell_mug_u32(head_mug: u32, tail_mug: u32) -> u32 {
     let cat_mugs = (head_mug as u64) | ((tail_mug as u64) << 32);
     mum_u32(
         0xDEADBEEF,
@@ -75,7 +78,15 @@ pub fn get_mug(noun: Noun) -> Option<u32> {
 
 const MASK_OUT_MUG: u64 = !(u32::MAX as u64);
 
-unsafe fn set_mug(allocated: Allocated, mug: u32) {
+/** 
+ * Set the cached mug on an allocated noun
+ *
+ * # Safety
+ *
+ * Ensure the calculated mug is correct or this will result in incorrect mugs being returned.
+ * This could cause jet mismatches.
+ */
+pub unsafe fn set_mug(allocated: Allocated, mug: u32) {
     let metadata = allocated.get_metadata();
     allocated.set_metadata((metadata & MASK_OUT_MUG) | (mug as u64));
 }
