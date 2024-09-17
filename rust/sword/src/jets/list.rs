@@ -186,6 +186,7 @@ pub mod util {
             }
             list = cell.tail();
         }
+        unsafe { *dest = D(0) };
         Ok(ret)
     }
 
@@ -279,31 +280,20 @@ mod tests {
     fn test_snip() {
         let c = &mut init_context();
 
+        let sam = T(&mut c.stack, &[D(1), D(0)]);
+        assert_jet(c, jet_snip, sam, D(0));
+
+        let sam = T(&mut c.stack, &[D(1), D(2), D(0)]);
+        let res = T(&mut c.stack, &[D(1), D(0)]);
+        assert_jet(c, jet_snip, sam, res);
+
         let sam = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
         let res = T(&mut c.stack, &[D(1), D(2), D(0)]);
         assert_jet(c, jet_snip, sam, res);
 
-        #[rustfmt::skip]
-        let sam = T(
-            &mut c.stack,
-            &[
-                D(0xd), D(0xe), D(0xa), D(0xd), D(0xb), D(0xe), D(0xe), D(0xf),
-                D(0x1), D(0x2), D(0x3), D(0x4), D(0x5), D(0x6), D(0x7), D(0x8),
-                D(0xf), D(0xe), D(0xd), D(0xc), D(0xb), D(0xa), D(0x9), D(0x8),
-                D(0x7), D(0x6), D(0x5), D(0x4), D(0x3), D(0x2), D(0x1), D(0x0),
-                D(0x0),
-            ],
-        );
-        #[rustfmt::skip]
-        let res = T(
-            &mut c.stack,
-            &[
-                D(0xd), D(0xe), D(0xa), D(0xd), D(0xb), D(0xe), D(0xe), D(0xf),
-                D(0x1), D(0x2), D(0x3), D(0x4), D(0x5), D(0x6), D(0x7), D(0x8),
-                D(0xf), D(0xe), D(0xd), D(0xc), D(0xb), D(0xa), D(0x9), D(0x8),
-                D(0x7), D(0x6), D(0x5), D(0x4), D(0x3), D(0x2), D(0x1), D(0x0),
-            ],
-        );
+        let pair = T(&mut c.stack, &[D(1), D(2)]);
+        let sam = T(&mut c.stack, &[pair, pair, pair, D(0)]);
+        let res = T(&mut c.stack, &[pair, pair, D(0)]);
         assert_jet(c, jet_snip, sam, res);
 
         let sam = T(&mut c.stack, &[D(1), D(2), D(3)]);

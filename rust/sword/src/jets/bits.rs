@@ -3,8 +3,6 @@
 use crate::interpreter::Context;
 use crate::jets::util::*;
 use crate::jets::Result;
-use crate::noun::Atom;
-use crate::noun::T;
 use crate::noun::{IndirectAtom, Noun, D};
 use std::cmp;
 use std::cmp::max;
