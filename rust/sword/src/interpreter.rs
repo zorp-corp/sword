@@ -1659,7 +1659,7 @@ mod hint {
                                 //      format!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
                                 let tape = tape(
                                     stack,
-                                    &format!("serf: cold: register: could not find parent battery at given axis"),
+                                    "serf: cold: register: could not find parent battery at given axis",
                                 );
                                 slog_leaf(stack, slogger, tape);
                             }
