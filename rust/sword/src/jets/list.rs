@@ -24,6 +24,15 @@ pub fn jet_snip(context: &mut Context, subject: Noun) -> Result {
     util::snip(&mut context.stack, list)
 }
 
+pub fn jet_snag(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let index = slot(sam, 2)?;
+    let list = slot(sam, 3)?;
+    //eprintln!("snag: {:?}, index: {}", list, index);
+
+    util::snag(&mut context.stack, list, index)
+}
+
 pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
     let list = slot(subject, 6)?;
     let stack = &mut context.stack;
@@ -127,6 +136,7 @@ pub mod util {
     use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
     use crate::noun::{Cell, Noun, D, T};
+    use crate::persist::Persist;
     use std::result;
 
     /// Reverse order of list
@@ -163,6 +173,22 @@ pub mod util {
             list = cell.tail();
         }
         Ok(len)
+    }
+
+    pub fn snag(stack: &mut NockStack, tape: Noun, index: Noun) -> Result {
+        let mut list = tape;
+        let mut idx = index.as_atom()?.as_u64()? as usize;
+        loop {
+            if unsafe { list.raw_equals(D(0)) } {
+                return Err(BAIL_EXIT);
+            }
+            let cell = list.as_cell()?;
+            if idx == 0 {
+                return Ok(cell.head());
+            }
+            idx -= 1;
+            list = cell.tail();
+        }
     }
 
     pub fn snip(stack: &mut NockStack, tape: Noun) -> Result {
@@ -281,6 +307,26 @@ mod tests {
         assert_jet_err(c, jet_lent, D(1), BAIL_EXIT);
         let sam = T(&mut c.stack, &[D(3), D(2), D(1)]);
         assert_jet_err(c, jet_lent, sam, BAIL_EXIT);
+    }
+
+    #[test]
+    fn test_snag() {
+        let c = &mut init_context();
+        let list1 = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
+        let sam = T(&mut c.stack, &[list1, D(1)]);
+        assert_jet(c, jet_snag, sam, D(2));
+
+        let list2 = T(&mut c.stack, &[D(1), D(0)]);
+        let sam = T(&mut c.stack, &[list2, D(0)]);
+        assert_jet(c, jet_snag, sam, D(1));
+
+        let sam = T(&mut c.stack, &[list1, D(3)]);
+        assert_jet_err(c, jet_snag, sam, BAIL_EXIT);
+        //let sam = T(&mut c.stack, &[D(3), D(2), D(1), D(0)]);
+        //assert_jet(c, jet_lent, sam, D(3));
+        //assert_jet_err(c, jet_lent, D(1), BAIL_EXIT);
+        //let sam = T(&mut c.stack, &[D(3), D(2), D(1)]);
+        //assert_jet_err(c, jet_lent, sam, BAIL_EXIT);
     }
 
     #[test]
