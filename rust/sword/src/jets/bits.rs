@@ -5,6 +5,8 @@ use crate::jets::util::*;
 use crate::jets::Result;
 use crate::noun::{IndirectAtom, Noun, D};
 use std::cmp;
+use std::cmp::max;
+use std::cmp::min;
 
 crate::gdb!();
 
@@ -22,46 +24,7 @@ pub fn jet_can(context: &mut Context, subject: Noun) -> Result {
     let bloq = bloq(slot(arg, 2)?)?;
     let original_list = slot(arg, 3)?;
 
-    let mut len = 0usize;
-    let mut list = original_list;
-    loop {
-        if unsafe { list.raw_equals(D(0)) } {
-            break;
-        }
-
-        let cell = list.as_cell()?;
-        let item = cell.head().as_cell()?;
-        let step = item.head().as_direct()?.data() as usize;
-
-        len = checked_add(len, step)?;
-        list = cell.tail();
-    }
-
-    if len == 0 {
-        Ok(D(0))
-    } else {
-        unsafe {
-            let (mut new_indirect, new_slice) =
-                IndirectAtom::new_raw_mut_bitslice(&mut context.stack, bite_to_word(bloq, len)?);
-            let mut pos = 0;
-            let mut list = original_list;
-            loop {
-                if list.raw_equals(D(0)) {
-                    break;
-                }
-
-                let cell = list.as_cell()?;
-                let item = cell.head().as_cell()?;
-                let step = item.head().as_direct()?.data() as usize;
-                let atom = item.tail().as_atom()?;
-                chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
-
-                pos += step;
-                list = cell.tail();
-            }
-            Ok(new_indirect.normalize_as_atom().as_noun())
-        }
-    }
+    util::can(&mut context.stack, bloq, original_list)
 }
 
 pub fn jet_cat(context: &mut Context, subject: Noun) -> Result {
@@ -104,6 +67,41 @@ pub fn jet_cut(context: &mut Context, subject: Noun) -> Result {
         new_indirect.normalize_as_atom()
     };
     Ok(new_indirect.as_noun())
+}
+
+pub fn jet_sew(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let bloq = bloq(slot(sam, 2)?)?;
+    let e = slot(sam, 7)?.as_atom()?;
+
+    let bcd = slot(sam, 6)?;
+    let offset = slot(bcd, 2)?.as_atom()?.as_u64()? as usize;
+    let step = slot(bcd, 6)?.as_atom()?.as_u64()? as usize;
+
+    if step == 0 {
+        return Ok(e.as_noun());
+    }
+
+    let donor = slot(bcd, 7)?.as_atom()?;
+
+    let len_d = util::met(bloq, donor);
+    let len_e = util::met(bloq, e);
+    let new_len = max(checked_add(step, offset)?, len_e);
+
+    unsafe {
+        let (mut dest_indirect, dest) =
+            IndirectAtom::new_raw_mut_bitslice(&mut context.stack, bite_to_word(bloq, new_len)?);
+
+        chop(bloq, 0, len_e, 0, dest, e.as_bitslice())?;
+
+        let (_, lead) =
+            IndirectAtom::new_raw_mut_bitslice(&mut context.stack, bite_to_word(bloq, step)?);
+
+        chop(bloq, 0, min(step, len_d), 0, lead, donor.as_bitslice())?;
+
+        chop(bloq, 0, step, offset, dest, lead)?;
+        Ok(dest_indirect.normalize_as_atom().as_noun())
+    }
 }
 
 pub fn jet_end(context: &mut Context, subject: Noun) -> Result {
@@ -328,6 +326,49 @@ pub mod util {
             let (mut atom, dest) = IndirectAtom::new_raw_mut_bitslice(stack, new_size);
             chop(bloq, 0, len, step, dest, a.as_bitslice())?;
             Ok(atom.normalize_as_atom().as_noun())
+        }
+    }
+
+    pub fn can(stack: &mut NockStack, bloq: usize, original_list: Noun) -> Result {
+        let mut len = 0usize;
+        let mut list = original_list;
+        loop {
+            if unsafe { list.raw_equals(D(0)) } {
+                break;
+            }
+
+            let cell = list.as_cell()?;
+            let item = cell.head().as_cell()?;
+            let step = item.head().as_direct()?.data() as usize;
+
+            len = checked_add(len, step)?;
+            list = cell.tail();
+        }
+
+        if len == 0 {
+            Ok(D(0))
+        } else {
+            unsafe {
+                let (mut new_indirect, new_slice) =
+                    IndirectAtom::new_raw_mut_bitslice(stack, bite_to_word(bloq, len)?);
+                let mut pos = 0;
+                let mut list = original_list;
+                loop {
+                    if list.raw_equals(D(0)) {
+                        break;
+                    }
+
+                    let cell = list.as_cell()?;
+                    let item = cell.head().as_cell()?;
+                    let step = item.head().as_direct()?.data() as usize;
+                    let atom = item.tail().as_atom()?;
+                    chop(bloq, 0, step, pos, new_slice, atom.as_bitslice())?;
+
+                    pos += step;
+                    list = cell.tail();
+                }
+                Ok(new_indirect.normalize_as_atom().as_noun())
+            }
         }
     }
 
@@ -786,6 +827,48 @@ mod tests {
         let bit = T(&mut c.stack, &[D(4), D(6)]);
         let sam = T(&mut c.stack, &[bit, a96]);
         assert_jet(c, jet_rsh, sam, D(0));
+    }
+
+    #[test]
+    fn test_sew() {
+        let c = &mut init_context();
+        let (a0, a24, a63, a96, a128) = atoms(&mut c.stack);
+
+        // 0xfaceb00c15deadbeef123456
+        let bcd = T(&mut c.stack, &[D(7), D(2), D(0)]);
+        let sam = T(&mut c.stack, &[D(2), bcd, a96]);
+        let res = A(&mut c.stack, &ubig!(0xfaceb00c15deadb00f123456));
+        assert_jet(c, jet_sew, sam, res);
+
+        //D(0x876543)
+        let bcd = T(&mut c.stack, &[D(6), D(3), D(0xbad)]);
+        let sam = T(&mut c.stack, &[D(2), bcd, a24]);
+        let res = A(&mut c.stack, &ubig!(0xbad876543));
+        assert_jet(c, jet_sew, sam, res);
+
+        // D(0xdeadbeef12345678fedcba9876543210)
+        let bcd = T(&mut c.stack, &[D(1), D(1), D(0xffff)]);
+        let sam = T(&mut c.stack, &[D(4), bcd, a128]);
+        let res = A(&mut c.stack, &ubig!(0xdeadbeef12345678fedcba98ffff3210));
+        assert_jet(c, jet_sew, sam, res);
+
+        //D(0x7fffffffffffffff)
+        let bcd = T(&mut c.stack, &[D(9), D(3), D(0xeeee)]);
+        let sam = T(&mut c.stack, &[D(3), bcd, a63]);
+        let res = A(&mut c.stack, &ubig!(0xeeee007fffffffffffffff));
+        assert_jet(c, jet_sew, sam, res);
+
+        //D(0x876543)
+        let bcd = T(&mut c.stack, &[D(7), D(0), D(0xbad)]);
+        let sam = T(&mut c.stack, &[D(2), bcd, a24]);
+        assert_jet(c, jet_sew, sam, a24);
+
+        // D(0x0)
+        let bcd = T(&mut c.stack, &[D(7), D(3), D(0xbad)]);
+        let sam = T(&mut c.stack, &[D(2), bcd, a0]);
+        let res = A(&mut c.stack, &ubig!(0xbad0000000));
+        assert_jet(c, jet_sew, sam, res);
+
     }
 
     /*

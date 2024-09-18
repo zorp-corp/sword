@@ -95,6 +95,11 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
         jet_lent,
     ),
     (
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"snip")],
+        1,
+        jet_snip,
+    ),
+    (
         &[K_139, Left(b"one"), Left(b"two"), Left(b"turn")],
         1,
         jet_turn,
@@ -164,6 +169,11 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
         &[K_139, Left(b"one"), Left(b"two"), Left(b"rsh")],
         1,
         jet_rsh,
+    ),
+    (
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"sew")],
+        1,
+        jet_sew,
     ),
     (
         &[K_139, Left(b"one"), Left(b"two"), Left(b"xeb")],

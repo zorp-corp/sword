@@ -19,6 +19,11 @@ pub fn jet_lent(_context: &mut Context, subject: Noun) -> Result {
     util::lent(list).map(|x| D(x as u64))
 }
 
+pub fn jet_snip(context: &mut Context, subject: Noun) -> Result {
+    let list = slot(subject, 6)?;
+    util::snip(&mut context.stack, list)
+}
+
 pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
     let list = slot(subject, 6)?;
     let stack = &mut context.stack;
@@ -160,6 +165,38 @@ pub mod util {
         Ok(len)
     }
 
+    pub fn snip(stack: &mut NockStack, tape: Noun) -> Result {
+        let mut ret = D(0);
+        let mut dest = &mut ret as *mut Noun;
+        let mut list = tape;
+
+        if let Some(atom) = list.atom() {
+            if atom.as_bitslice().first_one().is_none() {
+                return Ok(D(0));
+            }
+        }
+
+        loop {
+            let cell = list.as_cell()?;
+            if let Some(atom) = cell.tail().atom() {
+                if atom.as_bitslice().first_one().is_none() {
+                    break;
+                } else {
+                    return Err(BAIL_EXIT);
+                }
+            }
+            unsafe {
+                let (new_cell, new_mem) = Cell::new_raw_mut(stack);
+                (*new_mem).head = cell.head();
+                *dest = new_cell.as_noun();
+                dest = &mut (*new_mem).tail;
+            }
+            list = cell.tail();
+        }
+        unsafe { *dest = D(0) };
+        Ok(ret)
+    }
+
     pub fn zing(stack: &mut NockStack, mut list: Noun) -> Result {
         unsafe {
             let mut res: Noun = D(0);
@@ -244,6 +281,32 @@ mod tests {
         assert_jet_err(c, jet_lent, D(1), BAIL_EXIT);
         let sam = T(&mut c.stack, &[D(3), D(2), D(1)]);
         assert_jet_err(c, jet_lent, sam, BAIL_EXIT);
+    }
+
+    #[test]
+    fn test_snip() {
+        let c = &mut init_context();
+
+        let sam = T(&mut c.stack, &[D(1), D(0)]);
+        assert_jet(c, jet_snip, sam, D(0));
+
+        let sam = T(&mut c.stack, &[D(1), D(2), D(0)]);
+        let res = T(&mut c.stack, &[D(1), D(0)]);
+        assert_jet(c, jet_snip, sam, res);
+
+        let sam = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
+        let res = T(&mut c.stack, &[D(1), D(2), D(0)]);
+        assert_jet(c, jet_snip, sam, res);
+
+        let pair = T(&mut c.stack, &[D(1), D(2)]);
+        let sam = T(&mut c.stack, &[pair, pair, pair, D(0)]);
+        let res = T(&mut c.stack, &[pair, pair, D(0)]);
+        assert_jet(c, jet_snip, sam, res);
+
+        let sam = T(&mut c.stack, &[D(1), D(2), D(3)]);
+        assert_jet_err(c, jet_snip, sam, BAIL_EXIT);
+
+        assert_jet(c, jet_snip, D(0), D(0));
     }
 
     #[test]
