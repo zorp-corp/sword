@@ -169,6 +169,13 @@ pub mod util {
         let mut ret = D(0);
         let mut dest = &mut ret as *mut Noun;
         let mut list = tape;
+
+        if let Some(atom) = list.atom() {
+            if atom.as_bitslice().first_one().is_none() {
+                return Ok(D(0));
+            }
+        }
+
         loop {
             let cell = list.as_cell()?;
             if let Some(atom) = cell.tail().atom() {
@@ -298,6 +305,8 @@ mod tests {
 
         let sam = T(&mut c.stack, &[D(1), D(2), D(3)]);
         assert_jet_err(c, jet_snip, sam, BAIL_EXIT);
+
+        assert_jet(c, jet_snip, D(0), D(0));
     }
 
     #[test]
