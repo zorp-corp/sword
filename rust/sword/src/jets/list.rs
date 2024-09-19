@@ -53,7 +53,7 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
             list = list_cell.tail();
             unsafe {
                 let (new_cell, new_mem) = Cell::new_raw_mut(&mut context.stack);
-                (*new_mem).head = site_slam(context, &site, list_cell.head());
+                (*new_mem).head = site_slam(context, &site, list_cell.head())?;
                 *dest = new_cell.as_noun();
                 dest = &mut (*new_mem).tail;
             }
@@ -80,7 +80,7 @@ pub fn jet_roll(context: &mut Context, subject: Noun) -> Result {
         if let Ok(list_cell) = list.as_cell() {
             list = list_cell.tail();
             let sam = T(&mut context.stack, &[list_cell.head(), prod]);
-            prod = site_slam(context, &site, sam);
+            prod = site_slam(context, &site, sam)?;
         } else {
             if unsafe { !list.raw_equals(D(0)) } {
                 return Err(BAIL_FAIL);

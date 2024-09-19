@@ -4,8 +4,11 @@ use bitvec::slice::BitSlice;
 
 use crate::interpreter::{interpret, Context};
 use crate::jets::util::slot;
-use crate::jets::Jet;
+use crate::jets::{Jet, JetErr};
 use crate::noun::{Noun, D, T};
+
+/// Return Err if the computation crashed or should punt to Nock
+pub type Result = std::result::Result<Noun, JetErr>;
 
 pub struct Site {
     pub battery: Noun,    // battery
@@ -59,13 +62,17 @@ impl Site {
 }
 
 /// Slam a cached call site.
-pub fn site_slam(ctx: &mut Context, site: &Site, sample: Noun) -> Noun {
+pub fn site_slam(ctx: &mut Context, site: &Site, sample: Noun) -> Result {
     let subject = T(&mut ctx.stack, &[site.battery, sample, site.context]);
     if site.jet.is_some() {
         let jet = site.jet.unwrap();
-        jet(ctx, subject).unwrap()
+        jet(ctx, subject)
     } else {
         // XX call cg_interpret?
-        interpret(ctx, subject, site.battery).unwrap()
+        //match interpret(ctx, subject, site.battery) {
+        //    Ok(result) => Ok(result),
+        //    Err(x) => Err(x.into())
+        //}
+        Ok(interpret(ctx, subject, site.battery)?)
     }
 }
