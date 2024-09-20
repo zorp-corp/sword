@@ -1229,7 +1229,11 @@ fn exit(
                 let h = *(stack.local_noun_pointer(0));
                 // XX: Small chance of clobbering something important after OOM?
                 // XX: what if we OOM while making a stack trace
-                T(stack, &[h, t])
+                if t.raw_equals(D(0)) {
+                    h
+                } else {
+                    T(stack, &[t, h, D(0)])
+                }
             }
         };
 
