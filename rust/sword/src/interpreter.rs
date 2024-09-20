@@ -1543,8 +1543,9 @@ mod hint {
 
                 match mook(context, tone, true) {
                     Ok(toon) => {
-                        let slogger = &mut context.slogger;
                         let stack = &mut context.stack;
+                        let slogger = &mut context.slogger;
+
                         if unsafe { !toon.head().raw_equals(D(2)) } {
                             // +mook will only ever return a $toon with non-%2 head if that's what it was given as
                             // input. Since we control the input for this call exactly, there must exist a programming
@@ -1634,7 +1635,7 @@ mod hint {
                                 if parent_formula_ax.direct()?.data() == 0 {
                                     cold.register(stack, res, parent_formula_ax, chum)
                                 } else {
-                                    //  XX: flog! is ideal, if not for the borrow checker
+                                    //  XX: flog! is ideal, but it runs afoul of the borrow checker
                                     // flog!(context, "invalid root parent formula: {} {}", chum, parent);
                                     let tape = tape(
                                         stack,

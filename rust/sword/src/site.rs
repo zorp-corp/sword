@@ -68,11 +68,6 @@ pub fn site_slam(ctx: &mut Context, site: &Site, sample: Noun) -> Result {
         let jet = site.jet.unwrap();
         jet(ctx, subject)
     } else {
-        // XX call cg_interpret?
-        //match interpret(ctx, subject, site.battery) {
-        //    Ok(result) => Ok(result),
-        //    Err(x) => Err(x.into())
-        //}
         Ok(interpret(ctx, subject, site.battery)?)
     }
 }

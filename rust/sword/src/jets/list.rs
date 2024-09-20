@@ -18,9 +18,25 @@ pub fn jet_lent(_context: &mut Context, subject: Noun) -> Result {
     util::lent(list).map(|x| D(x as u64))
 }
 
-pub fn jet_snip(context: &mut Context, subject: Noun) -> Result {
-    let list = slot(subject, 6)?;
-    util::snip(&mut context.stack, list)
+pub fn jet_roll(context: &mut Context, subject: Noun) -> Result {
+    let sample = slot(subject, 6)?;
+    let mut list = slot(sample, 2)?;
+    let mut gate = slot(sample, 3)?;
+    let mut prod = slot(gate, 13)?;
+
+    let site = Site::new(context, &mut gate);
+    loop {
+        if let Ok(list_cell) = list.as_cell() {
+            list = list_cell.tail();
+            let sam = T(&mut context.stack, &[list_cell.head(), prod]);
+            prod = site_slam(context, &site, sam)?;
+        } else {
+            if unsafe { !list.raw_equals(D(0)) } {
+                return Err(BAIL_FAIL);
+            }
+            return Ok(prod);
+        }
+    }
 }
 
 pub fn jet_snag(_context: &mut Context, subject: Noun) -> Result {
@@ -31,11 +47,9 @@ pub fn jet_snag(_context: &mut Context, subject: Noun) -> Result {
     util::snag(list, index)
 }
 
-pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_snip(context: &mut Context, subject: Noun) -> Result {
     let list = slot(subject, 6)?;
-    let stack = &mut context.stack;
-
-    util::zing(stack, list)
+    util::snip(&mut context.stack, list)
 }
 
 pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
@@ -69,25 +83,11 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_roll(context: &mut Context, subject: Noun) -> Result {
-    let sample = slot(subject, 6)?;
-    let mut list = slot(sample, 2)?;
-    let mut gate = slot(sample, 3)?;
-    let mut prod = slot(gate, 13)?;
+pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
+    let list = slot(subject, 6)?;
+    let stack = &mut context.stack;
 
-    let site = Site::new(context, &mut gate);
-    loop {
-        if let Ok(list_cell) = list.as_cell() {
-            list = list_cell.tail();
-            let sam = T(&mut context.stack, &[list_cell.head(), prod]);
-            prod = site_slam(context, &site, sam)?;
-        } else {
-            if unsafe { !list.raw_equals(D(0)) } {
-                return Err(BAIL_FAIL);
-            }
-            return Ok(prod);
-        }
-    }
+    util::zing(stack, list)
 }
 
 pub mod util {
