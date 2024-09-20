@@ -271,14 +271,17 @@ mod tests {
     fn test_snag() {
         let c = &mut init_context();
         let list1 = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
-        let sam = T(&mut c.stack, &[list1, D(1)]);
+        let sam = T(&mut c.stack, &[D(1), list1]);
         assert_jet(c, jet_snag, sam, D(2));
 
         let list2 = T(&mut c.stack, &[D(1), D(0)]);
-        let sam = T(&mut c.stack, &[list2, D(0)]);
+        let sam = T(&mut c.stack, &[D(0), list2]);
         assert_jet(c, jet_snag, sam, D(1));
 
-        let sam = T(&mut c.stack, &[list1, D(3)]);
+        let sam = T(&mut c.stack, &[D(3), list1]);
+        assert_jet_err(c, jet_snag, sam, BAIL_EXIT);
+
+        let sam = T(&mut c.stack, &[D(0), D(0)]);
         assert_jet_err(c, jet_snag, sam, BAIL_EXIT);
     }
 
