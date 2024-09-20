@@ -1543,9 +1543,8 @@ mod hint {
 
                 match mook(context, tone, true) {
                     Ok(toon) => {
-                        let stack = &mut context.stack;
                         let slogger = &mut context.slogger;
-
+                        let stack = &mut context.stack;
                         if unsafe { !toon.head().raw_equals(D(2)) } {
                             // +mook will only ever return a $toon with non-%2 head if that's what it was given as
                             // input. Since we control the input for this call exactly, there must exist a programming
@@ -1563,9 +1562,7 @@ mod hint {
                                 slogger.slog(stack, 0, cell.head());
                                 list = cell.tail();
                             } else {
-                                let stack = &mut context.stack;
-                                let tape = tape(stack, "serf: %hela: list ends without ~");
-                                slog_leaf(stack, slogger, tape);
+                                flog!(context, "serf: %hela: list ends without ~");
                                 break;
                             }
                         }
@@ -1609,37 +1606,36 @@ mod hint {
             tas!(b"fast") => {
                 if !cfg!(feature = "sham_hints") {
                     if let Some(clue) = hint {
-                        let cold_res: cold::Result = {
-                            let chum = clue.slot(2).ok()?;
-
-                            let mut parent = clue.slot(6).ok()?;
-                            loop {
-                                if let Ok(parent_cell) = parent.as_cell() {
-                                    if unsafe { parent_cell.head().raw_equals(D(11)) } {
-                                        match parent.slot(7) {
-                                            Ok(noun) => {
-                                                parent = noun;
-                                            }
-                                            Err(_) => {
-                                                return None;
-                                            }
+                        let chum = clue.slot(2).ok()?;
+                        let mut parent = clue.slot(6).ok()?;
+                        loop {
+                            if let Ok(parent_cell) = parent.as_cell() {
+                                if unsafe { parent_cell.head().raw_equals(D(11)) } {
+                                    match parent.slot(7) {
+                                        Ok(noun) => {
+                                            parent = noun;
                                         }
-                                    } else {
-                                        break;
+                                        Err(_) => {
+                                            return None;
+                                        }
                                     }
                                 } else {
-                                    return None;
+                                    break;
                                 }
+                            } else {
+                                return None;
                             }
-                            let parent_formula_op = parent.slot(2).ok()?.atom()?.direct()?;
-                            let parent_formula_ax = parent.slot(3).ok()?.atom()?;
+                        }
+                        let parent_formula_op = parent.slot(2).ok()?.atom()?.direct()?;
+                        let parent_formula_ax = parent.slot(3).ok()?.atom()?;
 
+                        let cold_res: cold::Result = {
                             if parent_formula_op.data() == 1 {
                                 if parent_formula_ax.direct()?.data() == 0 {
                                     cold.register(stack, res, parent_formula_ax, chum)
                                 } else {
-                                    //  XX: Need better message in slog; need better slogging tools
-                                    //      format!("invalid root parent axis: {} {}", chum, parent_formula_ax)
+                                    //  XX: flog! is ideal, if not for the borrow checker
+                                    // flog!(context, "invalid root parent formula: {} {}", chum, parent);
                                     let tape = tape(
                                         stack,
                                         "serf: cold: register: invalid root parent axis",
@@ -1655,25 +1651,15 @@ mod hint {
                         match cold_res {
                             Ok(true) => context.warm = Warm::init(stack, cold, hot),
                             Err(cold::Error::NoParent) => {
-                                //  XX: Need better message in slog; need better slogging tools
-                                //      format!("could not find parent battery at given axis: {} {}", chum, parent_formula_ax)
-                                let tape = tape(
-                                    stack,
-                                    "serf: cold: register: could not find parent battery at given axis",
-                                );
-                                slog_leaf(stack, slogger, tape);
+                                flog!(context, "serf: cold: register: could not match parent battery at given axis: {} {}", chum, parent_formula_ax);
                             }
                             Err(cold::Error::BadNock) => {
-                                //  XX: Need better message in slog; need better slogging tools
-                                //      format!("bad clue formula: {}", clue)
-                                let tape = tape(stack, "serf: cold: register: bad clue formula");
-                                slog_leaf(stack, slogger, tape);
+                                flog!(context, "serf: cold: register: bad clue formula: {}", clue);
                             }
                             _ => {}
                         }
                     } else {
-                        let tape = tape(stack, "serf: cold: register: no clue for %fast");
-                        slog_leaf(stack, slogger, tape);
+                        flog!(context, "serf: cold: register: no clue for %fast");
                     }
                 }
             }
