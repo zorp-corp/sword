@@ -12,7 +12,7 @@ sword_guard = { path = "../sword_guard" }
 sword_crypto = { path = "../sword_crypto" }
 sword_macros = { path = "../sword_macros" }
 sword_pma = { path = "../sword_pma" }
-assert_no_alloc = { path = "../assert_no_alloc" }
+assert_no_alloc = { path = "../assert_no_alloc", features=["warn_debug"]}
 murmur3 = { path = "../murmur3" }
 bitvec = "1.0.0"
 criterion = "0.4"
