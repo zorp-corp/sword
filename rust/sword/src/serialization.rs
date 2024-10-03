@@ -57,7 +57,7 @@ pub fn rest_bits(cursor: usize, slice: &BitSlice<u64, Lsb0>) -> &BitSlice<u64, L
     }
 }
 
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 enum CueStackEntry {
     DestinationPointer(*mut Noun),
     BackRef(u64, *const Noun),
@@ -107,16 +107,10 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
     let mut result = D(0);
     let mut cursor = 0;
 
-    let stack_size = stack.size();
-    let input_size = buffer.len();
-    if stack_size < input_size {
-        eprintln!("stack too small: {} < {}", stack_size, input_size);
-        return Err(Error::NonDeterministic(Fail, D(0)));
-    }
-
     unsafe {
         stack.with_frame(0, |stack: &mut NockStack| {
-            *(stack.push::<CueStackEntry>()) = CueStackEntry::DestinationPointer(&mut result as *mut Noun);
+            *(stack.push::<CueStackEntry>()) =
+                CueStackEntry::DestinationPointer(&mut result as *mut Noun);
             loop {
                 if stack.stack_is_empty() {
                     break Ok(result);
@@ -139,11 +133,17 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
                                 // 10 tag: cell
                                 let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
                                 *dest_ptr = cell.as_noun();
-                                let mut backref_atom = Atom::new(stack, (cursor - 2) as u64).as_noun();
+                                let mut backref_atom =
+                                    Atom::new(stack, (cursor - 2) as u64).as_noun();
                                 backref_map.insert(stack, &mut backref_atom, *dest_ptr);
-                                *(stack.push()) = CueStackEntry::BackRef(cursor as u64 - 2, dest_ptr as *const Noun);
-                                *(stack.push()) = CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).tail);
-                                *(stack.push()) = CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).head);
+                                *(stack.push()) = CueStackEntry::BackRef(
+                                    cursor as u64 - 2,
+                                    dest_ptr as *const Noun,
+                                );
+                                *(stack.push()) =
+                                    CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).tail);
+                                *(stack.push()) =
+                                    CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).head);
                             }
                         } else {
                             // 0 tag: atom
@@ -152,11 +152,11 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
                             let mut backref_atom = Atom::new(stack, backref).as_noun();
                             backref_map.insert(stack, &mut backref_atom, *dest_ptr);
                         }
-                    },
+                    }
                     CueStackEntry::BackRef(backref, noun_ptr) => {
                         let mut backref_atom = Atom::new(stack, backref).as_noun();
                         backref_map.insert(stack, &mut backref_atom, *noun_ptr)
-                    },
+                    }
                 }
             }
         })
