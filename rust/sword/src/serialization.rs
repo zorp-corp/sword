@@ -57,6 +57,12 @@ pub fn rest_bits(cursor: usize, slice: &BitSlice<u64, Lsb0>) -> &BitSlice<u64, L
     }
 }
 
+#[derive(Copy,Clone)]
+enum CueStackEntry {
+    DestinationPointer(*mut Noun),
+    BackRef(u64, *const Noun),
+}
+
 /// Deserialize a noun from a BitSlice
 ///
 /// This function implements the inverse of jam, unpacking a serialized noun.
@@ -110,38 +116,47 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
 
     unsafe {
         stack.with_frame(0, |stack: &mut NockStack| {
-            *(stack.push::<*mut Noun>()) = &mut result as *mut Noun;
+            *(stack.push::<CueStackEntry>()) = CueStackEntry::DestinationPointer(&mut result as *mut Noun);
             loop {
                 if stack.stack_is_empty() {
                     break Ok(result);
                 }
+                let stack_entry = *stack.top::<CueStackEntry>();
+                stack.pop::<CueStackEntry>();
                 // Capture the destination pointer and pop it off the stack
-                let dest_ptr: *mut Noun = *(stack.top::<*mut Noun>());
-                stack.pop::<*mut Noun>();
-                // 1 bit
-                if next_bit(&mut cursor, buffer) {
-                    // 11 tag: backref
-                    if next_bit(&mut cursor, buffer) {
-                        let mut backref_noun =
-                            Atom::new(stack, rub_backref(&mut cursor, buffer)?).as_noun();
-                        *dest_ptr = backref_map
-                            .lookup(stack, &mut backref_noun)
-                            .ok_or(Deterministic(Exit, D(0)))?;
-                    } else {
-                        // 10 tag: cell
-                        let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
-                        *dest_ptr = cell.as_noun();
-                        let mut backref_atom = Atom::new(stack, (cursor - 2) as u64).as_noun();
-                        backref_map.insert(stack, &mut backref_atom, *dest_ptr);
-                        *(stack.push()) = &mut (*cell_mem_ptr).tail;
-                        *(stack.push()) = &mut (*cell_mem_ptr).head;
-                    }
-                } else {
-                    // 0 tag: atom
-                    let backref: u64 = (cursor - 1) as u64;
-                    *dest_ptr = rub_atom(stack, &mut cursor, buffer)?.as_noun();
-                    let mut backref_atom = Atom::new(stack, backref).as_noun();
-                    backref_map.insert(stack, &mut backref_atom, *dest_ptr);
+                match stack_entry {
+                    CueStackEntry::DestinationPointer(dest_ptr) => {
+                        // 1 bit
+                        if next_bit(&mut cursor, buffer) {
+                            // 11 tag: backref
+                            if next_bit(&mut cursor, buffer) {
+                                let mut backref_noun =
+                                    Atom::new(stack, rub_backref(&mut cursor, buffer)?).as_noun();
+                                *dest_ptr = backref_map
+                                    .lookup(stack, &mut backref_noun)
+                                    .ok_or(Deterministic(Exit, D(0)))?;
+                            } else {
+                                // 10 tag: cell
+                                let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
+                                *dest_ptr = cell.as_noun();
+                                let mut backref_atom = Atom::new(stack, (cursor - 2) as u64).as_noun();
+                                backref_map.insert(stack, &mut backref_atom, *dest_ptr);
+                                *(stack.push()) = CueStackEntry::BackRef(cursor as u64 - 2, dest_ptr as *const Noun);
+                                *(stack.push()) = CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).tail);
+                                *(stack.push()) = CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).head);
+                            }
+                        } else {
+                            // 0 tag: atom
+                            let backref: u64 = (cursor - 1) as u64;
+                            *dest_ptr = rub_atom(stack, &mut cursor, buffer)?.as_noun();
+                            let mut backref_atom = Atom::new(stack, backref).as_noun();
+                            backref_map.insert(stack, &mut backref_atom, *dest_ptr);
+                        }
+                    },
+                    CueStackEntry::BackRef(backref, noun_ptr) => {
+                        let mut backref_atom = Atom::new(stack, backref).as_noun();
+                        backref_map.insert(stack, &mut backref_atom, *noun_ptr)
+                    },
                 }
             }
         })
