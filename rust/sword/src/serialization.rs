@@ -31,8 +31,8 @@ pub fn next_bit(cursor: &mut usize, slice: &BitSlice<u64, Lsb0>) -> bool {
     }
 }
 
-/// Read the next n bits from the bitslice and advance the cursor
-pub fn next_n_bits<'a>(
+/// Reads the next up to n bits from the bitslice and advance the cursor
+pub fn next_up_to_n_bits<'a>(
     cursor: &mut usize,
     slice: &'a BitSlice<u64, Lsb0>,
     n: usize,
@@ -191,7 +191,7 @@ fn get_size(cursor: &mut usize, buffer: &BitSlice<u64, Lsb0>) -> Result<usize, E
     } else {
         let mut size: u64 = 0;
         *cursor += bitsize + 1;
-        let size_bits = next_n_bits(cursor, buffer, bitsize - 1);
+        let size_bits = next_up_to_n_bits(cursor, buffer, bitsize - 1);
         BitSlice::from_element_mut(&mut size)[0..bitsize - 1].copy_from_bitslice(size_bits);
         Ok((size as usize) + (1 << (bitsize - 1)))
     }
@@ -224,7 +224,7 @@ fn rub_atom(
     buffer: &BitSlice<u64, Lsb0>,
 ) -> Result<Atom, Error> {
     let size = get_size(cursor, buffer)?;
-    let bits = next_n_bits(cursor, buffer, size);
+    let bits = next_up_to_n_bits(cursor, buffer, size);
     if size == 0 {
         unsafe { Ok(DirectAtom::new_unchecked(0).as_atom()) }
     } else if size < 64 {
