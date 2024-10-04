@@ -826,7 +826,7 @@ impl <'a, T: Copy>Hamsterator<'a, T> {
 }
 
 impl <'a, T: Copy>Iterator for Hamsterator<'a, T> {
-    type Item = T;
+    type Item = (Noun, T);
 
     // Iterate over the values in the HAMT
     fn next(&mut self) -> Option<Self::Item> {
@@ -855,7 +855,7 @@ impl <'a, T: Copy>Iterator for Hamsterator<'a, T> {
                     // Found a leaf, return its value and prepare for next
                     self.traversal_stack[self.depth].1 += 1;
                     if let Some(pair) = unsafe { leaf.to_mut_slice().get(0) } {
-                        return Some(pair.1);
+                        return Some(*pair);
                     }
                 }
             }
@@ -870,6 +870,20 @@ mod test {
     use super::*;
     use crate::noun::{Noun, D};
 
+
+    fn cdr_(h: &mut Hamsterator<Noun>) -> Option<(u64, u64)> {
+        if let Some((noun, t)) = h.next() {
+            unsafe { Some((noun.as_raw(), t.as_raw())) }
+        } else {
+            None
+        }
+    }
+
+    fn cdr(h: &mut Hamsterator<Noun>) -> (u64, u64) {
+        let (noun, t) = h.next().unwrap();
+        unsafe { (noun.as_raw(), t.as_raw()) }
+    }
+
     #[test]
     fn test_hamt_into_iter() {
         let size = 1 << 27;
@@ -880,9 +894,15 @@ mod test {
         hamt = hamt.insert(&mut stack, &mut D(2), D(3));
         hamt = hamt.insert(&mut stack, &mut D(4), D(5));
         let mut iter = hamt.iter();
-        assert_eq!(unsafe { iter.next().unwrap().as_raw() }, 3);
-        assert_eq!(unsafe { iter.next().unwrap().as_raw() }, 1);
-        assert_eq!(unsafe { iter.next().unwrap().as_raw() }, 5);
+        let three = cdr(&mut iter);
+        let one = cdr(&mut iter);
+        let five = cdr(&mut iter);
+        assert_eq!(three.0, 2);
+        assert_eq!(three.1, 3);
+        assert_eq!(one.0, 0);
+        assert_eq!(one.1, 1);
+        assert_eq!(five.0, 4);
+        assert_eq!(five.1, 5);
     }
 
     #[test]
@@ -894,12 +914,11 @@ mod test {
         let mut hs = HashSet::new();
         for n in 0..100 {
             hamt = hamt.insert(&mut stack, &mut D(n), D(n));
-            hs.insert(n);
+            hs.insert((n, n));
         }
         let mut iter = hamt.iter();
-        while let Some(t) = iter.next() {
-            let t = unsafe { t.as_raw() };
-            assert!(hs.remove(&t));
+        while let Some((n, t)) = cdr_(&mut iter) {
+            assert!(hs.remove(&(n, t)));
         }
         assert!(hs.is_empty());
     }
