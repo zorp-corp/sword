@@ -10,3 +10,14 @@ members = [
   "rust/murmur3",
   "rust/murmur3/murmur3-sys",
 ]
+resolver = "2"
+
+[profile.bench]
+lto = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 3
+
+[profile.dev.package."*"]
+opt-level = 3

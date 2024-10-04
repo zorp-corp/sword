@@ -115,7 +115,7 @@ impl UBig {
         buffer.into()
     }
 
-    pub fn to_le_bytes_stack<'a>(&'a self) -> &'a [u8] {
+    pub fn to_le_bytes_stack(&self) -> &[u8] {
         match self.repr() {
             Small(x) => {
                 let skip_bytes = x.leading_zeros() as usize / 8;

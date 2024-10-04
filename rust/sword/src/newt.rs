@@ -240,7 +240,7 @@ impl Newt {
             if err.kind() == std::io::ErrorKind::UnexpectedEof {
                 return None;
             } else {
-                panic!("Error reading header: {}", err);
+                panic!("Newt::next: Error reading header: {}", err);
             }
         }
 
@@ -252,13 +252,13 @@ impl Newt {
                 if err.kind() == std::io::ErrorKind::UnexpectedEof {
                     return None;
                 } else {
-                    panic!("Error reading body: {}", err);
+                    panic!("Newt::next: Error reading body: {}", err);
                 }
             }
             atom.normalize_as_atom()
         };
 
-        Some(cue(stack, atom))
+        Some(cue(stack, atom).expect("Newt::next: bad jammed noun"))
     }
 }
 

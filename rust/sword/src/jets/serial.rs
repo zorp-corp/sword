@@ -7,7 +7,7 @@ use crate::serialization::{cue, jam};
 crate::gdb!();
 
 pub fn jet_cue(context: &mut Context, subject: Noun) -> Result {
-    Ok(cue(&mut context.stack, slot(subject, 6)?.as_atom()?))
+    Ok(cue(&mut context.stack, slot(subject, 6)?.as_atom()?)?)
 }
 
 pub fn jet_jam(context: &mut Context, subject: Noun) -> Result {
