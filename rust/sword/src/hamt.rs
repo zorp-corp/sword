@@ -807,7 +807,6 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
 /// Maximum depth of the HAMT is 6, so we can safely use a fixed size array for the traversal stack.
 /// I dropped the IntoIterator implementation because T has to be Copy anyhow.
 pub struct Hamsterator<'a, T: Copy> {
-    // stack: NockStack,
     depth: usize,
     traversal_stack: [(Stem<T>, u32); 6],
     // Gets accessed via the stem, it isn't actually unused.
