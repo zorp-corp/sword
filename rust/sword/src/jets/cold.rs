@@ -767,3 +767,64 @@ impl Cold {
         }
     }
 }
+
+// pub trait Nominalizer9000 {
+//     fn nom_nom(&self, stack: &mut NockStack) -> Noun;
+// }
+
+// impl Nominalizer9000 for Cold {
+//     fn nom_nom(&self, stack: &mut NockStack) -> Noun {
+//         unsafe {
+//             let mut cold = *self;
+//             let mut nom = T(stack, &[]);
+//             for (root, paths) in (*(cold.0)).root_to_paths.iter() {
+//                 let mut root_nom = T(stack, &[]);
+//                 for path in paths {
+//                     let mut path_nom = T(stack, &[]);
+//                     for (battery, parent_axis) in Batteries(path) {
+//                         let mut battery_nom = T(stack, &[]);
+//                         battery_nom = battery_nom.push(battery);
+//                         battery_nom = battery_nom.push(parent_axis);
+//                         path_nom = path_nom.push(battery_nom);
+//                     }
+//                     root_nom = root_nom.push(path_nom);
+//                 }
+//                 nom = nom.push(root_nom);
+//             }
+//             nom
+//         }
+//     }
+// }
+
+#[cfg(test)]
+mod test {
+    use crate::{mem::NockStack, noun::{Cell, Noun, D}};
+
+    #[test]
+    fn how_to_noun() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let tup: &[Noun] = &[D(0), D(1)];
+        let cell = Cell::new_tuple(&mut stack, tup);
+        let noun: Noun = cell.as_noun();
+        let car = noun.cell().unwrap().head().direct().unwrap().data();
+        let cdr = noun.cell().unwrap().tail().direct().unwrap().data();
+        assert_eq!(car, 0);
+        assert_eq!(cdr, 1);
+    }
+
+    #[test]
+    fn how_to_noun_but_listy() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let tup: &[Noun] = &[D(0), D(1)];
+        let cell = Cell::new_tuple(&mut stack, tup);
+        let noun: Noun = cell.as_noun();
+        let car = noun.cell().unwrap().head().direct().unwrap().data();
+        let cdr = noun.cell().unwrap().tail().direct().unwrap().data();
+        assert_eq!(car, 0);
+        assert_eq!(cdr, 1);
+    }
+}
