@@ -14,11 +14,22 @@ fn main() {
         .generate()
         .expect("Unable to generate bindings");
 
-    assert!(Command::new("make")
-        .arg("shared")
-        .status()
-        .expect("Building C lib failed")
-        .success());
+    let target_os = std::env::var_os("CARGO_CFG_TARGET_OS").expect("No target OS");
+    if target_os == "linux" {
+        assert!(Command::new("make")
+            .arg("shared")
+            .status()
+            .expect("Building C lib failed")
+            .success());
+    } else if target_os == "macos" {
+        assert!(Command::new("make")
+            .arg("shared-mac")
+            .status()
+            .expect("Building C lib failed")
+            .success());
+    } else {
+        panic!("Unsupported OS: {:?}", target_os);
+    }
 
     // Write the bindings to the $OUT_DIR/bindings.rs file.
     let out_path = PathBuf::from(out_dir);

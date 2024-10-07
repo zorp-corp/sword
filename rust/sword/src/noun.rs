@@ -1309,6 +1309,9 @@ pub trait NounAllocator: Sized {
 
     /** Allocate memory for a cell */
     unsafe fn alloc_cell(&mut self) -> *mut CellMemory;
+
+    /** Allocate space for a struct in a stack frame */
+    unsafe fn alloc_struct<T>(&mut self, count: usize) -> *mut T;
 }
 
 /**
