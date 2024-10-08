@@ -853,7 +853,8 @@ impl <'a, T: Copy>Iterator for Hamsterator<'a, T> {
                 Some((Right(leaf), _)) => {
                     // Found a leaf, return its value and prepare for next
                     self.traversal_stack[self.depth].1 += 1;
-                    if let Some(pair) = unsafe { leaf.to_mut_slice().get(0) } {
+                    let slice = unsafe { leaf.to_mut_slice() };
+                    if let Some(pair) = slice.get(0) {
                         return Some(*pair);
                     }
                 }
@@ -941,4 +942,53 @@ mod test {
         let lu_value = unsafe { lu.expect("lookup failed").as_raw() };
         assert_eq!(lu_value, 3);
     }
+
+    #[test]
+    fn test_hamt_collision_iter() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
+        // x: 0 y: 87699370 x_hash: 2046756072 y_hash: 2046756072
+        let mut n = D(0);
+        let t = D(0);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+        let mut n = D(87699370);
+        let t = D(87699370);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+        let lu = hamt.lookup(&mut stack, &mut D(0));
+        let lu_value = unsafe { lu.expect("0 lookup failed").as_raw() };
+        assert_eq!(lu_value, 0);
+        let lu = hamt.lookup(&mut stack, &mut D(87699370));
+        let lu_value = unsafe { lu.expect("87699370 lookup failed").as_raw() };
+        assert_eq!(lu_value, 87699370);
+    }
+
+    // Hold onto this in case we need it later.
+    // #[test]
+    // fn test_supercollider() {
+    //     let start = std::time::Instant::now();
+    //     let size = 1 << 27;
+    //     let top_slots = 100;
+    //     let mut stack = NockStack::new(size, top_slots);
+    //     for x in 0..u64::MAX {
+    //         for y in 0..u64::MAX {
+    //             if x == y {
+    //                 continue;
+    //             }
+    //             let n = D(x);
+    //             let t = D(y);
+    //             let n_hash = mug_u32(&mut stack, n);
+    //             let t_hash = mug_u32(&mut stack, t);
+    //             if n_hash == t_hash {
+    //                 println!("FOUND HASH COLLISION!!!!! {} {} {} {}", x, y, n_hash, t_hash);
+    //                 let end = std::time::Instant::now();
+    //                 println!("Time: {:?}", end - start);
+    //             }
+    //             if y % 10000000 == 0 {
+    //                 println!("{} {}", x, y);
+    //             }
+    //         }
+    //     }
+    // }
 }

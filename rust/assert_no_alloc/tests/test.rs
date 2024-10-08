@@ -116,7 +116,7 @@ fn unwind_nested() {
 			});
 		});
 		assert!(r.is_err());
-		
+
 		check_and_reset(); // unwinding might have allocated memory; we don't care about that.
 		do_alloc();
 		assert_eq!(check_and_reset(), true);
@@ -136,7 +136,7 @@ fn unwind_nested2() {
 			});
 		});
 		assert!(r.is_err());
-		
+
 		check_and_reset(); // unwinding might have allocated memory; we don't care about that.
 		do_alloc();
 		assert_eq!(check_and_reset(), true);
