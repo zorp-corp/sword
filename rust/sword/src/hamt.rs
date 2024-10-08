@@ -421,7 +421,7 @@ impl<T: Copy + Preserve> Hamt<T> {
                             copy_nonoverlapping(stem.buffer, new_buffer, stem.size());
                             *new_buffer.add(idx) = Entry {
                                 leaf: Leaf {
-                                    len: leaf.len,
+                                    len: leaf.len + 1,
                                     buffer: new_leaf_buffer,
                                 },
                             };
