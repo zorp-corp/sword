@@ -4,6 +4,8 @@ use crate::noun::Noun;
 use crate::persist::{pma_contains, Persist};
 use crate::unifying_equality::unifying_equality;
 use either::Either::{self, *};
+use tinyvec::TinyVec;
+use std::iter::FromIterator;
 use std::mem::size_of;
 use std::ptr::{copy_nonoverlapping, null_mut};
 use std::slice;
@@ -824,8 +826,8 @@ impl <'a, T: Copy>Hamsterator<'a, T> {
     }
 }
 
-impl <'a, T: Copy>Iterator for Hamsterator<'a, T> {
-    type Item = (Noun, T);
+impl <'a, T: Copy + Default>Iterator for Hamsterator<'a, T> {
+    type Item = TinyVec<[(Noun, T); 8]>;
 
     // Iterate over the values in the HAMT
     fn next(&mut self) -> Option<Self::Item> {
@@ -854,9 +856,8 @@ impl <'a, T: Copy>Iterator for Hamsterator<'a, T> {
                     // Found a leaf, return its value and prepare for next
                     self.traversal_stack[self.depth].1 += 1;
                     let slice = unsafe { leaf.to_mut_slice() };
-                    if let Some(pair) = slice.get(0) {
-                        return Some(*pair);
-                    }
+                    let tv: TinyVec<[(Noun, T); 8]> = TinyVec::from_iter(slice.iter().copied());
+                    return Some(tv);
                 }
             }
         }
@@ -872,16 +873,23 @@ mod test {
 
 
     fn cdr_(h: &mut Hamsterator<Noun>) -> Option<(u64, u64)> {
-        if let Some((noun, t)) = h.next() {
-            unsafe { Some((noun.as_raw(), t.as_raw())) }
+        if let Some(tiny_vec) = h.next() {
+            if let &[(noun, t)] = tiny_vec.as_slice() {
+                unsafe { Some((noun.as_raw(), t.as_raw())) }
+            } else {
+                None
+            }
         } else {
             None
         }
     }
 
     fn cdr(h: &mut Hamsterator<Noun>) -> (u64, u64) {
-        let (noun, t) = h.next().unwrap();
-        unsafe { (noun.as_raw(), t.as_raw()) }
+        if let &[(noun, t)] = h.next().unwrap().as_slice() {
+            unsafe { (noun.as_raw(), t.as_raw()) }
+        } else {
+            panic!("Expected a pair")
+        }
     }
 
     #[test]
@@ -944,51 +952,89 @@ mod test {
     }
 
     #[test]
+    fn test_hamt_collision_check() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
+        // 3-way collision
+        // x: 0 y: 87699370 x_hash: 2046756072 y_hash: 2046756072
+        // x: 0 z: 317365951 x_hash: 2046756072 z_hash: 2046756072
+
+        let mut n = D(0);
+        let t = D(0);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+
+        let mut n = D(87699370);
+        let t = D(87699370);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+
+        let mut n = D(317365951);
+        let t = D(317365951);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+
+        let lu = hamt.lookup(&mut stack, &mut D(0));
+        let lu_value = unsafe { lu.expect("0 lookup failed").as_raw() };
+        assert_eq!(lu_value, 0);
+
+        let lu = hamt.lookup(&mut stack, &mut D(87699370));
+        let lu_value = unsafe { lu.expect("87699370 lookup failed").as_raw() };
+        assert_eq!(lu_value, 87699370);
+
+        let lu = hamt.lookup(&mut stack, &mut D(317365951));
+        let lu_value = unsafe { lu.expect("317365951 lookup failed").as_raw() };
+        assert_eq!(lu_value, 317365951);
+    }
+
+    #[test]
     fn test_hamt_collision_iter() {
         let size = 1 << 27;
         let top_slots = 100;
         let mut stack = NockStack::new(size, top_slots);
         let mut hamt = Hamt::<Noun>::new(&mut stack);
+        // 3-way collision
         // x: 0 y: 87699370 x_hash: 2046756072 y_hash: 2046756072
-        let mut n = D(0);
-        let t = D(0);
-        hamt = hamt.insert(&mut stack, &mut n, t);
-        let mut n = D(87699370);
-        let t = D(87699370);
-        hamt = hamt.insert(&mut stack, &mut n, t);
-        let lu = hamt.lookup(&mut stack, &mut D(0));
-        let lu_value = unsafe { lu.expect("0 lookup failed").as_raw() };
-        assert_eq!(lu_value, 0);
-        let lu = hamt.lookup(&mut stack, &mut D(87699370));
-        let lu_value = unsafe { lu.expect("87699370 lookup failed").as_raw() };
-        assert_eq!(lu_value, 87699370);
+        // x: 0 z: 317365951 x_hash: 2046756072 z_hash: 2046756072
+        let mut hs = HashSet::new();
+        for x in &[0, 87699370, 317365951] {
+            hamt = hamt.insert(&mut stack, &mut D(*x), D(*x));
+            hs.insert((*x, *x));
+        }
+        for x in hamt.iter() {
+            for (n, t) in x {
+                let k_raw = unsafe { n.as_raw() };
+                let v_raw = unsafe { t.as_raw() };
+                assert!(hs.remove(&(k_raw, v_raw)));
+            }
+        }
+        assert!(hs.is_empty(), "{:?}", hs);
     }
 
     // Hold onto this in case we need it later.
-    // #[test]
-    // fn test_supercollider() {
-    //     let start = std::time::Instant::now();
-    //     let size = 1 << 27;
-    //     let top_slots = 100;
-    //     let mut stack = NockStack::new(size, top_slots);
-    //     for x in 0..u64::MAX {
-    //         for y in 0..u64::MAX {
-    //             if x == y {
-    //                 continue;
-    //             }
-    //             let n = D(x);
-    //             let t = D(y);
-    //             let n_hash = mug_u32(&mut stack, n);
-    //             let t_hash = mug_u32(&mut stack, t);
-    //             if n_hash == t_hash {
-    //                 println!("FOUND HASH COLLISION!!!!! {} {} {} {}", x, y, n_hash, t_hash);
-    //                 let end = std::time::Instant::now();
-    //                 println!("Time: {:?}", end - start);
-    //             }
-    //             if y % 10000000 == 0 {
-    //                 println!("{} {}", x, y);
-    //             }
-    //         }
-    //     }
-    // }
+    #[test]
+    fn test_supercollider() {
+        let start = std::time::Instant::now();
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        for x in 0..u64::MAX {
+            for y in 0..u64::MAX {
+                if x == y {
+                    continue;
+                }
+                let n = D(x);
+                let t = D(y);
+                let n_hash = mug_u32(&mut stack, n);
+                let t_hash = mug_u32(&mut stack, t);
+                if n_hash == t_hash {
+                    println!("FOUND HASH COLLISION!!!!! {} {} {} {}", x, y, n_hash, t_hash);
+                    let end = std::time::Instant::now();
+                    println!("Time: {:?}", end - start);
+                }
+                if y % 100000000 == 0 {
+                    println!("{} {}", x, y);
+                }
+            }
+        }
+    }
 }

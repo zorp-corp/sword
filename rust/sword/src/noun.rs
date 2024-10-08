@@ -1042,6 +1042,12 @@ pub union Noun {
     allocated: Allocated,
 }
 
+impl Default for Noun {
+    fn default() -> Self {
+        Noun { raw: u64::MAX }
+    }
+}
+
 impl Noun {
     pub fn is_none(self) -> bool {
         unsafe { self.raw == u64::MAX }
