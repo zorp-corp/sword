@@ -27,7 +27,6 @@ num-derive = "0.3"
 num-traits = "0.2"
 signal-hook = "0.3"
 static_assertions = "1.1.0"
-tinyvec = { version = "1.8.0", features = ["alloc"] }
 
 [build-dependencies]
 autotools = "0.2"

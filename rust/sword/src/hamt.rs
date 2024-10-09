@@ -4,8 +4,6 @@ use crate::noun::Noun;
 use crate::persist::{pma_contains, Persist};
 use crate::unifying_equality::unifying_equality;
 use either::Either::{self, *};
-use tinyvec::TinyVec;
-use std::iter::FromIterator;
 use std::mem::size_of;
 use std::ptr::{copy_nonoverlapping, null_mut};
 use std::slice;
@@ -250,6 +248,9 @@ impl<T: Copy> Clone for Leaf<T> {
 }
 
 impl<T: Copy> Leaf<T> {
+    unsafe fn to_slice<'a>(self) -> &'a [(Noun, T)] {
+        slice::from_raw_parts(self.buffer, self.len)
+    }
     unsafe fn to_mut_slice<'a>(self) -> &'a mut [(Noun, T)] {
         slice::from_raw_parts_mut(self.buffer, self.len)
     }
@@ -826,8 +827,8 @@ impl <'a, T: Copy>Hamsterator<'a, T> {
     }
 }
 
-impl <'a, T: Copy + Default>Iterator for Hamsterator<'a, T> {
-    type Item = TinyVec<[(Noun, T); 8]>;
+impl <'a, T: Copy>Iterator for Hamsterator<'a, T> {
+    type Item = &'a [(Noun, T)];
 
     // Iterate over the values in the HAMT
     fn next(&mut self) -> Option<Self::Item> {
@@ -855,9 +856,8 @@ impl <'a, T: Copy + Default>Iterator for Hamsterator<'a, T> {
                 Some((Right(leaf), _)) => {
                     // Found a leaf, return its value and prepare for next
                     self.traversal_stack[self.depth].1 += 1;
-                    let slice = unsafe { leaf.to_mut_slice() };
-                    let tv: TinyVec<[(Noun, T); 8]> = TinyVec::from_iter(slice.iter().copied());
-                    return Some(tv);
+                    let slice = unsafe { leaf.to_slice() };
+                    return Some(slice);
                 }
             }
         }
@@ -874,7 +874,7 @@ mod test {
 
     fn cdr_(h: &mut Hamsterator<Noun>) -> Option<(u64, u64)> {
         if let Some(tiny_vec) = h.next() {
-            if let &[(noun, t)] = tiny_vec.as_slice() {
+            if let &[(noun, t)] = tiny_vec {
                 unsafe { Some((noun.as_raw(), t.as_raw())) }
             } else {
                 None
@@ -885,7 +885,7 @@ mod test {
     }
 
     fn cdr(h: &mut Hamsterator<Noun>) -> (u64, u64) {
-        if let &[(noun, t)] = h.next().unwrap().as_slice() {
+        if let &[(noun, t)] = h.next().unwrap() {
             unsafe { (noun.as_raw(), t.as_raw()) }
         } else {
             panic!("Expected a pair")
@@ -1011,30 +1011,30 @@ mod test {
     }
 
     // Hold onto this in case we need it later.
-    #[test]
-    fn test_supercollider() {
-        let start = std::time::Instant::now();
-        let size = 1 << 27;
-        let top_slots = 100;
-        let mut stack = NockStack::new(size, top_slots);
-        for x in 0..u64::MAX {
-            for y in 0..u64::MAX {
-                if x == y {
-                    continue;
-                }
-                let n = D(x);
-                let t = D(y);
-                let n_hash = mug_u32(&mut stack, n);
-                let t_hash = mug_u32(&mut stack, t);
-                if n_hash == t_hash {
-                    println!("FOUND HASH COLLISION!!!!! {} {} {} {}", x, y, n_hash, t_hash);
-                    let end = std::time::Instant::now();
-                    println!("Time: {:?}", end - start);
-                }
-                if y % 100000000 == 0 {
-                    println!("{} {}", x, y);
-                }
-            }
-        }
-    }
+    // #[test]
+    // fn test_supercollider() {
+    //     let start = std::time::Instant::now();
+    //     let size = 1 << 27;
+    //     let top_slots = 100;
+    //     let mut stack = NockStack::new(size, top_slots);
+    //     for x in 0..u64::MAX {
+    //         for y in 0..u64::MAX {
+    //             if x == y {
+    //                 continue;
+    //             }
+    //             let n = D(x);
+    //             let t = D(y);
+    //             let n_hash = mug_u32(&mut stack, n);
+    //             let t_hash = mug_u32(&mut stack, t);
+    //             if n_hash == t_hash {
+    //                 println!("FOUND HASH COLLISION!!!!! {} {} {} {}", x, y, n_hash, t_hash);
+    //                 let end = std::time::Instant::now();
+    //                 println!("Time: {:?}", end - start);
+    //             }
+    //             if y % 100000000 == 0 {
+    //                 println!("{} {}", x, y);
+    //             }
+    //         }
+    //     }
+    // }
 }
