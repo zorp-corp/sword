@@ -248,6 +248,9 @@ impl<T: Copy> Clone for Leaf<T> {
 }
 
 impl<T: Copy> Leaf<T> {
+    unsafe fn to_slice<'a>(self) -> &'a [(Noun, T)] {
+        slice::from_raw_parts(self.buffer, self.len)
+    }
     unsafe fn to_mut_slice<'a>(self) -> &'a mut [(Noun, T)] {
         slice::from_raw_parts_mut(self.buffer, self.len)
     }
@@ -291,6 +294,11 @@ impl<T: Copy + Preserve> Hamt<T> {
             };
             Hamt(stem_ptr)
         }
+    }
+
+    /// Borrowing iterator for Hamt, the type name is a portmanteau of Hamt, iterator, and hamster.
+    pub fn iter(&self) -> Hamsterator<T> {
+        Hamsterator::new(self)
     }
 
     /**
@@ -416,7 +424,7 @@ impl<T: Copy + Preserve> Hamt<T> {
                             copy_nonoverlapping(stem.buffer, new_buffer, stem.size());
                             *new_buffer.add(idx) = Entry {
                                 leaf: Leaf {
-                                    len: leaf.len,
+                                    len: leaf.len + 1,
                                     buffer: new_leaf_buffer,
                                 },
                             };
@@ -794,4 +802,239 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
     unsafe fn handle_from_u64(meta_handle: u64) -> Self {
         Hamt(meta_handle as *mut Stem<T>)
     }
+}
+
+
+/// 🐹
+/// Humorously named iterator for Hamt, which is a portmanteau of Hamt and iterator.
+/// Maximum depth of the HAMT is 6, so we can safely use a fixed size array for the traversal stack.
+/// I dropped the IntoIterator implementation because T has to be Copy anyhow.
+pub struct Hamsterator<'a, T: Copy> {
+    depth: usize,
+    traversal_stack: [(Stem<T>, u32); 6],
+    // Gets accessed via the stem, it isn't actually unused.
+    #[allow(dead_code)]
+    hamt: &'a Hamt<T>,
+}
+
+impl <'a, T: Copy>Hamsterator<'a, T> {
+    pub fn new(hamt: &'a Hamt<T>) -> Self {
+        let stem = unsafe { *hamt.0 };
+        let depth = 0;
+        let mut traversal_stack: [(Stem<T>, u32); 6] = [(Stem { bitmap: 0, typemap: 0, buffer: std::ptr::null_mut() }, 0); 6];
+        traversal_stack[0] = (stem, 0);
+        Hamsterator { depth, traversal_stack, hamt }
+    }
+}
+
+impl <'a, T: Copy>Iterator for Hamsterator<'a, T> {
+    type Item = &'a [(Noun, T)];
+
+    // Iterate over the values in the HAMT
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.depth == usize::MAX {
+                return None; // We've finished iterating
+            }
+            let (current_stem, position) = self.traversal_stack[self.depth];
+            if position >= 32 {
+                // We've finished this stem, go back up
+                self.depth = self.depth.wrapping_sub(1);
+                continue;
+            }
+            match current_stem.entry(position) {
+                None => {
+                    // No entry at this position, move to next
+                    self.traversal_stack[self.depth].1 += 1;
+                }
+                Some((Left(next_stem), _)) => {
+                    // Found a stem, go deeper
+                    self.traversal_stack[self.depth].1 += 1;
+                    self.depth += 1;
+                    self.traversal_stack[self.depth] = (next_stem, 0);
+                }
+                Some((Right(leaf), _)) => {
+                    // Found a leaf, return its value and prepare for next
+                    self.traversal_stack[self.depth].1 += 1;
+                    let slice = unsafe { leaf.to_slice() };
+                    return Some(slice);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashSet;
+
+    use super::*;
+    use crate::noun::{Noun, D};
+
+
+    fn cdr_(h: &mut Hamsterator<Noun>) -> Option<(u64, u64)> {
+        if let Some(tiny_vec) = h.next() {
+            if let &[(noun, t)] = tiny_vec {
+                unsafe { Some((noun.as_raw(), t.as_raw())) }
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    fn cdr(h: &mut Hamsterator<Noun>) -> (u64, u64) {
+        if let &[(noun, t)] = h.next().unwrap() {
+            unsafe { (noun.as_raw(), t.as_raw()) }
+        } else {
+            panic!("Expected a pair")
+        }
+    }
+
+    #[test]
+    fn test_hamt_into_iter() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
+        hamt = hamt.insert(&mut stack, &mut D(0), D(1));
+        hamt = hamt.insert(&mut stack, &mut D(2), D(3));
+        hamt = hamt.insert(&mut stack, &mut D(4), D(5));
+        let mut iter = hamt.iter();
+        let three = cdr(&mut iter);
+        let one = cdr(&mut iter);
+        let five = cdr(&mut iter);
+        assert_eq!(three.0, 2);
+        assert_eq!(three.1, 3);
+        assert_eq!(one.0, 0);
+        assert_eq!(one.1, 1);
+        assert_eq!(five.0, 4);
+        assert_eq!(five.1, 5);
+    }
+
+    #[test]
+    fn test_hamt_iter_big() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
+        let mut hs = HashSet::new();
+        for n in 0..100 {
+            hamt = hamt.insert(&mut stack, &mut D(n), D(n));
+            hs.insert((n, n));
+        }
+        let mut iter = hamt.iter();
+        while let Some((n, t)) = cdr_(&mut iter) {
+            assert!(hs.remove(&(n, t)));
+        }
+        assert!(hs.is_empty());
+    }
+
+    #[test]
+    fn test_hamt() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
+        let mut n = D(0);
+        let t = D(1);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+        let lu = hamt.lookup(&mut stack, &mut n);
+        let lu_value = unsafe { lu.expect("lookup failed").as_raw() };
+        assert_eq!(lu_value, 1);
+        let mut n = D(2);
+        let t = D(3);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+        let lu = hamt.lookup(&mut stack, &mut D(2));
+        let lu_value = unsafe { lu.expect("lookup failed").as_raw() };
+        assert_eq!(lu_value, 3);
+    }
+
+    #[test]
+    fn test_hamt_collision_check() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
+        // 3-way collision
+        // x: 0 y: 87699370 x_hash: 2046756072 y_hash: 2046756072
+        // x: 0 z: 317365951 x_hash: 2046756072 z_hash: 2046756072
+
+        let mut n = D(0);
+        let t = D(0);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+
+        let mut n = D(87699370);
+        let t = D(87699370);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+
+        let mut n = D(317365951);
+        let t = D(317365951);
+        hamt = hamt.insert(&mut stack, &mut n, t);
+
+        let lu = hamt.lookup(&mut stack, &mut D(0));
+        let lu_value = unsafe { lu.expect("0 lookup failed").as_raw() };
+        assert_eq!(lu_value, 0);
+
+        let lu = hamt.lookup(&mut stack, &mut D(87699370));
+        let lu_value = unsafe { lu.expect("87699370 lookup failed").as_raw() };
+        assert_eq!(lu_value, 87699370);
+
+        let lu = hamt.lookup(&mut stack, &mut D(317365951));
+        let lu_value = unsafe { lu.expect("317365951 lookup failed").as_raw() };
+        assert_eq!(lu_value, 317365951);
+    }
+
+    #[test]
+    fn test_hamt_collision_iter() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
+        // 3-way collision
+        // x: 0 y: 87699370 x_hash: 2046756072 y_hash: 2046756072
+        // x: 0 z: 317365951 x_hash: 2046756072 z_hash: 2046756072
+        let mut hs = HashSet::new();
+        for x in &[0, 87699370, 317365951] {
+            hamt = hamt.insert(&mut stack, &mut D(*x), D(*x));
+            hs.insert((*x, *x));
+        }
+        for x in hamt.iter() {
+            for (n, t) in x {
+                let k_raw = unsafe { n.as_raw() };
+                let v_raw = unsafe { t.as_raw() };
+                assert!(hs.remove(&(k_raw, v_raw)));
+            }
+        }
+        assert!(hs.is_empty(), "{:?}", hs);
+    }
+
+    // Hold onto this in case we need it later.
+    // #[test]
+    // fn test_supercollider() {
+    //     let start = std::time::Instant::now();
+    //     let size = 1 << 27;
+    //     let top_slots = 100;
+    //     let mut stack = NockStack::new(size, top_slots);
+    //     for x in 0..u64::MAX {
+    //         for y in 0..u64::MAX {
+    //             if x == y {
+    //                 continue;
+    //             }
+    //             let n = D(x);
+    //             let t = D(y);
+    //             let n_hash = mug_u32(&mut stack, n);
+    //             let t_hash = mug_u32(&mut stack, t);
+    //             if n_hash == t_hash {
+    //                 println!("FOUND HASH COLLISION!!!!! {} {} {} {}", x, y, n_hash, t_hash);
+    //                 let end = std::time::Instant::now();
+    //                 println!("Time: {:?}", end - start);
+    //             }
+    //             if y % 100000000 == 0 {
+    //                 println!("{} {}", x, y);
+    //             }
+    //         }
+    //     }
+    // }
 }
