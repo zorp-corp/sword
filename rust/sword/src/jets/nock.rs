@@ -248,20 +248,27 @@ pub mod util {
                             let tape = rip(stack, 3, 1, atom)?;
                             T(stack, &[LEAF, tape])
                         }
-                        Right(_cell) => {
-                            // 'tank: {
-                            //     let scry = null_scry(context);
-                            //     if let Ok(tone) = mink(context, dat, cell.head(), scry) {
-                            //         if let Some(cell) = tone.cell() {
-                            //             if cell.head().raw_equals(D(0)) {
-                            //                 //  XX: need to check that this is
-                            //                 //      actually a path;
-                            //                 //      return leaf+"mook.mean" if not
-                            //                 break 'tank cell.tail();
-                            //             }
-                            //         }
-                            //     }
-                            {
+                        Right(cell) => {
+                            'tank: {
+                                let scry = null_scry(&mut context.stack);
+                                // if +mink didn't crash...
+                                if let Ok(tone) = mink(context, dat, cell.head(), scry) {
+                                    if let Some(tonc) = tone.cell() {
+                                        // ...and +mink didn't fail or block...
+                                        if tonc.head().raw_equals(D(0)) {
+                                            // ...return $tank from $tone
+                                            //  XX: need to check that this is
+                                            //      actually a tank;
+                                            //      return leaf+"mook.mean" if not
+                                            break 'tank tonc.tail();
+                                        }
+                                    } else {
+                                        panic!("+mink in +mook somehow returned atom {}", tone)
+                                    }
+                                }
+                            
+                                // This code only called when the break statement
+                                // above doesn't trigger
                                 let stack = &mut context.stack;
                                 let tape = tape(stack, "####");
                                 T(stack, &[LEAF, tape])
