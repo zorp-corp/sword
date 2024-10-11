@@ -1,9 +1,10 @@
 use crate::hamt::Hamt;
 use crate::mem::{NockStack, Preserve};
-use crate::noun;
+use crate::noun::{self, IndirectAtom, NounAllocator};
 use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
 use crate::persist::{pma_contains, Persist};
 use crate::unifying_equality::unifying_equality;
+use core::error;
 use std::mem::size_of;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
@@ -768,12 +769,102 @@ impl Cold {
     }
 }
 
-// pub trait Nominalizer9000 {
-//     fn nom_nom(&self, stack: &mut NockStack) -> Noun;
-// }
+pub struct NounListIterator(Noun);
 
-// impl Nominalizer9000 for Cold {
-//     fn nom_nom(&self, stack: &mut NockStack) -> Noun {
+impl Iterator for NounListIterator {
+    type Item = Noun;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Ok(it) = self.0.as_cell() {
+            self.0 = it.tail();
+            Some(it.head())
+        } else if unsafe { self.0.raw_equals(D(0)) } {
+            None
+        } else {
+            panic!("Improper list terminator: {:?}", self.0)
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum FromNounError {
+    #[error("Not an atom")]
+    NotAtom,
+    #[error("Not a u64")]
+    NotU64,
+    #[error("Not a cell")]
+    NotCell,
+    #[error("Noun error: {0}")]
+    NounError(#[from] noun::Error),
+    #[error("UTF-8 error: {0}")]
+    Utf8Error(#[from] std::str::Utf8Error),
+}
+
+pub type NounableResult<T> = std::result::Result<T, FromNounError>;
+
+pub trait Nounable {
+    type Target;
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun;
+    fn from_noun(noun: &Noun) -> NounableResult<Self::Target>
+    where
+        Self: Sized;
+}
+
+
+impl Nounable for Atom {
+    type Target = Self;
+    fn into_noun<A: NounAllocator>(self, _stack: &mut A) -> Noun {
+        self.as_noun()
+    }
+    fn from_noun(noun: &Noun) -> NounableResult<Self::Target> {
+        noun.atom().ok_or(FromNounError::NotAtom)
+    }
+}
+
+impl Nounable for u64 {
+    type Target = Self;
+    fn into_noun<A: NounAllocator>(self, _stack: &mut A) -> Noun {
+        // Copied from Crown's IntoNoun, not sure why this isn't D(*self)
+        unsafe { Atom::from_raw(self).into_noun(_stack) }
+    }
+    fn from_noun(noun: &Noun) -> NounableResult<Self::Target> {
+        let atom = noun.atom().ok_or(FromNounError::NotAtom)?;
+        let as_u64 = atom.as_u64()?;
+        Ok(as_u64)
+    }
+}
+
+impl Nounable for Noun {
+    type Target = Self;
+    fn into_noun<A: NounAllocator>(self, _stack: &mut A) -> Noun {
+        self
+    }
+
+    fn from_noun(noun: &Self) -> NounableResult<Self::Target> {
+        Ok(noun.clone())
+    }
+}
+
+impl Nounable for &str {
+    type Target = String;
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        let contents_atom = unsafe {
+            let bytes = self.bytes().collect::<Vec<u8>>();
+            IndirectAtom::new_raw_bytes_ref(stack, bytes.as_slice())
+                .normalize_as_atom()
+        };
+        contents_atom.into_noun(stack)
+    }
+    fn from_noun(noun: &Noun) -> NounableResult<Self::Target> {
+        let atom = noun.as_atom()?;
+        let bytes = atom.as_bytes();
+        let utf8 = std::str::from_utf8(bytes)?;
+        let allocated = utf8.to_string();
+        Ok(allocated)
+    }
+}
+
+// impl Nounable for Cold {
+//     fn into_noun<A: NounAllocator>(&self, stack: &mut A) -> Noun {
 //         unsafe {
 //             let mut cold = *self;
 //             let mut nom = T(stack, &[]);
