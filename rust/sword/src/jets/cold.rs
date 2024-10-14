@@ -1,5 +1,5 @@
 use crate::hamt::Hamt;
-use crate::mem::{NockStack, Preserve};
+use crate::mem::{self, NockStack, Preserve};
 use crate::noun::{self, IndirectAtom, NounAllocator};
 use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
 use crate::persist::{pma_contains, Persist};
@@ -310,7 +310,7 @@ impl BatteriesList {
 // NounList is a linked list of paths (path = list of nested core names) with an
 // iterator; used to store all possible registered paths for a core
 #[derive(Copy, Clone)]
-struct NounList(*mut NounListMem);
+pub struct NounList(*mut NounListMem);
 
 const NOUN_LIST_NIL: NounList = NounList(null_mut());
 
@@ -802,6 +802,8 @@ pub type NounableResult<T> = std::result::Result<T, FromNounError>;
 
 pub trait Nounable {
     type Target;
+    // type Allocator;
+
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun;
     fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target>
     where
@@ -811,6 +813,7 @@ pub trait Nounable {
 
 impl Nounable for Atom {
     type Target = Self;
+
     fn into_noun<A: NounAllocator>(self, _stack: &mut A) -> Noun {
         self.as_noun()
     }
@@ -1014,33 +1017,136 @@ impl Nounable for BatteriesList {
     }
 }
 
-// impl Nounable for Cold {
-//     fn into_noun<A: NounAllocator>(&self, stack: &mut A) -> Noun {
-//         unsafe {
-//             let mut cold = *self;
-//             let mut nom = T(stack, &[]);
-//             for (root, paths) in (*(cold.0)).root_to_paths.iter() {
-//                 let mut root_nom = T(stack, &[]);
-//                 for path in paths {
-//                     let mut path_nom = T(stack, &[]);
-//                     for (battery, parent_axis) in Batteries(path) {
-//                         let mut battery_nom = T(stack, &[]);
-//                         battery_nom = battery_nom.push(battery);
-//                         battery_nom = battery_nom.push(parent_axis);
-//                         path_nom = path_nom.push(battery_nom);
-//                     }
-//                     root_nom = root_nom.push(path_nom);
-//                 }
-//                 nom = nom.push(root_nom);
-//             }
-//             nom
-//         }
-//     }
-// }
+impl<T: Nounable + Copy + mem::Preserve> Nounable for Hamt<T> {
+    type Target = Vec<(Noun, T::Target)>;
+
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        let mut list = D(0);
+        for slice in self.iter() {
+            for (key, value) in slice {
+                let key_noun = key.into_noun(stack);
+                let value_noun = value.into_noun(stack);
+                list = T(stack, &[key_noun, value_noun, list]);
+            }
+        }
+        list
+    }
+
+    fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
+        let mut items = Vec::new();
+        for item in NounListIterator(noun.clone()) {
+            let cell = item.cell().ok_or(FromNounError::NotCell)?;
+            let key = cell.head();
+            let value = T::from_noun(stack, &cell.tail())?;
+            items.push((key, value));
+        }
+        Ok(items)
+    }
+}
+
+// This blows up into an ugly refactor around a concrete NockStack, better to have a separate conversion function
+pub fn hamt_from_vec<T: Nounable + Copy + mem::Preserve>(
+    stack: &mut NockStack,
+    items: Vec<(Noun, T)>,
+) -> Hamt<T> {
+    let mut hamt = Hamt::new(stack);
+    for (mut key, value) in items {
+        hamt = hamt.insert(stack, &mut key, value);
+    }
+    hamt
+}
+
+impl Nounable for Cold {
+    type Target = (Vec<(Noun, NounList)>, Vec<(Noun, NounList)>, Vec<(Noun, BatteriesList)>);
+
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        let cold_mem = self.0;
+        let mut root_to_paths_noun = D(0);
+        let mut battery_to_paths_noun = D(0);
+        let mut path_to_batteries_noun = D(0);
+        unsafe {
+            for slice in (*cold_mem).root_to_paths.iter() {
+                for (root, paths) in slice {
+                    let root_noun = root.into_noun(stack);
+                    let paths_noun = paths.into_noun(stack);
+                    root_to_paths_noun = T(stack, &[root_noun, paths_noun, root_to_paths_noun]);
+                }
+            }
+            for slice in (*cold_mem).battery_to_paths.iter() {
+                for (battery, paths) in slice {
+                    let battery_noun = battery.into_noun(stack);
+                    let paths_noun = paths.into_noun(stack);
+                    battery_to_paths_noun = T(stack, &[battery_noun, paths_noun, battery_to_paths_noun]);
+                }
+            }
+            for slice in (*cold_mem).path_to_batteries.iter() {
+                for (path, batteries) in slice {
+                    let path_noun = path.into_noun(stack);
+                    let batteries_noun = batteries.into_noun(stack);
+                    path_to_batteries_noun = T(stack, &[path_noun, batteries_noun, path_to_batteries_noun]);
+                }
+            }
+        }
+        let cold_noun = T(stack, &[root_to_paths_noun, battery_to_paths_noun, path_to_batteries_noun]);
+        cold_noun
+    }
+
+    fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
+        let mut root_to_paths = Vec::new();
+        let mut battery_to_paths = Vec::new();
+        let mut path_to_batteries = Vec::new();
+        for item in NounListIterator(noun.clone()) {
+            let cell = item.cell().ok_or(FromNounError::NotCell)?;
+            let head = cell.head();
+            let tail = cell.tail();
+            let head_cell = head.cell().ok_or(FromNounError::NotCell)?;
+            let head_head = head_cell.head();
+            let head_tail = head_cell.tail();
+            let head_tail_cell = head_tail.cell().ok_or(FromNounError::NotCell)?;
+            let head_tail_head = head_tail_cell.head();
+            let head_tail_tail = head_tail_cell.tail();
+            let head_tail_tail_cell = head_tail_tail.cell().ok_or(FromNounError::NotCell)?;
+            let head_tail_tail_head = head_tail_tail_cell.head();
+            let head_tail_tail_tail = head_tail_tail_cell.tail();
+            let key = Noun::from_noun(stack, &head_head)?;
+            let value = NounList::from_noun(stack, &head_tail_head)?;
+            root_to_paths.push((key, value));
+            let key = Noun::from_noun(stack, &head_tail_tail_head)?;
+            let value = NounList::from_noun(stack, &head_tail_tail_tail)?;
+            battery_to_paths.push((key, value));
+            let key = Noun::from_noun(stack, &tail.as_cell()?.head())?;
+            let value = BatteriesList::from_noun(stack, &tail.as_cell()?.tail())?;
+            path_to_batteries.push((key, value));
+        }
+        let result = (root_to_paths, battery_to_paths, path_to_batteries);
+        Ok(result)
+    }
+}
 
 #[cfg(test)]
 mod test {
-    use crate::{mem::NockStack, noun::{Cell, Noun, D}};
+    use crate::{hamt::Hamt, mem::NockStack, noun::{Cell, Noun, D}};
+    use super::*;
+
+    #[test]
+    fn hamt_bidirectional_conversion() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let items = vec![(D(0), D(1)), (D(2), D(3))];
+        let hamt = super::hamt_from_vec(&mut stack, items);
+        let noun = hamt.into_noun(&mut stack);
+        let new_hamt: Vec<(Noun, Noun)> = <Hamt<Noun> as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
+        let flat_hamt: Vec<(Noun, Noun)> = hamt.iter().flatten().cloned().collect();
+        for (a, b) in new_hamt.iter().zip(flat_hamt.iter()) {
+            let key_a = &mut a.0.clone() as *mut Noun;
+            let key_b = &mut b.0.clone() as *mut Noun;
+            assert!(unsafe { unifying_equality(&mut stack, key_a, key_b) }, "Keys don't match");
+            let value_a = &mut a.1.clone() as *mut Noun;
+            let value_b = &mut b.1.clone() as *mut Noun;
+            assert!(unsafe { unifying_equality(&mut stack, value_a, value_b) }, "Values don't match");
+        }
+    }
 
     #[test]
     fn how_to_noun() {
