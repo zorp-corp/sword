@@ -963,6 +963,10 @@ impl NounAllocator for NockStack {
     unsafe fn alloc_cell(&mut self) -> *mut CellMemory {
         self.struct_alloc::<CellMemory>(1)
     }
+
+    unsafe fn alloc_struct<T>(&mut self, count: usize) -> *mut T {
+        self.struct_alloc::<T>(count)
+    }
 }
 
 /// Immutable, acyclic objects which may be copied up the stack

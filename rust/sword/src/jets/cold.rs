@@ -4,7 +4,6 @@ use crate::noun::{self, IndirectAtom, NounAllocator};
 use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
 use crate::persist::{pma_contains, Persist};
 use crate::unifying_equality::unifying_equality;
-use core::error;
 use std::mem::size_of;
 use std::ptr::copy_nonoverlapping;
 use std::ptr::null_mut;
@@ -804,7 +803,7 @@ pub type NounableResult<T> = std::result::Result<T, FromNounError>;
 pub trait Nounable {
     type Target;
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun;
-    fn from_noun(noun: &Noun) -> NounableResult<Self::Target>
+    fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target>
     where
         Self: Sized;
 }
@@ -815,7 +814,7 @@ impl Nounable for Atom {
     fn into_noun<A: NounAllocator>(self, _stack: &mut A) -> Noun {
         self.as_noun()
     }
-    fn from_noun(noun: &Noun) -> NounableResult<Self::Target> {
+    fn from_noun<A: NounAllocator>(_stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
         noun.atom().ok_or(FromNounError::NotAtom)
     }
 }
@@ -826,7 +825,7 @@ impl Nounable for u64 {
         // Copied from Crown's IntoNoun, not sure why this isn't D(*self)
         unsafe { Atom::from_raw(self).into_noun(_stack) }
     }
-    fn from_noun(noun: &Noun) -> NounableResult<Self::Target> {
+    fn from_noun<A: NounAllocator>(_stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
         let atom = noun.atom().ok_or(FromNounError::NotAtom)?;
         let as_u64 = atom.as_u64()?;
         Ok(as_u64)
@@ -839,7 +838,7 @@ impl Nounable for Noun {
         self
     }
 
-    fn from_noun(noun: &Self) -> NounableResult<Self::Target> {
+    fn from_noun<A: NounAllocator>(_stack: &mut A, noun: &Self) -> NounableResult<Self::Target> {
         Ok(noun.clone())
     }
 }
@@ -854,12 +853,164 @@ impl Nounable for &str {
         };
         contents_atom.into_noun(stack)
     }
-    fn from_noun(noun: &Noun) -> NounableResult<Self::Target> {
+    fn from_noun<A: NounAllocator>(_stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
         let atom = noun.as_atom()?;
         let bytes = atom.as_bytes();
         let utf8 = std::str::from_utf8(bytes)?;
         let allocated = utf8.to_string();
         Ok(allocated)
+    }
+}
+
+impl<T: Nounable + Copy> Nounable for &[T] {
+    type Target = Vec<T::Target>;
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        let mut list = D(0);
+        for item in self.iter().rev() {
+            let item_noun = item.into_noun(stack);
+            list = T(stack, &[item_noun, list]);
+        }
+        list
+    }
+
+    fn from_noun<A: NounAllocator>(_stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
+        let mut items = vec![];
+        for item in NounListIterator(noun.clone()) {
+            let item = T::from_noun(_stack, &item)?;
+            items.push(item);
+        }
+        Ok(items)
+    }
+}
+
+impl<T: Nounable, U: Nounable, V: Nounable> Nounable for (T, U, V) {
+    type Target = (T::Target, U::Target, V::Target);
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        // It's a three-tuple now
+        let (a, b, c) = self;
+        let a_noun = a.into_noun(stack);
+        let b_noun = b.into_noun(stack);
+        let c_noun = c.into_noun(stack);
+        T(stack, &[a_noun, b_noun, c_noun])
+    }
+
+    fn from_noun<A: NounAllocator>(_stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
+        // it's a three tuple now
+        let cell = noun.cell().ok_or(FromNounError::NotCell)?;
+        let head = cell.head();
+        let tail = cell.tail();
+        let a = T::from_noun(_stack, &head)?;
+        let cell = tail.as_cell()?;
+        let b = U::from_noun(_stack, &cell.head())?;
+        let c = V::from_noun(_stack, &cell.tail())?;
+        Ok((a, b, c))
+    }
+}
+
+impl<T: Nounable, U: Nounable> Nounable for (T, U) {
+    type Target = (T::Target, U::Target);
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        let (a, b) = self;
+        let a_noun = a.into_noun(stack);
+        let b_noun = b.into_noun(stack);
+        T(stack, &[a_noun, b_noun])
+    }
+
+    fn from_noun<A: NounAllocator>(_stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
+        let cell = noun.cell().ok_or(FromNounError::NotCell)?;
+        let head = cell.head();
+        let tail = cell.tail();
+        let a = T::from_noun(_stack, &head)?;
+        let b = U::from_noun(_stack, &tail)?;
+        Ok((a, b))
+    }
+}
+
+impl Nounable for NounList {
+    type Target = NounList;
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        let mut list = D(0);
+        for item in self {
+            let gimme = unsafe { *item };
+            list = T(stack, &[gimme, list]);
+        }
+        list
+    }
+
+    fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
+        let mut items = NOUN_LIST_NIL;
+        for item in NounListIterator(noun.clone()) {
+            let list_mem_ptr: *mut NounListMem = unsafe { stack.alloc_struct(1) };
+            unsafe {
+                list_mem_ptr.write(NounListMem {
+                    element: item,
+                    next: items,
+                });
+            }
+            items = NounList(list_mem_ptr);
+        }
+        Ok(items)
+    }
+}
+
+impl Nounable for Batteries {
+    type Target = Batteries;
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        let mut list = D(0);
+        for (battery, parent_axis) in self {
+            let battery_noun = unsafe { *battery };
+            let parent_axis_noun = parent_axis.into_noun(stack);
+            list = T(stack, &[battery_noun, parent_axis_noun, list]);
+        }
+        list
+    }
+
+    fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
+        let mut batteries = NO_BATTERIES;
+        for item in NounListIterator(noun.clone()) {
+            let cell = item.cell().ok_or(FromNounError::NotCell)?;
+            let battery = cell.head();
+            let parent_axis = cell.tail().as_cell()?.head().as_atom()?;
+            let batteries_mem: *mut BatteriesMem = unsafe { stack.alloc_struct(1) };
+            unsafe {
+                batteries_mem.write(BatteriesMem {
+                    battery,
+                    parent_axis,
+                    parent_batteries: batteries,
+                });
+            }
+            batteries = Batteries(batteries_mem);
+        }
+        Ok(batteries)
+    }
+}
+
+impl Nounable for BatteriesList {
+    type Target = BatteriesList;
+    fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        let mut list = D(0);
+        for batteries in self {
+            let batteries_noun = batteries.into_noun(stack);
+            list = T(stack, &[batteries_noun, list]);
+        }
+        list
+    }
+
+    fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
+        let mut batteries_list = BATTERIES_LIST_NIL;
+        for item in NounListIterator(noun.clone()) {
+            let cell = item.cell().ok_or(FromNounError::NotCell)?;
+            let batteries = Batteries::from_noun(stack, &cell.head())?;
+            let batteries_list_mem: *mut BatteriesListMem = unsafe { stack.alloc_struct(1) };
+            unsafe {
+                batteries_list_mem.write(BatteriesListMem {
+                    batteries,
+                    next: batteries_list,
+                });
+            }
+            batteries_list = BatteriesList(batteries_list_mem);
+        }
+        Ok(batteries_list)
     }
 }
 
