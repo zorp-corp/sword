@@ -1092,8 +1092,7 @@ impl Nounable for Cold {
                 for (root, paths) in slice {
                     let root_noun = root.into_noun(stack);
                     let paths_noun = paths.into_noun(stack);
-                    // root_to_paths_noun = T(stack, &[root_noun, paths_noun, root_to_paths_noun]);
-                    // two-step the cons'ing to fix associativity
+                    // two-step the cons'ing for correct associativity
                     let items = T(stack, &[root_noun, paths_noun]);
                     root_to_paths_noun = T(stack, &[items, root_to_paths_noun]);
                 }
@@ -1102,8 +1101,7 @@ impl Nounable for Cold {
                 for (battery, paths) in slice {
                     let battery_noun = battery.into_noun(stack);
                     let paths_noun = paths.into_noun(stack);
-                    // battery_to_paths_noun = T(stack, &[battery_noun, paths_noun, battery_to_paths_noun]);
-                    // two-step the cons'ing to fix associativity
+                    // two-step the cons'ing for correct associativity
                     let items = T(stack, &[battery_noun, paths_noun]);
                     battery_to_paths_noun = T(stack, &[items, battery_to_paths_noun]);
                 }
@@ -1112,15 +1110,13 @@ impl Nounable for Cold {
                 for (path, batteries) in slice {
                     let path_noun = path.into_noun(stack);
                     let batteries_noun = batteries.into_noun(stack);
-                    // path_to_batteries_noun = T(stack, &[path_noun, batteries_noun, path_to_batteries_noun]);
-                    // two-step the cons'ing to fix associativity
+                    // two-step the cons'ing for correct associativity
                     let items = T(stack, &[path_noun, batteries_noun]);
                     path_to_batteries_noun = T(stack, &[items, path_to_batteries_noun]);
                 }
             }
         }
-        // multi-step the cons'ing to fix associativity
-        // let cold_noun: Noun = T(stack, &[root_to_paths_noun, battery_to_paths_noun, path_to_batteries_noun]);
+        // multi-step the cons'ing for correct associativity
         let items = T(stack, &[root_to_paths_noun, battery_to_paths_noun]);
         let cold_noun = T(stack, &[items, path_to_batteries_noun]);
         cold_noun
@@ -1139,12 +1135,6 @@ impl Nounable for Cold {
         let root_to_paths_noun = roots.get(0).ok_or(FromNounError::NotCell)?;
         let battery_to_paths_noun = roots.get(1).ok_or(FromNounError::NotCell)?;
         let path_to_batteries_noun = roots.get(2).ok_or(FromNounError::NotCell)?;
-        // let root_to_paths_base_noun = noun.cell().ok_or(FromNounError::NotCell)?;
-        // let root_to_paths_noun = root_to_paths_base_noun.head();
-        // let battery_to_paths_base_noun = root_to_paths_base_noun.tail().as_cell()?;
-        // let battery_to_paths_noun = battery_to_paths_base_noun.head();
-        // let path_to_batteries_base_noun = battery_to_paths_base_noun.tail().as_cell()?;
-        // let path_to_batteries_noun = path_to_batteries_base_noun.head();
 
         // iterate over root_to_paths_noun
         for item in NounListIterator(root_to_paths_noun.clone()) {
@@ -1169,43 +1159,6 @@ impl Nounable for Cold {
             let value = BatteriesList::from_noun(stack, &cell.tail())?;
             path_to_batteries.push((key, value));
         }
-        // for item in NounListIterator(noun.clone()) {
-        //     // check each kind of thing it can be
-        //     // println!("allocated: {}", item.is_allocated());
-        //     // println!("cell: {}", item.is_cell());
-        //     // println!("atom: {}", item.is_atom());
-        //     // println!("indirect atom: {}", item.is_indirect());
-        //     // println!("direct atom: {}", item.is_direct());
-        //     // println!("none atom: {}", item.is_none());
-        //     let cell = item.cell().ok_or(FromNounError::NotCell)?;
-        //     let head = cell.head();
-        //     let tail = cell.tail();
-        //     let item = head;
-        //     println!("allocated: {}", item.is_allocated());
-        //     println!("cell: {}", item.is_cell());
-        //     println!("atom: {}", item.is_atom());
-        //     println!("indirect atom: {}", item.is_indirect());
-        //     println!("direct atom: {}", item.is_direct());
-        //     println!("none atom: {}", item.is_none());
-        //     let head_cell = head.cell().ok_or(FromNounError::NotCell)?;
-        //     let head_head = head_cell.head();
-        //     let head_tail = head_cell.tail();
-        //     let head_tail_cell = head_tail.cell().ok_or(FromNounError::NotCell)?;
-        //     let head_tail_head = head_tail_cell.head();
-        //     let head_tail_tail = head_tail_cell.tail();
-        //     let head_tail_tail_cell = head_tail_tail.cell().ok_or(FromNounError::NotCell)?;
-        //     let head_tail_tail_head = head_tail_tail_cell.head();
-        //     let head_tail_tail_tail = head_tail_tail_cell.tail();
-        //     let key = Noun::from_noun(stack, &head_head)?;
-        //     let value = NounList::from_noun(stack, &head_tail_head)?;
-        //     root_to_paths.push((key, value));
-        //     let key = Noun::from_noun(stack, &head_tail_tail_head)?;
-        //     let value = NounList::from_noun(stack, &head_tail_tail_tail)?;
-        //     battery_to_paths.push((key, value));
-        //     let key = Noun::from_noun(stack, &tail.as_cell()?.head())?;
-        //     let value = BatteriesList::from_noun(stack, &tail.as_cell()?.tail())?;
-        //     path_to_batteries.push((key, value));
-        // }
         root_to_paths.reverse();
         battery_to_paths.reverse();
         path_to_batteries.reverse();
