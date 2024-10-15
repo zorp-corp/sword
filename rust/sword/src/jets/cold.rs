@@ -1180,11 +1180,11 @@ mod test {
         let cold = Cold::new(stack);
         unsafe {
             let root_noun_list = make_noun_list(stack);
-            (*cold.0).root_to_paths.insert(stack, &mut D(1), root_noun_list);
+            (*cold.0).root_to_paths = (*cold.0).root_to_paths.insert(stack, &mut D(1), root_noun_list);
             let battery_to_paths_list = make_noun_list(stack);
-            (*cold.0).battery_to_paths.insert(stack, &mut D(2), battery_to_paths_list);
+            (*cold.0).battery_to_paths = (*cold.0).battery_to_paths.insert(stack, &mut D(2), battery_to_paths_list);
             let batteries_list = make_batteries_list(stack);
-            (*cold.0).path_to_batteries.insert(stack, &mut D(3), batteries_list);
+            (*cold.0).path_to_batteries = (*cold.0).path_to_batteries.insert(stack, &mut D(3), batteries_list);
         }
         cold
     }
