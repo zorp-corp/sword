@@ -877,7 +877,7 @@ impl<T: Nounable + Copy> Nounable for &[T] {
     }
 
     fn from_noun<A: NounAllocator>(_stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
-        let mut items = vec![];
+        let mut items: Vec<<T as Nounable>::Target> = vec![];
         for item in NounListIterator(noun.clone()) {
             let item = T::from_noun(_stack, &item)?;
             items.push(item);
@@ -964,13 +964,14 @@ impl Nounable for NounList {
 impl Nounable for Batteries {
     type Target = Batteries;
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
-        let mut reversed = Vec::new();
-        for battery in self {
-            reversed.push(battery);
-        }
-        reversed.reverse();
+        // It gets reversed when you re-construct it from a Noun anyway.
+        // let mut reversed = Vec::new();
+        // for battery in self {
+        //     reversed.push(battery);
+        // }
+        // reversed.reverse();
         let mut list = D(0);
-        for (battery, parent_axis) in reversed {
+        for (battery, parent_axis) in self {
             let battery_noun = unsafe { *battery };
             let parent_axis_noun = parent_axis.as_noun();
             let item = T(stack, &[battery_noun, parent_axis_noun]);
@@ -1166,10 +1167,40 @@ mod test {
     }
 
     #[test]
-    fn batteries_bidirectional_conversion() {
+    fn batteries_list_bidirectional_conversion() {
         let size = 1 << 27;
         let top_slots = 100;
         let mut stack = NockStack::new(size, top_slots);
+        let batteries_list_mem: *mut BatteriesListMem = unsafe { stack.alloc_struct(1) };
+        let batteries = make_batteries(&mut stack);
+        unsafe {
+            batteries_list_mem.write(BatteriesListMem {
+                batteries,
+                next: BATTERIES_LIST_NIL,
+            });
+        }
+        let batteries_list = BatteriesList(batteries_list_mem);
+        let batteries_list_mem2: *mut BatteriesListMem = unsafe { stack.alloc_struct(1) };
+        let batteries2 = make_batteries(&mut stack);
+        unsafe {
+            batteries_list_mem2.write(BatteriesListMem {
+                batteries: batteries2,
+                next: batteries_list,
+            });
+        }
+        let batteries_list2 = BatteriesList(batteries_list_mem2);
+        let batteries_list_noun = batteries_list2.into_noun(&mut stack);
+        let new_batteries_list2 = BatteriesList::from_noun(&mut stack, &batteries_list_noun).expect("Failed to convert noun to batteries list");
+        for (a, b) in batteries_list2.zip(new_batteries_list2) {
+            let mut a_noun = a.into_noun(&mut stack);
+            let mut b_noun = b.into_noun(&mut stack);
+            let a_ptr = &mut a_noun as *mut Noun;
+            let b_ptr = &mut b_noun as *mut Noun;
+            assert!(unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) }, "Items don't match");
+        }
+    }
+
+    fn make_batteries(stack: &mut NockStack) -> Batteries {
         let batteries_mem: *mut BatteriesMem = unsafe { stack.alloc_struct(1) };
         unsafe {
             batteries_mem.write(BatteriesMem {
@@ -1188,9 +1219,17 @@ mod test {
             });
         }
         let batteries2 = Batteries(batteries_mem2);
+        batteries2
+    }
+
+    #[test]
+    fn batteries_bidirectional_conversion() {
+        let size = 1 << 27;
+        let top_slots = 100;
+        let mut stack = NockStack::new(size, top_slots);
+        let batteries2 = make_batteries(&mut stack);
         let batteries_noun = batteries2.into_noun(&mut stack);
         let new_batteries = Batteries::from_noun(&mut stack, &batteries_noun).expect("Failed to convert noun to batteries");
-        // let new_batteries: Batteries = <Batteries as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
         assert_eq!(new_batteries.count(), 2);
         assert_eq!(batteries2.count(), 2);
         for ((a, a_atom), (b, b_atom)) in new_batteries.zip(batteries2) {
@@ -1199,8 +1238,6 @@ mod test {
             let a_val = unsafe { *a_ptr };
             let b_val = unsafe { *b_ptr };
             assert!(unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) }, "Items don't match: {:?} {:?}", a_val, b_val);
-            // let a_atom_ptr = &mut a_atom.clone() as *mut Atom;
-            // let b_atom_ptr = &mut b_atom.clone() as *mut Atom;
             let a_atom_noun = a_atom.into_noun(&mut stack);
             let b_atom_noun = b_atom.into_noun(&mut stack);
             let a_atom_noun_ptr = &mut a_atom_noun.clone() as *mut Noun;
