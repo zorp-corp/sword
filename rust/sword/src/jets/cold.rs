@@ -964,11 +964,17 @@ impl Nounable for NounList {
 impl Nounable for Batteries {
     type Target = Batteries;
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
+        let mut reversed = Vec::new();
+        for battery in self {
+            reversed.push(battery);
+        }
+        reversed.reverse();
         let mut list = D(0);
-        for (battery, parent_axis) in self {
+        for (battery, parent_axis) in reversed {
             let battery_noun = unsafe { *battery };
-            let parent_axis_noun = parent_axis.into_noun(stack);
-            list = T(stack, &[battery_noun, parent_axis_noun, list]);
+            let parent_axis_noun = parent_axis.as_noun();
+            let item = T(stack, &[battery_noun, parent_axis_noun]);
+            list = T(stack, &[item, list]);
         }
         list
     }
@@ -979,7 +985,7 @@ impl Nounable for Batteries {
             // FIXME: NotCell error here too
             let cell = item.cell().ok_or(FromNounError::NotCell)?;
             let battery = cell.head();
-            let parent_axis = cell.tail().as_cell()?.head().as_atom()?;
+            let parent_axis = cell.tail().as_atom()?;
             let batteries_mem: *mut BatteriesMem = unsafe { stack.alloc_struct(1) };
             unsafe {
                 batteries_mem.write(BatteriesMem {
@@ -1033,7 +1039,8 @@ impl<T: Nounable + Copy + mem::Preserve> Nounable for Hamt<T> {
             for (key, value) in slice {
                 let key_noun = key.into_noun(stack);
                 let value_noun = value.into_noun(stack);
-                list = T(stack, &[key_noun, value_noun, list]);
+                let items = T(stack, &[key_noun, value_noun]);
+                list = T(stack, &[items, list]);
             }
         }
         list
@@ -1163,15 +1170,35 @@ mod test {
         let size = 1 << 27;
         let top_slots = 100;
         let mut stack = NockStack::new(size, top_slots);
-        let items = vec![D(0), D(1), D(2), D(3)];
-        let items_noun = &items.into_noun(&mut stack);
-        let batteries = Batteries::from_noun(&mut stack, items_noun).unwrap();
-        let noun = batteries.into_noun(&mut stack);
-        let new_batteries: Batteries = <Batteries as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
-        for ((a, a_atom), (b, b_atom)) in new_batteries.zip(batteries) {
+        let batteries_mem: *mut BatteriesMem = unsafe { stack.alloc_struct(1) };
+        unsafe {
+            batteries_mem.write(BatteriesMem {
+                battery: D(0),
+                parent_axis: D(1).as_atom().unwrap(),
+                parent_batteries: NO_BATTERIES,
+            });
+        }
+        let batteries = Batteries(batteries_mem);
+        let batteries_mem2: *mut BatteriesMem = unsafe { stack.alloc_struct(1) };
+        unsafe {
+            batteries_mem2.write(BatteriesMem {
+                battery: D(2),
+                parent_axis: D(3).as_atom().unwrap(),
+                parent_batteries: batteries,
+            });
+        }
+        let batteries2 = Batteries(batteries_mem2);
+        let batteries_noun = batteries2.into_noun(&mut stack);
+        let new_batteries = Batteries::from_noun(&mut stack, &batteries_noun).expect("Failed to convert noun to batteries");
+        // let new_batteries: Batteries = <Batteries as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
+        assert_eq!(new_batteries.count(), 2);
+        assert_eq!(batteries2.count(), 2);
+        for ((a, a_atom), (b, b_atom)) in new_batteries.zip(batteries2) {
             let a_ptr = a;
             let b_ptr = b;
-            assert!(unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) }, "Items don't match: {:?} {:?}", a, b);
+            let a_val = unsafe { *a_ptr };
+            let b_val = unsafe { *b_ptr };
+            assert!(unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) }, "Items don't match: {:?} {:?}", a_val, b_val);
             // let a_atom_ptr = &mut a_atom.clone() as *mut Atom;
             // let b_atom_ptr = &mut b_atom.clone() as *mut Atom;
             let a_atom_noun = a_atom.into_noun(&mut stack);
