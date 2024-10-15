@@ -1015,8 +1015,7 @@ impl Nounable for BatteriesList {
     fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
         let mut batteries_list = BATTERIES_LIST_NIL;
         for item in NounListIterator(noun.clone()) {
-            let cell = item.cell().ok_or(FromNounError::NotCell)?;
-            let batteries = Batteries::from_noun(stack, &cell.head())?;
+            let batteries = Batteries::from_noun(stack, &item)?;
             let batteries_list_mem: *mut BatteriesListMem = unsafe { stack.alloc_struct(1) };
             unsafe {
                 batteries_list_mem.write(BatteriesListMem {
@@ -1058,6 +1057,7 @@ impl<T: Nounable + Copy + mem::Preserve> Nounable for Hamt<T> {
             let value = T::from_noun(stack, &cell.tail())?;
             items.push((key, value));
         }
+        items.reverse();
         Ok(items)
     }
 }
@@ -1136,6 +1136,9 @@ impl Nounable for Cold {
             let value = BatteriesList::from_noun(stack, &tail.as_cell()?.tail())?;
             path_to_batteries.push((key, value));
         }
+        root_to_paths.reverse();
+        battery_to_paths.reverse();
+        path_to_batteries.reverse();
         let result = (root_to_paths, battery_to_paths, path_to_batteries);
         Ok(result)
     }
