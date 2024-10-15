@@ -1118,7 +1118,7 @@ impl Nounable for Cold {
         }
         // multi-step the cons'ing for correct associativity
         let items = T(stack, &[root_to_paths_noun, battery_to_paths_noun]);
-        let cold_noun = T(stack, &[items, path_to_batteries_noun]);
+        let cold_noun = T(stack, &[root_to_paths_noun, battery_to_paths_noun, path_to_batteries_noun]);
         cold_noun
     }
 
@@ -1127,14 +1127,11 @@ impl Nounable for Cold {
         let mut battery_to_paths = Vec::new();
         let mut path_to_batteries = Vec::new();
 
-        let root_noun = noun.clone();
-        // let root_noun = noun.as_cell()?.head().as_cell()?.head();
-        let roots: Vec<Noun> = NounListIterator(root_noun).collect();
-        println!("roots.len(): {:?}", roots.len());
-        // panic!("lol");
-        let root_to_paths_noun = roots.get(0).ok_or(FromNounError::NotCell)?;
-        let battery_to_paths_noun = roots.get(1).ok_or(FromNounError::NotCell)?;
-        let path_to_batteries_noun = roots.get(2).ok_or(FromNounError::NotCell)?;
+        let root_cell = noun.as_cell()?;
+        let root_to_paths_noun = root_cell.head();
+        let batts_cell = root_cell.tail().as_cell()?;
+        let battery_to_paths_noun = batts_cell.head();
+        let path_to_batteries_noun = batts_cell.tail();
 
         // iterate over root_to_paths_noun
         for item in NounListIterator(root_to_paths_noun.clone()) {
