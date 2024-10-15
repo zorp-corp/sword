@@ -1202,9 +1202,11 @@ mod test {
             let key_a = &mut a.0.clone() as *mut Noun;
             let key_b = &mut b.0.clone() as *mut Noun;
             assert!(unsafe { unifying_equality(&mut stack, key_a, key_b) }, "Keys don't match: {:?} {:?}", a.0, b.0);
-            let value_a = &mut a.1.into_noun(&mut stack) as *mut Noun;
-            let value_b = &mut b.1.into_noun(&mut stack) as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, value_a, value_b) }, "Values don't match");
+            let mut value_a_noun = a.1.into_noun(&mut stack);
+            let mut value_b_noun = b.1.into_noun(&mut stack);
+            let value_a = &mut value_a_noun as *mut Noun;
+            let value_b = &mut value_b_noun as *mut Noun;
+            assert!(unsafe { unifying_equality(&mut stack, value_a, value_b) }, "Values don't match: {:?} {:?}", value_a_noun, value_b_noun);
         }
     }
 
