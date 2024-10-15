@@ -1083,29 +1083,46 @@ impl Nounable for Cold {
         let mut battery_to_paths_noun = D(0);
         let mut path_to_batteries_noun = D(0);
         unsafe {
+            println!("root_to_paths.count(): {}", (*cold_mem).root_to_paths.iter().count());
+            println!("battery_to_paths.count(): {}", (*cold_mem).battery_to_paths.iter().count());
+            println!("path_to_batteries.count(): {}", (*cold_mem).path_to_batteries.iter().count());
+        }
+        unsafe {
             for slice in (*cold_mem).root_to_paths.iter() {
                 for (root, paths) in slice {
                     let root_noun = root.into_noun(stack);
                     let paths_noun = paths.into_noun(stack);
-                    root_to_paths_noun = T(stack, &[root_noun, paths_noun, root_to_paths_noun]);
+                    // root_to_paths_noun = T(stack, &[root_noun, paths_noun, root_to_paths_noun]);
+                    // two-step the cons'ing to fix associativity
+                    let items = T(stack, &[root_noun, paths_noun]);
+                    root_to_paths_noun = T(stack, &[items, root_to_paths_noun]);
                 }
             }
             for slice in (*cold_mem).battery_to_paths.iter() {
                 for (battery, paths) in slice {
                     let battery_noun = battery.into_noun(stack);
                     let paths_noun = paths.into_noun(stack);
-                    battery_to_paths_noun = T(stack, &[battery_noun, paths_noun, battery_to_paths_noun]);
+                    // battery_to_paths_noun = T(stack, &[battery_noun, paths_noun, battery_to_paths_noun]);
+                    // two-step the cons'ing to fix associativity
+                    let items = T(stack, &[battery_noun, paths_noun]);
+                    battery_to_paths_noun = T(stack, &[items, battery_to_paths_noun]);
                 }
             }
             for slice in (*cold_mem).path_to_batteries.iter() {
                 for (path, batteries) in slice {
                     let path_noun = path.into_noun(stack);
                     let batteries_noun = batteries.into_noun(stack);
-                    path_to_batteries_noun = T(stack, &[path_noun, batteries_noun, path_to_batteries_noun]);
+                    // path_to_batteries_noun = T(stack, &[path_noun, batteries_noun, path_to_batteries_noun]);
+                    // two-step the cons'ing to fix associativity
+                    let items = T(stack, &[path_noun, batteries_noun]);
+                    path_to_batteries_noun = T(stack, &[items, path_to_batteries_noun]);
                 }
             }
         }
-        let cold_noun = T(stack, &[root_to_paths_noun, battery_to_paths_noun, path_to_batteries_noun]);
+        // multi-step the cons'ing to fix associativity
+        // let cold_noun: Noun = T(stack, &[root_to_paths_noun, battery_to_paths_noun, path_to_batteries_noun]);
+        let items = T(stack, &[root_to_paths_noun, battery_to_paths_noun]);
+        let cold_noun = T(stack, &[items, path_to_batteries_noun]);
         cold_noun
     }
 
@@ -1113,29 +1130,82 @@ impl Nounable for Cold {
         let mut root_to_paths = Vec::new();
         let mut battery_to_paths = Vec::new();
         let mut path_to_batteries = Vec::new();
-        for item in NounListIterator(noun.clone()) {
+
+        let root_noun = noun.clone();
+        // let root_noun = noun.as_cell()?.head().as_cell()?.head();
+        let roots: Vec<Noun> = NounListIterator(root_noun).collect();
+        println!("roots.len(): {:?}", roots.len());
+        // panic!("lol");
+        let root_to_paths_noun = roots.get(0).ok_or(FromNounError::NotCell)?;
+        let battery_to_paths_noun = roots.get(1).ok_or(FromNounError::NotCell)?;
+        let path_to_batteries_noun = roots.get(2).ok_or(FromNounError::NotCell)?;
+        // let root_to_paths_base_noun = noun.cell().ok_or(FromNounError::NotCell)?;
+        // let root_to_paths_noun = root_to_paths_base_noun.head();
+        // let battery_to_paths_base_noun = root_to_paths_base_noun.tail().as_cell()?;
+        // let battery_to_paths_noun = battery_to_paths_base_noun.head();
+        // let path_to_batteries_base_noun = battery_to_paths_base_noun.tail().as_cell()?;
+        // let path_to_batteries_noun = path_to_batteries_base_noun.head();
+
+        // iterate over root_to_paths_noun
+        for item in NounListIterator(root_to_paths_noun.clone()) {
             let cell = item.cell().ok_or(FromNounError::NotCell)?;
-            let head = cell.head();
-            let tail = cell.tail();
-            let head_cell = head.cell().ok_or(FromNounError::NotCell)?;
-            let head_head = head_cell.head();
-            let head_tail = head_cell.tail();
-            let head_tail_cell = head_tail.cell().ok_or(FromNounError::NotCell)?;
-            let head_tail_head = head_tail_cell.head();
-            let head_tail_tail = head_tail_cell.tail();
-            let head_tail_tail_cell = head_tail_tail.cell().ok_or(FromNounError::NotCell)?;
-            let head_tail_tail_head = head_tail_tail_cell.head();
-            let head_tail_tail_tail = head_tail_tail_cell.tail();
-            let key = Noun::from_noun(stack, &head_head)?;
-            let value = NounList::from_noun(stack, &head_tail_head)?;
+            let key = cell.head();
+            let value = NounList::from_noun(stack, &cell.tail())?;
             root_to_paths.push((key, value));
-            let key = Noun::from_noun(stack, &head_tail_tail_head)?;
-            let value = NounList::from_noun(stack, &head_tail_tail_tail)?;
+        }
+
+        // iterate over battery_to_paths_noun
+        for item in NounListIterator(battery_to_paths_noun.clone()) {
+            let cell = item.cell().ok_or(FromNounError::NotCell)?;
+            let key = cell.head();
+            let value = NounList::from_noun(stack, &cell.tail())?;
             battery_to_paths.push((key, value));
-            let key = Noun::from_noun(stack, &tail.as_cell()?.head())?;
-            let value = BatteriesList::from_noun(stack, &tail.as_cell()?.tail())?;
+        }
+
+        // iterate over path_to_batteries_noun
+        for item in NounListIterator(path_to_batteries_noun.clone()) {
+            let cell = item.cell().ok_or(FromNounError::NotCell)?;
+            let key = cell.head();
+            let value = BatteriesList::from_noun(stack, &cell.tail())?;
             path_to_batteries.push((key, value));
         }
+        // for item in NounListIterator(noun.clone()) {
+        //     // check each kind of thing it can be
+        //     // println!("allocated: {}", item.is_allocated());
+        //     // println!("cell: {}", item.is_cell());
+        //     // println!("atom: {}", item.is_atom());
+        //     // println!("indirect atom: {}", item.is_indirect());
+        //     // println!("direct atom: {}", item.is_direct());
+        //     // println!("none atom: {}", item.is_none());
+        //     let cell = item.cell().ok_or(FromNounError::NotCell)?;
+        //     let head = cell.head();
+        //     let tail = cell.tail();
+        //     let item = head;
+        //     println!("allocated: {}", item.is_allocated());
+        //     println!("cell: {}", item.is_cell());
+        //     println!("atom: {}", item.is_atom());
+        //     println!("indirect atom: {}", item.is_indirect());
+        //     println!("direct atom: {}", item.is_direct());
+        //     println!("none atom: {}", item.is_none());
+        //     let head_cell = head.cell().ok_or(FromNounError::NotCell)?;
+        //     let head_head = head_cell.head();
+        //     let head_tail = head_cell.tail();
+        //     let head_tail_cell = head_tail.cell().ok_or(FromNounError::NotCell)?;
+        //     let head_tail_head = head_tail_cell.head();
+        //     let head_tail_tail = head_tail_cell.tail();
+        //     let head_tail_tail_cell = head_tail_tail.cell().ok_or(FromNounError::NotCell)?;
+        //     let head_tail_tail_head = head_tail_tail_cell.head();
+        //     let head_tail_tail_tail = head_tail_tail_cell.tail();
+        //     let key = Noun::from_noun(stack, &head_head)?;
+        //     let value = NounList::from_noun(stack, &head_tail_head)?;
+        //     root_to_paths.push((key, value));
+        //     let key = Noun::from_noun(stack, &head_tail_tail_head)?;
+        //     let value = NounList::from_noun(stack, &head_tail_tail_tail)?;
+        //     battery_to_paths.push((key, value));
+        //     let key = Noun::from_noun(stack, &tail.as_cell()?.head())?;
+        //     let value = BatteriesList::from_noun(stack, &tail.as_cell()?.tail())?;
+        //     path_to_batteries.push((key, value));
+        // }
         root_to_paths.reverse();
         battery_to_paths.reverse();
         path_to_batteries.reverse();
@@ -1149,11 +1219,48 @@ mod test {
     use crate::{hamt::Hamt, mem::NockStack, noun::{Cell, Noun, D}};
     use super::*;
 
-    #[test]
-    fn hamt_bidirectional_conversion() {
+    fn make_test_stack() -> NockStack {
         let size = 1 << 27;
         let top_slots = 100;
-        let mut stack = NockStack::new(size, top_slots);
+        let stack = NockStack::new(size, top_slots);
+        stack
+    }
+
+    fn make_cold_state(stack: &mut NockStack) -> Cold {
+        let cold = Cold::new(stack);
+        unsafe {
+            let root_noun_list = make_noun_list(stack);
+            (*cold.0).root_to_paths.insert(stack, &mut D(1), root_noun_list);
+            let battery_to_paths_list = make_noun_list(stack);
+            (*cold.0).battery_to_paths.insert(stack, &mut D(2), battery_to_paths_list);
+            let batteries_list = make_batteries_list(stack);
+            (*cold.0).path_to_batteries.insert(stack, &mut D(3), batteries_list);
+        }
+        cold
+    }
+
+    #[test]
+    fn cold_bidirectional_conversion() {
+        let mut stack = make_test_stack();
+        let cold = make_cold_state(&mut stack);
+        let cold_noun = cold.into_noun(&mut stack);
+        let new_cold = Cold::from_noun(&mut stack, &cold_noun).expect("Failed to convert noun to cold");
+        // Use zipped iteration to compare the two cold states
+        let old_root_to_paths = unsafe { &(*cold.0).root_to_paths };
+        let new_root_to_paths = new_cold.0;
+        for (a, b) in old_root_to_paths.iter().flatten().zip(new_root_to_paths.iter()) {
+            let key_a = &mut a.0.clone() as *mut Noun;
+            let key_b = &mut b.0.clone() as *mut Noun;
+            assert!(unsafe { unifying_equality(&mut stack, key_a, key_b) }, "Keys don't match: {:?} {:?}", a.0, b.0);
+            let value_a = &mut a.1.into_noun(&mut stack) as *mut Noun;
+            let value_b = &mut b.1.into_noun(&mut stack) as *mut Noun;
+            assert!(unsafe { unifying_equality(&mut stack, value_a, value_b) }, "Values don't match");
+        }
+    }
+
+    #[test]
+    fn hamt_bidirectional_conversion() {
+        let mut stack = make_test_stack();
         let items = vec![(D(0), D(1)), (D(2), D(3))];
         let hamt = super::hamt_from_vec(&mut stack, items);
         let noun = hamt.into_noun(&mut stack);
@@ -1169,13 +1276,9 @@ mod test {
         }
     }
 
-    #[test]
-    fn batteries_list_bidirectional_conversion() {
-        let size = 1 << 27;
-        let top_slots = 100;
-        let mut stack = NockStack::new(size, top_slots);
+    fn make_batteries_list(stack: &mut NockStack) -> BatteriesList {
         let batteries_list_mem: *mut BatteriesListMem = unsafe { stack.alloc_struct(1) };
-        let batteries = make_batteries(&mut stack);
+        let batteries = make_batteries(stack);
         unsafe {
             batteries_list_mem.write(BatteriesListMem {
                 batteries,
@@ -1184,7 +1287,7 @@ mod test {
         }
         let batteries_list = BatteriesList(batteries_list_mem);
         let batteries_list_mem2: *mut BatteriesListMem = unsafe { stack.alloc_struct(1) };
-        let batteries2 = make_batteries(&mut stack);
+        let batteries2 = make_batteries(stack);
         unsafe {
             batteries_list_mem2.write(BatteriesListMem {
                 batteries: batteries2,
@@ -1192,6 +1295,13 @@ mod test {
             });
         }
         let batteries_list2 = BatteriesList(batteries_list_mem2);
+        batteries_list2
+    }
+
+    #[test]
+    fn batteries_list_bidirectional_conversion() {
+        let mut stack = make_test_stack();
+        let batteries_list2 = make_batteries_list(&mut stack);
         let batteries_list_noun = batteries_list2.into_noun(&mut stack);
         let new_batteries_list2 = BatteriesList::from_noun(&mut stack, &batteries_list_noun).expect("Failed to convert noun to batteries list");
         for (a, b) in batteries_list2.zip(new_batteries_list2) {
@@ -1227,9 +1337,7 @@ mod test {
 
     #[test]
     fn batteries_bidirectional_conversion() {
-        let size = 1 << 27;
-        let top_slots = 100;
-        let mut stack = NockStack::new(size, top_slots);
+        let mut stack = make_test_stack();
         let batteries2 = make_batteries(&mut stack);
         let batteries_noun = batteries2.into_noun(&mut stack);
         let new_batteries = Batteries::from_noun(&mut stack, &batteries_noun).expect("Failed to convert noun to batteries");
@@ -1251,9 +1359,7 @@ mod test {
 
     #[test]
     fn tuple_bidirectional_conversion() {
-        let size = 1 << 27;
-        let top_slots = 100;
-        let mut stack = NockStack::new(size, top_slots);
+        let mut stack = make_test_stack();
         let tup = (D(1), D(2), D(3));
         let noun = tup.into_noun(&mut stack);
         let new_tup: (Noun, Noun, Noun) = <(Noun, Noun, Noun) as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
@@ -1266,14 +1372,31 @@ mod test {
         assert!(unsafe { unifying_equality(&mut stack, c_ptr, &mut D(3) as *mut Noun) }, "Third item doesn't match");
     }
 
+    fn make_noun_list(stack: &mut NockStack) -> NounList {
+        let noun_list_mem: *mut NounListMem = unsafe { stack.alloc_struct(1) };
+        unsafe {
+            noun_list_mem.write(NounListMem {
+                element: D(1),
+                next: NOUN_LIST_NIL,
+            });
+        }
+        let noun_list = NounList(noun_list_mem);
+        let noun_list_mem2: *mut NounListMem = unsafe { stack.alloc_struct(1) };
+        unsafe {
+            noun_list_mem2.write(NounListMem {
+                element: D(2),
+                next: noun_list,
+            });
+        }
+        let noun_list2 = NounList(noun_list_mem2);
+        noun_list2
+    }
+
     #[test]
     fn noun_list_bidirectional_conversion() {
-        let size = 1 << 27;
-        let top_slots = 100;
-        let mut stack = NockStack::new(size, top_slots);
-        let items = vec![D(1), D(2), D(3)];
-        let items_noun = &items.into_noun(&mut stack);
-        let noun_list = NounList::from_noun(&mut stack, items_noun).unwrap();
+        let mut stack = make_test_stack();
+        let items = vec![D(1), D(2)];
+        let noun_list = make_noun_list(&mut stack);
         let noun = noun_list.into_noun(&mut stack);
         let new_noun_list: NounList = <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
         for (a, b) in new_noun_list.zip(items.iter()) {
@@ -1286,9 +1409,7 @@ mod test {
 
     #[test]
     fn how_to_noun() {
-        let size = 1 << 27;
-        let top_slots = 100;
-        let mut stack = NockStack::new(size, top_slots);
+        let mut stack = make_test_stack();
         let tup: &[Noun] = &[D(0), D(1)];
         let cell = Cell::new_tuple(&mut stack, tup);
         let noun: Noun = cell.as_noun();
@@ -1300,9 +1421,7 @@ mod test {
 
     #[test]
     fn how_to_noun_but_listy() {
-        let size = 1 << 27;
-        let top_slots = 100;
-        let mut stack = NockStack::new(size, top_slots);
+        let mut stack = make_test_stack();
         let tup: &[Noun] = &[D(0), D(1)];
         let cell = Cell::new_tuple(&mut stack, tup);
         let noun: Noun = cell.as_noun();
