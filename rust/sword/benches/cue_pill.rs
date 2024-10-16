@@ -1,12 +1,12 @@
-use sword::mem::NockStack;
-use sword::noun::{DirectAtom, IndirectAtom};
-use sword::serialization::{cue, jam};
 use std::env;
 use std::fs::{File, OpenOptions};
 use std::io;
 use std::mem;
 use std::ptr::{copy_nonoverlapping, write_bytes};
 use std::time::SystemTime;
+use sword::mem::NockStack;
+use sword::noun::{DirectAtom, IndirectAtom};
+use sword::serialization::{cue, jam};
 
 fn main() -> io::Result<()> {
     let filename = env::args().nth(1).expect("Must provide input filename");

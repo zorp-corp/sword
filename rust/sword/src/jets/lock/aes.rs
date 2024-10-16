@@ -120,8 +120,8 @@ mod util {
     use crate::jets::{JetErr, Result};
     use crate::mem::NockStack;
     use crate::noun::{Atom, IndirectAtom, Noun, D, T};
-    use sword_crypto::aes_siv::{ac_aes_siv_de, ac_aes_siv_en};
     use std::result;
+    use sword_crypto::aes_siv::{ac_aes_siv_de, ac_aes_siv_en};
 
     /// Associated data for AES-SIV functions.
     struct AcAesSivData {

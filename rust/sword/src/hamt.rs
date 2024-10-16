@@ -804,7 +804,6 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
     }
 }
 
-
 /// 🐹
 /// Humorously named iterator for Hamt, which is a portmanteau of Hamt and iterator.
 /// Maximum depth of the HAMT is 6, so we can safely use a fixed size array for the traversal stack.
@@ -817,17 +816,28 @@ pub struct Hamsterator<'a, T: Copy> {
     hamt: &'a Hamt<T>,
 }
 
-impl <'a, T: Copy>Hamsterator<'a, T> {
+impl<'a, T: Copy> Hamsterator<'a, T> {
     pub fn new(hamt: &'a Hamt<T>) -> Self {
         let stem = unsafe { *hamt.0 };
         let depth = 0;
-        let mut traversal_stack: [(Stem<T>, u32); 6] = [(Stem { bitmap: 0, typemap: 0, buffer: std::ptr::null_mut() }, 0); 6];
+        let mut traversal_stack: [(Stem<T>, u32); 6] = [(
+            Stem {
+                bitmap: 0,
+                typemap: 0,
+                buffer: std::ptr::null_mut(),
+            },
+            0,
+        ); 6];
         traversal_stack[0] = (stem, 0);
-        Hamsterator { depth, traversal_stack, hamt }
+        Hamsterator {
+            depth,
+            traversal_stack,
+            hamt,
+        }
     }
 }
 
-impl <'a, T: Copy>Iterator for Hamsterator<'a, T> {
+impl<'a, T: Copy> Iterator for Hamsterator<'a, T> {
     type Item = &'a [(Noun, T)];
 
     // Iterate over the values in the HAMT
@@ -870,7 +880,6 @@ mod test {
 
     use super::*;
     use crate::noun::{Noun, D};
-
 
     fn cdr_(h: &mut Hamsterator<Noun>) -> Option<(u64, u64)> {
         if let Some(tiny_vec) = h.next() {

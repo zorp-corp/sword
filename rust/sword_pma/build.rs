@@ -8,7 +8,7 @@ fn main() {
     let define_debug = if env::var("CARGO_FEATURE_DEBUG_PRINTS").is_ok() {
         "-DDEBUG"
     } else {
-        "-UDEBUG" 
+        "-UDEBUG"
     };
 
     // This is the directory where the `c` library is located.
@@ -40,7 +40,7 @@ fn main() {
                 .expect("Path is not a valid string"),
         )
         .flag(format!("-O{}", opt_level).as_ref())
-        .flag(define_debug) 
+        .flag(define_debug)
         .flag("-g3")
         .flag("-Wall")
         .flag("-Wextra")

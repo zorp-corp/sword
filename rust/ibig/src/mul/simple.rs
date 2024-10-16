@@ -41,13 +41,7 @@ pub(crate) fn add_signed_mul(
         add_signed_mul_chunk(c, sign, a, b, memory)
     } else {
         helpers::add_signed_mul_split_into_chunks(
-            c,
-            sign,
-            a,
-            b,
-            CHUNK_LEN,
-            memory,
-            add_signed_mul_chunk,
+            c, sign, a, b, CHUNK_LEN, memory, add_signed_mul_chunk,
         )
     }
 }

@@ -1,8 +1,8 @@
 use crate::jets::*;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, T};
-use sword_macros::tas;
 use either::Either::{self, Left, Right};
 use std::ptr::{copy_nonoverlapping, null_mut};
+use sword_macros::tas;
 
 /** Root for Hoon %k.139
  */
@@ -245,88 +245,43 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"shas"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shas")],
         1,
         jet_shas,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"shax"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shax")],
         1,
         jet_shax,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"shay"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shay")],
         1,
         jet_shay,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"shal"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shal")],
         1,
         jet_shal,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"sha"),
-            Left(b"sha1"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"sha"), Left(b"sha1")],
         1,
         jet_sha1,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"trip"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"trip")],
         1,
         jet_trip,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"last"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"last")],
         1,
         jet_last,
     ),
@@ -374,53 +329,25 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"pfix"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"pfix")],
         1,
         jet_pfix,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"plug"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"plug")],
         1,
         jet_plug,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"pose"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"pose")],
         1,
         jet_pose,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"sfix"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"sfix")],
         1,
         jet_sfix,
     ),
@@ -566,51 +493,23 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"scow"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"scow")],
         1,
         jet_scow,
     ),
     //
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"mink"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"mink")],
         1,
         jet_mink,
     ),
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"mole"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"mole")],
         1,
         jet_mole,
     ),
     (
-        &[
-            K_139,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"mule"),
-        ],
+        &[K_139, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"mule")],
         1,
         jet_mule,
     ),
@@ -1060,88 +959,43 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"shas"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shas")],
         1,
         jet_shas,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"shax"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shax")],
         1,
         jet_shax,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"shay"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shay")],
         1,
         jet_shay,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"shal"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"shal")],
         1,
         jet_shal,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"sha"),
-            Left(b"sha1"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"sha"), Left(b"sha1")],
         1,
         jet_sha1,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"trip"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"trip")],
         1,
         jet_trip,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"last"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"last")],
         1,
         jet_last,
     ),
@@ -1189,53 +1043,25 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"pfix"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"pfix")],
         1,
         jet_pfix,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"plug"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"plug")],
         1,
         jet_plug,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"pose"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"pose")],
         1,
         jet_pose,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"sfix"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"sfix")],
         1,
         jet_sfix,
     ),
@@ -1381,51 +1207,23 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"scow"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"scow")],
         1,
         jet_scow,
     ),
     //
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"mink"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"mink")],
         1,
         jet_mink,
     ),
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"mole"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"mole")],
         1,
         jet_mole,
     ),
     (
-        &[
-            K_138,
-            Left(b"one"),
-            Left(b"two"),
-            Left(b"tri"),
-            Left(b"qua"),
-            Left(b"mule"),
-        ],
+        &[K_138, Left(b"one"), Left(b"two"), Left(b"tri"), Left(b"qua"), Left(b"mule")],
         1,
         jet_mule,
     ),

@@ -810,7 +810,6 @@ pub trait Nounable {
         Self: Sized;
 }
 
-
 impl Nounable for Atom {
     type Target = Self;
 
@@ -851,8 +850,7 @@ impl Nounable for &str {
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
         let contents_atom = unsafe {
             let bytes = self.bytes().collect::<Vec<u8>>();
-            IndirectAtom::new_raw_bytes_ref(stack, bytes.as_slice())
-                .normalize_as_atom()
+            IndirectAtom::new_raw_bytes_ref(stack, bytes.as_slice()).normalize_as_atom()
         };
         contents_atom.into_noun(stack)
     }
@@ -1035,7 +1033,7 @@ impl<T: Nounable + Copy + mem::Preserve> Nounable for Hamt<T> {
     // FIXME: This should be reversed for linked-list construction
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
         let mut list = D(0);
-                let mut reverse = Vec::new();
+        let mut reverse = Vec::new();
         for item in self.iter() {
             reverse.push(item);
         }
@@ -1080,7 +1078,11 @@ pub fn hamt_from_vec<T: Nounable + Copy + mem::Preserve>(
 }
 
 impl Nounable for Cold {
-    type Target = (Vec<(Noun, NounList)>, Vec<(Noun, NounList)>, Vec<(Noun, BatteriesList)>);
+    type Target = (
+        Vec<(Noun, NounList)>,
+        Vec<(Noun, NounList)>,
+        Vec<(Noun, BatteriesList)>,
+    );
 
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
         let cold_mem = self.0;
@@ -1088,9 +1090,18 @@ impl Nounable for Cold {
         let mut battery_to_paths_noun = D(0);
         let mut path_to_batteries_noun = D(0);
         unsafe {
-            println!("root_to_paths.iter().count(): {}", (*cold_mem).root_to_paths.iter().count());
-            println!("battery_to_paths.iter().count(): {}", (*cold_mem).battery_to_paths.iter().count());
-            println!("path_to_batteries.iter().count(): {}", (*cold_mem).path_to_batteries.iter().count());
+            println!(
+                "root_to_paths.iter().count(): {}",
+                (*cold_mem).root_to_paths.iter().count()
+            );
+            println!(
+                "battery_to_paths.iter().count(): {}",
+                (*cold_mem).battery_to_paths.iter().count()
+            );
+            println!(
+                "path_to_batteries.iter().count(): {}",
+                (*cold_mem).path_to_batteries.iter().count()
+            );
         }
         unsafe {
             for slice in (*cold_mem).root_to_paths.iter() {
@@ -1123,7 +1134,10 @@ impl Nounable for Cold {
         }
         // multi-step the cons'ing for correct associativity
         // let items = T(stack, &[root_to_paths_noun, battery_to_paths_noun]);
-        let cold_noun = T(stack, &[root_to_paths_noun, battery_to_paths_noun, path_to_batteries_noun]);
+        let cold_noun = T(
+            stack,
+            &[root_to_paths_noun, battery_to_paths_noun, path_to_batteries_noun],
+        );
         cold_noun
     }
 
@@ -1171,8 +1185,12 @@ impl Nounable for Cold {
 
 #[cfg(test)]
 mod test {
-    use crate::{hamt::Hamt, mem::NockStack, noun::{Cell, Noun, D}};
     use super::*;
+    use crate::{
+        hamt::Hamt,
+        mem::NockStack,
+        noun::{Cell, Noun, D},
+    };
 
     fn make_test_stack() -> NockStack {
         let size = 1 << 27;
@@ -1185,14 +1203,26 @@ mod test {
         let cold = Cold::new(stack);
         unsafe {
             let root_noun_list = make_noun_list(stack, &[1, 2]);
-            (*cold.0).root_to_paths = (*cold.0).root_to_paths.insert(stack, &mut D(100), root_noun_list);
+            (*cold.0).root_to_paths =
+                (*cold.0)
+                    .root_to_paths
+                    .insert(stack, &mut D(100), root_noun_list);
             let root_noun_list = make_noun_list(stack, &[3, 4]);
-            (*cold.0).root_to_paths = (*cold.0).root_to_paths.insert(stack, &mut D(101), root_noun_list);
+            (*cold.0).root_to_paths =
+                (*cold.0)
+                    .root_to_paths
+                    .insert(stack, &mut D(101), root_noun_list);
 
             let battery_to_paths_list = make_noun_list(stack, &[5, 6]);
-            (*cold.0).battery_to_paths = (*cold.0).battery_to_paths.insert(stack, &mut D(200), battery_to_paths_list);
+            (*cold.0).battery_to_paths =
+                (*cold.0)
+                    .battery_to_paths
+                    .insert(stack, &mut D(200), battery_to_paths_list);
             let batteries_list = make_batteries_list(stack, &[7, 8]);
-            (*cold.0).path_to_batteries = (*cold.0).path_to_batteries.insert(stack, &mut D(300), batteries_list);
+            (*cold.0).path_to_batteries =
+                (*cold.0)
+                    .path_to_batteries
+                    .insert(stack, &mut D(300), batteries_list);
         }
         cold
     }
@@ -1202,45 +1232,88 @@ mod test {
         let mut stack = make_test_stack();
         let cold = make_cold_state(&mut stack);
         let cold_noun = cold.into_noun(&mut stack);
-        let new_cold = Cold::from_noun(&mut stack, &cold_noun).expect("Failed to convert noun to cold");
+        let new_cold =
+            Cold::from_noun(&mut stack, &cold_noun).expect("Failed to convert noun to cold");
         // Use zipped iteration to compare the two cold states
         let old_root_to_paths = unsafe { &(*cold.0).root_to_paths };
         let new_root_to_paths = new_cold.0.clone();
-        for (a, b) in old_root_to_paths.iter().flatten().zip(new_root_to_paths.iter()) {
+        for (a, b) in old_root_to_paths
+            .iter()
+            .flatten()
+            .zip(new_root_to_paths.iter())
+        {
             let key_a = &mut a.0.clone() as *mut Noun;
             let key_b = &mut b.0.clone() as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, key_a, key_b) }, "Keys don't match: {:?} {:?}", a.0, b.0);
+            assert!(
+                unsafe { unifying_equality(&mut stack, key_a, key_b) },
+                "Keys don't match: {:?} {:?}",
+                a.0,
+                b.0
+            );
             let mut value_a_noun = a.1.into_noun(&mut stack);
             let mut value_b_noun = b.1.into_noun(&mut stack);
             let value_a = &mut value_a_noun as *mut Noun;
             let value_b = &mut value_b_noun as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, value_a, value_b) }, "Values don't match: old: {:?} new: {:?}", value_a_noun, value_b_noun);
+            assert!(
+                unsafe { unifying_equality(&mut stack, value_a, value_b) },
+                "Values don't match: old: {:?} new: {:?}",
+                value_a_noun,
+                value_b_noun
+            );
         }
         // battery_to_paths
         let old_battery_to_paths = unsafe { &(*cold.0).battery_to_paths };
         let new_battery_to_paths = new_cold.1.clone();
-        for (a, b) in old_battery_to_paths.iter().flatten().zip(new_battery_to_paths.iter()) {
+        for (a, b) in old_battery_to_paths
+            .iter()
+            .flatten()
+            .zip(new_battery_to_paths.iter())
+        {
             let key_a = &mut a.0.clone() as *mut Noun;
             let key_b = &mut b.0.clone() as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, key_a, key_b) }, "Keys don't match: {:?} {:?}", a.0, b.0);
+            assert!(
+                unsafe { unifying_equality(&mut stack, key_a, key_b) },
+                "Keys don't match: {:?} {:?}",
+                a.0,
+                b.0
+            );
             let mut value_a_noun = a.1.into_noun(&mut stack);
             let mut value_b_noun = b.1.into_noun(&mut stack);
             let value_a = &mut value_a_noun as *mut Noun;
             let value_b = &mut value_b_noun as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, value_a, value_b) }, "Values don't match: old: {:?} new: {:?}", value_a_noun, value_b_noun);
+            assert!(
+                unsafe { unifying_equality(&mut stack, value_a, value_b) },
+                "Values don't match: old: {:?} new: {:?}",
+                value_a_noun,
+                value_b_noun
+            );
         }
         // path_to_batteries
         let old_path_to_batteries = unsafe { &(*cold.0).path_to_batteries };
         let new_path_to_batteries = new_cold.2.clone();
-        for (a, b) in old_path_to_batteries.iter().flatten().zip(new_path_to_batteries.iter()) {
+        for (a, b) in old_path_to_batteries
+            .iter()
+            .flatten()
+            .zip(new_path_to_batteries.iter())
+        {
             let key_a = &mut a.0.clone() as *mut Noun;
             let key_b = &mut b.0.clone() as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, key_a, key_b) }, "Keys don't match: {:?} {:?}", a.0, b.0);
+            assert!(
+                unsafe { unifying_equality(&mut stack, key_a, key_b) },
+                "Keys don't match: {:?} {:?}",
+                a.0,
+                b.0
+            );
             let mut value_a_noun = a.1.into_noun(&mut stack);
             let mut value_b_noun = b.1.into_noun(&mut stack);
             let value_a = &mut value_a_noun as *mut Noun;
             let value_b = &mut value_b_noun as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, value_a, value_b) }, "Values don't match: old: {:?} new: {:?}", value_a_noun, value_b_noun);
+            assert!(
+                unsafe { unifying_equality(&mut stack, value_a, value_b) },
+                "Values don't match: old: {:?} new: {:?}",
+                value_a_noun,
+                value_b_noun
+            );
         }
     }
 
@@ -1250,15 +1323,26 @@ mod test {
         let items = vec![(D(0), D(1)), (D(2), D(3))];
         let hamt = super::hamt_from_vec(&mut stack, items);
         let noun = hamt.into_noun(&mut stack);
-        let new_hamt: Vec<(Noun, Noun)> = <Hamt<Noun> as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
+        let new_hamt: Vec<(Noun, Noun)> =
+            <Hamt<Noun> as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
         let flat_hamt: Vec<(Noun, Noun)> = hamt.iter().flatten().cloned().collect();
         for (a, b) in new_hamt.iter().zip(flat_hamt.iter()) {
             let key_a = &mut a.0.clone() as *mut Noun;
             let key_b = &mut b.0.clone() as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, key_a, key_b) }, "Keys don't match: {:?} {:?}", a.0, b.0);
+            assert!(
+                unsafe { unifying_equality(&mut stack, key_a, key_b) },
+                "Keys don't match: {:?} {:?}",
+                a.0,
+                b.0
+            );
             let value_a = &mut a.1.clone() as *mut Noun;
             let value_b = &mut b.1.clone() as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, value_a, value_b) }, "Values don't match: {:?} {:?}", a.1, b.1);
+            assert!(
+                unsafe { unifying_equality(&mut stack, value_a, value_b) },
+                "Values don't match: {:?} {:?}",
+                a.1,
+                b.1
+            );
         }
     }
 
@@ -1291,13 +1375,17 @@ mod test {
         let mut stack = make_test_stack();
         let batteries_list2 = make_batteries_list(&mut stack, &[1, 2]);
         let batteries_list_noun = batteries_list2.into_noun(&mut stack);
-        let new_batteries_list2 = BatteriesList::from_noun(&mut stack, &batteries_list_noun).expect("Failed to convert noun to batteries list");
+        let new_batteries_list2 = BatteriesList::from_noun(&mut stack, &batteries_list_noun)
+            .expect("Failed to convert noun to batteries list");
         for (a, b) in batteries_list2.zip(new_batteries_list2) {
             let mut a_noun = a.into_noun(&mut stack);
             let mut b_noun = b.into_noun(&mut stack);
             let a_ptr = &mut a_noun as *mut Noun;
             let b_ptr = &mut b_noun as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) }, "Items don't match");
+            assert!(
+                unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) },
+                "Items don't match"
+            );
         }
     }
 
@@ -1328,7 +1416,8 @@ mod test {
         let mut stack = make_test_stack();
         let batteries2 = make_batteries(&mut stack);
         let batteries_noun = batteries2.into_noun(&mut stack);
-        let new_batteries = Batteries::from_noun(&mut stack, &batteries_noun).expect("Failed to convert noun to batteries");
+        let new_batteries = Batteries::from_noun(&mut stack, &batteries_noun)
+            .expect("Failed to convert noun to batteries");
         assert_eq!(new_batteries.count(), 2);
         assert_eq!(batteries2.count(), 2);
         for ((a, a_atom), (b, b_atom)) in new_batteries.zip(batteries2) {
@@ -1336,12 +1425,22 @@ mod test {
             let b_ptr = b;
             let a_val = unsafe { *a_ptr };
             let b_val = unsafe { *b_ptr };
-            assert!(unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) }, "Items don't match: {:?} {:?}", a_val, b_val);
+            assert!(
+                unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) },
+                "Items don't match: {:?} {:?}",
+                a_val,
+                b_val
+            );
             let a_atom_noun = a_atom.into_noun(&mut stack);
             let b_atom_noun = b_atom.into_noun(&mut stack);
             let a_atom_noun_ptr = &mut a_atom_noun.clone() as *mut Noun;
             let b_atom_noun_ptr = &mut b_atom_noun.clone() as *mut Noun;
-            assert!(unsafe { unifying_equality(&mut stack, a_atom_noun_ptr, b_atom_noun_ptr) }, "Parent axes don't match: {:?} {:?}", a_atom.as_u64(), b_atom.as_u64());
+            assert!(
+                unsafe { unifying_equality(&mut stack, a_atom_noun_ptr, b_atom_noun_ptr) },
+                "Parent axes don't match: {:?} {:?}",
+                a_atom.as_u64(),
+                b_atom.as_u64()
+            );
         }
     }
 
@@ -1350,14 +1449,24 @@ mod test {
         let mut stack = make_test_stack();
         let tup = (D(1), D(2), D(3));
         let noun = tup.into_noun(&mut stack);
-        let new_tup: (Noun, Noun, Noun) = <(Noun, Noun, Noun) as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
+        let new_tup: (Noun, Noun, Noun) =
+            <(Noun, Noun, Noun) as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
         let (a, b, c) = new_tup;
         let a_ptr = &mut a.clone() as *mut Noun;
         let b_ptr = &mut b.clone() as *mut Noun;
         let c_ptr = &mut c.clone() as *mut Noun;
-        assert!(unsafe { unifying_equality(&mut stack, a_ptr, &mut D(1) as *mut Noun) }, "First item doesn't match");
-        assert!(unsafe { unifying_equality(&mut stack, b_ptr, &mut D(2) as *mut Noun) }, "Second item doesn't match");
-        assert!(unsafe { unifying_equality(&mut stack, c_ptr, &mut D(3) as *mut Noun) }, "Third item doesn't match");
+        assert!(
+            unsafe { unifying_equality(&mut stack, a_ptr, &mut D(1) as *mut Noun) },
+            "First item doesn't match"
+        );
+        assert!(
+            unsafe { unifying_equality(&mut stack, b_ptr, &mut D(2) as *mut Noun) },
+            "Second item doesn't match"
+        );
+        assert!(
+            unsafe { unifying_equality(&mut stack, c_ptr, &mut D(3) as *mut Noun) },
+            "Third item doesn't match"
+        );
     }
 
     fn make_noun_list(stack: &mut NockStack, v: &[u64]) -> NounList {
@@ -1381,12 +1490,18 @@ mod test {
         let items = vec![D(1), D(2)];
         let noun_list = make_noun_list(&mut stack, &[1, 2]);
         let noun = noun_list.into_noun(&mut stack);
-        let new_noun_list: NounList = <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
+        let new_noun_list: NounList =
+            <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
         for (a, b) in new_noun_list.zip(items.iter()) {
             let a_ptr = a;
             let b_ptr = &mut b.clone() as *mut Noun;
             let a_val = unsafe { *a_ptr };
-            assert!(unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) }, "Items don't match: {:?} {:?}", a_val, b);
+            assert!(
+                unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) },
+                "Items don't match: {:?} {:?}",
+                a_val,
+                b
+            );
         }
     }
 

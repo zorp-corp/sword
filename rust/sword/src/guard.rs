@@ -1,9 +1,9 @@
 use crate::interpreter::{Error, Mote, Result};
 use crate::noun::D;
-use sword_guard::*;
 use assert_no_alloc::permit_alloc;
 use std::ffi::c_void;
 use std::marker::PhantomData;
+use sword_guard::*;
 
 #[derive(Debug)]
 pub enum GuardError {

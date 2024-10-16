@@ -23,31 +23,32 @@
 
 #![doc = include_str!("../README.md")]
 
-use std::alloc::{System,GlobalAlloc,Layout};
+use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 
 // check for mutually exclusive features.
 #[cfg(all(feature = "disable_release", feature = "warn_release"))]
 compile_error!("disable_release cannot be active at the same time with warn_release");
 
-
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
 thread_local! {
-	static ALLOC_FORBID_COUNT: Cell<u32> = const { Cell::new(0) };
-	static ALLOC_PERMIT_COUNT: Cell<u32> = const { Cell::new(0) };
+    static ALLOC_FORBID_COUNT: Cell<u32> = const { Cell::new(0) };
+    static ALLOC_PERMIT_COUNT: Cell<u32> = const { Cell::new(0) };
 
-	#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))]
-	static ALLOC_VIOLATION_COUNT: Cell<u32> = const { Cell::new(0) };
+    #[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))]
+    static ALLOC_VIOLATION_COUNT: Cell<u32> = const { Cell::new(0) };
 }
 
 #[cfg(all(feature = "disable_release", not(debug_assertions)))] // if disabled
-pub fn assert_no_alloc<T, F: FnOnce() -> T> (func: F) -> T { // no-op
-	func()
+pub fn assert_no_alloc<T, F: FnOnce() -> T>(func: F) -> T {
+    // no-op
+    func()
 }
 
 #[cfg(all(feature = "disable_release", not(debug_assertions)))] // if disabled
-pub fn permit_alloc<T, F: FnOnce() -> T> (func: F) -> T { // no-op
-	func()
+pub fn permit_alloc<T, F: FnOnce() -> T>(func: F) -> T {
+    // no-op
+    func()
 }
 
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
@@ -57,99 +58,105 @@ pub fn permit_alloc<T, F: FnOnce() -> T> (func: F) -> T { // no-op
 /// print a warning (depending on the `warn_debug` feature flag. Or ignore
 /// the situation, when compiled in `--release` mode with the `disable_release`
 ///feature flag set (which is the default)).
-pub fn assert_no_alloc<T, F: FnOnce() -> T> (func: F) -> T {
-	// RAII guard for managing the forbid counter. This is to ensure correct behaviour
-	// when catch_unwind is used
-	struct Guard;
-	impl Guard {
-		fn new() -> Guard {
-			ALLOC_FORBID_COUNT.with(|c| c.set(c.get()+1));
-			Guard
-		}
-	}
-	impl Drop for Guard {
-		fn drop(&mut self) {
-			ALLOC_FORBID_COUNT.with(|c| c.set(c.get()-1));
-		}
-	}
+pub fn assert_no_alloc<T, F: FnOnce() -> T>(func: F) -> T {
+    // RAII guard for managing the forbid counter. This is to ensure correct behaviour
+    // when catch_unwind is used
+    struct Guard;
+    impl Guard {
+        fn new() -> Guard {
+            ALLOC_FORBID_COUNT.with(|c| c.set(c.get() + 1));
+            Guard
+        }
+    }
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            ALLOC_FORBID_COUNT.with(|c| c.set(c.get() - 1));
+        }
+    }
 
+    #[cfg(any(
+        all(feature = "warn_debug", debug_assertions),
+        all(feature = "warn_release", not(debug_assertions))
+    ))] // if warn mode is selected
+    let old_violation_count = violation_count();
 
-	#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))] // if warn mode is selected
-	let old_violation_count = violation_count();
+    let guard = Guard::new(); // increment the forbid counter
+    let ret = func();
+    std::mem::drop(guard); // decrement the forbid counter
 
+    #[cfg(any(
+        all(feature = "warn_debug", debug_assertions),
+        all(feature = "warn_release", not(debug_assertions))
+    ))] // if warn mode is selected
+    if violation_count() > old_violation_count {
+        eprintln!("Tried to (de)allocate memory in a thread that forbids allocator calls!");
+    }
 
-	let guard = Guard::new(); // increment the forbid counter
-	let ret = func();
-	std::mem::drop(guard);    // decrement the forbid counter
-
-
-	#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))] // if warn mode is selected
-	if violation_count() > old_violation_count {
-		eprintln!("Tried to (de)allocate memory in a thread that forbids allocator calls!");
-	}
-
-	ret
+    ret
 }
 
 /// Calls the `func` closure, but ensures that the forbid and permit counters
 /// are maintained accurately even if a longjmp originates and terminates
 /// within the closure. If you longjmp over this function, we can't fix
 /// anything about it.
-pub fn ensure_alloc_counters<T, F: FnOnce() -> T> (func: F) -> T {
-	let forbid_counter = ALLOC_FORBID_COUNT.with(|c| c.get());
-	let permit_counter = ALLOC_PERMIT_COUNT.with(|c| c.get());
+pub fn ensure_alloc_counters<T, F: FnOnce() -> T>(func: F) -> T {
+    let forbid_counter = ALLOC_FORBID_COUNT.with(|c| c.get());
+    let permit_counter = ALLOC_PERMIT_COUNT.with(|c| c.get());
 
-	let ret = func();
+    let ret = func();
 
-	ALLOC_FORBID_COUNT.with(|c| c.set(forbid_counter));
-	ALLOC_PERMIT_COUNT.with(|c| c.set(permit_counter));
+    ALLOC_FORBID_COUNT.with(|c| c.set(forbid_counter));
+    ALLOC_PERMIT_COUNT.with(|c| c.set(permit_counter));
 
-	ret
+    ret
 }
 
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
 /// Calls the `func` closure. Allocations are temporarily allowed, even if this
 /// code runs inside of assert_no_alloc.
-pub fn permit_alloc<T, F: FnOnce() -> T> (func: F) -> T {
-	// RAII guard for managing the permit counter
-	struct Guard;
-	impl Guard {
-		fn new() -> Guard {
-			ALLOC_PERMIT_COUNT.with(|c| c.set(c.get()+1));
-			Guard
-		}
-	}
-	impl Drop for Guard {
-		fn drop(&mut self) {
-			ALLOC_PERMIT_COUNT.with(|c| c.set(c.get()-1));
-		}
-	}
+pub fn permit_alloc<T, F: FnOnce() -> T>(func: F) -> T {
+    // RAII guard for managing the permit counter
+    struct Guard;
+    impl Guard {
+        fn new() -> Guard {
+            ALLOC_PERMIT_COUNT.with(|c| c.set(c.get() + 1));
+            Guard
+        }
+    }
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            ALLOC_PERMIT_COUNT.with(|c| c.set(c.get() - 1));
+        }
+    }
 
-	let guard = Guard::new(); // increment the forbid counter
-	let ret = func();
-	std::mem::drop(guard);    // decrement the forbid counter
+    let guard = Guard::new(); // increment the forbid counter
+    let ret = func();
+    std::mem::drop(guard); // decrement the forbid counter
 
-	ret
+    ret
 }
 
-#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))] // if warn mode is selected
+#[cfg(any(
+    all(feature = "warn_debug", debug_assertions),
+    all(feature = "warn_release", not(debug_assertions))
+))] // if warn mode is selected
 /// Returns the count of allocation warnings emitted so far.
 ///
 /// Only available when the `warn_debug` or `warn release` features are enabled.
 pub fn violation_count() -> u32 {
-	ALLOC_VIOLATION_COUNT.with(|c| c.get())
+    ALLOC_VIOLATION_COUNT.with(|c| c.get())
 }
 
-#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))] // if warn mode is selected
+#[cfg(any(
+    all(feature = "warn_debug", debug_assertions),
+    all(feature = "warn_release", not(debug_assertions))
+))] // if warn mode is selected
 /// Resets the count of allocation warnings to zero.
 ///
 /// Only available when the `warn_debug` or `warn release` features are enabled.
 pub fn reset_violation_count() {
-	ALLOC_VIOLATION_COUNT.with(|c| c.set(0));
+    ALLOC_VIOLATION_COUNT.with(|c| c.set(0));
 }
-
-
-
 
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
 /// The custom allocator that handles the checking.
@@ -166,42 +173,59 @@ pub struct AllocDisabler;
 
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
 impl AllocDisabler {
-	fn check(&self, layout: Layout) {
-		let forbid_count = ALLOC_FORBID_COUNT.with(|f| f.get());
-		let permit_count = ALLOC_PERMIT_COUNT.with(|p| p.get());
-		if forbid_count > 0 && permit_count == 0 {
-			#[cfg(any( all(feature="warn_debug", debug_assertions), all(feature="warn_release", not(debug_assertions)) ))] // if warn mode is selected
-			ALLOC_VIOLATION_COUNT.with(|c| c.set(c.get()+1));
+    fn check(&self, layout: Layout) {
+        let forbid_count = ALLOC_FORBID_COUNT.with(|f| f.get());
+        let permit_count = ALLOC_PERMIT_COUNT.with(|p| p.get());
+        if forbid_count > 0 && permit_count == 0 {
+            #[cfg(any(
+                all(feature = "warn_debug", debug_assertions),
+                all(feature = "warn_release", not(debug_assertions))
+            ))] // if warn mode is selected
+            ALLOC_VIOLATION_COUNT.with(|c| c.set(c.get() + 1));
 
-			#[cfg(any( all(not(feature="warn_debug"), debug_assertions), all(not(feature="warn_release"), not(debug_assertions)) ))] // if abort mode is selected
-			{
-				#[cfg(all(feature = "log", feature = "backtrace"))]
-				permit_alloc(|| log::error!("Memory allocation of {} bytes failed from:\n{:?}", layout.size(), backtrace::Backtrace::new()));
-				#[cfg(all(feature = "log", not(feature = "backtrace")))]
-				permit_alloc(|| log::error!("Memory allocation of {} bytes failed", layout.size()));
+            #[cfg(any(
+                all(not(feature = "warn_debug"), debug_assertions),
+                all(not(feature = "warn_release"), not(debug_assertions))
+            ))] // if abort mode is selected
+            {
+                #[cfg(all(feature = "log", feature = "backtrace"))]
+                permit_alloc(|| {
+                    log::error!(
+                        "Memory allocation of {} bytes failed from:\n{:?}",
+                        layout.size(),
+                        backtrace::Backtrace::new()
+                    )
+                });
+                #[cfg(all(feature = "log", not(feature = "backtrace")))]
+                permit_alloc(|| log::error!("Memory allocation of {} bytes failed", layout.size()));
 
-				#[cfg(all(not(feature = "log"), feature = "backtrace"))]
-				permit_alloc(|| eprintln!("Allocation failure from:\n{:?}", backtrace::Backtrace::new()));
+                #[cfg(all(not(feature = "log"), feature = "backtrace"))]
+                permit_alloc(|| {
+                    eprintln!(
+                        "Allocation failure from:\n{:?}",
+                        backtrace::Backtrace::new()
+                    )
+                });
 
-				// This handler can be overridden (although as of writing, the API to do so is still
-				// unstable) so we must always call this even when the log feature is enabled
-				std::alloc::handle_alloc_error(layout);
-			}
-		}
-	}
+                // This handler can be overridden (although as of writing, the API to do so is still
+                // unstable) so we must always call this even when the log feature is enabled
+                std::alloc::handle_alloc_error(layout);
+            }
+        }
+    }
 }
 
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
 unsafe impl GlobalAlloc for AllocDisabler {
-	unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-		self.check(layout);
-		System.alloc(layout)
-	}
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        self.check(layout);
+        System.alloc(layout)
+    }
 
-	unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-		self.check(layout);
-		System.dealloc(ptr, layout)
-	}
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        self.check(layout);
+        System.dealloc(ptr, layout)
+    }
 }
 
 /// Wrapper for objects whose Drop implementation shall be permitted
@@ -223,36 +247,37 @@ unsafe impl GlobalAlloc for AllocDisabler {
 pub struct PermitDrop<T>(Option<T>);
 
 impl<T> PermitDrop<T> {
-	pub fn new(t: T) -> PermitDrop<T> {
-		permit_alloc(|| {
-			PermitDrop(Some(t))
-		})
-	}
+    pub fn new(t: T) -> PermitDrop<T> {
+        permit_alloc(|| PermitDrop(Some(t)))
+    }
 }
 
 impl<T> std::ops::Deref for PermitDrop<T> {
-	type Target = T;
-	fn deref(&self) -> &T { self.0.as_ref().unwrap() }
+    type Target = T;
+    fn deref(&self) -> &T {
+        self.0.as_ref().unwrap()
+    }
 }
 
 impl<T> std::ops::DerefMut for PermitDrop<T> {
-	fn deref_mut(&mut self) -> &mut T { self.0.as_mut().unwrap() }
+    fn deref_mut(&mut self) -> &mut T {
+        self.0.as_mut().unwrap()
+    }
 }
 
 impl<I: Iterator> Iterator for PermitDrop<I> {
-	type Item = I::Item;
-	fn next(&mut self) -> Option<Self::Item> {
-		(**self).next()
-	}
+    type Item = I::Item;
+    fn next(&mut self) -> Option<Self::Item> {
+        (**self).next()
+    }
 }
 
-
 impl<T> Drop for PermitDrop<T> {
-	fn drop(&mut self) {
-		let mut tmp = None;
-		std::mem::swap(&mut tmp, &mut self.0);
-		permit_alloc(|| {
-			std::mem::drop(tmp);
-		});
-	}
+    fn drop(&mut self) {
+        let mut tmp = None;
+        std::mem::swap(&mut tmp, &mut self.0);
+        permit_alloc(|| {
+            std::mem::drop(tmp);
+        });
+    }
 }

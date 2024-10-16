@@ -1,7 +1,7 @@
-use sword::jets::hot::URBIT_HOT_STATE;
-use sword::serf::serf;
 use std::env;
 use std::io;
+use sword::jets::hot::URBIT_HOT_STATE;
+use sword::serf::serf;
 
 fn main() -> io::Result<()> {
     //  debug

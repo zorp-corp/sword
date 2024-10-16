@@ -168,11 +168,7 @@ mod urcrypt_tests {
         };
 
         ac_aes_siv_en::<32>(
-            &mut ac_key,
-            &mut ac_message,
-            ac_data,
-            &mut ac_iv,
-            &mut ac_out,
+            &mut ac_key, &mut ac_message, ac_data, &mut ac_iv, &mut ac_out,
         )
         .unwrap();
 
@@ -216,11 +212,7 @@ mod urcrypt_tests {
         };
 
         ac_aes_siv_en::<48>(
-            &mut ac_key,
-            &mut ac_message,
-            ac_data,
-            &mut ac_iv,
-            &mut ac_out,
+            &mut ac_key, &mut ac_message, ac_data, &mut ac_iv, &mut ac_out,
         )
         .unwrap();
 
@@ -264,11 +256,7 @@ mod urcrypt_tests {
         };
 
         ac_aes_siv_en::<64>(
-            &mut ac_key,
-            &mut ac_message,
-            ac_data,
-            &mut ac_iv,
-            &mut ac_out,
+            &mut ac_key, &mut ac_message, ac_data, &mut ac_iv, &mut ac_out,
         )
         .unwrap();
 

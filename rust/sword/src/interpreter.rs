@@ -16,7 +16,6 @@ use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
 use crate::serf::TERMINATOR;
 use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
 use crate::unifying_equality::unifying_equality;
-use sword_macros::tas;
 use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::*;
@@ -26,6 +25,7 @@ use std::result;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Instant;
+use sword_macros::tas;
 
 crate::gdb!();
 
@@ -697,9 +697,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                                     if let Ok(mut formula) = res.slot_atom(kale.axis) {
                                         if !cfg!(feature = "sham_hints") {
                                             if let Some((jet, _path)) = context.warm.find_jet(
-                                                &mut context.stack,
-                                                &mut res,
-                                                &mut formula,
+                                                &mut context.stack, &mut res, &mut formula,
                                             ) {
                                                 match jet(context, res) {
                                                     Ok(jet_res) => {
@@ -1370,11 +1368,7 @@ unsafe fn write_trace(context: &mut Context) {
         // Abort writing to trace file if we encountered an error. This should
         // result in a well-formed partial trace file.
         if let Err(_e) = write_nock_trace(&mut context.stack, info, trace_stack) {
-            flog!(
-                context,
-                "\rserf: error writing nock trace to file: {:?}",
-                _e
-            );
+            flog!(context, "\rserf: error writing nock trace to file: {:?}", _e);
             context.trace_info = None;
         }
     }
@@ -1431,9 +1425,7 @@ mod hint {
                                             let stack = &mut context.stack;
                                             if unsafe {
                                                 !unifying_equality(
-                                                    stack,
-                                                    &mut nock_res,
-                                                    &mut jet_res,
+                                                    stack, &mut nock_res, &mut jet_res,
                                                 )
                                             } {
                                                 //  XX: need NockStack allocated string interpolation
@@ -1506,7 +1498,7 @@ mod hint {
                 } else {
                     None
                 }
-            },
+            }
             tas!(b"slog") => {
                 let stack = &mut context.stack;
                 let slogger = &mut context.slogger;
@@ -1576,7 +1568,7 @@ mod hint {
                     }
                 }
             }
-            _ => { None }
+            _ => None,
         }
     }
 
@@ -1638,8 +1630,7 @@ mod hint {
                                     //  XX: flog! is ideal, but it runs afoul of the borrow checker
                                     // flog!(context, "invalid root parent formula: {} {}", chum, parent);
                                     let tape = tape(
-                                        stack,
-                                        "serf: cold: register: invalid root parent axis",
+                                        stack, "serf: cold: register: invalid root parent axis",
                                     );
                                     slog_leaf(stack, slogger, tape);
                                     Ok(false)
