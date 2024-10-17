@@ -962,12 +962,6 @@ impl Nounable for NounList {
 impl Nounable for Batteries {
     type Target = Batteries;
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
-        // It gets reversed when you re-construct it from a Noun anyway.
-        // let mut reversed = Vec::new();
-        // for battery in self {
-        //     reversed.push(battery);
-        // }
-        // reversed.reverse();
         let mut list = D(0);
         for (battery, parent_axis) in self {
             let battery_noun = unsafe { *battery };
