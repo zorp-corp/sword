@@ -1052,8 +1052,6 @@ impl<T: Nounable + Copy + mem::Preserve> Nounable for Hamt<T> {
         for item in NounListIterator(noun.clone()) {
             // FIXME: First element isn't a Cell FSR so it's blowing up immediately.
             let cell = item.cell().ok_or(FromNounError::NotCell)?;
-            // println!("Howdy");
-            // let cell = item.cell().expect("kablooey");
             let key = cell.head();
             let value = T::from_noun(stack, &cell.tail())?;
             items.push((key, value));
