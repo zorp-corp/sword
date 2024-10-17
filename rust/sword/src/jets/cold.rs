@@ -981,7 +981,6 @@ impl Nounable for Batteries {
     fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
         let mut batteries = NO_BATTERIES;
         for item in NounListIterator(noun.clone()) {
-            // FIXME: NotCell error here too
             let cell = item.cell().ok_or(FromNounError::NotCell)?;
             let battery = cell.head();
             let parent_axis = cell.tail().as_atom()?;
