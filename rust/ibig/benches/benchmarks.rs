@@ -248,19 +248,8 @@ fn bench_modulo_pow(criterion: &mut Criterion) {
     group.finish();
 }
 criterion_group!(
-    benches,
-    bench_add,
-    bench_sub,
-    bench_mul,
-    bench_div,
-    bench_gcd,
-    bench_to_hex,
-    bench_to_dec,
-    bench_from_hex,
-    bench_from_dec,
-    bench_pow,
-    bench_modulo_mul,
-    bench_modulo_pow,
+    benches, bench_add, bench_sub, bench_mul, bench_div, bench_gcd, bench_to_hex, bench_to_dec,
+    bench_from_hex, bench_from_dec, bench_pow, bench_modulo_mul, bench_modulo_pow,
 );
 
 criterion_main!(benches);

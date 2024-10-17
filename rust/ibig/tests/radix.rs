@@ -272,13 +272,10 @@ fn test_radix_round_trip() {
         "abcccaacacbbcbabcbacbacbabcabcbabcabbc1000"
     );
     assert_eq!(
-        UBig::from_str_radix(
-            "12341235234512341345356745634563563563457356356354645634563456",
-            8
-        )
-        .unwrap()
-        .in_radix(16)
-        .to_string(),
+        UBig::from_str_radix("12341235234512341345356745634563563563457356356354645634563456", 8)
+            .unwrap()
+            .in_radix(16)
+            .to_string(),
         "a70a75394a70b95dde5ce5cee77397bb9dcecd2e72e72e"
     );
 

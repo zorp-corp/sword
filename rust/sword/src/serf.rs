@@ -13,7 +13,6 @@ use crate::persist::pma_meta_set;
 use crate::persist::{pma_meta_get, pma_open, pma_sync, Persist};
 use crate::trace::*;
 use crate::{flog, interpreter};
-use sword_macros::tas;
 use signal_hook;
 use signal_hook::consts::SIGINT;
 use std::fs::create_dir_all;
@@ -24,6 +23,7 @@ use std::result::Result;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
+use sword_macros::tas;
 
 crate::gdb!();
 
@@ -231,9 +231,7 @@ impl Context {
 
     pub fn ripe(&mut self) {
         self.newt.ripe(
-            &mut self.nock_context.stack,
-            self.event_num,
-            self.mug as u64,
+            &mut self.nock_context.stack, self.event_num, self.mug as u64,
         );
     }
 
@@ -252,29 +250,19 @@ impl Context {
 
     pub fn play_bail(&mut self, dud: Noun) {
         self.newt.play_bail(
-            &mut self.nock_context.stack,
-            self.event_num,
-            self.mug as u64,
-            dud,
+            &mut self.nock_context.stack, self.event_num, self.mug as u64, dud,
         );
     }
 
     pub fn work_done(&mut self, fec: Noun) {
         self.newt.work_done(
-            &mut self.nock_context.stack,
-            self.event_num,
-            self.mug as u64,
-            fec,
+            &mut self.nock_context.stack, self.event_num, self.mug as u64, fec,
         );
     }
 
     pub fn work_swap(&mut self, job: Noun, fec: Noun) {
         self.newt.work_swap(
-            &mut self.nock_context.stack,
-            self.event_num,
-            self.mug as u64,
-            job,
-            fec,
+            &mut self.nock_context.stack, self.event_num, self.mug as u64, job, fec,
         );
     }
 

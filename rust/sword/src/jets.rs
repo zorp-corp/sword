@@ -295,11 +295,7 @@ pub mod util {
     pub fn slam(context: &mut Context, gate: Noun, sample: Noun) -> result::Result<Noun, JetErr> {
         let core: Noun = T(
             &mut context.stack,
-            &[
-                gate.as_cell()?.head(),
-                sample,
-                gate.as_cell()?.tail().as_cell()?.tail(),
-            ],
+            &[gate.as_cell()?.head(), sample, gate.as_cell()?.tail().as_cell()?.tail()],
         );
         kick(context, core, D(2))
     }
@@ -402,9 +398,7 @@ pub mod util {
                             Error::NonDeterministic(_, mut expected),
                         ) => unsafe {
                             assert!(unifying_equality(
-                                &mut context.stack,
-                                &mut actual,
-                                &mut expected
+                                &mut context.stack, &mut actual, &mut expected
                             ));
                         },
                         _ => {

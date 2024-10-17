@@ -78,7 +78,7 @@ pub fn get_mug(noun: Noun) -> Option<u32> {
 
 const MASK_OUT_MUG: u64 = !(u32::MAX as u64);
 
-/** 
+/**
  * Set the cached mug on an allocated noun
  *
  * # Safety

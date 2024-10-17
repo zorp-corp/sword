@@ -77,9 +77,9 @@ pub mod util {
     use crate::jets::form::util::scow;
     use crate::mem::NockStack;
     use crate::noun::{tape, Cell, Noun, D, T};
-    use sword_macros::tas;
     use either::{Left, Right};
     use std::result;
+    use sword_macros::tas;
 
     pub const LEAF: Noun = D(tas!(b"leaf"));
     pub const ROSE: Noun = D(tas!(b"rose"));
@@ -266,7 +266,7 @@ pub mod util {
                                         panic!("+mink in +mook somehow returned atom {}", tone)
                                     }
                                 }
-                            
+
                                 // This code only called when the break statement
                                 // above doesn't trigger
                                 let stack = &mut context.stack;

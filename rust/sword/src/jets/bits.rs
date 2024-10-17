@@ -868,7 +868,6 @@ mod tests {
         let sam = T(&mut c.stack, &[D(2), bcd, a0]);
         let res = A(&mut c.stack, &ubig!(0xbad0000000));
         assert_jet(c, jet_sew, sam, res);
-
     }
 
     /*

@@ -5,7 +5,6 @@ use crate::jets::form::util::scow;
 use crate::mem::NockStack;
 use crate::mug::met3_usize;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun};
-use sword_macros::tas;
 use either::Either::*;
 use json::object;
 use std::fs::{create_dir_all, File};
@@ -13,6 +12,7 @@ use std::io::{Error, Write};
 use std::path::PathBuf;
 use std::result::Result;
 use std::time::Instant;
+use sword_macros::tas;
 
 crate::gdb!();
 
@@ -101,11 +101,7 @@ pub fn write_metadata(info: &mut TraceInfo) -> Result<(), Error> {
 /// This should result in a well-formed partial trace file.
 pub fn write_serf_trace_safe(context: &mut Context, name: &str, start: Instant) {
     if let Err(e) = write_serf_trace(context.trace_info.as_mut().unwrap(), name, start) {
-        flog!(
-            context,
-            "\rserf: error writing event trace to file: {:?}",
-            e
-        );
+        flog!(context, "\rserf: error writing event trace to file: {:?}", e);
         let info = &mut context.trace_info;
         *info = None;
     }

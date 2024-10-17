@@ -54,13 +54,13 @@ use crate::interpreter::Slogger;
 use crate::mem::NockStack;
 use crate::noun::{IndirectAtom, Noun, D, T};
 use crate::serialization::{cue, jam};
-use sword_macros::tas;
 use either::Either;
 use std::io::{Read, Write};
 use std::os::unix::prelude::FromRawFd;
 use std::pin::Pin;
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts_mut;
+use sword_macros::tas;
 
 crate::gdb!();
 

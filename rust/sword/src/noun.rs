@@ -1,6 +1,5 @@
 use crate::mem::{word_size_of, NockStack};
-use crate::persist::{pma_contains,pma_dirty};
-use sword_macros::tas;
+use crate::persist::{pma_contains, pma_dirty};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::{Either, Left, Right};
 use ibig::{Stack, UBig};
@@ -9,6 +8,7 @@ use std::error;
 use std::fmt;
 use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
+use sword_macros::tas;
 
 crate::gdb!();
 
@@ -1309,6 +1309,9 @@ pub trait NounAllocator: Sized {
 
     /** Allocate memory for a cell */
     unsafe fn alloc_cell(&mut self) -> *mut CellMemory;
+
+    /** Allocate space for a struct in a stack frame */
+    unsafe fn alloc_struct<T>(&mut self, count: usize) -> *mut T;
 }
 
 /**

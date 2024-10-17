@@ -1,6 +1,5 @@
 use crate::mem::NockStack;
 use crate::noun::{Allocated, Atom, Cell, CellMemory, IndirectAtom, Noun};
-use sword_pma::*;
 use either::Either::{Left, Right};
 use std::convert::TryInto;
 use std::ffi::{c_void, CString};
@@ -8,6 +7,7 @@ use std::mem::size_of;
 use std::path::PathBuf;
 use std::ptr::copy_nonoverlapping;
 use std::sync::OnceLock;
+use sword_pma::*;
 
 const PMA_MODE: mode_t = 0o600; // RW for user only
 const PMA_FLAGS: ULONG = 0; // ignored for now

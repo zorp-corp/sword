@@ -29,6 +29,7 @@ num-traits = "0.2"
 rand = "0.8.5"
 signal-hook = "0.3"
 static_assertions = "1.1.0"
+thiserror = "1.0.64"
 
 [build-dependencies]
 autotools = "0.2"
