@@ -1030,7 +1030,6 @@ impl Nounable for BatteriesList {
 impl<T: Nounable + Copy + mem::Preserve> Nounable for Hamt<T> {
     type Target = Vec<(Noun, T::Target)>;
 
-    // FIXME: This should be reversed for linked-list construction
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
         let mut list = D(0);
         let mut reverse = Vec::new();
