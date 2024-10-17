@@ -1050,7 +1050,6 @@ impl<T: Nounable + Copy + mem::Preserve> Nounable for Hamt<T> {
     fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
         let mut items = Vec::new();
         for item in NounListIterator(noun.clone()) {
-            // FIXME: First element isn't a Cell FSR so it's blowing up immediately.
             let cell = item.cell().ok_or(FromNounError::NotCell)?;
             let key = cell.head();
             let value = T::from_noun(stack, &cell.tail())?;
