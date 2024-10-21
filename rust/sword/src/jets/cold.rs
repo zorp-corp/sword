@@ -528,6 +528,21 @@ impl Cold {
         }
     }
 
+    pub fn from_vecs(stack: &mut NockStack, battery_to_paths: Vec<(Noun, NounList)>, root_to_paths: Vec<(Noun, NounList)>, path_to_batteries: Vec<(Noun, BatteriesList)>) -> Self {
+        let battery_to_paths = hamt_from_vec(stack, battery_to_paths);
+        let root_to_paths = hamt_from_vec(stack, root_to_paths);
+        let path_to_batteries = hamt_from_vec(stack, path_to_batteries);
+        unsafe {
+            let cold_mem_ptr: *mut ColdMem = stack.struct_alloc(1);
+            *cold_mem_ptr = ColdMem {
+                battery_to_paths,
+                root_to_paths,
+                path_to_batteries,
+            };
+            Cold(cold_mem_ptr)
+        }
+    }
+
     pub fn find(&mut self, stack: &mut NockStack, path: &mut Noun) -> BatteriesList {
         unsafe {
             (*(self.0))
