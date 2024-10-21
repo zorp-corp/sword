@@ -1033,7 +1033,7 @@ impl<T: Nounable + Copy + mem::Preserve> Nounable for Hamt<T> {
         for slice in reverse {
             for (key, value) in slice {
                 let value_noun = value.into_noun(stack);
-                let items = T(stack, &[key, value_noun]);
+                let items = T(stack, &[*key, value_noun]);
                 list = T(stack, &[items, list]);
             }
         }
@@ -1077,20 +1077,6 @@ impl Nounable for Cold {
         let mut root_to_paths_noun = D(0);
         let mut battery_to_paths_noun = D(0);
         let mut path_to_batteries_noun = D(0);
-        unsafe {
-            println!(
-                "root_to_paths.iter().count(): {}",
-                (*cold_mem).root_to_paths.iter().count()
-            );
-            println!(
-                "battery_to_paths.iter().count(): {}",
-                (*cold_mem).battery_to_paths.iter().count()
-            );
-            println!(
-                "path_to_batteries.iter().count(): {}",
-                (*cold_mem).path_to_batteries.iter().count()
-            );
-        }
         unsafe {
             for slice in (*cold_mem).root_to_paths.iter() {
                 for (root, paths) in slice {
