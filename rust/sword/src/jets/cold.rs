@@ -1033,7 +1033,7 @@ impl<T: Nounable + Copy + mem::Preserve> Nounable for Hamt<T> {
         for slice in reverse {
             for (key, value) in slice {
                 let value_noun = value.into_noun(stack);
-                let items = T(stack, &[key, value_noun]);
+                let items = T(stack, &[*key, value_noun]);
                 list = T(stack, &[items, list]);
             }
         }
