@@ -1078,20 +1078,6 @@ impl Nounable for Cold {
         let mut battery_to_paths_noun = D(0);
         let mut path_to_batteries_noun = D(0);
         unsafe {
-            println!(
-                "root_to_paths.iter().count(): {}",
-                (*cold_mem).root_to_paths.iter().count()
-            );
-            println!(
-                "battery_to_paths.iter().count(): {}",
-                (*cold_mem).battery_to_paths.iter().count()
-            );
-            println!(
-                "path_to_batteries.iter().count(): {}",
-                (*cold_mem).path_to_batteries.iter().count()
-            );
-        }
-        unsafe {
             for slice in (*cold_mem).root_to_paths.iter() {
                 for (root, paths) in slice {
                     let root_noun = root.into_noun(stack);
