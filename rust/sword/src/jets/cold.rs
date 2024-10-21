@@ -528,7 +528,12 @@ impl Cold {
         }
     }
 
-    pub fn from_vecs(stack: &mut NockStack, battery_to_paths: Vec<(Noun, NounList)>, root_to_paths: Vec<(Noun, NounList)>, path_to_batteries: Vec<(Noun, BatteriesList)>) -> Self {
+    pub fn from_vecs(
+        stack: &mut NockStack,
+        battery_to_paths: Vec<(Noun, NounList)>,
+        root_to_paths: Vec<(Noun, NounList)>,
+        path_to_batteries: Vec<(Noun, BatteriesList)>,
+    ) -> Self {
         let battery_to_paths = hamt_from_vec(stack, battery_to_paths);
         let root_to_paths = hamt_from_vec(stack, root_to_paths);
         let path_to_batteries = hamt_from_vec(stack, path_to_batteries);
