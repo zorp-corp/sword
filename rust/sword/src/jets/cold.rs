@@ -1126,8 +1126,6 @@ impl Nounable for Cold {
                 }
             }
         }
-        // multi-step the cons'ing for correct associativity
-        // let items = T(stack, &[root_to_paths_noun, battery_to_paths_noun]);
         let cold_noun = T(
             stack,
             &[battery_to_paths_noun, root_to_paths_noun, path_to_batteries_noun],
