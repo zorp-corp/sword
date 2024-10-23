@@ -290,6 +290,7 @@ where
 pub struct ContextSnapshot {
     cold: Cold,
     warm: Warm,
+    cache: Hamt<Noun>
 }
 
 pub struct Context {
@@ -308,12 +309,14 @@ impl Context {
         ContextSnapshot {
             cold: self.cold,
             warm: self.warm,
+            cache: self.cache,
         }
     }
 
     pub fn restore(&mut self, saved: &ContextSnapshot) {
         self.cold = saved.cold;
         self.warm = saved.warm;
+        self.cache = saved.cache;
     }
 
     /**
