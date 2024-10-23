@@ -1130,7 +1130,7 @@ impl Nounable for Cold {
         // let items = T(stack, &[root_to_paths_noun, battery_to_paths_noun]);
         let cold_noun = T(
             stack,
-            &[root_to_paths_noun, battery_to_paths_noun, path_to_batteries_noun],
+            &[battery_to_paths_noun, root_to_paths_noun, path_to_batteries_noun],
         );
         cold_noun
     }
