@@ -1263,7 +1263,6 @@ dependencies = [
  "signal-hook",
  "static_assertions",
  "sword_crypto",
- "sword_guard",
  "sword_macros",
  "sword_pma",
  "thiserror",
@@ -1282,14 +1281,6 @@ dependencies = [
  "sha1",
  "sha2",
  "x25519-dalek",
-]
-
-[[package]]
-name = "sword_guard"
-version = "0.1.0"
-dependencies = [
- "bindgen",
- "cc",
 ]
 
 [[package]]

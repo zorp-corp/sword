@@ -87,11 +87,54 @@ impl NockStack {
         }
     }
 
+    pub fn middle_of_stack(&self) -> *const u64 {
+        // is that right? off by one?
+        unsafe { self.start.add(self.size >> 1) }
+    }
+
+    // When frame_pointer < alloc_pointer, the frame is West
+    // West frame layout:
+    // - start
+    // - *prev_alloc_ptr
+    // - frame_pointer
+    // - stack_pointer
+    // - (middle)
+    // - alloc_pointer
+    // - *prev_stack_ptr
+    // - *prev_frame_ptr
+    // - end
+    // East frame layout:
+    // - start
+    // - *prev_frame_ptr
+    // - *prev_stack_ptr
+    // - alloc_pointer
+    // - (middle)
+    // - stack_pointer
+    // - frame_pointer
+    // - *prev_alloc_ptr
+    // - end
+    // sometimes the stack pointer is moving, sometimes the alloc pointer is moving
+    // if you're allocating you're just bumping the alloc pointer
+    // pushing a frame is more complicated
+    // it's fine to cross the middle of the stack, it's not fine for them to cross each other
+    pub fn alloc_would_overlap_middle(&self, size: usize) -> bool {
+        if self.is_west() {
+            let stack_pointer = self.stack_pointer as usize;
+            let end_point = stack_pointer + size;
+            end_point <= self.middle_of_stack() as usize
+        } else {
+            let stack_pointer = self.stack_pointer as usize;
+            let end_point = stack_pointer + size;
+            end_point >= self.middle_of_stack() as usize
+        }
+    }
+
     /** Resets the NockStack but flipping the top-frame polarity and unsetting PC. Sets the alloc
      * pointer to the "previous" alloc pointer stored in the top frame to keep things "preserved"
      * from the top frame. This allows us to do a copying GC on the top frame without erroneously
      * "popping" the top frame.
      */
+    // TODO: #684: Add OOM checks here
     pub unsafe fn flip_top_frame(&mut self, top_slots: usize) {
         // Assert that we are at the top
         assert!((*self.prev_frame_pointer_pointer()).is_null());
@@ -123,7 +166,8 @@ impl NockStack {
         }
     }
 
-    /** Resets the NockStack. The top frame is west as in the initial creation of the NockStack. */
+    /// Resets the NockStack. The top frame is west as in the initial creation of the NockStack.
+    // TODO: #684: Add OOM checks here
     pub fn reset(&mut self, top_slots: usize) {
         self.frame_pointer = unsafe { self.start.add(RESERVED + top_slots) } as *mut u64;
         self.stack_pointer = self.frame_pointer;
@@ -210,11 +254,13 @@ impl NockStack {
     }
 
     /** Mutable pointer to a slot in a stack frame: east stack */
+    // TODO: #684: Add OOM checks here
     unsafe fn slot_pointer_east(&self, slot: usize) -> *mut u64 {
         self.frame_pointer.add(slot)
     }
 
     /** Mutable pointer to a slot in a stack frame: west stack */
+    // TODO: #684: Add OOM checks here
     unsafe fn slot_pointer_west(&self, slot: usize) -> *mut u64 {
         self.frame_pointer.sub(slot + 1)
     }
@@ -288,6 +334,7 @@ impl NockStack {
      * allocation pointer is returned as the pointer to the newly allocated memory. */
 
     /** Bump the alloc pointer for a west frame to make space for an allocation */
+    // TODO: #684: Add OOM checks here
     unsafe fn raw_alloc_west(&mut self, words: usize) -> *mut u64 {
         if self.pc {
             panic!("Allocation during cleanup phase is prohibited.");
@@ -297,6 +344,7 @@ impl NockStack {
     }
 
     /** Bump the alloc pointer for an east frame to make space for an allocation */
+    // TODO: #684: Add OOM checks here
     unsafe fn raw_alloc_east(&mut self, words: usize) -> *mut u64 {
         if self.pc {
             panic!("Allocation during cleanup phase is prohibited.");
@@ -344,6 +392,7 @@ impl NockStack {
         }
     }
 
+    // TODO: #684: Add OOM checks here
     unsafe fn raw_alloc_in_previous_frame_west(&mut self, words: usize) -> *mut u64 {
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
         let alloc = *self.prev_alloc_pointer_pointer();
@@ -351,6 +400,7 @@ impl NockStack {
         alloc
     }
 
+    // TODO: #684: Add OOM checks here
     unsafe fn raw_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
         // note that the allocation is on the west frame, and thus resembles raw_alloc_west
         *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).sub(words);
@@ -416,7 +466,9 @@ impl NockStack {
      * to make it so that the programmer doesn't need to think about it at all. The
      * interface for using the reserved pointers (prev_xyz_pointer_pointer()) and
      * lightweight stack (push(), pop(), top()) are the same regardless of whether
-     * or not pre_copy() has been called.*/
+     * or not pre_copy() has been called.
+     * */
+    // TODO: #684: Add OOM checks here
     unsafe fn pre_copy(&mut self) {
         if !self.pc {
             *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
@@ -530,6 +582,7 @@ impl NockStack {
         assert_no_junior_pointers!(self, *noun);
     }
 
+    // TODO: #684: Add OOM checks here? Unsure.
     pub unsafe fn assert_struct_is_in<T>(&self, ptr: *const T, count: usize) {
         let ap = (if self.pc {
             *(self.prev_alloc_pointer_pointer())
@@ -588,6 +641,7 @@ impl NockStack {
         }
     }
 
+    // Note re: #684: We don't need OOM checks on de-alloc
     pub unsafe fn frame_pop(&mut self) {
         let prev_frame_ptr = *self.prev_frame_pointer_pointer();
         let prev_stack_ptr = *self.prev_stack_pointer_pointer();
@@ -624,6 +678,7 @@ impl NockStack {
      */
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
+    // TODO: #684: Add OOM checks here
     pub fn frame_push(&mut self, num_locals: usize) {
         if self.pc {
             panic!("frame_push during cleanup phase is prohibited.");
@@ -696,6 +751,7 @@ impl NockStack {
     }
 
     /** Push onto a west-oriented lightweight stack, moving the stack_pointer. */
+    // TODO: #684: Add OOM checks here
     unsafe fn push_west<T>(&mut self) -> *mut T {
         let ap = if self.pc {
             *(self.prev_alloc_pointer_pointer())
@@ -713,6 +769,7 @@ impl NockStack {
     }
 
     /** Push onto an east-oriented ligthweight stack, moving the stack_pointer */
+    // TODO: #684: Add OOM checks here
     unsafe fn push_east<T>(&mut self) -> *mut T {
         let ap = if self.pc {
             *(self.prev_alloc_pointer_pointer())
@@ -742,6 +799,7 @@ impl NockStack {
      * this violates the _east/_west naming convention somewhat, since e.g.
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
+     // Re: #684: We don't need OOM checks on pop
     pub unsafe fn pop<T>(&mut self) {
         if self.is_west() && !self.pc || !self.is_west() && self.pc {
             self.pop_west::<T>();
@@ -900,6 +958,7 @@ impl NockStack {
      * Sanity check every frame of the NockStack. Most useful paired with a gdb session set to
      * catch rust_panic.
      */
+    // #684: Don't need OOM checks here
     pub fn assert_sane(&mut self) {
         let start = self.start;
         let limit = unsafe { self.start.add(self.size) };
