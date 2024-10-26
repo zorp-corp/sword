@@ -8,7 +8,7 @@ use sword_crypto::ed25519::{ac_ed_puck, ac_ed_shar, ac_ed_sign, ac_ed_veri};
 
 crate::gdb!();
 
-pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_puck(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let sed = slot(subject, 6)?.as_atom()?;
 
@@ -21,14 +21,14 @@ pub fn jet_puck(context: &mut Context, subject: Noun) -> Result {
         let sed_bytes = &mut [0u8; 32];
         sed_bytes[0..sed_len].copy_from_slice(&(sed.as_bytes())[0..sed_len]);
 
-        let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack);
+        let (mut pub_ida, pub_key) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack)?;
         ac_ed_puck(sed_bytes, pub_key);
 
         Ok(pub_ida.normalize_as_atom().as_noun())
     }
 }
 
-pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_shar(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let pub_key = slot(subject, 12)?.as_atom()?;
     let sec_key = slot(subject, 13)?.as_atom()?;
@@ -53,14 +53,14 @@ pub fn jet_shar(context: &mut Context, subject: Noun) -> Result {
         public[0..pub_bytes.len()].copy_from_slice(pub_bytes);
         secret[0..sec_bytes.len()].copy_from_slice(sec_bytes);
 
-        let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack);
+        let (mut shar_ida, shar) = IndirectAtom::new_raw_mut_bytearray::<32, NockStack>(stack)?;
         ac_ed_shar(public, secret, shar);
 
         Ok(shar_ida.normalize_as_atom().as_noun())
     }
 }
 
-pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_sign(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let msg = slot(subject, 12)?.as_atom()?;
     let sed = slot(subject, 13)?.as_atom()?;
@@ -74,11 +74,11 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
         let seed = &mut [0u8; 32];
         seed[0..sed_len].copy_from_slice(sed_bytes);
 
-        let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytearray::<64, NockStack>(stack);
+        let (mut sig_ida, sig) = IndirectAtom::new_raw_mut_bytearray::<64, NockStack>(stack)?;
 
         let msg_len = met(3, msg);
         if msg_len > 0 {
-            let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len);
+            let (_msg_ida, message) = IndirectAtom::new_raw_mut_bytes(stack, msg_len)?;
             message.copy_from_slice(&msg.as_bytes()[0..msg_len]);
             ac_ed_sign(message, seed, sig);
         } else {
@@ -90,7 +90,7 @@ pub fn jet_sign(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_veri(_context: &mut Context, subject: Noun) -> Result {
+pub fn jet_veri(_context: &mut Context, subject: Noun) -> Result<Noun> {
     let sig = slot(subject, 12)?.as_atom()?;
     let msg = slot(subject, 26)?.as_atom()?;
     let puk = slot(subject, 27)?.as_atom()?;
@@ -120,64 +120,68 @@ pub fn jet_veri(_context: &mut Context, subject: Noun) -> Result {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, assert_jet_err, init_context, A};
+    use crate::jets::util::test::*;
     use crate::noun::{D, T};
     use ibig::ubig;
 
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
+    #[allow(non_upper_case_globals)]
+    const assert_jet_err: AssertJetErrFn = assert_jet_err_panicky;
     //  XX: Should use the test vectors from Section 7.1 of RFC 8032:
     //      https://tools.ietf.org/html/rfc8032#section-7.1
 
     #[test]
     fn test_puck() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
-        let sam = A(&mut c.stack, &ubig!(_0x0));
+        let sam = A(&mut c.stack, &ubig!(_0x0)).unwrap();
         let ret = A(
             &mut c.stack,
             &ubig!(_0x29da598ba148c03aa643e21d77153265730d6f2ad0a8a3622da4b6cebc276a3b),
-        );
+        ).unwrap();
         assert_jet(c, jet_puck, sam, ret);
 
         let sam = A(
             &mut c.stack,
             &ubig!(_0x607fae1c03ac3b701969327b69c54944c42cec92f44a84ba605afdef9db1619d),
-        );
+        ).unwrap();
         let ret = A(
             &mut c.stack,
             &ubig!(_0x1a5107f7681a02af2523a6daf372e10e3a0764c9d3fe4bd5b70ab18201985ad7),
-        );
+        ).unwrap();
         assert_jet(c, jet_puck, sam, ret);
     }
 
     #[test]
     fn test_shar() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
-        let sam = T(&mut c.stack, &[D(0), D(0)]);
-        let ret = A(&mut c.stack, &ubig!(_0x0));
+        let sam = T(&mut c.stack, &[D(0), D(0)]).unwrap();
+        let ret = A(&mut c.stack, &ubig!(_0x0)).unwrap();
         assert_jet(c, jet_shar, sam, ret);
 
-        let sam = T(&mut c.stack, &[D(234), D(234)]);
+        let sam = T(&mut c.stack, &[D(234), D(234)]).unwrap();
         let ret = A(
             &mut c.stack,
             &ubig!(_0x6ecd5779a47841207a2cd0c9d085796aa646842885a332adac540027d768c1c5),
-        );
+        ).unwrap();
         assert_jet(c, jet_shar, sam, ret);
 
         let sam = A(
             &mut c.stack,
             &ubig!(_0xfb099b0acc4d1ce37f9982a2ed331245e0cdfdf6979364b7676a142b8233e53b),
-        );
+        ).unwrap();
         assert_jet_err(c, jet_shar, sam, BAIL_EXIT);
     }
 
     #[test]
     fn test_sign() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         unsafe {
-            let sam = T(&mut c.stack, &[D(0), D(0)]);
-            let ret = A(&mut c.stack, &ubig!(_0x8f895b3cafe2c9506039d0e2a66382568004674fe8d237785092e40d6aaf483e4fc60168705f31f101596138ce21aa357c0d32a064f423dc3ee4aa3abf53f803));
+            let sam = T(&mut c.stack, &[D(0), D(0)]).unwrap();
+            let ret = A(&mut c.stack, &ubig!(_0x8f895b3cafe2c9506039d0e2a66382568004674fe8d237785092e40d6aaf483e4fc60168705f31f101596138ce21aa357c0d32a064f423dc3ee4aa3abf53f803)).unwrap();
             assert_jet(c, jet_sign, sam, ret);
 
             let message = D(0x72);
@@ -187,16 +191,18 @@ mod tests {
             let sed_bytes = sed_ubig.to_be_bytes();
             let seed =
                 IndirectAtom::new_raw_bytes(&mut c.stack, sed_bytes.len(), sed_bytes.as_ptr())
+                    .unwrap()
                     .as_noun();
 
-            let sam = T(&mut c.stack, &[message, seed]);
-            let ret = A(&mut c.stack, &ubig!(_0x92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00));
+            let sam = T(&mut c.stack, &[message, seed]).unwrap();
+            let ret = A(&mut c.stack, &ubig!(_0x92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00)).unwrap();
             assert_jet(c, jet_sign, sam, ret);
 
             let msg_ubig = ubig!(_0xaf82);
             let msg_bytes = msg_ubig.to_be_bytes();
             let message =
                 IndirectAtom::new_raw_bytes(&mut c.stack, msg_bytes.len(), msg_bytes.as_ptr())
+                    .unwrap()
                     .as_noun();
 
             let sed_ubig =
@@ -204,26 +210,28 @@ mod tests {
             let sed_bytes = sed_ubig.to_be_bytes();
             let seed =
                 IndirectAtom::new_raw_bytes(&mut c.stack, sed_bytes.len(), sed_bytes.as_ptr())
+                    .unwrap()
                     .as_noun();
 
-            let sam = T(&mut c.stack, &[message, seed]);
-            let ret = A(&mut c.stack, &ubig!(_0x6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a));
+            let sam = T(&mut c.stack, &[message, seed]).unwrap();
+            let ret = A(&mut c.stack, &ubig!(_0x6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a)).unwrap();
             assert_jet(c, jet_sign, sam, ret);
         }
     }
 
     #[test]
     fn test_veri() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         unsafe {
-            let sam = T(&mut c.stack, &[D(0), D(0), D(0)]);
+            let sam = T(&mut c.stack, &[D(0), D(0), D(0)]).unwrap();
             assert_jet(c, jet_veri, sam, NO);
 
             let sig_ubig = ubig!(_0x92a009a9f0d4cab8720e820b5f642540a2b27b5416503f8fb3762223ebdb69da085ac1e43e15996e458f3613d0f11d8c387b2eaeb4302aeeb00d291612bb0c00);
             let sig_bytes = sig_ubig.to_be_bytes();
             let signature =
                 IndirectAtom::new_raw_bytes(&mut c.stack, sig_bytes.len(), sig_bytes.as_ptr())
+                    .unwrap()
                     .as_noun();
 
             let message = D(0x72);
@@ -233,21 +241,24 @@ mod tests {
             let pub_bytes = pub_ubig.to_be_bytes();
             let public_key =
                 IndirectAtom::new_raw_bytes(&mut c.stack, pub_bytes.len(), pub_bytes.as_ptr())
+                    .unwrap()
                     .as_noun();
 
-            let sam = T(&mut c.stack, &[signature, message, public_key]);
+            let sam = T(&mut c.stack, &[signature, message, public_key]).unwrap();
             assert_jet(c, jet_veri, sam, YES);
 
             let sig_ubig = ubig!(_0x6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a);
             let sig_bytes = sig_ubig.to_be_bytes();
             let signature =
                 IndirectAtom::new_raw_bytes(&mut c.stack, sig_bytes.len(), sig_bytes.as_ptr())
+                    .unwrap()
                     .as_noun();
 
             let msg_ubig = ubig!(0xaf82);
             let msg_bytes = msg_ubig.to_be_bytes();
             let message =
                 IndirectAtom::new_raw_bytes(&mut c.stack, msg_bytes.len(), msg_bytes.as_ptr())
+                    .unwrap()
                     .as_noun();
 
             let pub_ubig =
@@ -255,9 +266,10 @@ mod tests {
             let pub_bytes = pub_ubig.to_be_bytes();
             let public_key =
                 IndirectAtom::new_raw_bytes(&mut c.stack, pub_bytes.len(), pub_bytes.as_ptr())
+                    .unwrap()
                     .as_noun();
 
-            let sam = T(&mut c.stack, &[signature, message, public_key]);
+            let sam = T(&mut c.stack, &[signature, message, public_key]).unwrap();
             assert_jet(c, jet_veri, sam, YES);
         }
     }

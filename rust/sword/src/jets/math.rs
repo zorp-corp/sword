@@ -22,14 +22,14 @@ use ibig::UBig;
 
 crate::gdb!();
 
-pub fn jet_add(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_add(context: &mut Context, subject: Noun) -> Result<Noun> {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
-    Ok(util::add(&mut context.stack, a, b).as_noun())
+    Ok(util::add(&mut context.stack, a, b)?.as_noun())
 }
 
-pub fn jet_dec(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_dec(context: &mut Context, subject: Noun) -> Result<Noun> {
     let arg = slot(subject, 6)?;
     if let Ok(atom) = arg.as_atom() {
         match atom.as_either() {
@@ -48,7 +48,7 @@ pub fn jet_dec(context: &mut Context, subject: Noun) -> Result {
                     }
                     Some(first_one) => {
                         let (mut new_indirect, new_slice) = unsafe {
-                            IndirectAtom::new_raw_mut_bitslice(&mut context.stack, indirect.size())
+                            IndirectAtom::new_raw_mut_bitslice(&mut context.stack, indirect.size())?
                         };
                         if first_one > 0 {
                             new_slice[..first_one].fill(true);
@@ -67,7 +67,7 @@ pub fn jet_dec(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_div(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_div(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
@@ -78,14 +78,14 @@ pub fn jet_div(context: &mut Context, subject: Noun) -> Result {
     } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         Ok(unsafe { DirectAtom::new_unchecked(a.data() / b.data()) }.as_noun())
     } else {
-        let a_big = a.as_ubig(stack);
-        let b_big = b.as_ubig(stack);
-        let res = UBig::div_stack(stack, a_big, b_big);
-        Ok(Atom::from_ubig(stack, &res).as_noun())
+        let a_big = a.as_ubig(stack)?;
+        let b_big = b.as_ubig(stack)?;
+        let res = UBig::div_stack(stack, a_big, b_big)?;
+        Ok(Atom::from_ubig(stack, &res)?.as_noun())
     }
 }
 
-pub fn jet_dvr(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_dvr(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
@@ -103,54 +103,54 @@ pub fn jet_dvr(context: &mut Context, subject: Noun) -> Result {
                 )
             }
         } else {
-            let (div, rem) = a.as_ubig(stack).div_rem(b.as_ubig(stack));
+            let (div, rem) = a.as_ubig(stack)?.div_rem(b.as_ubig(stack)?);
             (
-                Atom::from_ubig(stack, &div).as_noun(),
-                Atom::from_ubig(stack, &rem).as_noun(),
+                Atom::from_ubig(stack, &div)?.as_noun(),
+                Atom::from_ubig(stack, &rem)?.as_noun(),
             )
         };
 
-        Ok(T(stack, &[div, rem]))
+        Ok(T(stack, &[div, rem])?)
     }
 }
 
-pub fn jet_gte(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_gte(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(util::gte(stack, a, b))
+    Ok(util::gte(stack, a, b)?)
 }
 
-pub fn jet_gth(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_gth(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(util::gth(stack, a, b))
+    Ok(util::gth(stack, a, b)?)
 }
 
-pub fn jet_lte(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_lte(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(util::lte(stack, a, b))
+    Ok(util::lte(stack, a, b)?)
 }
 
-pub fn jet_lth(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_lth(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
 
-    Ok(util::lth(stack, a, b))
+    Ok(util::lth(stack, a, b)?)
 }
 
-pub fn jet_max(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_max(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
@@ -166,14 +166,14 @@ pub fn jet_max(context: &mut Context, subject: Noun) -> Result {
         a.as_noun()
     } else if a.bit_size() < b.bit_size() {
         b.as_noun()
-    } else if a.as_ubig(stack) >= b.as_ubig(stack) {
+    } else if a.as_ubig(stack)? >= b.as_ubig(stack)? {
         a.as_noun()
     } else {
         b.as_noun()
     })
 }
 
-pub fn jet_min(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_min(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
@@ -189,14 +189,14 @@ pub fn jet_min(context: &mut Context, subject: Noun) -> Result {
         a.as_noun()
     } else if a.bit_size() > b.bit_size() {
         b.as_noun()
-    } else if a.as_ubig(stack) <= b.as_ubig(stack) {
+    } else if a.as_ubig(stack)? <= b.as_ubig(stack)? {
         a.as_noun()
     } else {
         b.as_noun()
     })
 }
 
-pub fn jet_mod(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_mod(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
@@ -207,12 +207,12 @@ pub fn jet_mod(context: &mut Context, subject: Noun) -> Result {
     } else if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         Ok(unsafe { DirectAtom::new_unchecked(a.data() % b.data()) }.as_noun())
     } else {
-        let res = a.as_ubig(stack) % b.as_ubig(stack);
-        Ok(Atom::from_ubig(stack, &res).as_noun())
+        let res = a.as_ubig(stack)? % b.as_ubig(stack)?;
+        Ok(Atom::from_ubig(stack, &res)?.as_noun())
     }
 }
 
-pub fn jet_mul(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_mul(context: &mut Context, subject: Noun) -> Result<Noun> {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
@@ -221,26 +221,26 @@ pub fn jet_mul(context: &mut Context, subject: Noun) -> Result {
     if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
         let res = a.data() as u128 * b.data() as u128;
         if res < DIRECT_MAX as u128 {
-            Ok(Atom::new(stack, res as u64).as_noun())
+            Ok(Atom::new(stack, res as u64)?.as_noun())
         } else {
             Ok(unsafe {
                 IndirectAtom::new_raw_bytes(
                     stack,
                     if res < u64::MAX as u128 { 8 } else { 16 },
                     &res as *const u128 as *const u8,
-                )
+                )?
             }
             .as_noun())
         }
     } else {
-        let a_big = a.as_ubig(stack);
-        let b_big = b.as_ubig(stack);
-        let res = UBig::mul_stack(stack, a_big, b_big);
-        Ok(Atom::from_ubig(stack, &res).as_noun())
+        let a_big = a.as_ubig(stack)?;
+        let b_big = b.as_ubig(stack)?;
+        let res = UBig::mul_stack(stack, a_big, b_big)?;
+        Ok(Atom::from_ubig(stack, &res)?.as_noun())
     }
 }
 
-pub fn jet_sub(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_sub(context: &mut Context, subject: Noun) -> Result<Noun> {
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
     let b = slot(arg, 3)?.as_atom()?;
@@ -249,108 +249,115 @@ pub fn jet_sub(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub mod util {
-    use crate::mem::NockStack;
+    use crate::mem::{AllocResult, NockStack};
     use crate::noun::{Atom, Error, Noun, Result, NO, YES};
     use ibig::UBig;
 
     /// Addition
-    pub fn add(stack: &mut NockStack, a: Atom, b: Atom) -> Atom {
+    pub fn add(stack: &mut NockStack, a: Atom, b: Atom) -> AllocResult<Atom> {
         if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             Atom::new(stack, a.data() + b.data())
         } else {
-            let a_big = a.as_ubig(stack);
-            let b_big = b.as_ubig(stack);
-            let res = UBig::add_stack(stack, a_big, b_big);
+            let a_big = a.as_ubig(stack)?;
+            let b_big = b.as_ubig(stack)?;
+            let res = UBig::add_stack(stack, a_big, b_big)?;
             Atom::from_ubig(stack, &res)
         }
     }
 
     /// Greater than or equal to (boolean)
-    pub fn gte_b(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+    pub fn gte_b(stack: &mut NockStack, a: Atom, b: Atom) -> AllocResult<bool> {
+        let res = if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             a.data() >= b.data()
         } else if a.bit_size() > b.bit_size() {
             true
         } else if a.bit_size() < b.bit_size() {
             false
         } else {
-            a.as_ubig(stack) >= b.as_ubig(stack)
-        }
+            a.as_ubig(stack)? >= b.as_ubig(stack)?
+        };
+        Ok(res)
     }
 
     /// Greater than or equal to
-    pub fn gte(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
-        if gte_b(stack, a, b) {
-            YES
+    pub fn gte(stack: &mut NockStack, a: Atom, b: Atom) -> AllocResult<Noun> {
+        if gte_b(stack, a, b)? {
+            Ok(YES)
         } else {
-            NO
+            Ok(NO)
         }
     }
 
     /// Greater than (boolean)
-    pub fn gth_b(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+    pub fn gth_b(stack: &mut NockStack, a: Atom, b: Atom) -> AllocResult<bool> {
+        let res = if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             a.data() > b.data()
         } else if a.bit_size() > b.bit_size() {
             true
         } else if a.bit_size() < b.bit_size() {
             false
         } else {
-            a.as_ubig(stack) > b.as_ubig(stack)
-        }
+            a.as_ubig(stack)? > b.as_ubig(stack)?
+        };
+        Ok(res)
     }
 
     /// Greater than
-    pub fn gth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
-        if gth_b(stack, a, b) {
+    pub fn gth(stack: &mut NockStack, a: Atom, b: Atom) -> AllocResult<Noun> {
+        let res = if gth_b(stack, a, b)? {
             YES
         } else {
             NO
-        }
+        };
+        Ok(res)
     }
 
     /// Less than or equal to (boolean)
-    pub fn lte_b(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+    pub fn lte_b(stack: &mut NockStack, a: Atom, b: Atom) -> AllocResult<bool> {
+        let res = if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             a.data() <= b.data()
         } else if a.bit_size() < b.bit_size() {
             true
         } else if a.bit_size() > b.bit_size() {
             false
         } else {
-            a.as_ubig(stack) <= b.as_ubig(stack)
-        }
+            a.as_ubig(stack)? <= b.as_ubig(stack)?
+        };
+        Ok(res)
     }
 
     /// Less than or equal to
-    pub fn lte(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
-        if lte_b(stack, a, b) {
+    pub fn lte(stack: &mut NockStack, a: Atom, b: Atom) -> AllocResult<Noun> {
+        let res = if lte_b(stack, a, b)? {
             YES
         } else {
             NO
-        }
+        };
+        Ok(res)
     }
 
     /// Less than (boolean)
-    pub fn lth_b(stack: &mut NockStack, a: Atom, b: Atom) -> bool {
-        if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
+    pub fn lth_b(stack: &mut NockStack, a: Atom, b: Atom) -> AllocResult<bool> {
+        let res = if let (Ok(a), Ok(b)) = (a.as_direct(), b.as_direct()) {
             a.data() < b.data()
         } else if a.bit_size() > b.bit_size() {
             false
         } else if a.bit_size() < b.bit_size() {
             true
         } else {
-            a.as_ubig(stack) < b.as_ubig(stack)
-        }
+            a.as_ubig(stack)? < b.as_ubig(stack)?
+        };
+        Ok(res)
     }
 
     /// Less than
-    pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> Noun {
-        if lth_b(stack, a, b) {
+    pub fn lth(stack: &mut NockStack, a: Atom, b: Atom) -> AllocResult<Noun> {
+        let res = if lth_b(stack, a, b)? {
             YES
         } else {
             NO
-        }
+        };
+        Ok(res)
     }
 
     /// Subtraction
@@ -362,19 +369,19 @@ pub mod util {
             if a_small < b_small {
                 Err(Error::NotRepresentable)
             } else {
-                Ok(Atom::new(stack, a_small - b_small))
+                Ok(Atom::new(stack, a_small - b_small)?)
             }
         } else {
-            let a_big = a.as_ubig(stack);
-            let b_big = b.as_ubig(stack);
+            let a_big = a.as_ubig(stack)?;
+            let b_big = b.as_ubig(stack)?;
 
             if a_big < b_big {
                 Err(Error::NotRepresentable)
             } else {
-                let a_big = a.as_ubig(stack);
-                let b_big = b.as_ubig(stack);
+                let a_big = a.as_ubig(stack)?;
+                let b_big = b.as_ubig(stack)?;
                 let res = UBig::sub_stack(stack, a_big, b_big);
-                Ok(Atom::from_ubig(stack, &res))
+                Ok(Atom::from_ubig(stack, &res)?)
             }
         }
     }
@@ -385,8 +392,17 @@ mod tests {
     use super::*;
     use crate::jets::util::test::*;
     use crate::mem::NockStack;
-    use crate::noun::{Noun, D, NO, T, YES};
+    use crate::noun::{Noun, D, NO, YES};
     use ibig::ubig;
+    // Override T and A with the panicky variants
+    use crate::test_fns::{A, T};
+
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
+    #[allow(non_upper_case_globals)]
+    const assert_jet_err: AssertJetErrFn = assert_jet_err_panicky;
+    #[allow(non_upper_case_globals)]
+    const assert_jet_ubig: AssertJetUBigFn = assert_jet_ubig_panicky;
 
     fn atoms(s: &mut NockStack) -> (Noun, Noun, Noun, Noun, Noun) {
         (atom_0(s), atom_24(s), atom_63(s), atom_96(s), atom_128(s))
@@ -429,7 +445,7 @@ mod tests {
 
     #[test]
     fn test_add() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet(
             c,
@@ -448,7 +464,7 @@ mod tests {
 
     #[test]
     fn test_dec() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
         let s = &mut c.stack;
 
         let (a0, _a24, a63, _a96, a128) = atoms(s);
@@ -459,7 +475,7 @@ mod tests {
 
     #[test]
     fn test_div() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet(c, jet_div, &[atom_128, atom_96], ubig!(0xe349f8f0));
         assert_common_jet(c, jet_div, &[atom_96, atom_63], ubig!(0x1f59d6018));
@@ -482,7 +498,7 @@ mod tests {
 
     #[test]
     fn test_dvr() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         let (a0, a24, a63, a96, a128) = atoms(&mut c.stack);
         let a264 = atom_264(&mut c.stack);
@@ -528,7 +544,7 @@ mod tests {
 
     #[test]
     fn test_gte() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet_noun(c, jet_gte, &[atom_128, atom_96], YES);
         assert_common_jet_noun(c, jet_gte, &[atom_96, atom_63], YES);
@@ -542,7 +558,7 @@ mod tests {
 
     #[test]
     fn test_gth() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet_noun(c, jet_gth, &[atom_128, atom_96], YES);
         assert_common_jet_noun(c, jet_gth, &[atom_96, atom_63], YES);
@@ -556,7 +572,7 @@ mod tests {
 
     #[test]
     fn test_lte() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet_noun(c, jet_lte, &[atom_128, atom_96], NO);
         assert_common_jet_noun(c, jet_lte, &[atom_96, atom_63], NO);
@@ -570,7 +586,7 @@ mod tests {
 
     #[test]
     fn test_lth() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet_noun(c, jet_lth, &[atom_128, atom_96], NO);
         assert_common_jet_noun(c, jet_lth, &[atom_96, atom_63], NO);
@@ -584,7 +600,7 @@ mod tests {
 
     #[test]
     fn test_max() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet(
             c,
@@ -630,7 +646,7 @@ mod tests {
 
     #[test]
     fn test_min() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet(
             c,
@@ -671,7 +687,7 @@ mod tests {
 
     #[test]
     fn test_mod() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet(
             c,
@@ -691,7 +707,7 @@ mod tests {
 
     #[test]
     fn test_mul() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet(
             c,
@@ -716,7 +732,7 @@ mod tests {
 
     #[test]
     fn test_sub() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_common_jet(
             c,

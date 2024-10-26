@@ -7,7 +7,7 @@ use crate::noun::{Noun, D, NO, T};
 
 crate::gdb!();
 
-pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_mink(context: &mut Context, subject: Noun) -> Result<Noun> {
     let arg = slot(subject, 6)?;
     // mink sample = [nock scry_namespace]
     //             = [[subject formula] scry_namespace]
@@ -19,18 +19,18 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
     Ok(util::mink(context, v_subject, v_formula, scry_handler)?)
 }
 
-pub fn jet_mole(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_mole(context: &mut Context, subject: Noun) -> Result<Noun> {
     jet_mure(context, subject)
 }
 
-pub fn jet_mule(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_mule(context: &mut Context, subject: Noun) -> Result<Noun> {
     jet_mute(context, subject)
 }
 
-pub fn jet_mure(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_mure(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tap = slot(subject, 6)?;
-    let fol = util::slam_gate_fol(&mut context.stack);
-    let scry = util::pass_thru_scry(&mut context.stack);
+    let fol = util::slam_gate_fol(&mut context.stack)?;
+    let scry = util::pass_thru_scry(&mut context.stack)?;
 
     match util::mink(context, tap, fol, scry) {
         Ok(tone) => {
@@ -44,10 +44,10 @@ pub fn jet_mure(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_mute(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tap = slot(subject, 6)?;
-    let fol = util::slam_gate_fol(&mut context.stack);
-    let scry = util::pass_thru_scry(&mut context.stack);
+    let fol = util::slam_gate_fol(&mut context.stack)?;
+    let scry = util::pass_thru_scry(&mut context.stack)?;
 
     let tone = util::mink(context, tap, fol, scry);
 
@@ -59,9 +59,11 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
                     //  XX: Need to check that result is actually of type path
                     //      return [[%leaf "mute.hunk"] ~] if not
                     let bon = util::smyt(&mut context.stack, toon.tail())?;
-                    Ok(T(&mut context.stack, &[NO, bon, D(0)]))
+                    Ok(T(&mut context.stack, &[NO, bon, D(0)])?)
                 }
-                x if unsafe { x.raw_equals(D(2)) } => Ok(T(&mut context.stack, &[NO, toon.tail()])),
+                x if unsafe { x.raw_equals(D(2)) } => {
+                    Ok(T(&mut context.stack, &[NO, toon.tail()])?)
+                }
                 _ => panic!("serf: mook: invalid toon"),
             }
         }
@@ -75,7 +77,7 @@ pub mod util {
     use crate::jets;
     use crate::jets::bits::util::rip;
     use crate::jets::form::util::scow;
-    use crate::mem::NockStack;
+    use crate::mem::{AllocResult, NockStack};
     use crate::noun::{tape, Cell, Noun, D, T};
     use either::{Left, Right};
     use std::result;
@@ -85,37 +87,37 @@ pub mod util {
     pub const ROSE: Noun = D(tas!(b"rose"));
 
     /// The classic "slam gate" formula.
-    pub fn slam_gate_fol(stack: &mut NockStack) -> Noun {
+    pub fn slam_gate_fol(stack: &mut NockStack) -> AllocResult<Noun> {
         T(stack, &[D(9), D(2), D(0), D(1)])
     }
 
     /// The classic "pass-through" scry handler.
-    pub fn pass_thru_scry(stack: &mut NockStack) -> Noun {
+    pub fn pass_thru_scry(stack: &mut NockStack) -> AllocResult<Noun> {
         // .*  0  !=  =>  ~  |=(a=^ ``.*(a [%12 [%0 2] %0 3]))
         // [[[1 0] [1 0] 2 [0 6] 1 12 [0 2] 0 3] [0 0] 0]
-        let sig = T(stack, &[D(1), D(0)]);
-        let sam = T(stack, &[D(0), D(6)]);
-        let hed = T(stack, &[D(0), D(2)]);
-        let tel = T(stack, &[D(0), D(3)]);
-        let zap = T(stack, &[D(0), D(0)]);
+        let sig = T(stack, &[D(1), D(0)])?;
+        let sam = T(stack, &[D(0), D(6)])?;
+        let hed = T(stack, &[D(0), D(2)])?;
+        let tel = T(stack, &[D(0), D(3)])?;
+        let zap = T(stack, &[D(0), D(0)])?;
 
-        let cry = T(stack, &[D(12), hed, tel]);
-        let fol = T(stack, &[D(1), cry]);
-        let res = T(stack, &[D(2), sam, fol]);
-        let uno = T(stack, &[sig, res]);
-        let dos = T(stack, &[sig, uno]);
+        let cry = T(stack, &[D(12), hed, tel])?;
+        let fol = T(stack, &[D(1), cry])?;
+        let res = T(stack, &[D(2), sam, fol])?;
+        let uno = T(stack, &[sig, res])?;
+        let dos = T(stack, &[sig, uno])?;
 
-        let gat = T(stack, &[zap, D(0)]);
+        let gat = T(stack, &[zap, D(0)])?;
 
         T(stack, &[dos, gat])
     }
 
     /// The "always-fail" scry
-    pub fn null_scry(stack: &mut NockStack) -> Noun {
+    pub fn null_scry(stack: &mut NockStack) -> AllocResult<Noun> {
         // .*  0  !=  =>  ~  |=(^ ~)
         // [[1 0] [0 0] 0]
-        let sig = T(stack, &[D(1), D(0)]);
-        let zap = T(stack, &[D(0), D(0)]);
+        let sig = T(stack, &[D(1), D(0)])?;
+        let zap = T(stack, &[D(0), D(0)])?;
 
         T(stack, &[sig, zap, D(0)])
     }
@@ -149,25 +151,25 @@ pub mod util {
         let cache_snapshot = context.cache;
         let scry_snapshot = context.scry_stack;
 
-        context.cache = Hamt::<Noun>::new(&mut context.stack);
-        context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack]);
+        context.cache = Hamt::<Noun>::new(&mut context.stack)?;
+        context.scry_stack = T(&mut context.stack, &[scry, context.scry_stack])?;
 
         match interpret(context, subject, formula) {
             Ok(res) => {
                 context.cache = cache_snapshot;
                 context.scry_stack = scry_snapshot;
-                Ok(T(&mut context.stack, &[D(0), res]))
+                Ok(T(&mut context.stack, &[D(0), res])?)
             }
             Err(err) => match err {
                 Error::ScryBlocked(path) => {
                     context.cache = cache_snapshot;
                     context.scry_stack = scry_snapshot;
-                    Ok(T(&mut context.stack, &[D(1), path]))
+                    Ok(T(&mut context.stack, &[D(1), path])?)
                 }
                 Error::Deterministic(_, trace) => {
                     context.cache = cache_snapshot;
                     context.scry_stack = scry_snapshot;
-                    Ok(T(&mut context.stack, &[D(2), trace]))
+                    Ok(T(&mut context.stack, &[D(2), trace])?)
                 }
                 Error::ScryCrashed(trace) => {
                     context.cache = cache_snapshot;
@@ -197,7 +199,7 @@ pub mod util {
                     context.cache = cache_snapshot;
                     context.scry_stack = scry_snapshot;
                     Err(err)
-                }
+                } // TODO: Implement the rest of the error handling
             },
         }
     }
@@ -232,8 +234,8 @@ pub mod util {
                     tas!(b"hunk") => match dat.as_either_atom_cell() {
                         Left(_) => {
                             let stack = &mut context.stack;
-                            let tape = tape(stack, "mook.hunk");
-                            T(stack, &[LEAF, tape])
+                            let tape = tape(stack, "mook.hunk")?;
+                            T(stack, &[LEAF, tape])?
                         }
                         Right(cell) => {
                             //  XX: need to check that this is actually a path
@@ -246,11 +248,11 @@ pub mod util {
                         Left(atom) => {
                             let stack = &mut context.stack;
                             let tape = rip(stack, 3, 1, atom)?;
-                            T(stack, &[LEAF, tape])
+                            T(stack, &[LEAF, tape])?
                         }
                         Right(cell) => {
                             'tank: {
-                                let scry = null_scry(&mut context.stack);
+                                let scry = null_scry(&mut context.stack)?;
                                 // if +mink didn't crash...
                                 if let Ok(tone) = mink(context, dat, cell.head(), scry) {
                                     if let Some(tonc) = tone.cell() {
@@ -270,8 +272,8 @@ pub mod util {
                                 // This code only called when the break statement
                                 // above doesn't trigger
                                 let stack = &mut context.stack;
-                                let tape = tape(stack, "####");
-                                T(stack, &[LEAF, tape])
+                                let tape = tape(stack, "####")?;
+                                T(stack, &[LEAF, tape])?
                             }
                         }
                     },
@@ -283,8 +285,8 @@ pub mod util {
                         let pstr = pint.head().as_cell()?;
                         let pend = pint.tail().as_cell()?;
 
-                        let colo = T(stack, &[D(b':' as u64), D(0)]);
-                        let trel = T(stack, &[colo, D(0), D(0)]);
+                        let colo = T(stack, &[D(b':' as u64), D(0)])?;
+                        let trel = T(stack, &[colo, D(0), D(0)])?;
 
                         let smyt = smyt(stack, spot.head())?;
 
@@ -302,7 +304,7 @@ pub mod util {
                             list = list.tail().as_cell()?;
                         }
                         // "{end_col}]>"
-                        let p4 = T(stack, &[D(b']' as u64), D(b'>' as u64), D(0)]);
+                        let p4 = T(stack, &[D(b']' as u64), D(b'>' as u64), D(0)])?;
                         (*list.tail_as_mut()) = p4;
 
                         list = end_lin.as_cell()?;
@@ -313,7 +315,7 @@ pub mod util {
                             list = list.tail().as_cell()?;
                         }
                         // "{end_lin} {end_col}]>"
-                        let p3 = T(stack, &[D(b' ' as u64), end_col]);
+                        let p3 = T(stack, &[D(b' ' as u64), end_col])?;
                         (*list.tail_as_mut()) = p3;
 
                         list = str_col.as_cell()?;
@@ -327,7 +329,7 @@ pub mod util {
                         let p2 = T(
                             stack,
                             &[D(b']' as u64), D(b'.' as u64), D(b'[' as u64), end_lin],
-                        );
+                        )?;
                         (*list.tail_as_mut()) = p2;
 
                         list = str_lin.as_cell()?;
@@ -338,14 +340,14 @@ pub mod util {
                             list = list.tail().as_cell()?;
                         }
                         // "{str_lin} {str_col}].[{end_lin} {end_col}]>"
-                        let p1 = T(stack, &[D(b' ' as u64), str_col]);
+                        let p1 = T(stack, &[D(b' ' as u64), str_col])?;
                         (*list.tail_as_mut()) = p1;
 
                         // "<[{str_lin} {str_col}].[{end_lin} {end_col}]>"
-                        let tape = T(stack, &[D(b'<' as u64), D(b'[' as u64), str_lin]);
-                        let finn = T(stack, &[LEAF, tape]);
+                        let tape = T(stack, &[D(b'<' as u64), D(b'[' as u64), str_lin])?;
+                        let finn = T(stack, &[LEAF, tape])?;
 
-                        T(stack, &[ROSE, trel, smyt, finn, D(0)])
+                        T(stack, &[ROSE, trel, smyt, finn, D(0)])?
                     }
                     _ => {
                         let stack = &mut context.stack;
@@ -360,16 +362,16 @@ pub mod util {
                                 D(tas!(b".")),
                                 tape,
                             ],
-                        )
+                        )?
                     } // XX: TODO
                       //  %hand
                       //  %lose
                 };
 
                 if flop {
-                    res = T(&mut context.stack, &[tank, res]);
+                    res = T(&mut context.stack, &[tank, res])?;
                 } else {
-                    let (new_cell, new_memory) = Cell::new_raw_mut(&mut context.stack);
+                    let (new_cell, new_memory) = Cell::new_raw_mut(&mut context.stack)?;
                     (*new_memory).head = tank;
                     *dest = new_cell.as_noun();
                     dest = &mut (*new_memory).tail;
@@ -379,23 +381,23 @@ pub mod util {
             }
 
             *dest = D(0);
-            let toon = Cell::new(&mut context.stack, D(2), res);
+            let toon = Cell::new(&mut context.stack, D(2), res)?;
             Ok(toon)
         }
     }
 
-    pub fn smyt(stack: &mut NockStack, path: Noun) -> jets::Result {
+    pub fn smyt(stack: &mut NockStack, path: Noun) -> jets::Result<Noun> {
         let lash = D(tas!(b"/"));
         let zero = D(0);
-        let sep = T(stack, &[lash, zero]);
+        let sep = T(stack, &[lash, zero])?;
 
-        let trel = T(stack, &[sep, sep, zero]);
+        let trel = T(stack, &[sep, sep, zero])?;
         let tank = smyt_help(stack, path)?;
 
-        Ok(T(stack, &[ROSE, trel, tank]))
+        Ok(T(stack, &[ROSE, trel, tank])?)
     }
 
-    fn smyt_help(stack: &mut NockStack, path: Noun) -> jets::Result {
+    fn smyt_help(stack: &mut NockStack, path: Noun) -> jets::Result<Noun> {
         //  XX: switch to using Cell:new_raw_mut
         if unsafe { path.raw_equals(D(0)) } {
             return Ok(D(0));
@@ -404,20 +406,23 @@ pub mod util {
         let cell = path.as_cell()?;
         let tail = smyt_help(stack, cell.tail())?;
         let trip = rip(stack, 3, 1, cell.head().as_atom()?)?;
-        let head = T(stack, &[LEAF, trip]);
+        let head = T(stack, &[LEAF, trip])?;
 
-        Ok(T(stack, &[head, tail]))
+        Ok(T(stack, &[head, tail])?)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, init_context};
+    use crate::jets::util::test::*;
     use crate::mem::NockStack;
-    use crate::noun::{D, T};
-    use crate::serf::TERMINATOR;
-    use std::sync::Arc;
+    use crate::noun::D;
+    // Override T and A with the panicky variants
+    use crate::test_fns::T;
+
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
 
     #[test]
     fn init() {
@@ -429,12 +434,11 @@ mod tests {
         // do it in a test that we rely on being called before any other in this file,
         // since we're already using single-threaded test mode to avoid race conditions
         // (because Rust doesn't support test order dependencies either).
-        let _ = Arc::clone(&TERMINATOR);
     }
 
     #[test]
     fn test_mink_success() {
-        let context = &mut init_context();
+        let context = &mut init_context().unwrap();
         let stack = &mut context.stack;
 
         let subj = D(0);
@@ -448,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_mink_zapzap() {
-        let context = &mut init_context();
+        let context = &mut init_context().unwrap();
         let stack = &mut context.stack;
 
         let subj = D(0);
@@ -462,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_mink_trace() {
-        let context = &mut init_context();
+        let context = &mut init_context().unwrap();
         let stack = &mut context.stack;
         let subj = D(0);
         let scry = D(0);

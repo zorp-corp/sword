@@ -18,10 +18,8 @@ pub mod tree;
 use crate::flog;
 use crate::interpreter::{Context, Error, Mote};
 use crate::jets::bits::*;
-use crate::jets::cold::Cold;
 use crate::jets::form::*;
 use crate::jets::hash::*;
-use crate::jets::hot::{Hot, URBIT_HOT_STATE};
 use crate::jets::list::*;
 use crate::jets::lock::aes::*;
 use crate::jets::lock::ed::*;
@@ -34,31 +32,36 @@ use crate::jets::serial::*;
 use crate::jets::sort::*;
 
 use crate::jets::tree::*;
-use crate::jets::warm::Warm;
-use crate::mem::{NockStack, Preserve};
+use crate::mem::{AllocResult, NockStack, Preserve};
 use crate::noun::{self, Noun, Slots, D};
 use sword_macros::tas;
 
 crate::gdb!();
 
 /// Return Err if the computation crashed or should punt to Nock
-pub type Result = std::result::Result<Noun, JetErr>;
-pub type Jet = fn(&mut Context, Noun) -> Result;
+pub type Result<T> = std::result::Result<T, JetErr>;
+pub type Jet = fn(&mut Context, Noun) -> Result<Noun>;
 
 /**
  * Only return a deterministic error if the Nock would have deterministically
  * crashed.
  */
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum JetErr {
     Punt,        // Retry with the raw nock
     Fail(Error), // Error; do not retry
 }
 
+impl From<crate::mem::AllocationError> for JetErr {
+    fn from(_err: crate::mem::AllocationError) -> Self {
+        JetErr::Fail(Error::NonDeterministic(Mote::Meme, D(0)))
+    }
+}
+
 impl Preserve for JetErr {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         match self {
-            JetErr::Punt => {}
+            JetErr::Punt => Ok(()),
             JetErr::Fail(ref mut err) => err.preserve(stack),
         }
     }
@@ -232,7 +235,7 @@ pub mod util {
         bits_to_word(checked_left_shift(bloq, step)?)
     }
 
-    pub fn slot(noun: Noun, axis: u64) -> Result {
+    pub fn slot(noun: Noun, axis: u64) -> Result<Noun> {
         noun.slot(axis).map_err(|_e| BAIL_EXIT)
     }
 
@@ -288,7 +291,7 @@ pub mod util {
     }
 
     pub fn kick(context: &mut Context, core: Noun, axis: Noun) -> result::Result<Noun, JetErr> {
-        let formula: Noun = T(&mut context.stack, &[D(9), axis, D(0), D(1)]);
+        let formula: Noun = T(&mut context.stack, &[D(9), axis, D(0), D(1)])?;
         interpret(context, core, formula).map_err(JetErr::Fail)
     }
 
@@ -296,41 +299,44 @@ pub mod util {
         let core: Noun = T(
             &mut context.stack,
             &[gate.as_cell()?.head(), sample, gate.as_cell()?.tail().as_cell()?.tail()],
-        );
+        )?;
         kick(context, core, D(2))
     }
 
+    #[cfg(test)]
     pub mod test {
         use super::*;
         use crate::hamt::Hamt;
         use crate::interpreter::Slogger;
-        use crate::mem::NockStack;
+        use crate::mem::{AllocResult, NockStack};
         use crate::noun::{Atom, Noun, D, T};
-        use crate::unifying_equality::unifying_equality;
+        use crate::unifying_equality::test::unifying_equality;
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
 
         struct TestSlogger {}
 
         impl Slogger for TestSlogger {
-            fn slog(&mut self, _stack: &mut NockStack, _pri: u64, _noun: Noun) {
+            fn slog(&mut self, _stack: &mut NockStack, _pri: u64, _noun: Noun) -> AllocResult<()> {
                 eprintln!("Jet slogged.");
+                Ok(())
             }
 
-            fn flog(&mut self, _stack: &mut NockStack, _cord: Noun) {
+            fn flog(&mut self, _stack: &mut NockStack, _cord: Noun) -> AllocResult<()> {
                 eprintln!("Jet flogged.");
+                Ok(())
             }
         }
 
-        pub fn init_context() -> Context {
+        pub fn init_context() -> Result<Context> {
             let mut stack = NockStack::new(8 << 10 << 10, 0);
-            let cold = Cold::new(&mut stack);
-            let warm = Warm::new(&mut stack);
-            let hot = Hot::init(&mut stack, URBIT_HOT_STATE);
-            let cache = Hamt::<Noun>::new(&mut stack);
+            let cold = cold::Cold::new(&mut stack)?;
+            let warm = warm::Warm::new(&mut stack)?;
+            let hot = hot::Hot::init(&mut stack, hot::URBIT_HOT_STATE)?;
+            let cache = Hamt::<Noun>::new(&mut stack)?;
             let slogger = std::boxed::Box::pin(TestSlogger {});
 
-            Context {
+            Ok(Context {
                 stack,
                 slogger,
                 cold,
@@ -339,12 +345,12 @@ pub mod util {
                 cache,
                 scry_stack: D(0),
                 trace_info: None,
-            }
+            })
         }
 
         #[allow(non_snake_case)]
-        pub fn A(stack: &mut NockStack, ubig: &UBig) -> Noun {
-            Atom::from_ubig(stack, ubig).as_noun()
+        pub fn A(stack: &mut NockStack, ubig: &UBig) -> AllocResult<Noun> {
+            Ok(Atom::from_ubig(stack, ubig)?.as_noun())
         }
 
         pub fn assert_noun_eq(stack: &mut NockStack, mut a: Noun, mut b: Noun) {
@@ -352,28 +358,92 @@ pub mod util {
             assert!(eq, "got: {}, need: {}", a, b);
         }
 
-        pub fn assert_jet(context: &mut Context, jet: Jet, sam: Noun, res: Noun) {
+        pub fn assert_jet(
+            context: &mut Context,
+            jet: Jet,
+            sam: Noun,
+            res: Noun,
+        ) -> AllocResult<()> {
             assert_jet_door(context, jet, sam, D(0), res)
         }
 
-        pub fn assert_jet_door(context: &mut Context, jet: Jet, sam: Noun, pay: Noun, res: Noun) {
-            let sam = T(&mut context.stack, &[D(0), sam, pay]);
+        pub type AssertJetFn = fn(
+            &mut Context,
+            fn(&mut Context, Noun) -> core::result::Result<Noun, JetErr>,
+            Noun,
+            Noun,
+        );
+        pub fn assert_jet_panicky(context: &mut Context, jet: Jet, sam: Noun, res: Noun) {
+            assert_jet(context, jet, sam, res).expect("assert_jet failed");
+        }
+
+        pub fn assert_jet_door(
+            context: &mut Context,
+            jet: Jet,
+            sam: Noun,
+            pay: Noun,
+            res: Noun,
+        ) -> AllocResult<()> {
+            let sam = T(&mut context.stack, &[D(0), sam, pay])?;
             let jet_res = assert_no_alloc(|| jet(context, sam).unwrap());
             assert_noun_eq(&mut context.stack, jet_res, res);
+            Ok(())
         }
 
-        pub fn assert_jet_ubig(context: &mut Context, jet: Jet, sam: Noun, res: UBig) {
-            let res = A(&mut context.stack, &res);
-            assert_jet(context, jet, sam, res);
+        pub type AssertJetDoorFn = fn(
+            &mut Context,
+            fn(&mut Context, Noun) -> core::result::Result<Noun, JetErr>,
+            Noun,
+            Noun,
+            Noun,
+        );
+        pub fn assert_jet_door_panicky(
+            context: &mut Context,
+            jet: Jet,
+            sam: Noun,
+            pay: Noun,
+            res: Noun,
+        ) {
+            assert_jet_door(context, jet, sam, pay, res).expect("assert_jet_door failed");
         }
 
-        pub fn assert_nary_jet_ubig(context: &mut Context, jet: Jet, sam: &[Noun], res: UBig) {
-            let sam = T(&mut context.stack, sam);
-            assert_jet_ubig(context, jet, sam, res);
+        pub fn assert_jet_ubig(
+            context: &mut Context,
+            jet: Jet,
+            sam: Noun,
+            res: UBig,
+        ) -> AllocResult<()> {
+            let res = A(&mut context.stack, &res)?;
+            assert_jet(context, jet, sam, res)
         }
 
-        pub fn assert_jet_err(context: &mut Context, jet: Jet, sam: Noun, err: JetErr) {
-            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+        pub type AssertJetUBigFn = fn(
+            &mut Context,
+            fn(&mut Context, Noun) -> core::result::Result<Noun, JetErr>,
+            Noun,
+            UBig,
+        );
+        pub fn assert_jet_ubig_panicky(context: &mut Context, jet: Jet, sam: Noun, res: UBig) {
+            assert_jet_ubig(context, jet, sam, res).expect("assert_jet_ubig failed");
+        }
+
+        pub fn assert_nary_jet_ubig(
+            context: &mut Context,
+            jet: Jet,
+            sam: &[Noun],
+            res: UBig,
+        ) -> AllocResult<()> {
+            let sam = T(&mut context.stack, sam)?;
+            assert_jet_ubig(context, jet, sam, res)
+        }
+
+        pub fn assert_jet_err(
+            context: &mut Context,
+            jet: Jet,
+            sam: Noun,
+            err: JetErr,
+        ) -> AllocResult<()> {
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)])?;
             let jet_res = jet(context, sam);
             assert!(
                 jet_res.is_err(),
@@ -383,10 +453,10 @@ pub mod util {
                 &jet_res
             );
             let jet_err = jet_res.unwrap_err();
-            match (jet_err, err) {
+            match (jet_err.clone(), err.clone()) {
                 (JetErr::Punt, JetErr::Punt) => {}
                 (JetErr::Fail(actual_err), JetErr::Fail(expected_err)) => {
-                    match (actual_err, expected_err) {
+                    match (actual_err.clone(), expected_err.clone()) {
                         (Error::ScryBlocked(mut actual), Error::ScryBlocked(mut expected))
                         | (Error::ScryCrashed(mut actual), Error::ScryCrashed(mut expected))
                         | (
@@ -415,11 +485,22 @@ pub mod util {
                         sam, err, jet_err
                     );
                 }
-            }
+            };
+            Ok(())
+        }
+
+        pub type AssertJetErrFn = fn(
+            &mut Context,
+            fn(&mut Context, Noun) -> core::result::Result<Noun, JetErr>,
+            Noun,
+            JetErr,
+        );
+        pub fn assert_jet_err_panicky(context: &mut Context, jet: Jet, sam: Noun, err: JetErr) {
+            assert_jet_err(context, jet, sam, err).expect("assert_jet failed");
         }
 
         pub fn assert_jet_size(context: &mut Context, jet: Jet, sam: Noun, siz: usize) {
-            let sam = T(&mut context.stack, &[D(0), sam, D(0)]);
+            let sam = T(&mut context.stack, &[D(0), sam, D(0)]).unwrap();
             let res = assert_no_alloc(|| jet(context, sam).unwrap());
             assert!(res.is_atom(), "jet result not atom");
             let res_siz = res.atom().unwrap().size();
@@ -433,7 +514,7 @@ pub mod util {
             res: UBig,
         ) {
             let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
-            assert_nary_jet_ubig(context, jet, &sam, res);
+            assert_nary_jet_ubig(context, jet, &sam, res).unwrap();
         }
 
         pub fn assert_common_jet_noun(
@@ -443,8 +524,8 @@ pub mod util {
             res: Noun,
         ) {
             let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
-            let sam = T(&mut context.stack, &sam);
-            assert_jet(context, jet, sam, res);
+            let sam = T(&mut context.stack, &sam).unwrap();
+            assert_jet(context, jet, sam, res).unwrap();
         }
 
         pub fn assert_common_jet_err(
@@ -454,8 +535,8 @@ pub mod util {
             err: JetErr,
         ) {
             let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
-            let sam = T(&mut context.stack, &sam);
-            assert_jet_err(context, jet, sam, err);
+            let sam = T(&mut context.stack, &sam).unwrap();
+            assert_jet_err(context, jet, sam, err).unwrap();
         }
 
         pub fn assert_common_jet_size(
@@ -465,7 +546,7 @@ pub mod util {
             siz: usize,
         ) {
             let sam: Vec<Noun> = sam.iter().map(|f| f(&mut context.stack)).collect();
-            let sam = T(&mut context.stack, &sam);
+            let sam = T(&mut context.stack, &sam).unwrap();
             assert_jet_size(context, jet, sam, siz)
         }
     }

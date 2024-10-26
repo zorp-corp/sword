@@ -9,11 +9,9 @@ missing_safety_doc = "allow"
 
 # Please keep these alphabetized
 [dependencies]
-sword_guard = { path = "../sword_guard" }
 sword_crypto = { path = "../sword_crypto" }
 sword_macros = { path = "../sword_macros" }
-sword_pma = { path = "../sword_pma" }
-assert_no_alloc = { path = "../assert_no_alloc", features=["warn_debug"]}
+assert_no_alloc = { path = "../assert_no_alloc", features = ["warn_debug"] }
 murmur3 = { path = "../murmur3" }
 bitvec = "1.0.0"
 criterion = "0.4"
@@ -35,14 +33,10 @@ thiserror = "1.0.64"
 autotools = "0.2"
 cc = "1.0"
 
-[[bin]]
-name = "sword"
-path = "src/main.rs"
-
 # run with e.g. 'cargo build --features check_forwarding,check_acyclic'
 [features]
 # FOR DEBUGGING MEMORY ISSUES ONLY
-check_all = [ "check_acyclic", "check_forwarding", "check_junior" ]
+check_all = ["check_acyclic", "check_forwarding", "check_junior"]
 check_acyclic = []
 check_forwarding = []
 check_junior = []
