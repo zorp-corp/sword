@@ -51,7 +51,7 @@ use crate::interpreter::Slogger;
  *
  * It's important to not use io::Stdin and io::Stdout directly.  All printfs should use stderr.
  */
-use crate::mem::NockStack;
+use crate::mem::{AllocResult, NockStack};
 use crate::noun::{IndirectAtom, Noun, D, T};
 use crate::serialization::{cue, jam};
 use either::Either;
@@ -97,11 +97,11 @@ impl Newt {
      * NB: we write 64-bit words, while vere writes bytes.  The extra zero bytes shouldn't be a
      * problem.
      */
-    fn write_noun(&mut self, stack: &mut NockStack, noun: Noun) {
-        let atom = jam(stack, noun);
+    fn write_noun(&mut self, stack: &mut NockStack, noun: Noun) -> AllocResult<()> {
+        let atom = jam(stack, noun)?;
         let size = atom.size() << 3;
         // XX: checked add?
-        let buf = unsafe { from_raw_parts_mut(stack.struct_alloc::<u8>(size + 5), size + 5) };
+        let buf = unsafe { from_raw_parts_mut(stack.struct_alloc::<u8>(size + 5)?, size + 5) };
         buf[0] = 0u8;
         buf[1] = size as u8;
         buf[2] = (size >> 8) as u8;
@@ -125,6 +125,7 @@ impl Newt {
             },
         };
         self.output.write_all(buf).unwrap();
+        Ok(())
     }
 
     /** Send %ripe, the first event.
@@ -132,7 +133,7 @@ impl Newt {
      * eve  =   event number
      * mug  =   mug of Arvo after above event
      */
-    pub fn ripe(&mut self, stack: &mut NockStack, eve: u64, mug: u64) {
+    pub fn ripe(&mut self, stack: &mut NockStack, eve: u64, mug: u64) -> AllocResult<()> {
         let version = T(
             stack,
             &[
@@ -140,39 +141,44 @@ impl Newt {
                 D(139), // hoon kelvin
                 D(4),   // nock kelvin
             ],
-        );
-        let ripe = T(stack, &[D(tas!(b"ripe")), version, D(eve), D(mug)]);
+        )?;
+        let ripe = T(stack, &[D(tas!(b"ripe")), version, D(eve), D(mug)])?;
         self.write_noun(stack, ripe);
+        Ok(())
     }
 
     /** Send %live, acknowledging. */
-    pub fn live(&mut self, stack: &mut NockStack) {
-        let live = T(stack, &[D(tas!(b"live")), D(0)]);
+    pub fn live(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        let live = T(stack, &[D(tas!(b"live")), D(0)])?;
         self.write_noun(stack, live);
+        Ok(())
     }
 
     /** Send %peek %done, successfully scried. */
-    pub fn peek_done(&mut self, stack: &mut NockStack, dat: Noun) {
-        let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"done")), dat]);
+    pub fn peek_done(&mut self, stack: &mut NockStack, dat: Noun) -> AllocResult<()> {
+        let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"done")), dat])?;
         self.write_noun(stack, peek);
+        Ok(())
     }
 
     /** Send %peek %bail, unsuccessfully scried.
      *
      * dud  =   goof
      */
-    pub fn peek_bail(&mut self, stack: &mut NockStack, dud: Noun) {
-        let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"bail")), dud]);
+    pub fn peek_bail(&mut self, stack: &mut NockStack, dud: Noun) -> AllocResult<()> {
+        let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"bail")), dud])?;
         self.write_noun(stack, peek);
+        Ok(())
     }
 
     /** Send %play %done, successfully replayed events.
      *
      * mug  =   mug of Arvo after full replay
      */
-    pub fn play_done(&mut self, stack: &mut NockStack, mug: u64) {
-        let play = T(stack, &[D(tas!(b"play")), D(tas!(b"done")), D(mug)]);
+    pub fn play_done(&mut self, stack: &mut NockStack, mug: u64) -> AllocResult<()> {
+        let play = T(stack, &[D(tas!(b"play")), D(tas!(b"done")), D(mug)])?;
         self.write_noun(stack, play);
+        Ok(())
     }
 
     /** Send %play %bail, failed to replay events.
@@ -181,12 +187,13 @@ impl Newt {
      * mug  =   mug of Arvo after above event
      * dud  =   goof when trying next event
      */
-    pub fn play_bail(&mut self, stack: &mut NockStack, eve: u64, mug: u64, dud: Noun) {
+    pub fn play_bail(&mut self, stack: &mut NockStack, eve: u64, mug: u64, dud: Noun) -> AllocResult<()> {
         let play = T(
             stack,
             &[D(tas!(b"play")), D(tas!(b"bail")), D(eve), D(mug), dud],
-        );
+        )?;
         self.write_noun(stack, play);
+        Ok(())
     }
 
     /** Send %work %done, successfully ran event.
@@ -195,12 +202,13 @@ impl Newt {
      * mug  =   mug of Arvo after above event
      * fec  =   list of effects
      */
-    pub fn work_done(&mut self, stack: &mut NockStack, eve: u64, mug: u64, fec: Noun) {
+    pub fn work_done(&mut self, stack: &mut NockStack, eve: u64, mug: u64, fec: Noun) -> AllocResult<()> {
         let work = T(
             stack,
             &[D(tas!(b"work")), D(tas!(b"done")), D(eve), D(mug), fec],
-        );
+        )?;
         self.write_noun(stack, work);
+        Ok(())
     }
 
     /** Send %work %swap, successfully replaced failed event.
@@ -210,12 +218,13 @@ impl Newt {
      * job  =   event performed instead of the one given to serf by king
      * fec  =   list of effects
      */
-    pub fn work_swap(&mut self, stack: &mut NockStack, eve: u64, mug: u64, job: Noun, fec: Noun) {
+    pub fn work_swap(&mut self, stack: &mut NockStack, eve: u64, mug: u64, job: Noun, fec: Noun) -> AllocResult<()> {
         let work = T(
             stack,
             &[D(tas!(b"work")), D(tas!(b"swap")), D(eve), D(mug), job, fec],
-        );
+        )?;
         self.write_noun(stack, work);
+        Ok(())
     }
 
     pub fn slogger(&self) -> Result<Pin<Box<dyn Slogger + Unpin>>, std::io::Error> {
@@ -228,17 +237,18 @@ impl Newt {
      *
      * lud  =   list of goof
      */
-    pub fn work_bail(&mut self, stack: &mut NockStack, lud: Noun) {
-        let work = T(stack, &[D(tas!(b"work")), D(tas!(b"bail")), lud]);
+    pub fn work_bail(&mut self, stack: &mut NockStack, lud: Noun) -> AllocResult<()> {
+        let work = T(stack, &[D(tas!(b"work")), D(tas!(b"bail")), lud])?;
         self.write_noun(stack, work);
+        Ok(())
     }
 
     /** Fetch next message. */
-    pub fn next(&mut self, stack: &mut NockStack) -> Option<Noun> {
+    pub fn next(&mut self, stack: &mut NockStack) -> AllocResult<Option<Noun>> {
         let mut header: Vec<u8> = vec![0; 5];
         if let Err(err) = self.input.read_exact(&mut header) {
             if err.kind() == std::io::ErrorKind::UnexpectedEof {
-                return None;
+                return Ok(None);
             } else {
                 panic!("Newt::next: Error reading header: {}", err);
             }
@@ -247,10 +257,10 @@ impl Newt {
         let byte_len = u32::from_le_bytes([header[1], header[2], header[3], header[4]]) as usize;
 
         let atom = unsafe {
-            let (mut atom, dest) = IndirectAtom::new_raw_mut_bytes(stack, byte_len);
+            let (mut atom, dest) = IndirectAtom::new_raw_mut_bytes(stack, byte_len)?;
             if let Err(err) = self.input.read_exact(dest) {
                 if err.kind() == std::io::ErrorKind::UnexpectedEof {
-                    return None;
+                    return Ok(None);
                 } else {
                     panic!("Newt::next: Error reading body: {}", err);
                 }
@@ -258,19 +268,21 @@ impl Newt {
             atom.normalize_as_atom()
         };
 
-        Some(cue(stack, atom).expect("Newt::next: bad jammed noun"))
+        Ok(Some(cue(stack, atom).expect("Newt::next: bad jammed noun")))
     }
 }
 
 impl Slogger for Newt {
-    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
-        let slog = T(stack, &[D(tas!(b"slog")), D(pri), tank]);
+    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) -> AllocResult<()> {
+        let slog = T(stack, &[D(tas!(b"slog")), D(pri), tank])?;
         self.write_noun(stack, slog);
+        Ok(())
     }
 
-    fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
-        let flog = T(stack, &[D(tas!(b"flog")), cord]);
+    fn flog(&mut self, stack: &mut NockStack, cord: Noun) -> AllocResult<()> {
+        let flog = T(stack, &[D(tas!(b"flog")), cord])?;
         self.write_noun(stack, flog);
+        Ok(())
     }
 }
 
@@ -283,11 +295,13 @@ impl Default for Newt {
 struct NewtSlogger(Newt);
 
 impl Slogger for NewtSlogger {
-    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
-        self.0.slog(stack, pri, tank);
+    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) -> AllocResult<()> {
+        self.0.slog(stack, pri, tank)?;
+        Ok(())
     }
 
-    fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
-        self.0.flog(stack, cord);
+    fn flog(&mut self, stack: &mut NockStack, cord: Noun) -> AllocResult<()> {
+        self.0.flog(stack, cord)?;
+        Ok(())
     }
 }

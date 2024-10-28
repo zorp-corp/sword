@@ -13,7 +13,7 @@ crate::gdb!();
 //
 //  Text conversion
 //
-pub fn jet_trip(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_trip(context: &mut Context, subject: Noun) -> Result<Noun> {
     let sam = slot(subject, 6)?.as_atom()?;
     let chars = met(3, sam);
     if chars == 0 {
@@ -27,7 +27,7 @@ pub fn jet_trip(context: &mut Context, subject: Noun) -> Result {
 
     for byte in bytes {
         unsafe {
-            let (it, it_mem) = Cell::new_raw_mut(&mut context.stack);
+            let (it, it_mem) = Cell::new_raw_mut(&mut context.stack)?;
 
             // safe because a byte can't overflow a direct atom
             (*it_mem).head = D((*byte) as u64);
@@ -44,7 +44,7 @@ pub fn jet_trip(context: &mut Context, subject: Noun) -> Result {
 //  Tracing
 //
 
-pub fn jet_last(_context: &mut Context, subject: Noun) -> Result {
+pub fn jet_last(_context: &mut Context, subject: Noun) -> Result<Noun> {
     let sam = slot(subject, 6)?;
     let zyc = slot(sam, 2)?;
     let naz = slot(sam, 3)?;
@@ -56,7 +56,7 @@ pub fn jet_last(_context: &mut Context, subject: Noun) -> Result {
 //  Combinators
 //
 
-pub fn jet_bend(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_bend(context: &mut Context, subject: Noun) -> Result<Noun> {
     let sam = slot(subject, 6)?;
     let vex = slot(sam, 2)?.as_cell()?;
     let sab = slot(sam, 3)?;
@@ -81,25 +81,25 @@ pub fn jet_bend(context: &mut Context, subject: Noun) -> Result {
     let yur = util::last(p_vex, p_yit)?;
 
     if unsafe { q_yit.raw_equals(D(0)) } {
-        Ok(T(&mut context.stack, &[yur, q_vex]))
+        Ok(T(&mut context.stack, &[yur, q_vex])?)
     } else {
         let uq_yit = q_yit.as_cell()?.tail().as_cell()?;
         let puq_yit = uq_yit.head();
         let quq_yit = uq_yit.tail();
 
-        let arg = T(&mut context.stack, &[puq_vex, puq_yit]);
+        let arg = T(&mut context.stack, &[puq_vex, puq_yit])?;
         let vux = slam(context, raq, arg)?;
 
         if unsafe { vux.raw_equals(D(0)) } {
-            Ok(T(&mut context.stack, &[yur, q_vex]))
+            Ok(T(&mut context.stack, &[yur, q_vex])?)
         } else {
             let q_vux = vux.as_cell()?.tail();
-            Ok(T(&mut context.stack, &[yur, D(0), q_vux, quq_yit]))
+            Ok(T(&mut context.stack, &[yur, D(0), q_vux, quq_yit])?)
         }
     }
 }
 
-pub fn jet_comp(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_comp(context: &mut Context, subject: Noun) -> Result<Noun> {
     let sam = slot(subject, 6)?;
     let vex = slot(sam, 2)?.as_cell()?;
     let sab = slot(sam, 3)?;
@@ -124,19 +124,19 @@ pub fn jet_comp(context: &mut Context, subject: Noun) -> Result {
     let yur = util::last(p_vex, p_yit)?;
 
     if unsafe { q_yit.raw_equals(D(0)) } {
-        Ok(T(&mut context.stack, &[yur, D(0)]))
+        Ok(T(&mut context.stack, &[yur, D(0)])?)
     } else {
         let uq_yit = q_yit.as_cell()?.tail().as_cell()?;
         let puq_yit = uq_yit.head();
         let quq_yit = uq_yit.tail();
 
-        let arg = T(&mut context.stack, &[puq_vex, puq_yit]);
+        let arg = T(&mut context.stack, &[puq_vex, puq_yit])?;
         let vux = slam(context, raq, arg)?;
-        Ok(T(&mut context.stack, &[yur, D(0), vux, quq_yit]))
+        Ok(T(&mut context.stack, &[yur, D(0), vux, quq_yit])?)
     }
 }
 
-pub fn jet_glue(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_glue(context: &mut Context, subject: Noun) -> Result<Noun> {
     let sam = slot(subject, 6)?;
     let vex = slot(sam, 2)?.as_cell()?;
     let sab = slot(sam, 3)?;
@@ -161,7 +161,7 @@ pub fn jet_glue(context: &mut Context, subject: Noun) -> Result {
     let yur = util::last(p_vex, p_yit)?;
 
     if unsafe { q_yit.raw_equals(D(0)) } {
-        Ok(T(&mut context.stack, &[yur, D(0)]))
+        Ok(T(&mut context.stack, &[yur, D(0)])?)
     } else {
         let uq_yit = q_yit.as_cell()?.tail().as_cell()?;
         let quq_yit = uq_yit.tail();
@@ -173,19 +173,19 @@ pub fn jet_glue(context: &mut Context, subject: Noun) -> Result {
         let goy = util::last(yur, p_wam)?;
 
         if unsafe { q_wam.raw_equals(D(0)) } {
-            Ok(T(&mut context.stack, &[goy, D(0)]))
+            Ok(T(&mut context.stack, &[goy, D(0)])?)
         } else {
             let uq_wam = q_wam.as_cell()?.tail().as_cell()?;
             let puq_wam = uq_wam.head();
             let quq_wam = uq_wam.tail();
 
-            let puq_arg = T(&mut context.stack, &[puq_vex, puq_wam]);
-            Ok(T(&mut context.stack, &[goy, D(0x0), puq_arg, quq_wam]))
+            let puq_arg = T(&mut context.stack, &[puq_vex, puq_wam])?;
+            Ok(T(&mut context.stack, &[goy, D(0x0), puq_arg, quq_wam])?)
         }
     }
 }
 
-pub fn jet_pfix(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_pfix(context: &mut Context, subject: Noun) -> Result<Noun> {
     let sam = slot(subject, 6)?;
     let vex = slot(sam, 2)?.as_cell()?;
     let sab = slot(sam, 3)?;
@@ -207,10 +207,10 @@ pub fn jet_pfix(context: &mut Context, subject: Noun) -> Result {
 
     //  XX: Why don't we just return yit? When would p_vex ever be the later of the two?
     let arg = util::last(p_vex, p_yit)?;
-    Ok(T(&mut context.stack, &[arg, q_yit]))
+    Ok(T(&mut context.stack, &[arg, q_yit])?)
 }
 
-pub fn jet_plug(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_plug(context: &mut Context, subject: Noun) -> Result<Noun> {
     let vex = slot(subject, 12)?.as_cell()?;
     let sab = slot(subject, 13)?;
     let p_vex = vex.head();
@@ -230,19 +230,19 @@ pub fn jet_plug(context: &mut Context, subject: Noun) -> Result {
         let yur = util::last(p_vex, p_yit)?;
 
         if unsafe { q_yit.raw_equals(D(0)) } {
-            Ok(T(&mut context.stack, &[yur, D(0)]))
+            Ok(T(&mut context.stack, &[yur, D(0)])?)
         } else {
             let uq_yit = q_yit.as_cell()?.tail().as_cell()?;
             let puq_yit = uq_yit.head();
             let quq_yit = uq_yit.tail();
 
-            let inner = T(&mut context.stack, &[puq_vex, puq_yit]);
-            Ok(T(&mut context.stack, &[yur, D(0), inner, quq_yit]))
+            let inner = T(&mut context.stack, &[puq_vex, puq_yit])?;
+            Ok(T(&mut context.stack, &[yur, D(0), inner, quq_yit])?)
         }
     }
 }
 
-pub fn jet_pose(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_pose(context: &mut Context, subject: Noun) -> Result<Noun> {
     let vex = slot(subject, 12)?.as_cell()?;
     let sab = slot(subject, 13)?;
 
@@ -255,10 +255,10 @@ pub fn jet_pose(context: &mut Context, subject: Noun) -> Result {
 
     let roq = kick(context, sab, D(2))?.as_cell()?;
     let yur = util::last(p_vex, roq.head())?;
-    Ok(T(&mut context.stack, &[yur, roq.tail()]))
+    Ok(T(&mut context.stack, &[yur, roq.tail()])?)
 }
 
-pub fn jet_sfix(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_sfix(context: &mut Context, subject: Noun) -> Result<Noun> {
     let sam = slot(subject, 6)?;
     let vex = slot(sam, 2)?.as_cell()?;
     let sab = slot(sam, 3)?;
@@ -281,12 +281,12 @@ pub fn jet_sfix(context: &mut Context, subject: Noun) -> Result {
     let yur = util::last(p_vex, p_yit)?;
 
     if unsafe { q_yit.raw_equals(D(0)) } {
-        Ok(T(&mut context.stack, &[yur, D(0)]))
+        Ok(T(&mut context.stack, &[yur, D(0)])?)
     } else {
         let uq_yit = q_yit.as_cell()?.tail().as_cell()?;
         let quq_yit = uq_yit.tail();
 
-        Ok(T(&mut context.stack, &[yur, D(0), puq_vex, quq_yit]))
+        Ok(T(&mut context.stack, &[yur, D(0), puq_vex, quq_yit])?)
     }
 }
 
@@ -294,7 +294,7 @@ pub fn jet_sfix(context: &mut Context, subject: Noun) -> Result {
 //  Rule Builders
 //
 
-pub fn jet_cold(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_cold(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
     let cus = slot(van, 12)?;
@@ -309,11 +309,11 @@ pub fn jet_cold(context: &mut Context, subject: Noun) -> Result {
     } else {
         let quq_vex = q_vex.as_cell()?.tail().as_cell()?.tail();
 
-        Ok(T(&mut context.stack, &[p_vex, D(0), cus, quq_vex]))
+        Ok(T(&mut context.stack, &[p_vex, D(0), cus, quq_vex])?)
     }
 }
 
-pub fn jet_cook(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_cook(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
     let poq = slot(van, 12)?;
@@ -331,11 +331,11 @@ pub fn jet_cook(context: &mut Context, subject: Noun) -> Result {
         let quq_vex = uq_vex.tail();
 
         let wag = slam(context, poq, puq_vex)?;
-        Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex]))
+        Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex])?)
     }
 }
 
-pub fn jet_easy(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_easy(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
     let huf = slot(van, 6)?;
@@ -343,10 +343,10 @@ pub fn jet_easy(context: &mut Context, subject: Noun) -> Result {
     Ok(T(
         &mut context.stack,
         &[tub.as_cell()?.head(), D(0), huf, tub],
-    ))
+    )?)
 }
 
-pub fn jet_here(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_here(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
     let hez = slot(van, 12)?;
@@ -368,14 +368,14 @@ pub fn jet_here(context: &mut Context, subject: Noun) -> Result {
     let quq_vex = uq_vex.tail();
     let pquq_vex = quq_vex.as_cell()?.head();
 
-    let inner_gud = T(&mut context.stack, &[p_tub, pquq_vex]);
-    let gud = T(&mut context.stack, &[inner_gud, puq_vex]);
+    let inner_gud = T(&mut context.stack, &[p_tub, pquq_vex])?;
+    let gud = T(&mut context.stack, &[inner_gud, puq_vex])?;
     let wag = slam(context, hez, gud)?;
 
-    Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex]))
+    Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex])?)
 }
 
-pub fn jet_just(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_just(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
     let daf = slot(van, 6)?;
@@ -390,7 +390,7 @@ pub fn jet_just(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_mask(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_mask(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
     let mut bud = slot(van, 6)?;
@@ -413,7 +413,7 @@ pub fn jet_mask(context: &mut Context, subject: Noun) -> Result {
     util::fail(context, p_tub)
 }
 
-pub fn jet_shim(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_shim(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tub = slot(subject, 6)?.as_cell()?;
     let van = slot(subject, 7)?;
     let zep = slot(van, 6)?.as_cell()?;
@@ -442,7 +442,7 @@ pub fn jet_shim(context: &mut Context, subject: Noun) -> Result {
     }
 }
 
-pub fn jet_stag(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_stag(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tub = slot(subject, 6)?;
     let van = slot(subject, 7)?;
     let gob = slot(van, 12)?;
@@ -459,12 +459,12 @@ pub fn jet_stag(context: &mut Context, subject: Noun) -> Result {
         let puq_vex = uq_vex.head();
         let quq_vex = uq_vex.tail();
 
-        let wag = T(&mut context.stack, &[gob, puq_vex]);
-        Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex]))
+        let wag = T(&mut context.stack, &[gob, puq_vex])?;
+        Ok(T(&mut context.stack, &[p_vex, D(0), wag, quq_vex])?)
     }
 }
 
-pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_stew(context: &mut Context, subject: Noun) -> Result<Noun> {
     let tub = slot(subject, 6)?.as_cell()?;
     let con = slot(subject, 7)?;
     let mut hel = slot(con, 2)?;
@@ -505,8 +505,8 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
 
                     match (hpn_hel.as_either(), tpn_hel.as_either()) {
                         (Left(_), Left(_)) => {
-                            gte_b(&mut context.stack, iq_tub, hpn_hel)
-                                && lte_b(&mut context.stack, iq_tub, tpn_hel)
+                            gte_b(&mut context.stack, iq_tub, hpn_hel)?
+                                && lte_b(&mut context.stack, iq_tub, tpn_hel)?
                         }
                         _ => {
                             // XX: Fixes jet mismatch in Vere
@@ -525,7 +525,7 @@ pub fn jet_stew(context: &mut Context, subject: Noun) -> Result {
                     Right(cell) => cell.head().as_atom()?,
                 };
 
-                if lth_b(&mut context.stack, iq_tub, wor) {
+                if lth_b(&mut context.stack, iq_tub, wor)? {
                     hel = l_hel;
                 } else {
                     hel = r_hel;
@@ -542,7 +542,7 @@ struct StirPair {
     pub res: Noun, // p.u.q.edge
 }
 
-pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_stir(context: &mut Context, subject: Noun) -> Result<Noun> {
     unsafe {
         context.with_stack_frame(0, |context| {
             let mut tub = slot(subject, 6)?;
@@ -586,12 +586,12 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result {
             while !context.stack.stack_is_empty() {
                 let par_u = *(context.stack.top::<StirPair>());
                 p_wag = util::last(par_u.har, p_wag)?;
-                let sam = T(&mut context.stack, &[par_u.res, puq_wag]);
+                let sam = T(&mut context.stack, &[par_u.res, puq_wag])?;
                 puq_wag = slam(context, raq, sam)?;
                 context.stack.pop::<StirPair>();
             }
 
-            let res = T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag]);
+            let res = T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag])?;
             Ok(res)
         })
     }
@@ -603,7 +603,7 @@ pub mod util {
     use crate::noun::{Noun, D, T};
     use std::cmp::Ordering;
 
-    pub fn last(zyc: Noun, naz: Noun) -> Result {
+    pub fn last(zyc: Noun, naz: Noun) -> Result<Noun> {
         let zyl = zyc.as_cell()?;
         let nal = naz.as_cell()?;
 
@@ -626,7 +626,7 @@ pub mod util {
     }
 
     // Passing Noun and doing Cell check inside next is best to keep jet semantics in sync w/ Hoon.
-    pub fn next(context: &mut Context, tub: Noun) -> Result {
+    pub fn next(context: &mut Context, tub: Noun) -> Result<Noun> {
         let p_tub = tub.as_cell()?.head();
         let q_tub = tub.as_cell()?.tail();
 
@@ -638,25 +638,25 @@ pub mod util {
         let tq_tub = q_tub.as_cell()?.tail();
 
         let zac = lust(context, iq_tub, p_tub)?;
-        Ok(T(&mut context.stack, &[zac, D(0), iq_tub, zac, tq_tub]))
+        Ok(T(&mut context.stack, &[zac, D(0), iq_tub, zac, tq_tub])?)
     }
 
     // Passing Noun and doing Cell check inside next is best to keep jet semantics in sync w/ Hoon.
-    pub fn lust(context: &mut Context, weq: Noun, naz: Noun) -> Result {
+    pub fn lust(context: &mut Context, weq: Noun, naz: Noun) -> Result<Noun> {
         let p_naz = naz.as_cell()?.head().as_atom()?;
         let q_naz = naz.as_cell()?.tail().as_atom()?;
 
         if unsafe { weq.raw_equals(D(10)) } {
-            let arg = inc(&mut context.stack, p_naz).as_noun();
-            Ok(T(&mut context.stack, &[arg, D(1)]))
+            let arg = inc(&mut context.stack, p_naz)?.as_noun();
+            Ok(T(&mut context.stack, &[arg, D(1)])?)
         } else {
-            let arg = inc(&mut context.stack, q_naz).as_noun();
-            Ok(T(&mut context.stack, &[p_naz.as_noun(), arg]))
+            let arg = inc(&mut context.stack, q_naz)?.as_noun();
+            Ok(T(&mut context.stack, &[p_naz.as_noun(), arg])?)
         }
     }
 
-    pub fn fail(context: &mut Context, hair: Noun) -> Result {
-        Ok(T(&mut context.stack, &[hair, D(0)]))
+    pub fn fail(context: &mut Context, hair: Noun) -> Result<Noun> {
+        Ok(T(&mut context.stack, &[hair, D(0)])?)
     }
 }
 
@@ -664,9 +664,11 @@ pub mod util {
 mod tests {
     use super::*;
     use crate::jets::util::test::*;
-    use crate::noun::{D, T};
+    use crate::noun::D;
     use crate::serialization::cue;
     use ibig::ubig;
+    // Override T and A with the panicky variants
+    use crate::test_fns::{A, T};
 
     //  XX: need unit tests for:
     //      +last
@@ -683,7 +685,7 @@ mod tests {
 
     #[test]
     fn test_easy() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         // ((easy 'a') [[1 1] "abc"])
         //  [[1 1] "abc"]

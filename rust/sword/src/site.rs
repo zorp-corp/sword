@@ -63,7 +63,7 @@ impl Site {
 
 /// Slam a cached call site.
 pub fn site_slam(ctx: &mut Context, site: &Site, sample: Noun) -> Result {
-    let subject = T(&mut ctx.stack, &[site.battery, sample, site.context]);
+    let subject = T(&mut ctx.stack, &[site.battery, sample, site.context])?;
     if site.jet.is_some() {
         let jet = site.jet.unwrap();
         jet(ctx, subject)

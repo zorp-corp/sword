@@ -1,5 +1,5 @@
 use crate::interpreter::Context;
-use crate::mem::NockStack;
+use crate::mem::{AllocResult, NockStack};
 use crate::noun::{Atom, IndirectAtom};
 use std::fmt::Arguments;
 use std::io::{Result, Write};
@@ -14,26 +14,27 @@ struct NockWriter<'s, 'b> {
 const INITIAL_CAPACITY_BYTES: usize = 256;
 
 impl<'s, 'b> NockWriter<'s, 'b> {
-    unsafe fn new(stack: &'s mut NockStack) -> Self {
-        let (indirect, buffer) = IndirectAtom::new_raw_mut_bytes(stack, INITIAL_CAPACITY_BYTES);
-        NockWriter {
+    unsafe fn new(stack: &'s mut NockStack) -> AllocResult<Self> {
+        let (indirect, buffer) = IndirectAtom::new_raw_mut_bytes(stack, INITIAL_CAPACITY_BYTES)?;
+        Ok(NockWriter {
             stack,
             buffer,
             indirect,
             cursor: 0,
-        }
+        })
     }
 
     unsafe fn finalize(mut self) -> Atom {
         self.indirect.normalize_as_atom()
     }
 
-    unsafe fn expand(&mut self) {
+    unsafe fn expand(&mut self) -> AllocResult<()> {
         let sz = self.buffer.len();
-        let (new_indirect, new_buffer) = IndirectAtom::new_raw_mut_bytes(self.stack, sz * 2);
+        let (new_indirect, new_buffer) = IndirectAtom::new_raw_mut_bytes(self.stack, sz * 2)?;
         new_buffer[0..sz].copy_from_slice(self.buffer);
         self.buffer = new_buffer;
         self.indirect = new_indirect;
+        Ok(())
     }
 }
 
@@ -54,7 +55,7 @@ impl Write for NockWriter<'_, '_> {
 }
 
 pub fn nock_fmt(context: &mut Context, fmt: Arguments<'_>) -> Result<Atom> {
-    let mut nw = unsafe { NockWriter::new(&mut context.stack) };
+    let mut nw = unsafe { NockWriter::new(&mut context.stack)? };
     nw.write_fmt(fmt)?;
     Ok(unsafe { nw.finalize() })
 }

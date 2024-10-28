@@ -6,23 +6,26 @@ use crate::serialization::{cue, jam};
 
 crate::gdb!();
 
-pub fn jet_cue(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_cue(context: &mut Context, subject: Noun) -> Result<Noun> {
     Ok(cue(&mut context.stack, slot(subject, 6)?.as_atom()?)?)
 }
 
-pub fn jet_jam(context: &mut Context, subject: Noun) -> Result {
-    Ok(jam(&mut context.stack, slot(subject, 6)?).as_noun())
+pub fn jet_jam(context: &mut Context, subject: Noun) -> Result<Noun> {
+    Ok(jam(&mut context.stack, slot(subject, 6)?)?.as_noun())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::jets::util::test::*;
-    use crate::noun::{D, T};
+    use crate::noun::D;
+    // Override T with the panicky variant
+    use crate::test_fns::T;
+
 
     #[test]
     fn test_jam() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_jet(c, jet_jam, D(0x0), D(0x2));
         assert_jet(c, jet_jam, D(0x1), D(0xc));
@@ -34,7 +37,7 @@ mod tests {
 
     #[test]
     fn test_cue() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
 
         assert_jet(c, jet_cue, D(0x2), D(0x0));
         assert_jet(c, jet_cue, D(0xc), D(0x1));

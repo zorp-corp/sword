@@ -8,7 +8,7 @@ use crate::noun::Noun;
 
 crate::gdb!();
 
-pub fn jet_mug(context: &mut Context, subject: Noun) -> Result {
+pub fn jet_mug(context: &mut Context, subject: Noun) -> Result<Noun> {
     let arg = slot(subject, 6)?;
     Ok(mug(&mut context.stack, arg).as_noun())
 }
@@ -16,10 +16,12 @@ pub fn jet_mug(context: &mut Context, subject: Noun) -> Result {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, init_context, A};
+    use crate::jets::util::test::{assert_jet, init_context};
     use crate::mem::NockStack;
-    use crate::noun::{Noun, D, T};
+    use crate::noun::{Noun, D};
     use ibig::ubig;
+    // Override T and A with the panicky variants
+    use crate::test_fns::{A, T};
 
     fn atoms(s: &mut NockStack) -> (Noun, Noun, Noun, Noun, Noun) {
         (atom_0(s), atom_24(s), atom_63(s), atom_96(s), atom_128(s))
@@ -47,7 +49,7 @@ mod tests {
 
     #[test]
     fn test_mug() {
-        let c = &mut init_context();
+        let c = &mut init_context().unwrap();
         let (a0, a24, a63, a96, a128) = atoms(&mut c.stack);
 
         assert_jet(c, jet_mug, a0, D(0x79ff04e8));

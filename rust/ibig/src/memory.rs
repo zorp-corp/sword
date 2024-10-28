@@ -10,7 +10,10 @@ pub(crate) struct MemoryAllocation {
 }
 
 pub trait Stack: Sized {
-    unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64;
+    // type AllocError: Debug;
+    // no-std bites me in the keister again
+    type AllocError;
+    unsafe fn alloc_layout(&mut self, layout: Layout) -> Result<*mut u64, Self::AllocError>;
 }
 
 /// Chunk of memory.
@@ -24,7 +27,7 @@ pub(crate) struct Memory<'a> {
 }
 
 impl MemoryAllocation {
-    pub(crate) fn new_stack<S: Stack>(stack: &mut S, layout: Layout) -> MemoryAllocation {
+    pub(crate) fn new_stack<S: Stack>(stack: &mut S, layout: Layout) -> Result<MemoryAllocation, S::AllocError> {
         let start = if layout.size() == 0 {
             // We should use layout.dangling(), but that is unstable.
             layout.align() as *mut u8
@@ -32,14 +35,17 @@ impl MemoryAllocation {
             panic_out_of_memory()
         } else {
             // Safe because size is non-zero.
-            let ptr = unsafe { stack.alloc_layout(layout) as *mut u8 };
+            let ptr = unsafe {
+                let ep = stack.alloc_layout(layout)?;
+                ep as *mut u8
+            };
             if ptr.is_null() {
                 panic_out_of_memory();
             }
             ptr
         };
 
-        MemoryAllocation { layout, start }
+        Ok(MemoryAllocation { layout, start })
     }
 
     /// Allocate memory.

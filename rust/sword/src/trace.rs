@@ -2,7 +2,7 @@ use crate::flog;
 use crate::interpreter::Context;
 use crate::jets::bits::util::rap;
 use crate::jets::form::util::scow;
-use crate::mem::NockStack;
+use crate::mem::{AllocResult, NockStack};
 use crate::mug::met3_usize;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun};
 use either::Either::*;
@@ -153,7 +153,7 @@ pub unsafe fn write_nock_trace(
             continue;
         }
 
-        let pc = path_to_cord(stack, (*trace_stack).path);
+        let pc = path_to_cord(stack, (*trace_stack).path)?;
         let pc_len = met3_usize(pc);
         let pc_bytes = &pc.as_bytes()[0..pc_len];
         let pc_str = match std::str::from_utf8(pc_bytes) {
@@ -185,7 +185,7 @@ pub unsafe fn write_nock_trace(
 }
 
 //  XX: Need Rust string interpolation helper that doesn't allocate
-pub fn path_to_cord(stack: &mut NockStack, path: Noun) -> Atom {
+pub fn path_to_cord(stack: &mut NockStack, path: Noun) -> AllocResult<Atom> {
     let mut cursor = path;
     let mut length = 0usize;
 
@@ -218,7 +218,7 @@ pub fn path_to_cord(stack: &mut NockStack, path: Noun) -> Atom {
     // reset cursor, then actually write the path
     cursor = path;
     let mut idx = 0;
-    let (mut deres, buffer) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, length) };
+    let (mut deres, buffer) = unsafe { IndirectAtom::new_raw_mut_bytes(stack, length)? };
     let slash = (b"/")[0];
 
     while let Ok(c) = cursor.as_cell() {
@@ -254,5 +254,5 @@ pub fn path_to_cord(stack: &mut NockStack, path: Noun) -> Atom {
         cursor = c.tail();
     }
 
-    unsafe { deres.normalize_as_atom() }
+    Ok(unsafe { deres.normalize_as_atom() })
 }

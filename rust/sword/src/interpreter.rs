@@ -8,6 +8,7 @@ use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::warm::Warm;
 use crate::jets::JetErr;
+use crate::mem::AllocResult;
 use crate::mem::NockStack;
 use crate::mem::Preserve;
 use crate::noun;
@@ -266,10 +267,10 @@ pub trait Slogger {
      * pri  =   debug priority
      * tank =   output as tank
      */
-    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun);
+    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) -> AllocResult<()>;
 
     /** Send %flog, raw debug output. */
-    fn flog(&mut self, stack: &mut NockStack, cord: Noun);
+    fn flog(&mut self, stack: &mut NockStack, cord: Noun) -> AllocResult<()>;
 }
 
 impl<T: Slogger + DerefMut + Unpin + Sized> Slogger for Pin<&mut T>
@@ -278,12 +279,14 @@ where
 {
     // + Unpin
     // type SlogTarget = T::Target;
-    fn flog(&mut self, stack: &mut NockStack, cord: Noun) {
+    fn flog(&mut self, stack: &mut NockStack, cord: Noun) -> AllocResult<()> {
         (*self).deref_mut().flog(stack, cord);
+        Ok(())
     }
 
-    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) {
+    fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) -> AllocResult<()> {
         (**self).slog(stack, pri, tank);
+        Ok(())
     }
 }
 
@@ -351,12 +354,21 @@ pub enum Mote {
     Meme = tas!(b"meme") as isize,
 }
 
-#[derive(Clone, Copy, Debug)]
+/// Interpreter errors, reused in [`JetErr::Fail`]
+#[derive(Clone, Debug)]
 pub enum Error {
     ScryBlocked(Noun),            // path
     ScryCrashed(Noun),            // trace
     Deterministic(Mote, Noun),    // mote, trace
     NonDeterministic(Mote, Noun), // mote, trace
+    /// Allocation failed
+    AllocationError(crate::mem::AllocationError, Noun),
+}
+
+impl From<crate::mem::AllocationError> for Error {
+    fn from(err: crate::mem::AllocationError) -> Self {
+        Error::AllocationError(err, D(0))
+    }
 }
 
 impl Preserve for Error {
@@ -366,6 +378,7 @@ impl Preserve for Error {
             Error::ScryCrashed(ref mut trace) => trace.preserve(stack),
             Error::Deterministic(_, ref mut trace) => trace.preserve(stack),
             Error::NonDeterministic(_, ref mut trace) => trace.preserve(stack),
+            Error::AllocationError(_, ref mut trace) => trace.preserve(stack),
         }
     }
 
@@ -375,6 +388,7 @@ impl Preserve for Error {
             Error::ScryCrashed(ref trace) => trace.assert_in_stack(stack),
             Error::Deterministic(_, ref trace) => trace.assert_in_stack(stack),
             Error::NonDeterministic(_, ref trace) => trace.assert_in_stack(stack),
+            Error::AllocationError(_, ref trace) => trace.assert_in_stack(stack),
         }
     }
 }
@@ -391,11 +405,11 @@ impl From<cold::Error> for Error {
     }
 }
 
-pub type Result = result::Result<Noun, Error>;
+pub type Result<T> = result::Result<T, Error>;
 
-const BAIL_EXIT: Result = Err(Error::Deterministic(Mote::Exit, D(0)));
-const BAIL_FAIL: Result = Err(Error::NonDeterministic(Mote::Fail, D(0)));
-const BAIL_INTR: Result = Err(Error::NonDeterministic(Mote::Intr, D(0)));
+const BAIL_EXIT: Result<Noun> = Err(Error::Deterministic(Mote::Exit, D(0)));
+const BAIL_FAIL: Result<Noun> = Err(Error::NonDeterministic(Mote::Fail, D(0)));
+const BAIL_INTR: Result<Noun> = Err(Error::NonDeterministic(Mote::Intr, D(0)));
 
 #[allow(unused_variables)]
 fn debug_assertions(stack: &mut NockStack, noun: Noun) {
@@ -405,7 +419,7 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
 }
 
 /** Interpret nock */
-pub fn interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result {
+pub fn interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<Noun> {
     let terminator = Arc::clone(&TERMINATOR);
     let orig_subject = subject; // for debugging
     let snapshot = context.save();
@@ -449,7 +463,7 @@ pub fn interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result 
     }
 }
 
-unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun, orig_subject: Noun, mut subject: Noun, mut res: Noun) -> Result {
+unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun, orig_subject: Noun, mut subject: Noun, mut res: Noun) -> Result<Noun> {
     push_formula(&mut context.stack, formula, true)?;
     loop {
         let work: NockWork = *context.stack.top();
@@ -504,7 +518,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                 }
                 TodoCons::Cons => {
                     let stack = &mut context.stack;
-                    res = T(stack, &[cons.head, res]);
+                    res = T(stack, &[cons.head, res])?;
                     stack.pop::<NockWork>();
                 }
             },
@@ -589,7 +603,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                 }
                 Todo4::Increment => {
                     if let Ok(atom) = res.as_atom() {
-                        res = inc(&mut context.stack, atom).as_noun();
+                        res = inc(&mut context.stack, atom)?.as_noun();
                         context.stack.pop::<NockWork>();
                     } else {
                         // Cannot increment (Nock 4) a cell
@@ -678,14 +692,14 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                 Todo8::ComputeResult => {
                     let stack = &mut context.stack;
                     if pins.tail {
-                        subject = T(stack, &[res, subject]);
+                        subject = T(stack, &[res, subject])?;
                         stack.pop::<NockWork>();
                         push_formula(stack, pins.formula, true)?;
                     } else {
                         pins.todo = Todo8::RestoreSubject;
                         pins.pin = subject;
                         *stack.top() = NockWork::Work8(pins);
-                        subject = T(stack, &[res, subject]);
+                        subject = T(stack, &[res, subject])?;
                         push_formula(stack, pins.formula, false)?;
                     }
                 }
@@ -803,7 +817,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                             diet.axis.as_bitslice(),
                             res,
                             diet.tree,
-                        );
+                        )?;
                         context.stack.pop::<NockWork>();
                     }
                 }
@@ -864,7 +878,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                         Some(dint.hint),
                         dint.body,
                         res,
-                    ) {
+                    )? {
                         res = found;
                     }
                     context.stack.pop::<NockWork>();
@@ -897,7 +911,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                 Todo11S::Done => {
                     if let Some(found) = hint::match_post_nock(
                         context, subject, sint.tag, None, sint.body, res,
-                    ) {
+                    )? {
                         res = found;
                     }
                     context.stack.pop::<NockWork>();
@@ -923,7 +937,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                         let scry_stack = context.scry_stack;
                         let scry_handler = cell.head();
                         let scry_gate = scry_handler.as_cell()?;
-                        let payload = T(&mut context.stack, &[scry.reff, res]);
+                        let payload = T(&mut context.stack, &[scry.reff, res])?;
                         let scry_core = T(
                             &mut context.stack,
                             &[
@@ -931,9 +945,9 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                                 payload,
                                 scry_gate.tail().as_cell()?.tail(),
                             ],
-                        );
+                        )?;
                         let scry_form =
-                            T(&mut context.stack, &[D(9), D(2), D(1), scry_core]);
+                            T(&mut context.stack, &[D(9), D(2), D(1), scry_core])?;
 
                         context.scry_stack = cell.tail();
                         // Alternately, we could use scry_core as the subject and [9 2 0 1] as
@@ -959,7 +973,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                                                     scry.reff,
                                                     scry.path,
                                                 ],
-                                            );
+                                            )?;
                                             mean_push(stack, hunk);
                                             break Err(Error::ScryCrashed(D(0)));
                                         }
@@ -982,6 +996,9 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                                 Error::ScryBlocked(_) => {
                                     break BAIL_FAIL;
                                 }
+                                Error::AllocationError(_, _) => {
+                                    break Err(error);
+                                },
                             },
                         }
                     } else {
@@ -993,7 +1010,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
         };
     }
 }
-fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result {
+fn push_formula(stack: &mut NockStack, formula: Noun, tail: bool) -> Result<Noun> {
     unsafe {
         if let Ok(formula_cell) = formula.as_cell() {
             // Formula
@@ -1228,8 +1245,10 @@ fn exit(
                 let h = *(stack.local_noun_pointer(0));
                 // XX: Small chance of clobbering something important after OOM?
                 // XX: what if we OOM while making a stack trace
-                T(stack, &[h, t])
+                T(stack, &[h, t]).expect("serf: failed to create trace, allocation error")
             }
+            // TODO: What do we do with an allocation error here?
+            Error::AllocationError(allocation_error, noun) => todo!(),
         };
 
         while stack.get_frame_pointer() != virtual_frame {
@@ -1242,6 +1261,7 @@ fn exit(
             Error::NonDeterministic(mote, _) => Error::NonDeterministic(mote, preserve),
             Error::ScryCrashed(_) => Error::ScryCrashed(preserve),
             Error::ScryBlocked(_) => error,
+            Error::AllocationError(_, _) => error,
         }
     }
 }
@@ -1259,11 +1279,12 @@ fn mean_frame_push(stack: &mut NockStack, slots: usize) {
 
 /** Push onto the mean stack.
  */
-fn mean_push(stack: &mut NockStack, noun: Noun) {
+fn mean_push(stack: &mut NockStack, noun: Noun) -> AllocResult<()>{
     unsafe {
         let cur_trace = *(stack.local_noun_pointer(0));
-        let new_trace = T(stack, &[noun, cur_trace]);
+        let new_trace = T(stack, &[noun, cur_trace])?;
         *(stack.local_noun_pointer(0)) = new_trace;
+        Ok(())
     }
 }
 
@@ -1283,7 +1304,7 @@ fn edit(
     edit_axis: &BitSlice<u64, Lsb0>,
     patch: Noun,
     mut tree: Noun,
-) -> Noun {
+) -> AllocResult<Noun> {
     let mut res = patch;
     let mut dest: *mut Noun = &mut res;
     let mut cursor = edit_axis
@@ -1300,7 +1321,7 @@ fn edit(
             cursor -= 1;
             if edit_axis[cursor] {
                 unsafe {
-                    let (cell, cellmem) = Cell::new_raw_mut(stack);
+                    let (cell, cellmem) = Cell::new_raw_mut(stack)?;
                     *dest = cell.as_noun();
                     (*cellmem).head = tree_cell.head();
                     dest = &mut ((*cellmem).tail);
@@ -1308,7 +1329,7 @@ fn edit(
                 tree = tree_cell.tail();
             } else {
                 unsafe {
-                    let (cell, cellmem) = Cell::new_raw_mut(stack);
+                    let (cell, cellmem) = Cell::new_raw_mut(stack)?;
                     *dest = cell.as_noun();
                     (*cellmem).tail = tree_cell.tail();
                     dest = &mut ((*cellmem).head);
@@ -1319,10 +1340,10 @@ fn edit(
             panic!("Invalid axis for edit");
         };
     }
-    res
+    Ok(res)
 }
 
-pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
+pub fn inc(stack: &mut NockStack, atom: Atom) -> AllocResult<Atom> {
     match atom.as_either() {
         Left(direct) => Atom::new(stack, direct.data() + 1),
         Right(indirect) => {
@@ -1331,17 +1352,17 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
                 None => {
                     // all ones, make an indirect one word bigger
                     let (new_indirect, new_slice) =
-                        unsafe { IndirectAtom::new_raw_mut_bitslice(stack, indirect.size() + 1) };
+                        unsafe { IndirectAtom::new_raw_mut_bitslice(stack, indirect.size() + 1)? };
                     new_slice.set(indirect_slice.len(), true);
-                    new_indirect.as_atom()
+                    Ok(new_indirect.as_atom())
                 }
                 Some(first_zero) => {
                     let (new_indirect, new_slice) =
-                        unsafe { IndirectAtom::new_raw_mut_bitslice(stack, indirect.size()) };
+                        unsafe { IndirectAtom::new_raw_mut_bitslice(stack, indirect.size())? };
                     new_slice.set(first_zero, true);
                     new_slice[first_zero + 1..]
                         .copy_from_bitslice(&indirect_slice[first_zero + 1..]);
-                    new_indirect.as_atom()
+                    Ok(new_indirect.as_atom())
                 }
             }
         }
@@ -1349,16 +1370,17 @@ pub fn inc(stack: &mut NockStack, atom: Atom) -> Atom {
 }
 
 /// Push onto the tracing stack
-fn append_trace(stack: &mut NockStack, path: Noun) {
+fn append_trace(stack: &mut NockStack, path: Noun) -> AllocResult<()> {
     unsafe {
         let trace_stack = *(stack.local_noun_pointer(1) as *const *const TraceStack);
-        let new_trace_entry = stack.struct_alloc(1);
+        let new_trace_entry = stack.struct_alloc(1)?;
         *new_trace_entry = TraceStack {
             path,
             start: Instant::now(),
             next: trace_stack,
         };
         *(stack.local_noun_pointer(1) as *mut *const TraceStack) = new_trace_entry;
+        Ok(())
     }
 }
 
@@ -1404,7 +1426,7 @@ mod hint {
         tag: Atom,
         hint: Noun,
         body: Noun,
-    ) -> Option<Result> {
+    ) -> Option<Result<Noun>> {
         //  XX: handle IndirectAtom tags
         match tag.direct()?.data() {
             tas!(b"sham") => {
@@ -1476,7 +1498,11 @@ mod hint {
             }
             tas!(b"memo") => {
                 let stack = &mut context.stack;
-                let mut key = Cell::new(stack, subject, body).as_noun();
+                let key = match Cell::new(stack, subject, body) {
+                    Ok(key) => key,
+                    Err(_) => return Some(BAIL_EXIT),
+                };
+                let mut key = key.as_noun();
                 context.cache.lookup(stack, &mut key).map(Ok)
             }
             _ => None,
@@ -1490,7 +1516,7 @@ mod hint {
         tag: Atom,
         hint: Option<(Noun, Noun)>,
         _body: Noun,
-    ) -> Option<Result> {
+    ) -> Option<Result<Noun>> {
         //  XX: handle IndirectAtom tags
         match tag.direct()?.data() {
             tas!(b"dont") => {
@@ -1521,7 +1547,10 @@ mod hint {
 
                 let stack = &mut context.stack;
                 let (_form, clue) = hint?;
-                let noun = T(stack, &[tag.as_noun(), clue]);
+                let noun = match T(stack, &[tag.as_noun(), clue]) {
+                    Ok(noun) => noun,
+                    Err(_) => return Some(BAIL_EXIT),
+                };
                 mean_push(stack, noun);
                 None
             }
@@ -1532,7 +1561,10 @@ mod hint {
                 //      recursively work down frames to get the stack trace all
                 //      the way to the root.
                 let mean = unsafe { *(context.stack.local_noun_pointer(0)) };
-                let tone = Cell::new(&mut context.stack, D(2), mean);
+                let tone = match Cell::new(&mut context.stack, D(2), mean) {
+                    Ok(tone) => tone,
+                    Err(_) => return Some(BAIL_EXIT),
+                };
 
                 match mook(context, tone, true) {
                     Ok(toon) => {
@@ -1581,90 +1613,110 @@ mod hint {
         hint: Option<Noun>,
         body: Noun,
         res: Noun,
-    ) -> Option<Noun> {
-        let stack = &mut context.stack;
-        let slogger = &mut context.slogger;
-        let cold = &mut context.cold;
-        let hot = &context.hot;
-        let cache = &mut context.cache;
-
+    ) -> Result<Option<Noun>> {
         //  XX: handle IndirectAtom tags
-        match tag.direct()?.data() {
-            tas!(b"memo") => {
-                let mut key = Cell::new(stack, subject, body).as_noun();
-                context.cache = cache.insert(stack, &mut key, res);
-            }
-            tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
-                mean_pop(stack);
-            }
-            tas!(b"fast") => {
-                if !cfg!(feature = "sham_hints") {
-                    if let Some(clue) = hint {
-                        let chum = clue.slot(2).ok()?;
-                        let mut parent = clue.slot(6).ok()?;
-                        loop {
-                            if let Ok(parent_cell) = parent.as_cell() {
-                                if unsafe { parent_cell.head().raw_equals(D(11)) } {
-                                    match parent.slot(7) {
-                                        Ok(noun) => {
-                                            parent = noun;
+        // Yes it has to be a nested closure: Option<Result> -> Result<Option>
+        let mut f = move || {
+            let stack = &mut context.stack;
+            let slogger = &mut context.slogger;
+            let cold = &mut context.cold;
+            let hot = &context.hot;
+            let cache = &mut context.cache;
+            match tag.direct()?.data() {
+                tas!(b"memo") => {
+                    let key = match Cell::new(stack, subject, body) {
+                        Ok(key) => key,
+                        Err(err) => return Some(Err(err)),
+                    };
+                    let mut key = key.as_noun();
+                    let cache_insert = cache.insert(stack, &mut key, res);
+                    match cache_insert {
+                        Ok(_) => (),
+                        Err(cache_error) => return Some(Err(cache_error)),
+                    };
+                }
+                tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
+                    mean_pop(stack);
+                }
+                tas!(b"fast") => {
+                    if !cfg!(feature = "sham_hints") {
+                        if let Some(clue) = hint {
+                            let chum = clue.slot(2).ok()?;
+                            let mut parent = clue.slot(6).ok()?;
+                            loop {
+                                if let Ok(parent_cell) = parent.as_cell() {
+                                    if unsafe { parent_cell.head().raw_equals(D(11)) } {
+                                        match parent.slot(7) {
+                                            Ok(noun) => {
+                                                parent = noun;
+                                            }
+                                            Err(_) => {
+                                                return None;
+                                            }
                                         }
-                                        Err(_) => {
-                                            return None;
-                                        }
+                                    } else {
+                                        break;
                                     }
                                 } else {
-                                    break;
+                                    return None;
                                 }
-                            } else {
-                                return None;
                             }
-                        }
-                        let parent_formula_op = parent.slot(2).ok()?.atom()?.direct()?;
-                        let parent_formula_ax = parent.slot(3).ok()?.atom()?;
+                            let parent_formula_op = parent.slot(2).ok()?.atom()?.direct()?;
+                            let parent_formula_ax = parent.slot(3).ok()?.atom()?;
 
-                        let cold_res: cold::Result = {
-                            if parent_formula_op.data() == 1 {
-                                if parent_formula_ax.direct()?.data() == 0 {
-                                    cold.register(stack, res, parent_formula_ax, chum)
+                            let cold_res: cold::Result = {
+                                if parent_formula_op.data() == 1 {
+                                    if parent_formula_ax.direct()?.data() == 0 {
+                                        cold.register(stack, res, parent_formula_ax, chum)
+                                    } else {
+                                        //  XX: flog! is ideal, but it runs afoul of the borrow checker
+                                        // flog!(context, "invalid root parent formula: {} {}", chum, parent);
+                                        let tape = tape(
+                                            stack, "serf: cold: register: invalid root parent axis",
+                                        );
+                                        let tape = match tape {
+                                            Ok(tape) => tape,
+                                            Err(err) => return Some(Err(err)),
+                                        };
+                                        slog_leaf(stack, slogger, tape);
+                                        Ok(false)
+                                    }
                                 } else {
-                                    //  XX: flog! is ideal, but it runs afoul of the borrow checker
-                                    // flog!(context, "invalid root parent formula: {} {}", chum, parent);
-                                    let tape = tape(
-                                        stack, "serf: cold: register: invalid root parent axis",
-                                    );
-                                    slog_leaf(stack, slogger, tape);
-                                    Ok(false)
+                                    cold.register(stack, res, parent_formula_ax, chum)
                                 }
-                            } else {
-                                cold.register(stack, res, parent_formula_ax, chum)
-                            }
-                        };
+                            };
 
-                        match cold_res {
-                            Ok(true) => context.warm = Warm::init(stack, cold, hot),
-                            Err(cold::Error::NoParent) => {
-                                flog!(context, "serf: cold: register: could not match parent battery at given axis: {} {}", chum, parent_formula_ax);
+                            match cold_res {
+                                Ok(true) => context.warm = match Warm::init(stack, cold, hot) {
+                                    Ok(warm) => warm,
+                                    Err(err) => {
+                                        return Some(Err(err));
+                                    }
+                                },
+                                Err(cold::Error::NoParent) => {
+                                    flog!(context, "serf: cold: register: could not match parent battery at given axis: {} {}", chum, parent_formula_ax);
+                                }
+                                Err(cold::Error::BadNock) => {
+                                    flog!(context, "serf: cold: register: bad clue formula: {}", clue);
+                                }
+                                _ => {}
                             }
-                            Err(cold::Error::BadNock) => {
-                                flog!(context, "serf: cold: register: bad clue formula: {}", clue);
-                            }
-                            _ => {}
+                        } else {
+                            flog!(context, "serf: cold: register: no clue for %fast");
                         }
-                    } else {
-                        flog!(context, "serf: cold: register: no clue for %fast");
                     }
                 }
-            }
-            _ => {}
-        }
-
-        None
+                _ => {}
+            };
+            None
+        };
+        f().transpose().map_err(From::from)
     }
 
-    fn slog_leaf(stack: &mut NockStack, slogger: &mut Pin<Box<dyn Slogger + Unpin>>, tape: Noun) {
-        let tank = T(stack, &[LEAF, tape]);
+    fn slog_leaf(stack: &mut NockStack, slogger: &mut Pin<Box<dyn Slogger + Unpin>>, tape: Noun) -> AllocResult<()> {
+        let tank = T(stack, &[LEAF, tape])?;
         slogger.slog(stack, 0u64, tank);
+        Ok(())
     }
 }
 

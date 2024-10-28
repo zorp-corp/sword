@@ -2,7 +2,7 @@ use crate::hamt::Hamt;
 use crate::jets::cold::{Batteries, Cold};
 use crate::jets::hot::Hot;
 use crate::jets::Jet;
-use crate::mem::{NockStack, Preserve};
+use crate::mem::{AllocResult, NockStack, Preserve};
 use crate::noun::{Noun, Slots};
 use std::ptr::{copy_nonoverlapping, null_mut};
 
@@ -86,8 +86,8 @@ impl Iterator for WarmEntry {
 
 impl Warm {
     #[allow(clippy::new_without_default)]
-    pub fn new(stack: &mut NockStack) -> Self {
-        Warm(Hamt::new(stack))
+    pub fn new(stack: &mut NockStack) -> AllocResult<Self> {
+        Ok(Warm(Hamt::new(stack)?))
     }
 
     fn insert(
@@ -97,22 +97,23 @@ impl Warm {
         path: Noun,
         batteries: Batteries,
         jet: Jet,
-    ) {
+    ) -> AllocResult<()> {
         let current_warm_entry = self.0.lookup(stack, formula).unwrap_or(WARM_ENTRY_NIL);
         unsafe {
-            let warm_entry_mem_ptr: *mut WarmEntryMem = stack.struct_alloc(1);
+            let warm_entry_mem_ptr: *mut WarmEntryMem = stack.struct_alloc(1)?;
             *warm_entry_mem_ptr = WarmEntryMem {
                 batteries,
                 jet,
                 path,
                 next: current_warm_entry,
             };
-            self.0 = self.0.insert(stack, formula, WarmEntry(warm_entry_mem_ptr));
+            self.0 = self.0.insert(stack, formula, WarmEntry(warm_entry_mem_ptr))?;
         }
+        Ok(())
     }
 
-    pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> Self {
-        let mut warm = Self::new(stack);
+    pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> AllocResult<Self> {
+        let mut warm = Self::new(stack)?;
         for (mut path, axis, jet) in *hot {
             let batteries_list = cold.find(stack, &mut path);
             for batteries in batteries_list {
@@ -121,7 +122,7 @@ impl Warm {
                     .next()
                     .expect("IMPOSSIBLE: empty battery entry in cold state");
                 if let Ok(mut formula) = unsafe { (*battery).slot_atom(axis) } {
-                    warm.insert(stack, &mut formula, path, batteries, jet);
+                    warm.insert(stack, &mut formula, path, batteries, jet)?;
                 } else {
                     //  XX: need NockStack allocated string interpolation
                     // eprintln!("Bad axis {} into formula {:?}", axis, battery);
@@ -129,7 +130,7 @@ impl Warm {
                 }
             }
         }
-        warm
+        Ok(warm)
     }
 
     /// Walk through the linked list of WarmEntry objects and do a partial check

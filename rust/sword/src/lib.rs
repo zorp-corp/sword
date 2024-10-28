@@ -3,6 +3,8 @@ extern crate num_derive;
 extern crate lazy_static;
 #[macro_use]
 extern crate static_assertions;
+
+//pub mod bytecode;
 pub mod flog;
 pub mod guard;
 pub mod hamt;
@@ -12,11 +14,14 @@ pub mod mem;
 pub mod mug;
 pub mod newt;
 pub mod noun;
-pub mod serf;
-pub mod site;
-//pub mod bytecode;
 pub mod persist;
+pub mod serf;
 pub mod serialization;
+pub mod site;
+
+#[cfg(test)]
+pub mod test_fns;
+
 pub mod trace;
 pub mod unifying_equality;
 
@@ -77,10 +82,10 @@ mod tests {
         use crate::noun::*;
         use crate::serialization::jam;
         let mut stack = NockStack::new(8 << 10 << 10, 0);
-        let head = Atom::new(&mut stack, 0).as_noun();
-        let tail = Atom::new(&mut stack, 1).as_noun();
-        let cell = Cell::new(&mut stack, head, tail).as_noun();
-        let res = jam(&mut stack, cell).as_direct().unwrap().data();
+        let head = Atom::new(&mut stack, 0).unwrap().as_noun();
+        let tail = Atom::new(&mut stack, 1).unwrap().as_noun();
+        let cell = Cell::new(&mut stack, head, tail).unwrap().as_noun();
+        let res = jam(&mut stack, cell).unwrap().as_direct().unwrap().data();
         assert_eq!(res, 201);
     }
 }
