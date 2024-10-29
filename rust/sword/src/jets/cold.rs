@@ -1094,19 +1094,10 @@ impl Nounable for Cold {
 
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
         let cold_mem = self.0;
-        let mut root_to_paths_noun = D(0);
         let mut battery_to_paths_noun = D(0);
+        let mut root_to_paths_noun = D(0);
         let mut path_to_batteries_noun = D(0);
         unsafe {
-            for slice in (*cold_mem).root_to_paths.iter() {
-                for (root, paths) in slice {
-                    let root_noun = root.into_noun(stack);
-                    let paths_noun = paths.into_noun(stack);
-                    // two-step the cons'ing for correct associativity
-                    let items = T(stack, &[root_noun, paths_noun]);
-                    root_to_paths_noun = T(stack, &[items, root_to_paths_noun]);
-                }
-            }
             for slice in (*cold_mem).battery_to_paths.iter() {
                 for (battery, paths) in slice {
                     let battery_noun = battery.into_noun(stack);
@@ -1114,6 +1105,15 @@ impl Nounable for Cold {
                     // two-step the cons'ing for correct associativity
                     let items = T(stack, &[battery_noun, paths_noun]);
                     battery_to_paths_noun = T(stack, &[items, battery_to_paths_noun]);
+                }
+            }
+            for slice in (*cold_mem).root_to_paths.iter() {
+                for (root, paths) in slice {
+                    let root_noun = root.into_noun(stack);
+                    let paths_noun = paths.into_noun(stack);
+                    // two-step the cons'ing for correct associativity
+                    let items = T(stack, &[root_noun, paths_noun]);
+                    root_to_paths_noun = T(stack, &[items, root_to_paths_noun]);
                 }
             }
             for slice in (*cold_mem).path_to_batteries.iter() {
@@ -1134,23 +1134,13 @@ impl Nounable for Cold {
     }
 
     fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
-        let mut root_to_paths = Vec::new();
         let mut battery_to_paths = Vec::new();
+        let mut root_to_paths = Vec::new();
         let mut path_to_batteries = Vec::new();
 
-        let root_cell = noun.as_cell()?;
-        let root_to_paths_noun = root_cell.head();
-        let batts_cell = root_cell.tail().as_cell()?;
-        let battery_to_paths_noun = batts_cell.head();
-        let path_to_batteries_noun = batts_cell.tail();
-
-        // iterate over root_to_paths_noun
-        for item in NounListIterator(root_to_paths_noun.clone()) {
-            let cell = item.cell().ok_or(FromNounError::NotCell)?;
-            let key = cell.head();
-            let value = NounList::from_noun(stack, &cell.tail())?;
-            root_to_paths.push((key, value));
-        }
+        let battery_to_paths_noun = noun.slot(2)?;
+        let root_to_paths_noun = noun.slot(6)?;
+        let path_to_batteries_noun = noun.slot(7)?;
 
         // iterate over battery_to_paths_noun
         for item in NounListIterator(battery_to_paths_noun.clone()) {
@@ -1160,6 +1150,14 @@ impl Nounable for Cold {
             battery_to_paths.push((key, value));
         }
 
+        // iterate over root_to_paths_noun
+        for item in NounListIterator(root_to_paths_noun.clone()) {
+            let cell = item.cell().ok_or(FromNounError::NotCell)?;
+            let key = cell.head();
+            let value = NounList::from_noun(stack, &cell.tail())?;
+            root_to_paths.push((key, value));
+        }
+
         // iterate over path_to_batteries_noun
         for item in NounListIterator(path_to_batteries_noun.clone()) {
             let cell = item.cell().ok_or(FromNounError::NotCell)?;
@@ -1167,10 +1165,11 @@ impl Nounable for Cold {
             let value = BatteriesList::from_noun(stack, &cell.tail())?;
             path_to_batteries.push((key, value));
         }
-        root_to_paths.reverse();
         battery_to_paths.reverse();
+        root_to_paths.reverse();
         path_to_batteries.reverse();
-        let result = (root_to_paths, battery_to_paths, path_to_batteries);
+
+        let result = (battery_to_paths, root_to_paths, path_to_batteries);
         Ok(result)
     }
 }
@@ -1197,6 +1196,11 @@ pub(crate) mod test {
     fn make_cold_state(stack: &mut NockStack) -> Cold {
         let cold = Cold::new(stack);
         unsafe {
+            let battery_to_paths_list = make_noun_list(stack, &[5, 6]);
+            (*cold.0).battery_to_paths =
+                (*cold.0)
+                    .battery_to_paths
+                    .insert(stack, &mut D(200), battery_to_paths_list);
             let root_noun_list = make_noun_list(stack, &[1, 2]);
             (*cold.0).root_to_paths =
                 (*cold.0)
@@ -1208,11 +1212,6 @@ pub(crate) mod test {
                     .root_to_paths
                     .insert(stack, &mut D(101), root_noun_list);
 
-            let battery_to_paths_list = make_noun_list(stack, &[5, 6]);
-            (*cold.0).battery_to_paths =
-                (*cold.0)
-                    .battery_to_paths
-                    .insert(stack, &mut D(200), battery_to_paths_list);
             let batteries_list = make_batteries_list(stack, &[7, 8]);
             (*cold.0).path_to_batteries =
                 (*cold.0)
@@ -1229,13 +1228,13 @@ pub(crate) mod test {
         let cold_noun = cold.into_noun(&mut stack);
         let new_cold =
             Cold::from_noun(&mut stack, &cold_noun).expect("Failed to convert noun to cold");
-        // Use zipped iteration to compare the two cold states
-        let old_root_to_paths = unsafe { &(*cold.0).root_to_paths };
-        let new_root_to_paths = new_cold.0.clone();
-        for (a, b) in old_root_to_paths
+        // battery_to_paths
+        let old_battery_to_paths = unsafe { &(*cold.0).battery_to_paths };
+        let new_battery_to_paths = new_cold.0.clone();
+        for (a, b) in old_battery_to_paths
             .iter()
             .flatten()
-            .zip(new_root_to_paths.iter())
+            .zip(new_battery_to_paths.iter())
         {
             let key_a = &mut a.0.clone() as *mut Noun;
             let key_b = &mut b.0.clone() as *mut Noun;
@@ -1256,13 +1255,13 @@ pub(crate) mod test {
                 value_b_noun
             );
         }
-        // battery_to_paths
-        let old_battery_to_paths = unsafe { &(*cold.0).battery_to_paths };
-        let new_battery_to_paths = new_cold.1.clone();
-        for (a, b) in old_battery_to_paths
+        // Use zipped iteration to compare the two cold states
+        let old_root_to_paths = unsafe { &(*cold.0).root_to_paths };
+        let new_root_to_paths = new_cold.1.clone();
+        for (a, b) in old_root_to_paths
             .iter()
             .flatten()
-            .zip(new_battery_to_paths.iter())
+            .zip(new_root_to_paths.iter())
         {
             let key_a = &mut a.0.clone() as *mut Noun;
             let key_b = &mut b.0.clone() as *mut Noun;
