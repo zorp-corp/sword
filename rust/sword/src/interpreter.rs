@@ -290,7 +290,7 @@ where
 pub struct ContextSnapshot {
     cold: Cold,
     warm: Warm,
-    cache: Hamt<Noun>
+    cache: Hamt<Noun>,
 }
 
 pub struct Context {

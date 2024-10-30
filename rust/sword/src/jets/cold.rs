@@ -953,11 +953,12 @@ impl Nounable for NounList {
         let mut list = D(0);
         let mut reverse = Vec::new();
         for item in self {
-            reverse.push(item);
+            unsafe {
+                reverse.push(*item);
+            }
         }
-        reverse.reverse();
         for item in reverse {
-            let gimme = unsafe { *item };
+            let gimme = item;
             list = T(stack, &[gimme, list]);
         }
         list
@@ -1094,19 +1095,10 @@ impl Nounable for Cold {
 
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
         let cold_mem = self.0;
-        let mut root_to_paths_noun = D(0);
         let mut battery_to_paths_noun = D(0);
+        let mut root_to_paths_noun = D(0);
         let mut path_to_batteries_noun = D(0);
         unsafe {
-            for slice in (*cold_mem).root_to_paths.iter() {
-                for (root, paths) in slice {
-                    let root_noun = root.into_noun(stack);
-                    let paths_noun = paths.into_noun(stack);
-                    // two-step the cons'ing for correct associativity
-                    let items = T(stack, &[root_noun, paths_noun]);
-                    root_to_paths_noun = T(stack, &[items, root_to_paths_noun]);
-                }
-            }
             for slice in (*cold_mem).battery_to_paths.iter() {
                 for (battery, paths) in slice {
                     let battery_noun = battery.into_noun(stack);
@@ -1114,6 +1106,15 @@ impl Nounable for Cold {
                     // two-step the cons'ing for correct associativity
                     let items = T(stack, &[battery_noun, paths_noun]);
                     battery_to_paths_noun = T(stack, &[items, battery_to_paths_noun]);
+                }
+            }
+            for slice in (*cold_mem).root_to_paths.iter() {
+                for (root, paths) in slice {
+                    let root_noun = root.into_noun(stack);
+                    let paths_noun = paths.into_noun(stack);
+                    // two-step the cons'ing for correct associativity
+                    let items = T(stack, &[root_noun, paths_noun]);
+                    root_to_paths_noun = T(stack, &[items, root_to_paths_noun]);
                 }
             }
             for slice in (*cold_mem).path_to_batteries.iter() {
@@ -1134,23 +1135,13 @@ impl Nounable for Cold {
     }
 
     fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
-        let mut root_to_paths = Vec::new();
         let mut battery_to_paths = Vec::new();
+        let mut root_to_paths = Vec::new();
         let mut path_to_batteries = Vec::new();
 
-        let root_cell = noun.as_cell()?;
-        let root_to_paths_noun = root_cell.head();
-        let batts_cell = root_cell.tail().as_cell()?;
-        let battery_to_paths_noun = batts_cell.head();
-        let path_to_batteries_noun = batts_cell.tail();
-
-        // iterate over root_to_paths_noun
-        for item in NounListIterator(root_to_paths_noun.clone()) {
-            let cell = item.cell().ok_or(FromNounError::NotCell)?;
-            let key = cell.head();
-            let value = NounList::from_noun(stack, &cell.tail())?;
-            root_to_paths.push((key, value));
-        }
+        let battery_to_paths_noun = noun.slot(2)?;
+        let root_to_paths_noun = noun.slot(6)?;
+        let path_to_batteries_noun = noun.slot(7)?;
 
         // iterate over battery_to_paths_noun
         for item in NounListIterator(battery_to_paths_noun.clone()) {
@@ -1160,6 +1151,14 @@ impl Nounable for Cold {
             battery_to_paths.push((key, value));
         }
 
+        // iterate over root_to_paths_noun
+        for item in NounListIterator(root_to_paths_noun.clone()) {
+            let cell = item.cell().ok_or(FromNounError::NotCell)?;
+            let key = cell.head();
+            let value = NounList::from_noun(stack, &cell.tail())?;
+            root_to_paths.push((key, value));
+        }
+
         // iterate over path_to_batteries_noun
         for item in NounListIterator(path_to_batteries_noun.clone()) {
             let cell = item.cell().ok_or(FromNounError::NotCell)?;
@@ -1167,24 +1166,28 @@ impl Nounable for Cold {
             let value = BatteriesList::from_noun(stack, &cell.tail())?;
             path_to_batteries.push((key, value));
         }
-        root_to_paths.reverse();
         battery_to_paths.reverse();
+        root_to_paths.reverse();
         path_to_batteries.reverse();
-        let result = (root_to_paths, battery_to_paths, path_to_batteries);
+
+        let result = (battery_to_paths, root_to_paths, path_to_batteries);
         Ok(result)
     }
 }
 
 #[cfg(test)]
 mod test {
+    use std::iter::FromIterator;
+
     use super::*;
     use crate::{
         hamt::Hamt,
         mem::NockStack,
         noun::{Cell, Noun, D},
     };
-
-    fn make_test_stack() -> NockStack {
+    /// Default stack size for tests where you aren't intending to run out of space
+    pub(crate) const DEFAULT_STACK_SIZE: usize = 1 << 27;
+    pub(crate) fn make_test_stack(size: usize) -> NockStack {
         let size = 1 << 27;
         let top_slots = 100;
         let stack = NockStack::new(size, top_slots);
@@ -1194,22 +1197,22 @@ mod test {
     fn make_cold_state(stack: &mut NockStack) -> Cold {
         let cold = Cold::new(stack);
         unsafe {
-            let root_noun_list = make_noun_list(stack, &[1, 2]);
+            let battery_to_paths_list = make_noun_list(stack, &mut [5, 6]);
+            (*cold.0).battery_to_paths =
+                (*cold.0)
+                    .battery_to_paths
+                    .insert(stack, &mut D(200), battery_to_paths_list);
+            let root_noun_list = make_noun_list(stack, &mut [1, 2]);
             (*cold.0).root_to_paths =
                 (*cold.0)
                     .root_to_paths
                     .insert(stack, &mut D(100), root_noun_list);
-            let root_noun_list = make_noun_list(stack, &[3, 4]);
+            let root_noun_list = make_noun_list(stack, &mut [3, 4]);
             (*cold.0).root_to_paths =
                 (*cold.0)
                     .root_to_paths
                     .insert(stack, &mut D(101), root_noun_list);
 
-            let battery_to_paths_list = make_noun_list(stack, &[5, 6]);
-            (*cold.0).battery_to_paths =
-                (*cold.0)
-                    .battery_to_paths
-                    .insert(stack, &mut D(200), battery_to_paths_list);
             let batteries_list = make_batteries_list(stack, &[7, 8]);
             (*cold.0).path_to_batteries =
                 (*cold.0)
@@ -1221,18 +1224,19 @@ mod test {
 
     #[test]
     fn cold_bidirectional_conversion() {
-        let mut stack = make_test_stack();
+        let mut stack = make_test_stack(DEFAULT_STACK_SIZE);
         let cold = make_cold_state(&mut stack);
         let cold_noun = cold.into_noun(&mut stack);
         let new_cold =
             Cold::from_noun(&mut stack, &cold_noun).expect("Failed to convert noun to cold");
-        // Use zipped iteration to compare the two cold states
-        let old_root_to_paths = unsafe { &(*cold.0).root_to_paths };
-        let new_root_to_paths = new_cold.0.clone();
-        for (a, b) in old_root_to_paths
+
+        // battery_to_paths
+        let old_battery_to_paths = unsafe { &(*cold.0).battery_to_paths };
+        let new_battery_to_paths = new_cold.0.clone();
+        for (a, b) in old_battery_to_paths
             .iter()
             .flatten()
-            .zip(new_root_to_paths.iter())
+            .zip(new_battery_to_paths.iter())
         {
             let key_a = &mut a.0.clone() as *mut Noun;
             let key_b = &mut b.0.clone() as *mut Noun;
@@ -1253,13 +1257,13 @@ mod test {
                 value_b_noun
             );
         }
-        // battery_to_paths
-        let old_battery_to_paths = unsafe { &(*cold.0).battery_to_paths };
-        let new_battery_to_paths = new_cold.1.clone();
-        for (a, b) in old_battery_to_paths
+        // Use zipped iteration to compare the two cold states
+        let old_root_to_paths = unsafe { &(*cold.0).root_to_paths };
+        let new_root_to_paths = new_cold.1.clone();
+        for (a, b) in old_root_to_paths
             .iter()
             .flatten()
-            .zip(new_battery_to_paths.iter())
+            .zip(new_root_to_paths.iter())
         {
             let key_a = &mut a.0.clone() as *mut Noun;
             let key_b = &mut b.0.clone() as *mut Noun;
@@ -1311,7 +1315,7 @@ mod test {
 
     #[test]
     fn hamt_bidirectional_conversion() {
-        let mut stack = make_test_stack();
+        let mut stack = make_test_stack(DEFAULT_STACK_SIZE);
         let items = vec![(D(0), D(1)), (D(2), D(3))];
         let hamt = super::hamt_from_vec(&mut stack, items);
         let noun = hamt.into_noun(&mut stack);
@@ -1364,7 +1368,7 @@ mod test {
 
     #[test]
     fn batteries_list_bidirectional_conversion() {
-        let mut stack = make_test_stack();
+        let mut stack = make_test_stack(DEFAULT_STACK_SIZE);
         let batteries_list2 = make_batteries_list(&mut stack, &[1, 2]);
         let batteries_list_noun = batteries_list2.into_noun(&mut stack);
         let new_batteries_list2 = BatteriesList::from_noun(&mut stack, &batteries_list_noun)
@@ -1405,7 +1409,7 @@ mod test {
 
     #[test]
     fn batteries_bidirectional_conversion() {
-        let mut stack = make_test_stack();
+        let mut stack = make_test_stack(DEFAULT_STACK_SIZE);
         let batteries2 = make_batteries(&mut stack);
         let batteries_noun = batteries2.into_noun(&mut stack);
         let new_batteries = Batteries::from_noun(&mut stack, &batteries_noun)
@@ -1438,7 +1442,7 @@ mod test {
 
     #[test]
     fn tuple_bidirectional_conversion() {
-        let mut stack = make_test_stack();
+        let mut stack = make_test_stack(DEFAULT_STACK_SIZE);
         let tup = (D(1), D(2), D(3));
         let noun = tup.into_noun(&mut stack);
         let new_tup: (Noun, Noun, Noun) =
@@ -1461,14 +1465,14 @@ mod test {
         );
     }
 
-    fn make_noun_list(stack: &mut NockStack, v: &[u64]) -> NounList {
+    pub(crate) fn make_noun_list(stack: &mut NockStack, v: &[u64]) -> NounList {
         let mut noun_list = NOUN_LIST_NIL;
         for &item in v.iter().rev() {
             let noun_list_mem: *mut NounListMem = unsafe { stack.alloc_struct(1) };
             unsafe {
                 noun_list_mem.write(NounListMem {
                     element: D(item),
-                    next: NOUN_LIST_NIL,
+                    next: noun_list,
                 });
             }
             noun_list = NounList(noun_list_mem);
@@ -1478,28 +1482,34 @@ mod test {
 
     #[test]
     fn noun_list_bidirectional_conversion() {
-        let mut stack = make_test_stack();
-        let items = vec![D(1), D(2)];
-        let noun_list = make_noun_list(&mut stack, &[1, 2]);
+        let mut stack = make_test_stack(DEFAULT_STACK_SIZE);
+        const ITEM_COUNT: u64 = 2;
+        let vec = Vec::from_iter(1..=ITEM_COUNT);
+        let items = vec.iter().map(|&x| D(x)).collect::<Vec<Noun>>();
+        let slice = vec.as_slice();
+        let noun_list = make_noun_list(&mut stack, slice);
         let noun = noun_list.into_noun(&mut stack);
         let new_noun_list: NounList =
             <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
+        let mut item_count = 0;
         for (a, b) in new_noun_list.zip(items.iter()) {
             let a_ptr = a;
             let b_ptr = &mut b.clone() as *mut Noun;
             let a_val = unsafe { *a_ptr };
+            item_count += 1;
             assert!(
                 unsafe { unifying_equality(&mut stack, a_ptr, b_ptr) },
                 "Items don't match: {:?} {:?}",
                 a_val,
                 b
             );
+            assert_eq!(item_count, ITEM_COUNT as usize);
         }
     }
 
     #[test]
     fn how_to_noun() {
-        let mut stack = make_test_stack();
+        let mut stack = make_test_stack(DEFAULT_STACK_SIZE);
         let tup: &[Noun] = &[D(0), D(1)];
         let cell = Cell::new_tuple(&mut stack, tup);
         let noun: Noun = cell.as_noun();
@@ -1511,7 +1521,7 @@ mod test {
 
     #[test]
     fn how_to_noun_but_listy() {
-        let mut stack = make_test_stack();
+        let mut stack = make_test_stack(DEFAULT_STACK_SIZE);
         let tup: &[Noun] = &[D(0), D(1)];
         let cell = Cell::new_tuple(&mut stack, tup);
         let noun: Noun = cell.as_noun();
