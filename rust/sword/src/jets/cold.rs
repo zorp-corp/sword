@@ -953,11 +953,12 @@ impl Nounable for NounList {
         let mut list = D(0);
         let mut reverse = Vec::new();
         for item in self {
-            reverse.push(item);
+            unsafe {
+                reverse.push(*item);
+            }
         }
-        reverse.reverse();
         for item in reverse {
-            let gimme = unsafe { *item };
+            let gimme = item;
             list = T(stack, &[gimme, list]);
         }
         list
@@ -1175,7 +1176,7 @@ impl Nounable for Cold {
 }
 
 #[cfg(test)]
-pub(crate) mod test {
+mod test {
     use std::iter::FromIterator;
 
     use super::*;
@@ -1184,29 +1185,30 @@ pub(crate) mod test {
         mem::NockStack,
         noun::{Cell, Noun, D},
     };
-
     /// Default stack size for tests where you aren't intending to run out of space
     pub(crate) const DEFAULT_STACK_SIZE: usize = 1 << 27;
     pub(crate) fn make_test_stack(size: usize) -> NockStack {
+        let size = 1 << 27;
         let top_slots = 100;
         let stack = NockStack::new(size, top_slots);
         stack
     }
 
+
     fn make_cold_state(stack: &mut NockStack) -> Cold {
         let cold = Cold::new(stack);
         unsafe {
-            let battery_to_paths_list = make_noun_list(stack, &[5, 6]);
+            let battery_to_paths_list = make_noun_list(stack, &mut [5, 6]);
             (*cold.0).battery_to_paths =
                 (*cold.0)
                     .battery_to_paths
                     .insert(stack, &mut D(200), battery_to_paths_list);
-            let root_noun_list = make_noun_list(stack, &[1, 2]);
+            let root_noun_list = make_noun_list(stack, &mut [1, 2]);
             (*cold.0).root_to_paths =
                 (*cold.0)
                     .root_to_paths
                     .insert(stack, &mut D(100), root_noun_list);
-            let root_noun_list = make_noun_list(stack, &[3, 4]);
+            let root_noun_list = make_noun_list(stack, &mut [3, 4]);
             (*cold.0).root_to_paths =
                 (*cold.0)
                     .root_to_paths
@@ -1228,6 +1230,7 @@ pub(crate) mod test {
         let cold_noun = cold.into_noun(&mut stack);
         let new_cold =
             Cold::from_noun(&mut stack, &cold_noun).expect("Failed to convert noun to cold");
+
         // battery_to_paths
         let old_battery_to_paths = unsafe { &(*cold.0).battery_to_paths };
         let new_battery_to_paths = new_cold.0.clone();
@@ -1465,8 +1468,7 @@ pub(crate) mod test {
 
     pub(crate) fn make_noun_list(stack: &mut NockStack, v: &[u64]) -> NounList {
         let mut noun_list = NOUN_LIST_NIL;
-        // let mut prev = noun_list;
-        for &item in v.iter() {
+        for &item in v.iter().rev() {
             let noun_list_mem: *mut NounListMem = unsafe { stack.alloc_struct(1) };
             unsafe {
                 noun_list_mem.write(NounListMem {
@@ -1502,8 +1504,8 @@ pub(crate) mod test {
                 a_val,
                 b
             );
+            assert_eq!(item_count, ITEM_COUNT as usize);
         }
-        assert_eq!(item_count, ITEM_COUNT as usize);
     }
 
     #[test]
