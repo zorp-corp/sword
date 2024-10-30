@@ -1194,7 +1194,6 @@ mod test {
         stack
     }
 
-
     fn make_cold_state(stack: &mut NockStack) -> Cold {
         let cold = Cold::new(stack);
         unsafe {
