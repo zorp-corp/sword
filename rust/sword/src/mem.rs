@@ -90,7 +90,7 @@ pub enum AllocationType {
 /// Non-size parameters for validating an allocation
 #[derive(Debug, Clone)]
 pub struct Allocation {
-    pub direction: ArenaOrientation,
+    pub orientation: ArenaOrientation,
     pub alloc_type: AllocationType,
     pub pc: bool,
 }
@@ -180,7 +180,7 @@ impl NockStack {
 
     pub(crate) fn get_alloc_config(&self, alloc_type: AllocationType) -> Allocation {
         Allocation {
-            direction: if self.is_west() {
+            orientation: if self.is_west() {
                 ArenaOrientation::West
             } else {
                 ArenaOrientation::East
@@ -235,7 +235,7 @@ impl NockStack {
         // east:
         // noun_ptr <= *prev_alloc_ptr - size
         // West: the stack pointer must not overlap the alloc pointer
-        let (target_point, limit_point, direction) = match (alloc.alloc_type, alloc.direction) {
+        let (target_point, limit_point, direction) = match (alloc.alloc_type, alloc.orientation) {
             // West + Alloc, alloc is decreasing
             (AllocationType::Alloc, ArenaOrientation::West) => {
                 let start_point = self.alloc_pointer as usize;
@@ -664,7 +664,7 @@ impl NockStack {
         }
     }
 
-    unsafe fn copy(&mut self, noun: &mut Noun) {
+    unsafe fn copy(&mut self, noun: &mut Noun) -> AllocResult<()> {
         assert_acyclic!(*noun);
         assert_no_forwarding_pointers!(*noun);
         assert_no_junior_pointers!(self, *noun);
@@ -674,9 +674,9 @@ impl NockStack {
         let noun_ptr = noun as *mut Noun;
         // Add two slots to the lightweight stack
         // Set the first new slot to the noun to be copied
-        *(self.push::<Noun>()) = *noun;
+        *(self.push::<Noun>()?) = *noun;
         // Set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
-        *(self.push::<*mut Noun>()) = noun_ptr;
+        *(self.push::<*mut Noun>()?) = noun_ptr;
         loop {
             if self.stack_is_empty() {
                 break;
@@ -735,10 +735,10 @@ impl NockStack {
                                         (*alloc).metadata = (*cell.to_raw_pointer()).metadata;
 
                                         // Push the tail and the head to the work stack
-                                        *(self.push::<Noun>()) = cell.tail();
-                                        *(self.push::<*mut Noun>()) = &mut (*alloc).tail;
-                                        *(self.push::<Noun>()) = cell.head();
-                                        *(self.push::<*mut Noun>()) = &mut (*alloc).head;
+                                        *(self.push::<Noun>()?) = cell.tail();
+                                        *(self.push::<*mut Noun>()?) = &mut (*alloc).tail;
+                                        *(self.push::<Noun>()?) = cell.head();
+                                        *(self.push::<*mut Noun>()?) = &mut (*alloc).head;
 
                                         // Set the forwarding pointer
                                         cell.set_forwarding_pointer(alloc);
@@ -760,6 +760,7 @@ impl NockStack {
         assert_acyclic!(*noun);
         assert_no_forwarding_pointers!(*noun);
         assert_no_junior_pointers!(self, *noun);
+        Ok(())
     }
 
     // TODO: #684: Add OOM checks here? Unsure.
@@ -923,7 +924,7 @@ impl NockStack {
      * this violates the _east/_west naming convention somewhat, since e.g.
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
-    pub unsafe fn push<T>(&mut self) -> *mut T {
+    pub unsafe fn push<T>(&mut self) -> AllocResult<*mut T> {
         if self.is_west() && !self.pc || !self.is_west() && self.pc {
             self.push_west::<T>()
         } else {
@@ -934,37 +935,49 @@ impl NockStack {
     /** Push onto a west-oriented lightweight stack, moving the stack_pointer. */
     // TODO: #684: Add OOM checks here
     // TODO: Basic alloc function
-    unsafe fn push_west<T>(&mut self) -> *mut T {
+    unsafe fn push_west<T>(&mut self) -> AllocResult<*mut T> {
+        let words = word_size_of::<T>();
+        let () = self.alloc_would_oom_(Allocation { orientation: ArenaOrientation::West, alloc_type: AllocationType::Push, pc: self.pc }, words)?;
         let ap = if self.pc {
             *(self.prev_alloc_pointer_pointer())
         } else {
             self.alloc_pointer
         };
         let alloc = self.stack_pointer;
-        let new_sp = self.stack_pointer.add(word_size_of::<T>());
+        let new_sp = self.stack_pointer.add(words);
         if new_sp > ap {
-            ptr::null_mut()
+            // Previously we would return a null pointer in this error case.
+            // Now that we have the alloc_would_oom methods, this shouldn't ever happen.
+            // ptr::null_mut()
+            // If it does, somehow, happen, we should panic.
+            panic!("Out of memory, alloc_would_oom didn't catch it. memory_state: {:#?}", self.memory_state(Some(words)));
         } else {
             self.stack_pointer = new_sp;
-            alloc as *mut T
+            Ok(alloc as *mut T)
         }
     }
 
     /** Push onto an east-oriented ligthweight stack, moving the stack_pointer */
     // TODO: #684: Add OOM checks here
     // TODO: Basic alloc function
-    unsafe fn push_east<T>(&mut self) -> *mut T {
+    unsafe fn push_east<T>(&mut self) -> AllocResult<*mut T> {
+        let words = word_size_of::<T>();
+        let () = self.alloc_would_oom_(Allocation { orientation: ArenaOrientation::West, alloc_type: AllocationType::Push, pc: self.pc }, words)?;
         let ap = if self.pc {
             *(self.prev_alloc_pointer_pointer())
         } else {
             self.alloc_pointer
         };
-        let alloc = self.stack_pointer.sub(word_size_of::<T>());
+        let alloc = self.stack_pointer.sub(words);
         if alloc < ap {
-            ptr::null_mut()
+            // Previously we would return a null pointer in this error case.
+            // Now that we have the alloc_would_oom methods, this shouldn't ever happen.
+            // ptr::null_mut()
+            // If it does, somehow, happen, we should panic.
+            panic!("Out of memory, alloc_would_oom didn't catch it. memory_state: {:#?}", self.memory_state(Some(words)));
         } else {
             self.stack_pointer = alloc;
-            alloc as *mut T
+            Ok(alloc as *mut T)
         }
     }
 
@@ -1283,7 +1296,7 @@ mod test {
 
     use super::*;
     use crate::{
-        jets::cold::{test::{make_noun_list, make_test_stack}, NounList, Nounable}, mem::NockStack, noun::D, unifying_equality::unifying_equality,
+        jets::cold::{test::{make_noun_list, make_test_stack}, NounList, Nounable}, mem::NockStack, noun::D, unifying_equality::test::unifying_equality,
     };
 
     // cargo test -- test_noun_list_alloc --nocapture

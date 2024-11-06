@@ -128,9 +128,9 @@ pub fn mug_u32_one(noun: Noun) -> Option<u32> {
     }
 }
 
-pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
+pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> AllocResult<u32> {
     if let Some(mug) = get_mug(noun) {
-        return mug;
+        return Ok(mug);
     }
 
     assert_acyclic!(noun);
@@ -139,7 +139,7 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
 
     stack.frame_push(0);
     unsafe {
-        *(stack.push()) = noun;
+        *(stack.push()?) = noun;
     }
     loop {
         if stack.stack_is_empty() {
@@ -174,8 +174,8 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
                                     continue;
                                 }
                                 _ => {
-                                    *(stack.push()) = cell.tail();
-                                    *(stack.push()) = cell.head();
+                                    *(stack.push()?) = cell.tail();
+                                    *(stack.push()?) = cell.head();
                                     continue;
                                 }
                             }
@@ -193,9 +193,10 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
     assert_no_forwarding_pointers!(noun);
     assert_no_junior_pointers!(stack, noun);
 
-    get_mug(noun).expect("Noun should have a mug once it is mugged.")
+    // TODO: Purge this expect.
+    Ok(get_mug(noun).expect("Noun should have a mug once it is mugged."))
 }
 
-pub fn mug(stack: &mut NockStack, noun: Noun) -> DirectAtom {
-    unsafe { DirectAtom::new_unchecked(mug_u32(stack, noun) as u64) }
+pub fn mug(stack: &mut NockStack, noun: Noun) -> AllocResult<DirectAtom> {
+    Ok(unsafe { DirectAtom::new_unchecked(mug_u32(stack, noun)? as u64) })
 }

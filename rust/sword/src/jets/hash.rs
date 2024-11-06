@@ -10,7 +10,7 @@ crate::gdb!();
 
 pub fn jet_mug(context: &mut Context, subject: Noun) -> Result<Noun> {
     let arg = slot(subject, 6)?;
-    Ok(mug(&mut context.stack, arg).as_noun())
+    Ok(mug(&mut context.stack, arg)?.as_noun())
 }
 
 #[cfg(test)]

@@ -28,19 +28,19 @@ pub type Result = std::result::Result<bool, Error>;
 
 // Batteries is a core hierarchy (e.g. a path of parent batteries to a root)
 #[derive(Copy, Clone)]
-pub struct Batteries(*mut BatteriesMem);
+pub struct Batteries(pub *mut BatteriesMem);
 
 const NO_BATTERIES: Batteries = Batteries(null_mut());
 
 #[derive(Copy, Clone)]
-struct BatteriesMem {
+pub(crate) struct BatteriesMem {
     battery: Noun,
-    parent_axis: Atom,
+    pub(crate) parent_axis: Atom,
     parent_batteries: Batteries,
 }
 
 impl Persist for Batteries {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> AllocResult<usize> {
         let mut bytes = 0;
         let mut batteries = *self;
 
@@ -52,14 +52,14 @@ impl Persist for Batteries {
                 break;
             }
             bytes += size_of::<BatteriesMem>();
-            bytes += (*batteries.0).battery.space_needed(stack);
-            bytes += (*batteries.0).parent_axis.space_needed(stack);
+            bytes += (*batteries.0).battery.space_needed(stack)?;
+            bytes += (*batteries.0).parent_axis.space_needed(stack)?;
             batteries = (*batteries.0).parent_batteries;
         }
-        bytes
+        Ok(bytes)
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()> {
         let mut dest = self;
         loop {
             if dest.0.is_null() {
@@ -81,6 +81,7 @@ impl Persist for Batteries {
             dest.0 = batteries_mem_ptr;
             dest = &mut (*dest.0).parent_batteries;
         }
+        Ok(())
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
@@ -150,7 +151,7 @@ impl Iterator for Batteries {
 }
 
 impl Batteries {
-    pub fn matches(self, stack: &mut NockStack, mut core: Noun) -> bool {
+    pub fn matches(self, stack: &mut NockStack, mut core: Noun) -> AllocResult<bool> {
         let mut root_found: bool = false;
 
         for (battery, parent_axis) in self {
@@ -160,26 +161,26 @@ impl Batteries {
 
             if let Ok(d) = parent_axis.as_direct() {
                 if d.data() == 0 {
-                    if unsafe { unifying_equality(stack, &mut core, battery) } {
+                    if unsafe { unifying_equality(stack, &mut core, battery)? } {
                         root_found = true;
                         continue;
                     } else {
-                        return false;
+                        return Ok(false);
                     };
                 };
             };
             if let Ok(mut core_battery) = core.slot(2) {
-                if unsafe { !unifying_equality(stack, &mut core_battery, battery) } {
-                    return false;
+                if unsafe { !unifying_equality(stack, &mut core_battery, battery)? } {
+                    return Ok(false);
                 };
                 if let Ok(core_parent) = core.slot_atom(parent_axis) {
                     core = core_parent;
                     continue;
                 } else {
-                    return false;
+                    return Ok(false);
                 }
             } else {
-                return false;
+                return Ok(false);
             }
         }
 
@@ -187,7 +188,7 @@ impl Batteries {
             panic!("cold: core matched exactly, but never matched root");
         }
 
-        true
+        Ok(true)
     }
 }
 
@@ -205,7 +206,7 @@ struct BatteriesListMem {
 }
 
 impl Persist for BatteriesList {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> AllocResult<usize> {
         let mut bytes = 0;
         let mut list = *self;
         loop {
@@ -216,14 +217,14 @@ impl Persist for BatteriesList {
                 break;
             }
             bytes += size_of::<BatteriesListMem>();
-            bytes += (*list.0).batteries.space_needed(stack);
+            bytes += (*list.0).batteries.space_needed(stack)?;
 
             list = (*list.0).next;
         }
-        bytes
+        Ok(bytes)
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()> {
         let mut dest = self;
 
         loop {
@@ -242,6 +243,7 @@ impl Persist for BatteriesList {
             (*dest.0).batteries.copy_to_buffer(stack, buffer);
             dest = &mut (*dest.0).next;
         }
+        Ok(())
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
@@ -307,8 +309,20 @@ impl Iterator for BatteriesList {
 }
 
 impl BatteriesList {
-    fn matches(mut self, stack: &mut NockStack, core: Noun) -> Option<Batteries> {
-        self.find(|&batteries| batteries.matches(stack, core))
+    fn matches(self, stack: &mut NockStack, core: Noun) -> AllocResult<Option<Batteries>> {
+        for batteries in self {
+            match batteries.matches(stack, core) {
+                Ok(matched) => {
+                    if matched {
+                        return Ok(Some(batteries));
+                    } else {
+                        continue;
+                    }
+                },
+                Err(err) => return Err(err),
+            }
+        }
+        Ok(None)
     }
 }
 
@@ -326,7 +340,7 @@ pub(crate) struct NounListMem {
 }
 
 impl Persist for NounList {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> AllocResult<usize> {
         let mut bytes: usize = 0;
         let mut list = *self;
 
@@ -339,14 +353,14 @@ impl Persist for NounList {
             }
 
             bytes += size_of::<NounListMem>();
-            bytes += (*list.0).element.space_needed(stack);
+            bytes += (*list.0).element.space_needed(stack)?;
 
             list = (*list.0).next;
         }
-        bytes
+        Ok(bytes)
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()> {
         let mut dest = self;
 
         loop {
@@ -366,6 +380,7 @@ impl Persist for NounList {
 
             dest = &mut (*dest.0).next;
         }
+        Ok(())
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
@@ -455,21 +470,21 @@ struct ColdMem {
 }
 
 impl Persist for Cold {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> AllocResult<usize> {
         if pma_contains(self.0, 1) {
-            return 0;
+            return Ok(0);
         }
 
         let mut bytes = size_of::<ColdMem>();
-        bytes += (*self.0).battery_to_paths.space_needed(stack);
-        bytes += (*self.0).root_to_paths.space_needed(stack);
-        bytes += (*self.0).path_to_batteries.space_needed(stack);
-        bytes
+        bytes += (*self.0).battery_to_paths.space_needed(stack)?;
+        bytes += (*self.0).root_to_paths.space_needed(stack)?;
+        bytes += (*self.0).path_to_batteries.space_needed(stack)?;
+        Ok(bytes)
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()> {
         if pma_contains(self.0, 1) {
-            return;
+            return Ok(());
         }
 
         let cold_mem_ptr = *buffer as *mut ColdMem;
@@ -478,9 +493,10 @@ impl Persist for Cold {
 
         self.0 = cold_mem_ptr;
 
-        (*self.0).battery_to_paths.copy_to_buffer(stack, buffer);
-        (*self.0).root_to_paths.copy_to_buffer(stack, buffer);
-        (*self.0).path_to_batteries.copy_to_buffer(stack, buffer);
+        (*self.0).battery_to_paths.copy_to_buffer(stack, buffer)?;
+        (*self.0).root_to_paths.copy_to_buffer(stack, buffer)?;
+        (*self.0).path_to_batteries.copy_to_buffer(stack, buffer)?;
+        Ok(())
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
@@ -553,32 +569,39 @@ impl Cold {
         }
     }
 
-    pub fn find(&mut self, stack: &mut NockStack, path: &mut Noun) -> BatteriesList {
-        unsafe {
+    pub fn find(&mut self, stack: &mut NockStack, path: &mut Noun) -> AllocResult<BatteriesList> {
+        Ok(unsafe {
             (*(self.0))
                 .path_to_batteries
-                .lookup(stack, path)
+                .lookup(stack, path)?
                 .unwrap_or(BATTERIES_LIST_NIL)
-        }
+        })
     }
 
     /** Try to match a core directly to the cold state, print the resulting path if found
      */
-    pub fn matches(&mut self, stack: &mut NockStack, core: &mut Noun) -> Option<Noun> {
-        let mut battery = (*core).slot(2).ok()?;
+    pub fn matches(&mut self, stack: &mut NockStack, core: &mut Noun) -> crate::noun::Result<Option<Noun>> {
+        let mut battery = (*core).slot(2)?;
         unsafe {
             let paths = (*(self.0)).battery_to_paths.lookup(stack, &mut battery)?;
-            for path in paths {
-                if let Some(batteries_list) =
-                    (*(self.0)).path_to_batteries.lookup(stack, &mut (*path))
-                {
-                    if let Some(_batt) = batteries_list.matches(stack, *core) {
-                        return Some(*path);
+            if let Some(paths) = paths {
+                for path in paths {
+                    if let Some(batteries_list) = (*(self.0)).path_to_batteries.lookup(stack, &mut (*path))?
+                    {
+                        if let Some(_batt) = batteries_list.matches(stack, *core)? {
+                            return Ok(Some(*path));
+                        } else {
+                            return Ok(None);
+                        }
+                    } else {
+                        return Ok(None);
                     }
                 }
+                Ok(None)
+            } else {
+                Ok(None)
             }
-        };
-        None
+        }
     }
 
     /// register a core, return a boolean of whether we actually needed to register (false ->
@@ -598,9 +621,9 @@ impl Cold {
             if let Ok(parent_axis_direct) = parent_axis.as_direct() {
                 if parent_axis_direct.data() == 0 {
                     let mut root_path = T(stack, &[chum, D(0)])?;
-                    if let Some(paths) = (*(self.0)).root_to_paths.lookup(stack, &mut core) {
+                    if let Some(paths) = (*(self.0)).root_to_paths.lookup(stack, &mut core)? {
                         for a_path in paths {
-                            if unifying_equality(stack, &mut root_path, a_path) {
+                            if unifying_equality(stack, &mut root_path, a_path)? {
                                 return Ok(false); // it's already in here
                             }
                         }
@@ -614,7 +637,7 @@ impl Cold {
 
                     let current_batteries_list: BatteriesList = (*(self.0))
                         .path_to_batteries
-                        .lookup(stack, &mut root_path)
+                        .lookup(stack, &mut root_path)?
                         .unwrap_or(BATTERIES_LIST_NIL);
 
                     let batteries_list_mem_ptr: *mut BatteriesListMem = stack.struct_alloc(1)?;
@@ -625,7 +648,7 @@ impl Cold {
 
                     let current_paths_list: NounList = (*(self.0))
                         .root_to_paths
-                        .lookup(stack, &mut core)
+                        .lookup(stack, &mut core)?
                         .unwrap_or(NOUN_LIST_NIL);
 
                     let paths_list_mem_ptr: *mut NounListMem = stack.struct_alloc(1)?;
@@ -657,14 +680,14 @@ impl Cold {
             let mut battery = core.slot(2)?;
             let mut parent = core.slot_atom(parent_axis)?;
             // Check if we already registered this core
-            if let Some(paths) = (*(self.0)).battery_to_paths.lookup(stack, &mut battery) {
+            if let Some(paths) = (*(self.0)).battery_to_paths.lookup(stack, &mut battery)? {
                 for path in paths {
                     if let Ok(path_cell) = (*path).as_cell() {
-                        if unifying_equality(stack, &mut path_cell.head(), &mut chum) {
+                        if unifying_equality(stack, &mut path_cell.head(), &mut chum)? {
                             if let Some(batteries_list) =
-                                (*(self.0)).path_to_batteries.lookup(stack, &mut *path)
+                                (*(self.0)).path_to_batteries.lookup(stack, &mut *path)?
                             {
-                                if let Some(_batteries) = batteries_list.matches(stack, core) {
+                                if let Some(_batteries) = batteries_list.matches(stack, core)? {
                                     return Ok(false);
                                 }
                             }
@@ -682,13 +705,13 @@ impl Cold {
             let mut battery_to_paths = (*(self.0)).battery_to_paths;
             let root_to_paths = (*(self.0)).root_to_paths;
 
-            if let Some(paths) = battery_to_paths.lookup(stack, &mut parent_battery) {
+            if let Some(paths) = battery_to_paths.lookup(stack, &mut parent_battery)? {
                 for a_path in paths {
                     // path is a reserved word lol
                     let battery_list = path_to_batteries
-                        .lookup(stack, &mut *a_path)
+                        .lookup(stack, &mut *a_path)?
                         .unwrap_or(BATTERIES_LIST_NIL);
-                    if let Some(parent_batteries) = battery_list.matches(stack, parent) {
+                    if let Some(parent_batteries) = battery_list.matches(stack, parent)? {
                         let mut my_path = T(stack, &[chum, *a_path])?;
 
                         let batteries_mem_ptr: *mut BatteriesMem = stack.struct_alloc(1)?;
@@ -699,7 +722,7 @@ impl Cold {
                         };
 
                         let current_batteries_list = path_to_batteries
-                            .lookup(stack, &mut my_path)
+                            .lookup(stack, &mut my_path)?
                             .unwrap_or(BATTERIES_LIST_NIL);
                         let batteries_list_mem_ptr: *mut BatteriesListMem = stack.struct_alloc(1)?;
                         *batteries_list_mem_ptr = BatteriesListMem {
@@ -708,7 +731,7 @@ impl Cold {
                         };
 
                         let current_paths_list = battery_to_paths
-                            .lookup(stack, &mut battery)
+                            .lookup(stack, &mut battery)?
                             .unwrap_or(NOUN_LIST_NIL);
                         let paths_list_mem_ptr: *mut NounListMem = stack.struct_alloc(1)?;
                         *paths_list_mem_ptr = NounListMem {
@@ -731,13 +754,13 @@ impl Cold {
                 }
             };
 
-            if let Some(paths) = root_to_paths.lookup(stack, &mut parent) {
+            if let Some(paths) = root_to_paths.lookup(stack, &mut parent)? {
                 for a_path in paths {
                     // path is a reserved word lol
                     let battery_list = path_to_batteries
-                        .lookup(stack, &mut *a_path)
+                        .lookup(stack, &mut *a_path)?
                         .unwrap_or(BATTERIES_LIST_NIL);
-                    if let Some(parent_batteries) = battery_list.matches(stack, parent) {
+                    if let Some(parent_batteries) = battery_list.matches(stack, parent)? {
                         let mut my_path = T(stack, &[chum, *a_path])?;
 
                         let batteries_mem_ptr: *mut BatteriesMem = stack.struct_alloc(1)?;
@@ -748,7 +771,7 @@ impl Cold {
                         };
 
                         let current_batteries_list = path_to_batteries
-                            .lookup(stack, &mut my_path)
+                            .lookup(stack, &mut my_path)?
                             .unwrap_or(BATTERIES_LIST_NIL);
                         let batteries_list_mem_ptr: *mut BatteriesListMem = stack.struct_alloc(1)?;
                         *batteries_list_mem_ptr = BatteriesListMem {
@@ -757,7 +780,7 @@ impl Cold {
                         };
 
                         let current_paths_list = battery_to_paths
-                            .lookup(stack, &mut battery)
+                            .lookup(stack, &mut battery)?
                             .unwrap_or(NOUN_LIST_NIL);
                         let paths_list_mem_ptr: *mut NounListMem = stack.struct_alloc(1)?;
                         *paths_list_mem_ptr = NounListMem {
@@ -1187,6 +1210,7 @@ pub(crate) mod test {
     use std::iter::FromIterator;
 
     use super::*;
+    use crate::unifying_equality::test::unifying_equality;
     use crate::{
         hamt::Hamt,
         mem::NockStack,

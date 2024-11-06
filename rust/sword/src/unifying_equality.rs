@@ -1,6 +1,7 @@
 use crate::assert_acyclic;
 use crate::assert_no_forwarding_pointers;
 use crate::assert_no_junior_pointers;
+use crate::mem::AllocResult;
 use crate::mem::{NockStack, ALLOC, FRAME, STACK};
 use crate::noun::Noun;
 use crate::persist::{pma_contains, pma_dirty};
@@ -23,7 +24,18 @@ macro_rules! assert_no_junior_pointers {
     ( $x:expr, $y:expr ) => {};
 }
 
-pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
+#[cfg(test)]
+pub(crate) mod test {
+    use crate::mem::NockStack;
+    use crate::noun::Noun;
+
+    /// Tests only, not part of the actual implementation. Use this outside of #[cfg(test)] and I will sic the linter on you.
+    pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
+        super::unifying_equality(stack, a, b).expect("OOM error in test::unifying_equality")
+    }
+}
+
+pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> AllocResult<bool> {
     /* This version of unifying equality is not like that of vere.
      * Vere does a tree comparison (accelerated by pointer equality and short-circuited by mug
      * equality) and then unifies the nouns at the top level if they are equal.
@@ -56,18 +68,18 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
 
     // If the nouns are already word-equal we have nothing to do
     if (*a).raw_equals(*b) {
-        return true;
+        return Ok(true);
     };
     // If the nouns have cached mugs which are disequal we have nothing to do
     if let (Ok(a_alloc), Ok(b_alloc)) = ((*a).as_allocated(), (*b).as_allocated()) {
         if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug()) {
             if a_mug != b_mug {
-                return false;
+                return Ok(false);
             };
         };
     };
     stack.frame_push(0);
-    *(stack.push::<(*mut Noun, *mut Noun)>()) = (a, b);
+    *(stack.push::<(*mut Noun, *mut Noun)>()?) = (a, b);
     loop {
         if stack.stack_is_empty() {
             break;
@@ -145,9 +157,9 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                          * If both sides are equal, then we will discover pointer
                          * equality when we return and unify the cell.
                          */
-                        *(stack.push::<(*mut Noun, *mut Noun)>()) =
+                        *(stack.push::<(*mut Noun, *mut Noun)>()?) =
                             (x_cell.tail_as_mut(), y_cell.tail_as_mut());
-                        *(stack.push::<(*mut Noun, *mut Noun)>()) =
+                        *(stack.push::<(*mut Noun, *mut Noun)>()?) =
                             (x_cell.head_as_mut(), y_cell.head_as_mut());
                         continue;
                     }
@@ -169,7 +181,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
     assert_no_junior_pointers!(stack, *a);
     assert_no_junior_pointers!(stack, *b);
 
-    (*a).raw_equals(*b)
+    Ok((*a).raw_equals(*b))
 }
 
 unsafe fn senior_pointer_first(

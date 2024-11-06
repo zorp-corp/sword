@@ -565,7 +565,7 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result<Noun> {
                     let puq_vex = slot(q_vex, 6)?;
                     let quq_vex = slot(q_vex, 7)?;
 
-                    *(context.stack.push::<StirPair>()) = StirPair {
+                    *(context.stack.push::<StirPair>()?) = StirPair {
                         har: p_vex,
                         res: puq_vex,
                     };

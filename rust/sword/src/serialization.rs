@@ -109,7 +109,7 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
 
     unsafe {
         stack.with_frame(0, |stack: &mut NockStack| {
-            *(stack.push::<CueStackEntry>()) =
+            *(stack.push::<CueStackEntry>()?) =
                 CueStackEntry::DestinationPointer(&mut result as *mut Noun);
             loop {
                 if stack.stack_is_empty() {
@@ -127,7 +127,7 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
                                 let mut backref_noun =
                                     Atom::new(stack, rub_backref(&mut cursor, buffer)?)?.as_noun();
                                 *dest_ptr = backref_map
-                                    .lookup(stack, &mut backref_noun)
+                                    .lookup(stack, &mut backref_noun)?
                                     .ok_or(Deterministic(Exit, D(0)))?;
                             } else {
                                 // 10 tag: cell
@@ -136,13 +136,13 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
                                 let mut backref_atom =
                                     Atom::new(stack, (cursor - 2) as u64)?.as_noun();
                                 backref_map.insert(stack, &mut backref_atom, *dest_ptr);
-                                *(stack.push()) = CueStackEntry::BackRef(
+                                *(stack.push()?) = CueStackEntry::BackRef(
                                     cursor as u64 - 2,
                                     dest_ptr as *const Noun,
                                 );
-                                *(stack.push()) =
+                                *(stack.push()?) =
                                     CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).tail);
-                                *(stack.push()) =
+                                *(stack.push()?) =
                                     CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).head);
                             }
                         } else {
@@ -284,14 +284,14 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> AllocResult<Atom> {
     };
     stack.frame_push(0);
     unsafe {
-        *(stack.push::<Noun>()) = noun;
+        *(stack.push::<Noun>()?) = noun;
     };
     'jam: loop {
         if stack.stack_is_empty() {
             break;
         } else {
             let mut noun = unsafe { *(stack.top::<Noun>()) };
-            if let Some(backref) = backref_map.lookup(stack, &mut noun) {
+            if let Some(backref) = backref_map.lookup(stack, &mut noun)? {
                 match noun.as_either_atom_cell() {
                     Left(atom) => {
                         let atom_size = met0_usize(atom);
@@ -324,8 +324,8 @@ pub fn jam(stack: &mut NockStack, noun: Noun) -> AllocResult<Atom> {
                     jam_cell(stack, &mut state);
                     unsafe {
                         stack.pop::<Noun>();
-                        *(stack.push::<Noun>()) = cell.tail();
-                        *(stack.push::<Noun>()) = cell.head();
+                        *(stack.push::<Noun>()?) = cell.tail();
+                        *(stack.push::<Noun>()?) = cell.head();
                     };
                     continue;
                 }
@@ -545,7 +545,7 @@ mod tests {
 
         let mut stack = setup_stack();
         let mut rng_clone = rng.clone();
-        let (original, total_size) = generate_deeply_nested_noun(&mut stack, depth, &mut rng_clone);
+        let (original, total_size) = generate_deeply_nested_noun(&mut stack, depth, &mut rng_clone).unwrap();
 
         println!(
             "Total size of all generated nouns: {:.2} KB",
@@ -563,7 +563,7 @@ mod tests {
         assert_noun_eq(&mut stack, cued, original);
     }
 
-    fn generate_random_noun(stack: &mut NockStack, bits: usize, rng: &mut StdRng) -> (Noun, usize) {
+    fn generate_random_noun(stack: &mut NockStack, bits: usize, rng: &mut StdRng) -> AllocResult<(Noun, usize)> {
         const MAX_DEPTH: usize = 100; // Adjust this value as needed
         fn inner(
             stack: &mut NockStack,
@@ -571,7 +571,7 @@ mod tests {
             rng: &mut StdRng,
             depth: usize,
             accumulated_size: usize,
-        ) -> (Noun, usize) {
+        ) -> AllocResult<(Noun, usize)> {
             let mut done = false;
             if depth >= MAX_DEPTH || stack.size() < 1024 || accumulated_size > stack.size() - 1024 {
                 // println!("Done at depth and size: {} {:.2} KB", depth, accumulated_size as f64 / 1024.0);
@@ -584,25 +584,25 @@ mod tests {
                 let noun = atom.as_noun();
                 (noun, accumulated_size + noun.mass())
             } else {
-                let (left, left_size) = inner(stack, bits / 2, rng, depth + 1, accumulated_size);
-                let (right, _) = inner(stack, bits / 2, rng, depth + 1, left_size);
+                let (left, left_size) = inner(stack, bits / 2, rng, depth + 1, accumulated_size)?;
+                let (right, _) = inner(stack, bits / 2, rng, depth + 1, left_size)?;
 
                 let cell = Cell::new(stack, left, right).unwrap();
                 let noun = cell.as_noun();
                 (noun, noun.mass())
             };
 
-            if unsafe { result.0.space_needed(stack) } > stack.size() {
+            if unsafe { result.0.space_needed(stack)? } > stack.size() {
                 eprintln!(
                     "Stack size exceeded with noun size {:.2} KB",
                     result.0.mass() as f64 / 1024.0
                 );
                 unsafe {
                     let top_noun = *stack.top::<Noun>();
-                    (top_noun, result.1)
+                    Ok((top_noun, result.1))
                 }
             } else {
-                result
+                Ok(result)
             }
         }
 
@@ -613,18 +613,18 @@ mod tests {
         stack: &mut NockStack,
         depth: usize,
         rng: &mut StdRng,
-    ) -> (Noun, usize) {
+    ) -> AllocResult<(Noun, usize)> {
         if depth == 0 {
-            let (noun, size) = generate_random_noun(stack, 100, rng);
-            (noun, size)
+            let (noun, size) = generate_random_noun(stack, 100, rng)?;
+            Ok((noun, size))
         } else {
-            let (left, left_size) = generate_deeply_nested_noun(stack, depth - 1, rng);
-            let (right, right_size) = generate_deeply_nested_noun(stack, depth - 1, rng);
+            let (left, left_size) = generate_deeply_nested_noun(stack, depth - 1, rng)?;
+            let (right, right_size) = generate_deeply_nested_noun(stack, depth - 1, rng)?;
             let cell = Cell::new(stack, left, right).unwrap();
             let mut noun = cell.as_noun();
             let total_size = left_size + right_size + noun.mass();
 
-            if unsafe { noun.space_needed(stack) } > stack.size() {
+            if unsafe { noun.space_needed(stack)? } > stack.size() {
                 eprintln!(
                     "Stack size exceeded at depth {} with noun size {:.2} KB",
                     depth,
@@ -632,11 +632,11 @@ mod tests {
                 );
                 unsafe {
                     let top_noun = *stack.top::<Noun>();
-                    (top_noun, total_size)
+                    Ok((top_noun, total_size))
                 }
             } else {
                 // println!("Size: {:.2} KB, depth: {}", noun.mass() as f64 / 1024.0, depth);
-                (noun, total_size)
+                Ok((noun, total_size))
             }
         }
     }
@@ -662,7 +662,7 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(1);
 
         // Create an atom with a very large value to potentially cause overflow
-        let (large_atom, _) = generate_deeply_nested_noun(&mut big_stack, 5, &mut rng);
+        let (large_atom, _) = generate_deeply_nested_noun(&mut big_stack, 5, &mut rng).unwrap();
 
         // Attempt to jam and then cue the large atom in the big stack
         let jammed = jam(&mut big_stack, large_atom).unwrap();

@@ -24,8 +24,8 @@ pub fn jet_gor(context: &mut Context, subject: Noun) -> jets::Result<Noun> {
     let a = slot(sam, 2)?;
     let b = slot(sam, 3)?;
 
-    let c = mug(stack, a);
-    let d = mug(stack, b);
+    let c = mug(stack, a)?;
+    let d = mug(stack, b)?;
 
     match c.data().cmp(&d.data()) {
         Ordering::Greater => Ok(NO),
@@ -41,11 +41,11 @@ pub fn jet_mor(context: &mut Context, subject: Noun) -> jets::Result<Noun> {
     let a = slot(sam, 2)?;
     let b = slot(sam, 3)?;
 
-    let c = mug(stack, a);
-    let d = mug(stack, b);
+    let c = mug(stack, a)?;
+    let d = mug(stack, b)?;
 
-    let e = mug(stack, c.as_noun());
-    let f = mug(stack, d.as_noun());
+    let e = mug(stack, c.as_noun())?;
+    let f = mug(stack, d.as_noun())?;
 
     match e.data().cmp(&f.data()) {
         Ordering::Greater => Ok(NO),

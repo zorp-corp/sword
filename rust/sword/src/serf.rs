@@ -37,15 +37,15 @@ enum BTMetaField {
 struct Snapshot(pub *mut SnapshotMem);
 
 impl Persist for Snapshot {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> AllocResult<usize> {
         let mut arvo = (*(self.0)).arvo;
         let mut cold = (*(self.0)).cold;
-        let arvo_space_needed = arvo.space_needed(stack);
-        let cold_space_needed = cold.space_needed(stack);
-        (((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed
+        let arvo_space_needed = arvo.space_needed(stack)?;
+        let cold_space_needed = cold.space_needed(stack)?;
+        Ok((((size_of::<SnapshotMem>() + 7) >> 3) << 3) + arvo_space_needed + cold_space_needed)
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()> {
         let snapshot_buffer = *buffer as *mut SnapshotMem;
         std::ptr::copy_nonoverlapping(self.0, snapshot_buffer, 1);
         *self = Snapshot(snapshot_buffer);
@@ -58,6 +58,7 @@ impl Persist for Snapshot {
         let mut cold = (*snapshot_buffer).cold;
         cold.copy_to_buffer(stack, buffer);
         (*snapshot_buffer).cold = cold;
+        Ok(())
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
@@ -131,7 +132,7 @@ impl Context {
             self.nock_context.cold = (*snapshot.0).cold;
 
             handle
-        };
+        }?;
         pma_meta_set(
             BTMetaField::SnapshotVersion as usize,
             PMA_CURRENT_SNAPSHOT_VERSION,
@@ -163,7 +164,7 @@ impl Context {
 
         let hot = Hot::init(&mut stack, constant_hot_state)?;
         let warm = Warm::init(&mut stack, &mut cold, &hot)?;
-        let mug = mug_u32(&mut stack, arvo);
+        let mug = mug_u32(&mut stack, arvo)?;
         let slogger = newt.slogger().expect("Newt should make slogger");
 
         let nock_context = interpreter::Context {
@@ -206,7 +207,7 @@ impl Context {
         self.nock_context.scry_stack = D(0);
 
         // XX save to PMA
-        self.mug = mug_u32(&mut self.nock_context.stack, self.arvo);
+        self.mug = mug_u32(&mut self.nock_context.stack, self.arvo)?;
         Ok(())
     }
 

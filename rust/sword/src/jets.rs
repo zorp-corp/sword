@@ -306,13 +306,14 @@ pub mod util {
         kick(context, core, D(2))
     }
 
+    #[cfg(test)]
     pub mod test {
         use super::*;
         use crate::hamt::Hamt;
         use crate::interpreter::Slogger;
         use crate::mem::{AllocResult, NockStack};
         use crate::noun::{Atom, Noun, D, T};
-        use crate::unifying_equality::unifying_equality;
+        use crate::unifying_equality::test::unifying_equality;
         use assert_no_alloc::assert_no_alloc;
         use ibig::UBig;
 

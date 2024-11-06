@@ -24,7 +24,7 @@ pub fn jet_roll(context: &mut Context, subject: Noun) -> Result<Noun> {
     let mut gate = slot(sample, 3)?;
     let mut prod = slot(gate, 13)?;
 
-    let site = Site::new(context, &mut gate);
+    let site = Site::new(context, &mut gate)?;
     loop {
         if let Ok(list_cell) = list.as_cell() {
             list = list_cell.tail();
@@ -61,7 +61,7 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result<Noun> {
 
     // Since the gate doesn't change, we can do a single jet check and use that through the whole
     // loop
-    let site = Site::new(context, &mut gate);
+    let site = Site::new(context, &mut gate)?;
     loop {
         if let Ok(list_cell) = list.as_cell() {
             list = list_cell.tail();

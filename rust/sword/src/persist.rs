@@ -1,4 +1,4 @@
-use crate::mem::NockStack;
+use crate::mem::{AllocResult, NockStack};
 use crate::noun::{Allocated, Atom, Cell, CellMemory, IndirectAtom, Noun};
 use either::Either::{Left, Right};
 use std::convert::TryInto;
@@ -116,20 +116,20 @@ pub unsafe fn pma_dirty<T>(ptr: *mut T, count: usize) {
 pub trait Persist {
     /// Count how much space is needed, in bytes. May set marks so long as marks are cleaned up by
     /// [copy_into_buffer]
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize;
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> AllocResult<usize>;
 
     /// Copy into the provided buffer, which may be assumed to be at least as large as the size
     /// returned by [space_needed] on the same structure.
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8);
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()>;
 
     /// Persist an object into the PMA using [space_needed] and [copy_to_buffer], returning
     /// a [u64] (probably a pointer or tagged pointer) that can be saved into metadata.
-    unsafe fn save_to_pma(&mut self, stack: &mut NockStack) -> u64 {
+    unsafe fn save_to_pma(&mut self, stack: &mut NockStack) -> AllocResult<u64> {
         unsafe {
-            let space = self.space_needed(stack);
+            let space = self.space_needed(stack)?;
 
             if space == 0 {
-                return self.handle_to_u64();
+                return Ok(self.handle_to_u64());
             }
 
             let space_as_pages = (space + (BT_PAGESIZE as usize - 1)) >> BT_PAGEBITS;
@@ -139,7 +139,7 @@ pub trait Persist {
             self.copy_to_buffer(stack, &mut buffer);
             let space_isize: isize = space.try_into().unwrap();
             assert!(buffer.offset_from(orig_buffer) == space_isize);
-            self.handle_to_u64()
+            Ok(self.handle_to_u64())
         }
     }
 
@@ -161,17 +161,17 @@ unsafe fn unmark(a: Allocated) {
 }
 
 impl Persist for Atom {
-    unsafe fn space_needed(&mut self, _stack: &mut NockStack) -> usize {
+    unsafe fn space_needed(&mut self, _stack: &mut NockStack) -> AllocResult<usize> {
         if let Ok(indirect) = self.as_indirect() {
             let count = indirect.raw_size();
             if !pma_contains(indirect.to_raw_pointer(), count) && !mark(indirect.as_allocated()) {
-                return count * size_of::<u64>();
+                return Ok(count * size_of::<u64>());
             }
         }
-        0
+        Ok(0)
     }
 
-    unsafe fn copy_to_buffer(&mut self, _stack: &mut NockStack, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, _stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()> {
         if let Ok(mut indirect) = self.as_indirect() {
             let count = indirect.raw_size();
             if !pma_contains(indirect.to_raw_pointer(), count) {
@@ -188,6 +188,7 @@ impl Persist for Atom {
                 }
             }
         }
+        Ok(())
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
@@ -200,10 +201,10 @@ impl Persist for Atom {
 }
 
 impl Persist for Noun {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> AllocResult<usize> {
         let mut space = 0usize;
         stack.frame_push(0);
-        *(stack.push::<Noun>()) = *self;
+        *(stack.push::<Noun>()?) = *self;
         loop {
             if stack.stack_is_empty() {
                 break;
@@ -213,25 +214,25 @@ impl Persist for Noun {
 
             match noun.as_either_atom_cell() {
                 Left(mut atom) => {
-                    space += atom.space_needed(stack);
+                    space += atom.space_needed(stack)?;
                 }
                 Right(cell) => {
                     if !pma_contains(cell.to_raw_pointer(), 1) && !mark(cell.as_allocated()) {
                         space += size_of::<CellMemory>();
-                        (*stack.push::<Noun>()) = cell.tail();
-                        (*stack.push::<Noun>()) = cell.head();
+                        (*stack.push::<Noun>()?) = cell.tail();
+                        (*stack.push::<Noun>()?) = cell.head();
                     }
                 }
             }
         }
         stack.frame_pop();
-        space
+        Ok(space)
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()> {
         let mut buffer_u64 = (*buffer) as *mut u64;
         stack.frame_push(0);
-        *(stack.push::<*mut Noun>()) = self as *mut Noun;
+        *(stack.push::<*mut Noun>()?) = self as *mut Noun;
 
         loop {
             if stack.stack_is_empty() {
@@ -275,8 +276,8 @@ impl Persist for Noun {
 
                             *dest = Cell::from_raw_pointer(new_cell_mem).as_noun();
 
-                            *(stack.push::<*mut Noun>()) = &mut (*new_cell_mem).tail;
-                            *(stack.push::<*mut Noun>()) = &mut (*new_cell_mem).head;
+                            *(stack.push::<*mut Noun>()?) = &mut (*new_cell_mem).tail;
+                            *(stack.push::<*mut Noun>()?) = &mut (*new_cell_mem).head;
 
                             buffer_u64 = new_cell_mem.add(1) as *mut u64;
                         }
@@ -286,6 +287,7 @@ impl Persist for Noun {
         }
         *buffer = buffer_u64 as *mut u8;
         stack.frame_pop();
+        Ok(())
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {

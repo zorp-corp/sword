@@ -70,27 +70,27 @@ impl<T: Copy> MutHamt<T> {
         }
     }
 
-    pub fn lookup(self, stack: &mut NockStack, n: &mut Noun) -> Option<T> {
+    pub fn lookup(self, stack: &mut NockStack, n: &mut Noun) -> AllocResult<Option<T>> {
         let mut stem = self.0;
-        let mut mug = mug_u32(stack, *n);
+        let mut mug = mug_u32(stack, *n)?;
         unsafe {
             'lookup: loop {
                 let chunk = mug & 0x1f;
                 mug >>= 5;
                 match (*stem).entry(chunk) {
                     None => {
-                        break None;
+                        break Ok(None);
                     }
                     Some(Left(next_stem)) => {
                         stem = next_stem;
                     }
                     Some(Right(leaf)) => {
                         for pair in leaf.to_mut_slice().iter_mut() {
-                            if unifying_equality(stack, n, &mut pair.0) {
-                                break 'lookup Some(pair.1);
+                            if unifying_equality(stack, n, &mut pair.0)? {
+                                break 'lookup Ok(Some(pair.1));
                             }
                         }
-                        break None;
+                        break Ok(None);
                     }
                 }
             }
@@ -99,7 +99,7 @@ impl<T: Copy> MutHamt<T> {
 
     pub fn insert(self, stack: &mut NockStack, n: &mut Noun, t: T) -> AllocResult<()> {
         let mut stem = self.0;
-        let mut mug = mug_u32(stack, *n);
+        let mut mug = mug_u32(stack, *n)?;
         let mut depth = 0u8;
         unsafe {
             'insert: loop {
@@ -126,7 +126,7 @@ impl<T: Copy> MutHamt<T> {
                     }
                     Some(Right(leaf)) => {
                         for pair in leaf.to_mut_slice().iter_mut() {
-                            if unifying_equality(stack, n, &mut pair.0) {
+                            if unifying_equality(stack, n, &mut pair.0)? {
                                 pair.1 = t;
                                 break 'insert;
                             }
@@ -145,7 +145,7 @@ impl<T: Copy> MutHamt<T> {
                         } else {
                             assert!(leaf.len == 1);
                             let new_stem = stack.struct_alloc::<MutStem<T>>(1)?;
-                            let leaf_mug = mug_u32(stack, (*leaf.buffer).0);
+                            let leaf_mug = mug_u32(stack, (*leaf.buffer).0)?;
                             let leaf_chunk = (leaf_mug >> ((depth + 1) * 5)) & 0x1f;
                             (*new_stem).bitmap = chunk_to_bit(leaf_chunk);
                             (*new_stem).typemap = 0;
@@ -308,15 +308,15 @@ impl<T: Copy + Preserve> Hamt<T> {
      * A mutable reference is required so that unifying equality can unify the key with a key entry
      * in the HAMT
      */
-    pub fn lookup(&self, stack: &mut NockStack, n: &mut Noun) -> Option<T> {
+    pub fn lookup(&self, stack: &mut NockStack, n: &mut Noun) -> AllocResult<Option<T>> {
         let mut stem = unsafe { *self.0 };
-        let mut mug = mug_u32(stack, *n);
+        let mut mug = mug_u32(stack, *n)?;
         'lookup: loop {
             let chunk = mug & 0x1F; // 5 bits
             mug >>= 5;
             match stem.entry(chunk) {
                 None => {
-                    break None;
+                    break Ok(None);
                 }
                 Some((Left(next_stem), _idx)) => {
                     stem = next_stem;
@@ -324,11 +324,11 @@ impl<T: Copy + Preserve> Hamt<T> {
                 }
                 Some((Right(leaf), _idx)) => {
                     for pair in unsafe { leaf.to_mut_slice().iter_mut() } {
-                        if unsafe { unifying_equality(stack, n, &mut pair.0) } {
-                            break 'lookup Some(pair.1);
+                        if unsafe { unifying_equality(stack, n, &mut pair.0)? } {
+                            break 'lookup Ok(Some(pair.1));
                         }
                     }
-                    break None;
+                    break Ok(None);
                 }
             }
         }
@@ -338,7 +338,7 @@ impl<T: Copy + Preserve> Hamt<T> {
 
     /// Make a new HAMT with the value inserted or replaced at the key.
     pub fn insert(&self, stack: &mut NockStack, n: &mut Noun, t: T) -> AllocResult<Hamt<T>> {
-        let mut mug = mug_u32(stack, *n);
+        let mut mug = mug_u32(stack, *n)?;
         let mut depth = 0u8;
         let mut stem = unsafe { *self.0 };
         let stem_ret = unsafe { stack.struct_alloc::<Stem<T>>(1) }?;
@@ -395,7 +395,7 @@ impl<T: Copy + Preserve> Hamt<T> {
                     Some((Right(leaf), idx)) => {
                         // Override existing value for key, if one exists
                         for (ldx, pair) in leaf.to_mut_slice().iter_mut().enumerate() {
-                            if unifying_equality(stack, n, &mut pair.0) {
+                            if unifying_equality(stack, n, &mut pair.0)? {
                                 let new_leaf_buffer = stack.struct_alloc(leaf.len)?;
                                 copy_nonoverlapping(leaf.buffer, new_leaf_buffer, leaf.len);
                                 (*new_leaf_buffer.add(ldx)).1 = t;
@@ -448,7 +448,7 @@ impl<T: Copy + Preserve> Hamt<T> {
                             *fake_buffer = Entry { leaf };
                             // Get the mug chunk for the Noun at the *next* level so that we can
                             // build a fake stem for it
-                            let fake_mug = mug_u32(stack, (*leaf.buffer).0);
+                            let fake_mug = mug_u32(stack, (*leaf.buffer).0)?;
                             let fake_chunk = (fake_mug >> ((depth + 1) * 5)) & 0x1F;
                             let next_stem = Stem {
                                 bitmap: chunk_to_bit(fake_chunk),
@@ -609,13 +609,13 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
 }
 
 impl<T: Copy + Persist> Persist for Hamt<T> {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
+    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> AllocResult<usize> {
         if pma_contains(self.0, 1) {
-            return 0;
+            return Ok(0);
         }
         let mut bytes: usize = size_of::<Stem<T>>();
         if pma_contains((*self.0).buffer, (*self.0).size()) {
-            return bytes;
+            return Ok(bytes);
         };
 
         bytes += (*self.0).size() * size_of::<Entry<T>>();
@@ -632,7 +632,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
             assert!(depth < 6);
             if traversal[depth].bitmap == 0 {
                 if depth == 0 {
-                    break bytes;
+                    break Ok(bytes);
                 }
                 depth -= 1;
                 continue;
@@ -680,8 +680,8 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
                 bytes += size_of::<(Noun, T)>() * leaf.len;
 
                 while leaf.len > 0 {
-                    bytes += (*leaf.buffer).0.space_needed(stack);
-                    bytes += (*leaf.buffer).1.space_needed(stack);
+                    bytes += (*leaf.buffer).0.space_needed(stack)?;
+                    bytes += (*leaf.buffer).1.space_needed(stack)?;
                     leaf.buffer = leaf.buffer.add(1);
                     leaf.len -= 1;
                 }
@@ -689,9 +689,9 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
         }
     }
 
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
+    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()> {
         if pma_contains(self.0, 1) {
-            return;
+            return Ok(());
         }
         let stem_ptr = *buffer as *mut Stem<T>;
         copy_nonoverlapping(self.0, stem_ptr, 1);
@@ -700,7 +700,7 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
 
         let stem_buffer_size = (*stem_ptr).size();
         if stem_buffer_size == 0 || pma_contains((*stem_ptr).buffer, stem_buffer_size) {
-            return;
+            return Ok(());
         }
         let stem_buffer_ptr = *buffer as *mut Entry<T>;
         copy_nonoverlapping((*stem_ptr).buffer, stem_buffer_ptr, stem_buffer_size);
@@ -785,15 +785,16 @@ impl<T: Copy + Persist> Persist for Hamt<T> {
                 while leaf_idx < (*leaf_ptr).len {
                     (*(*leaf_ptr).buffer.add(leaf_idx))
                         .0
-                        .copy_to_buffer(stack, buffer);
+                        .copy_to_buffer(stack, buffer)?;
                     (*(*leaf_ptr).buffer.add(leaf_idx))
                         .1
-                        .copy_to_buffer(stack, buffer);
+                        .copy_to_buffer(stack, buffer)?;
 
                     leaf_idx += 1;
                 }
             }
         }
+        Ok(())
     }
 
     unsafe fn handle_to_u64(&self) -> u64 {
@@ -950,13 +951,13 @@ mod test {
         let mut n = D(0);
         let t = D(1);
         hamt = hamt.insert(&mut stack, &mut n, t).unwrap();
-        let lu = hamt.lookup(&mut stack, &mut n);
+        let lu = hamt.lookup(&mut stack, &mut n).expect("lookup failed due to OOM");
         let lu_value = unsafe { lu.expect("lookup failed").as_raw() };
         assert_eq!(lu_value, 1);
         let mut n = D(2);
         let t = D(3);
         hamt = hamt.insert(&mut stack, &mut n, t).unwrap();
-        let lu = hamt.lookup(&mut stack, &mut D(2));
+        let lu = hamt.lookup(&mut stack, &mut D(2)).expect("lookup failed due to OOM");
         let lu_value = unsafe { lu.expect("lookup failed").as_raw() };
         assert_eq!(lu_value, 3);
     }
@@ -983,15 +984,15 @@ mod test {
         let t = D(317365951);
         hamt = hamt.insert(&mut stack, &mut n, t).unwrap();
 
-        let lu = hamt.lookup(&mut stack, &mut D(0));
+        let lu = hamt.lookup(&mut stack, &mut D(0)).expect("lookup failed due to OOM");
         let lu_value = unsafe { lu.expect("0 lookup failed").as_raw() };
         assert_eq!(lu_value, 0);
 
-        let lu = hamt.lookup(&mut stack, &mut D(87699370));
+        let lu = hamt.lookup(&mut stack, &mut D(87699370)).expect("lookup failed due to OOM");
         let lu_value = unsafe { lu.expect("87699370 lookup failed").as_raw() };
         assert_eq!(lu_value, 87699370);
 
-        let lu = hamt.lookup(&mut stack, &mut D(317365951));
+        let lu = hamt.lookup(&mut stack, &mut D(317365951)).expect("lookup failed due to OOM");
         let lu_value = unsafe { lu.expect("317365951 lookup failed").as_raw() };
         assert_eq!(lu_value, 317365951);
     }

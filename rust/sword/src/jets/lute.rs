@@ -27,7 +27,7 @@ pub fn jet_ut_crop(context: &mut Context, subject: Noun) -> Result<Noun> {
     let fun = 141 + tas!(b"crop") + (flag << 8);
     let mut key = T(&mut context.stack, &[D(fun), sut, rff, bat])?;
 
-    match context.cache.lookup(&mut context.stack, &mut key) {
+    match context.cache.lookup(&mut context.stack, &mut key)? {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
@@ -57,7 +57,7 @@ pub fn jet_ut_fish(context: &mut Context, subject: Noun) -> Result<Noun> {
     let fun = 141 + tas!(b"fish") + (flag << 8);
     let mut key = T(&mut context.stack, &[D(fun), sut, axe.as_noun(), bat])?;
 
-    match context.cache.lookup(&mut context.stack, &mut key) {
+    match context.cache.lookup(&mut context.stack, &mut key)? {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
@@ -86,7 +86,7 @@ pub fn jet_ut_fuse(context: &mut Context, subject: Noun) -> Result<Noun> {
     let fun = 141 + tas!(b"fuse") + (flag << 8);
     let mut key = T(&mut context.stack, &[D(fun), sut, rff, bat])?;
 
-    match context.cache.lookup(&mut context.stack, &mut key) {
+    match context.cache.lookup(&mut context.stack, &mut key)? {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
@@ -108,7 +108,7 @@ pub fn jet_ut_mint(context: &mut Context, subject: Noun) -> Result<Noun> {
     let vet = slot(van, 59).map_or(NONE, |x| x);
     let mut key = T(&mut context.stack, &[D(fun), vet, sut, gol, gen, bat])?;
 
-    match context.cache.lookup(&mut context.stack, &mut key) {
+    match context.cache.lookup(&mut context.stack, &mut key)? {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
@@ -139,7 +139,7 @@ pub fn jet_ut_mull(context: &mut Context, subject: Noun) -> Result<Noun> {
     let fun = 141 + tas!(b"mull") + (flag << 8);
     let mut key = T(&mut context.stack, &[D(fun), sut, gol, dox, gen, bat])?;
 
-    match context.cache.lookup(&mut context.stack, &mut key) {
+    match context.cache.lookup(&mut context.stack, &mut key)? {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
@@ -174,7 +174,7 @@ pub fn jet_ut_nest_dext(context: &mut Context, subject: Noun) -> Result<Noun> {
     let fun = (141 + tas!(b"dext")) + (flag << 8);
     let mut key = T(&mut context.stack, &[D(fun), sut, rff, bat])?;
 
-    match context.cache.lookup(&mut context.stack, &mut key) {
+    match context.cache.lookup(&mut context.stack, &mut key)? {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;
@@ -207,7 +207,7 @@ pub fn jet_ut_rest(context: &mut Context, subject: Noun) -> Result<Noun> {
     let fun = 141 + tas!(b"rest") + (flag << 8);
     let mut key = T(&mut context.stack, &[D(fun), sut, leg, bat])?;
 
-    match context.cache.lookup(&mut context.stack, &mut key) {
+    match context.cache.lookup(&mut context.stack, &mut key)? {
         Some(pro) => Ok(pro),
         None => {
             let pro = interpret(context, subject, slot(subject, 2)?)?;

@@ -98,7 +98,7 @@ impl Warm {
         batteries: Batteries,
         jet: Jet,
     ) -> AllocResult<()> {
-        let current_warm_entry = self.0.lookup(stack, formula).unwrap_or(WARM_ENTRY_NIL);
+        let current_warm_entry = self.0.lookup(stack, formula)?.unwrap_or(WARM_ENTRY_NIL);
         unsafe {
             let warm_entry_mem_ptr: *mut WarmEntryMem = stack.struct_alloc(1)?;
             *warm_entry_mem_ptr = WarmEntryMem {
@@ -115,7 +115,7 @@ impl Warm {
     pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> AllocResult<Self> {
         let mut warm = Self::new(stack)?;
         for (mut path, axis, jet) in *hot {
-            let batteries_list = cold.find(stack, &mut path);
+            let batteries_list = cold.find(stack, &mut path)?;
             for batteries in batteries_list {
                 let mut batteries_tmp = batteries;
                 let (battery, _parent_axis) = batteries_tmp
@@ -141,13 +141,17 @@ impl Warm {
         stack: &mut NockStack,
         s: &mut Noun,
         f: &mut Noun,
-    ) -> Option<(Jet, Noun)> {
+    ) -> AllocResult<Option<(Jet, Noun)>> {
         let warm_it = self.0.lookup(stack, f)?;
-        for (path, batteries, jet) in warm_it {
-            if batteries.matches(stack, *s) {
-                return Some((jet, path));
+        for warm_entry in warm_it {
+            unsafe {
+                let jet = (*warm_entry.0).jet;
+                let path = (*warm_entry.0).path;
+                if (*warm_entry.0).batteries.matches(stack, *s)? {
+                    return Ok(Some((jet, path)));
+                }
             }
         }
-        None
+        Ok(None)
     }
 }
