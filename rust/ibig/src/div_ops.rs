@@ -1368,7 +1368,7 @@ impl UBig {
         let (shift, fast_div_rhs_top) = div::normalize_large(rhs);
         let lhs_carry = shift::shl_in_place(lhs, shift);
         if lhs_carry != 0 {
-            lhs.push_may_reallocate_stack(stack, lhs_carry);
+            lhs.push_may_reallocate_stack(stack, lhs_carry)?;
         }
         let mut allocation =
             MemoryAllocation::new_stack(stack, div::memory_requirement_exact(lhs.len(), rhs.len()))?;

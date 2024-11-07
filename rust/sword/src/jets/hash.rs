@@ -16,12 +16,14 @@ pub fn jet_mug(context: &mut Context, subject: Noun) -> Result<Noun> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, init_context};
+    use crate::jets::util::test::*;
     use crate::mem::NockStack;
     use crate::noun::{Noun, D};
     use ibig::ubig;
     // Override T and A with the panicky variants
     use crate::test_fns::{A, T};
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
 
     fn atoms(s: &mut NockStack) -> (Noun, Noun, Noun, Noun, Noun) {
         (atom_0(s), atom_24(s), atom_63(s), atom_96(s), atom_128(s))

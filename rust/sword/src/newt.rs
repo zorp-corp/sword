@@ -143,21 +143,21 @@ impl Newt {
             ],
         )?;
         let ripe = T(stack, &[D(tas!(b"ripe")), version, D(eve), D(mug)])?;
-        self.write_noun(stack, ripe);
+        self.write_noun(stack, ripe)?;
         Ok(())
     }
 
     /** Send %live, acknowledging. */
     pub fn live(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         let live = T(stack, &[D(tas!(b"live")), D(0)])?;
-        self.write_noun(stack, live);
+        self.write_noun(stack, live)?;
         Ok(())
     }
 
     /** Send %peek %done, successfully scried. */
     pub fn peek_done(&mut self, stack: &mut NockStack, dat: Noun) -> AllocResult<()> {
         let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"done")), dat])?;
-        self.write_noun(stack, peek);
+        self.write_noun(stack, peek)?;
         Ok(())
     }
 
@@ -167,7 +167,7 @@ impl Newt {
      */
     pub fn peek_bail(&mut self, stack: &mut NockStack, dud: Noun) -> AllocResult<()> {
         let peek = T(stack, &[D(tas!(b"peek")), D(tas!(b"bail")), dud])?;
-        self.write_noun(stack, peek);
+        self.write_noun(stack, peek)?;
         Ok(())
     }
 
@@ -177,7 +177,7 @@ impl Newt {
      */
     pub fn play_done(&mut self, stack: &mut NockStack, mug: u64) -> AllocResult<()> {
         let play = T(stack, &[D(tas!(b"play")), D(tas!(b"done")), D(mug)])?;
-        self.write_noun(stack, play);
+        self.write_noun(stack, play)?;
         Ok(())
     }
 
@@ -192,7 +192,7 @@ impl Newt {
             stack,
             &[D(tas!(b"play")), D(tas!(b"bail")), D(eve), D(mug), dud],
         )?;
-        self.write_noun(stack, play);
+        self.write_noun(stack, play)?;
         Ok(())
     }
 
@@ -207,7 +207,7 @@ impl Newt {
             stack,
             &[D(tas!(b"work")), D(tas!(b"done")), D(eve), D(mug), fec],
         )?;
-        self.write_noun(stack, work);
+        self.write_noun(stack, work)?;
         Ok(())
     }
 
@@ -223,7 +223,7 @@ impl Newt {
             stack,
             &[D(tas!(b"work")), D(tas!(b"swap")), D(eve), D(mug), job, fec],
         )?;
-        self.write_noun(stack, work);
+        self.write_noun(stack, work)?;
         Ok(())
     }
 
@@ -239,7 +239,7 @@ impl Newt {
      */
     pub fn work_bail(&mut self, stack: &mut NockStack, lud: Noun) -> AllocResult<()> {
         let work = T(stack, &[D(tas!(b"work")), D(tas!(b"bail")), lud])?;
-        self.write_noun(stack, work);
+        self.write_noun(stack, work)?;
         Ok(())
     }
 
@@ -275,13 +275,13 @@ impl Newt {
 impl Slogger for Newt {
     fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) -> AllocResult<()> {
         let slog = T(stack, &[D(tas!(b"slog")), D(pri), tank])?;
-        self.write_noun(stack, slog);
+        self.write_noun(stack, slog)?;
         Ok(())
     }
 
     fn flog(&mut self, stack: &mut NockStack, cord: Noun) -> AllocResult<()> {
         let flog = T(stack, &[D(tas!(b"flog")), cord])?;
-        self.write_noun(stack, flog);
+        self.write_noun(stack, flog)?;
         Ok(())
     }
 }

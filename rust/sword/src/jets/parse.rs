@@ -544,7 +544,7 @@ struct StirPair {
 
 pub fn jet_stir(context: &mut Context, subject: Noun) -> Result<Noun> {
     unsafe {
-        context.with_stack_frame(0, |context| {
+        let res = context.with_stack_frame(0, |context| {
             let mut tub = slot(subject, 6)?;
             let van = slot(subject, 7)?;
             let rud = slot(van, 12)?;
@@ -593,7 +593,8 @@ pub fn jet_stir(context: &mut Context, subject: Noun) -> Result<Noun> {
 
             let res = T(&mut context.stack, &[p_wag, D(0), puq_wag, quq_wag])?;
             Ok(res)
-        })
+        })?;
+        res
     }
 }
 
@@ -669,6 +670,8 @@ mod tests {
     use ibig::ubig;
     // Override T and A with the panicky variants
     use crate::test_fns::{A, T};
+    #[allow(non_upper_case_globals)]
+    const assert_jet_door: AssertJetDoorFn = assert_jet_door_panicky;
 
     //  XX: need unit tests for:
     //      +last

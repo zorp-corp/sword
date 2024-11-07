@@ -83,9 +83,23 @@ pub enum AllocationType {
     Alloc,
     /// stack pointer moves
     Push,
-    /// frame_pointer and stack_pointer move
+    /// On a frame push, the frame pointer becomes the current_alloc_pointer (+/- words),
+    /// the stack pointer is set to the value of the new frame pointer, and the alloc pointer
+    /// is set to the pre-frame-push stack pointer.
     FramePush,
 }
+
+// unsafe {
+//     self.frame_pointer = if self.is_west() {
+//         current_alloc_pointer.sub(words)
+//     } else {
+//         current_alloc_pointer.add(words)
+//     };
+//     self.alloc_pointer = current_stack_pointer;
+//     self.stack_pointer = self.frame_pointer;
+//     *(self.slot_pointer(FRAME)) = current_frame_pointer as u64;
+//     *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
+//     *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
 
 /// Non-size parameters for validating an allocation
 #[derive(Debug, Clone)]
@@ -264,19 +278,20 @@ impl NockStack {
                 let target_point = start_point - bytes;
                 (target_point, limit_point, Direction::Decreasing)
             },
-            // West + FramePush, stack is increasing (TODO: does fp matter?)
+            // TODO: I'm pretty sure I've gotten something wrong with FramePush here
+            // West + FramePush, alloc is decreasing, kinda (TODO: does fp matter?)
             (AllocationType::FramePush, ArenaOrientation::West) => {
-                let start_point = self.stack_pointer as usize;
-                let limit_point = self.alloc_pointer as usize;
-                let target_point = start_point + bytes;
-                (target_point, limit_point, Direction::Increasing)
-            },
-            // East + FramePush, stack is decreasing (TODO: does fp matter?)
-            (AllocationType::FramePush, ArenaOrientation::East) => {
-                let start_point = self.stack_pointer as usize;
-                let limit_point = self.alloc_pointer as usize;
+                let start_point = self.alloc_pointer as usize;
+                let limit_point = self.stack_pointer as usize;
                 let target_point = start_point - bytes;
                 (target_point, limit_point, Direction::Decreasing)
+            },
+            // East + FramePush, alloc is increasing, kinda (TODO: does fp matter?)
+            (AllocationType::FramePush, ArenaOrientation::East) => {
+                let start_point = self.alloc_pointer as usize;
+                let limit_point = self.stack_pointer as usize;
+                let target_point = start_point + bytes;
+                (target_point, limit_point, Direction::Increasing)
             },
         };
         match direction {
@@ -847,7 +862,7 @@ impl NockStack {
         self.pc = false;
     }
 
-    pub unsafe fn preserve<T: Preserve>(&mut self, x: &mut T) {
+    pub unsafe fn preserve<T: Preserve>(&mut self, x: &mut T) -> AllocResult<()> {
         x.preserve(self)
     }
 
@@ -861,19 +876,22 @@ impl NockStack {
     /** Push a frame onto the stack with 0 or more local variable slots. */
     // TODO: #684: Add OOM checks here
     // TODO: Basic alloc function
-    pub fn frame_push(&mut self, num_locals: usize) {
+    /// This computation for num_locals is done in the east/west variants, but roughly speaking it's the input n words + 3 for prev frame alloc/stack/frame pointers
+    pub fn frame_push(&mut self, num_locals: usize) -> AllocResult<()> {
         if self.pc {
             panic!("frame_push during cleanup phase is prohibited.");
         }
+        let words = num_locals + RESERVED;
+        let () = self.alloc_would_oom(AllocationType::FramePush, words)?;
 
         let current_frame_pointer = self.frame_pointer;
         let current_stack_pointer = self.stack_pointer;
         let current_alloc_pointer = self.alloc_pointer;
         unsafe {
             self.frame_pointer = if self.is_west() {
-                current_alloc_pointer.sub(num_locals + RESERVED)
+                current_alloc_pointer.sub(words)
             } else {
-                current_alloc_pointer.add(num_locals + RESERVED)
+                current_alloc_pointer.add(words)
             };
             self.alloc_pointer = current_stack_pointer;
             self.stack_pointer = self.frame_pointer;
@@ -881,6 +899,7 @@ impl NockStack {
             *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
             *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
         }
+        Ok(())
     }
 
     /** Run a closure inside a frame, popping regardless of the value returned by the closure.
@@ -888,16 +907,16 @@ impl NockStack {
      *
      * Note that results allocated on the stack *must* be `preserve()`d by the closure.
      */
-    pub unsafe fn with_frame<F, O>(&mut self, num_locals: usize, f: F) -> O
+    pub unsafe fn with_frame<F, O>(&mut self, num_locals: usize, f: F) -> AllocResult<O>
     where
         F: FnOnce(&mut NockStack) -> O,
         O: Preserve,
     {
-        self.frame_push(num_locals);
+        self.frame_push(num_locals)?;
         let mut ret = f(self);
-        ret.preserve(self);
+        ret.preserve(self)?;
         self.frame_pop();
-        ret
+        Ok(ret)
     }
 
     /** Lightweight stack.
@@ -1227,16 +1246,17 @@ impl NounAllocator for NockStack {
 /// Immutable, acyclic objects which may be copied up the stack
 pub trait Preserve {
     /// Ensure an object will not be invalidated by popping the NockStack
-    unsafe fn preserve(&mut self, stack: &mut NockStack);
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()>;
     unsafe fn assert_in_stack(&self, stack: &NockStack);
 }
 
 impl Preserve for IndirectAtom {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         let size = indirect_raw_size(*self);
         let buf = stack.struct_alloc_in_previous_frame::<u64>(size);
         copy_nonoverlapping(self.to_raw_pointer(), buf, size);
         *self = IndirectAtom::from_raw_pointer(buf);
+        Ok(())
     }
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         stack.assert_noun_in(self.as_atom().as_noun());
@@ -1244,14 +1264,15 @@ impl Preserve for IndirectAtom {
 }
 
 impl Preserve for Atom {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         match self.as_either() {
             Left(_direct) => {}
             Right(mut indirect) => {
-                indirect.preserve(stack);
+                indirect.preserve(stack)?;
                 *self = indirect.as_atom();
             }
         }
+        Ok(())
     }
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         stack.assert_noun_in(self.as_noun());
@@ -1259,8 +1280,8 @@ impl Preserve for Atom {
 }
 
 impl Preserve for Noun {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        stack.copy(self);
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        stack.copy(self)
     }
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         stack.assert_noun_in(*self);
@@ -1275,7 +1296,7 @@ impl Stack for NockStack {
 }
 
 impl<T: Preserve, E: Preserve> Preserve for Result<T, E> {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         match self.as_mut() {
             Ok(t_ref) => t_ref.preserve(stack),
             Err(e_ref) => e_ref.preserve(stack),

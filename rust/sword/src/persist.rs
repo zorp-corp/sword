@@ -136,7 +136,7 @@ pub trait Persist {
 
             let mut buffer = bt_malloc(get_pma_state().unwrap(), space_as_pages) as *mut u8;
             let orig_buffer = buffer;
-            self.copy_to_buffer(stack, &mut buffer);
+            self.copy_to_buffer(stack, &mut buffer)?;
             let space_isize: isize = space.try_into().unwrap();
             assert!(buffer.offset_from(orig_buffer) == space_isize);
             Ok(self.handle_to_u64())
@@ -203,7 +203,7 @@ impl Persist for Atom {
 impl Persist for Noun {
     unsafe fn space_needed(&mut self, stack: &mut NockStack) -> AllocResult<usize> {
         let mut space = 0usize;
-        stack.frame_push(0);
+        stack.frame_push(0)?;
         *(stack.push::<Noun>()?) = *self;
         loop {
             if stack.stack_is_empty() {
@@ -231,7 +231,7 @@ impl Persist for Noun {
 
     unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) -> AllocResult<()> {
         let mut buffer_u64 = (*buffer) as *mut u64;
-        stack.frame_push(0);
+        stack.frame_push(0)?;
         *(stack.push::<*mut Noun>()?) = self as *mut Noun;
 
         loop {

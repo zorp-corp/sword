@@ -280,12 +280,12 @@ where
     // + Unpin
     // type SlogTarget = T::Target;
     fn flog(&mut self, stack: &mut NockStack, cord: Noun) -> AllocResult<()> {
-        (*self).deref_mut().flog(stack, cord);
+        (*self).deref_mut().flog(stack, cord)?;
         Ok(())
     }
 
     fn slog(&mut self, stack: &mut NockStack, pri: u64, tank: Noun) -> AllocResult<()> {
-        (**self).slog(stack, pri, tank);
+        (**self).slog(stack, pri, tank)?;
         Ok(())
     }
 }
@@ -330,19 +330,19 @@ impl Context {
      * jet to use the entire context without the borrow checker complaining about the mutable
      * references.
      */
-    pub unsafe fn with_stack_frame<F, O>(&mut self, slots: usize, f: F) -> O
+    pub unsafe fn with_stack_frame<F, O>(&mut self, slots: usize, f: F) -> AllocResult<O>
     where
         F: FnOnce(&mut Context) -> O,
         O: Preserve,
     {
-        self.stack.frame_push(slots);
+        self.stack.frame_push(slots)?;
         let mut ret = f(self);
-        ret.preserve(&mut self.stack);
-        self.cache.preserve(&mut self.stack);
-        self.cold.preserve(&mut self.stack);
-        self.warm.preserve(&mut self.stack);
+        ret.preserve(&mut self.stack)?;
+        self.cache.preserve(&mut self.stack)?;
+        self.cold.preserve(&mut self.stack)?;
+        self.warm.preserve(&mut self.stack)?;
         self.stack.frame_pop();
-        ret
+        Ok(ret)
     }
 }
 
@@ -372,7 +372,7 @@ impl From<crate::mem::AllocationError> for Error {
 }
 
 impl Preserve for Error {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         match self {
             Error::ScryBlocked(ref mut path) => path.preserve(stack),
             Error::ScryCrashed(ref mut trace) => trace.preserve(stack),
@@ -410,6 +410,10 @@ pub type Result<T> = result::Result<T, Error>;
 const BAIL_EXIT: Result<Noun> = Err(Error::Deterministic(Mote::Exit, D(0)));
 const BAIL_FAIL: Result<Noun> = Err(Error::NonDeterministic(Mote::Fail, D(0)));
 const BAIL_INTR: Result<Noun> = Err(Error::NonDeterministic(Mote::Intr, D(0)));
+#[allow(non_snake_case)]
+const fn BAIL_ALLOC(err: crate::mem::AllocationError) -> Result<Noun> {
+    Err(Error::AllocationError(err, D(0)))
+}
 
 #[allow(unused_variables)]
 fn debug_assertions(stack: &mut NockStack, noun: Noun) {
@@ -428,7 +432,7 @@ pub fn interpret(context: &mut Context, subject: Noun, formula: Noun) -> Result<
 
     // Setup stack for Nock computation
     unsafe {
-        context.stack.frame_push(2);
+        context.stack.frame_push(2)?;
 
         // Bottom of mean stack
         *(context.stack.local_noun_pointer(0)) = D(0);
@@ -476,10 +480,10 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                 debug_assertions(stack, subject);
                 debug_assertions(stack, res);
 
-                stack.preserve(&mut context.cache);
-                stack.preserve(&mut context.cold);
-                stack.preserve(&mut context.warm);
-                stack.preserve(&mut res);
+                stack.preserve(&mut context.cache)?;
+                stack.preserve(&mut context.cold)?;
+                stack.preserve(&mut context.warm)?;
+                stack.preserve(&mut res)?;
                 stack.frame_pop();
 
                 debug_assertions(stack, orig_subject);
@@ -495,10 +499,10 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                 debug_assertions(stack, subject);
                 debug_assertions(stack, res);
 
-                stack.preserve(&mut context.cache);
-                stack.preserve(&mut context.cold);
-                stack.preserve(&mut context.warm);
-                stack.preserve(&mut res);
+                stack.preserve(&mut context.cache)?;
+                stack.preserve(&mut context.cold)?;
+                stack.preserve(&mut context.warm)?;
+                stack.preserve(&mut res)?;
                 stack.frame_pop();
 
                 debug_assertions(stack, orig_subject);
@@ -567,7 +571,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                             debug_assertions(stack, subject);
                             debug_assertions(stack, res);
 
-                            mean_frame_push(stack, 0);
+                            mean_frame_push(stack, 0)?;
                             *stack.push()? = NockWork::Ret;
                             push_formula(stack, res, true)?;
                         }
@@ -750,7 +754,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                                     if let Some(path) =
                                         context.cold.matches(stack, &mut res)?
                                     {
-                                        append_trace(stack, path);
+                                        append_trace(stack, path)?;
                                     };
                                 };
 
@@ -766,7 +770,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                                 debug_assertions(stack, res);
 
                                 subject = res;
-                                mean_frame_push(stack, 0);
+                                mean_frame_push(stack, 0)?;
                                 *stack.push()? = NockWork::Ret;
                                 push_formula(stack, formula, true)?;
 
@@ -777,7 +781,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                                     if let Some(path) =
                                         context.cold.matches(stack, &mut res)?
                                     {
-                                        append_trace(stack, path);
+                                        append_trace(stack, path)?;
                                     };
                                 };
                             }
@@ -974,7 +978,7 @@ unsafe fn work(terminator: Arc<AtomicBool>, context: &mut Context, formula: Noun
                                                     scry.path,
                                                 ],
                                             )?;
-                                            mean_push(stack, hunk);
+                                            mean_push(stack, hunk)?;
                                             break Err(Error::ScryCrashed(D(0)));
                                         }
                                         Right(cell) => {
@@ -1248,11 +1252,12 @@ fn exit(
                 T(stack, &[h, t]).expect("serf: failed to create trace, allocation error")
             }
             // TODO: What do we do with an allocation error here?
-            Error::AllocationError(allocation_error, noun) => todo!(),
+            Error::AllocationError(_allocation_error, _noun) => todo!(),
         };
 
         while stack.get_frame_pointer() != virtual_frame {
-            stack.preserve(&mut preserve);
+            // TODO: Is this the right thing to do when preserve fails?"
+            stack.preserve(&mut preserve).expect("serf: failed to preserve stack");
             stack.frame_pop();
         }
 
@@ -1268,18 +1273,19 @@ fn exit(
 
 /** Push frame onto NockStack while preserving the mean stack.
  */
-fn mean_frame_push(stack: &mut NockStack, slots: usize) {
+fn mean_frame_push(stack: &mut NockStack, slots: usize) -> AllocResult<()> {
     unsafe {
         let trace = *(stack.local_noun_pointer(0));
-        stack.frame_push(slots + 2);
+        stack.frame_push(slots + 2)?;
         *(stack.local_noun_pointer(0)) = trace;
         *(stack.local_noun_pointer(1) as *mut *const TraceStack) = std::ptr::null();
     }
+    Ok(())
 }
 
 /** Push onto the mean stack.
  */
-fn mean_push(stack: &mut NockStack, noun: Noun) -> AllocResult<()>{
+fn mean_push(stack: &mut NockStack, noun: Noun) -> AllocResult<()> {
     unsafe {
         let cur_trace = *(stack.local_noun_pointer(0));
         let new_trace = T(stack, &[noun, cur_trace])?;
@@ -1542,7 +1548,10 @@ mod hint {
                 let tank = slog_cell.tail();
 
                 let s = (*slogger).deref_mut();
-                s.slog(stack, pri, tank);
+                match s.slog(stack, pri, tank) {
+                    Ok(_) => (),
+                    Err(err) => return Some(BAIL_ALLOC(err)),
+                }
                 None
             }
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
@@ -1557,7 +1566,10 @@ mod hint {
                     Ok(noun) => noun,
                     Err(_) => return Some(BAIL_EXIT),
                 };
-                mean_push(stack, noun);
+                match mean_push(stack, noun) {
+                    Ok(_) => (),
+                    Err(err) => return Some(BAIL_ALLOC(err)),
+                }
                 None
             }
             tas!(b"hela") => {
@@ -1591,7 +1603,12 @@ mod hint {
                             }
 
                             if let Ok(cell) = list.as_cell() {
-                                slogger.slog(stack, 0, cell.head());
+                                match slogger.slog(stack, 0, cell.head()) {
+                                    Ok(_) => (),
+                                    Err(err) => {
+                                        return Some(BAIL_ALLOC(err));
+                                    }
+                                };
                                 list = cell.tail();
                             } else {
                                 flog!(context, "serf: %hela: list ends without ~");
@@ -1684,7 +1701,10 @@ mod hint {
                                             Ok(tape) => tape,
                                             Err(err) => return Some(Err(err)),
                                         };
-                                        slog_leaf(stack, slogger, tape);
+                                        match slog_leaf(stack, slogger, tape) {
+                                            Ok(_) => (),
+                                            Err(err) => return Some(Err(err)),
+                                        }
                                         Ok(false)
                                     }
                                 } else {
@@ -1721,7 +1741,7 @@ mod hint {
 
     fn slog_leaf(stack: &mut NockStack, slogger: &mut Pin<Box<dyn Slogger + Unpin>>, tape: Noun) -> AllocResult<()> {
         let tank = T(stack, &[LEAF, tape])?;
-        slogger.slog(stack, 0u64, tank);
+        slogger.slog(stack, 0u64, tank)?;
         Ok(())
     }
 }

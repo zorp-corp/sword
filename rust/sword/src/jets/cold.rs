@@ -33,7 +33,7 @@ pub struct Batteries(pub *mut BatteriesMem);
 const NO_BATTERIES: Batteries = Batteries(null_mut());
 
 #[derive(Copy, Clone)]
-pub(crate) struct BatteriesMem {
+pub struct BatteriesMem {
     battery: Noun,
     pub(crate) parent_axis: Atom,
     parent_batteries: Batteries,
@@ -73,10 +73,10 @@ impl Persist for Batteries {
             copy_nonoverlapping(dest.0, batteries_mem_ptr, 1);
             *buffer = batteries_mem_ptr.add(1) as *mut u8;
 
-            (*batteries_mem_ptr).battery.copy_to_buffer(stack, buffer);
+            (*batteries_mem_ptr).battery.copy_to_buffer(stack, buffer)?;
             (*batteries_mem_ptr)
                 .parent_axis
-                .copy_to_buffer(stack, buffer);
+                .copy_to_buffer(stack, buffer)?;
 
             dest.0 = batteries_mem_ptr;
             dest = &mut (*dest.0).parent_batteries;
@@ -109,15 +109,16 @@ impl Preserve for Batteries {
             cursor = (*cursor.0).parent_batteries;
         }
     }
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        // TODO: Should this panic? What is this?
         if self.0.is_null() {
-            return;
+            return Ok(());
         };
         let mut ptr: *mut *mut BatteriesMem = &mut self.0;
         loop {
             if stack.is_in_frame(*ptr) {
-                (**ptr).battery.preserve(stack);
-                (**ptr).parent_axis.preserve(stack);
+                (**ptr).battery.preserve(stack)?;
+                (**ptr).parent_axis.preserve(stack)?;
                 let dest_mem: *mut BatteriesMem = stack.struct_alloc_in_previous_frame(1);
                 copy_nonoverlapping(*ptr, dest_mem, 1);
                 *ptr = dest_mem;
@@ -129,6 +130,7 @@ impl Preserve for Batteries {
                 break;
             }
         }
+        Ok(())
     }
 }
 
@@ -240,7 +242,7 @@ impl Persist for BatteriesList {
             *buffer = list_mem_ptr.add(1) as *mut u8;
             dest.0 = list_mem_ptr;
 
-            (*dest.0).batteries.copy_to_buffer(stack, buffer);
+            (*dest.0).batteries.copy_to_buffer(stack, buffer)?;
             dest = &mut (*dest.0).next;
         }
         Ok(())
@@ -270,14 +272,15 @@ impl Preserve for BatteriesList {
             cursor = (*cursor.0).next;
         }
     }
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        // TODO: Should this panic? What is this?
         if self.0.is_null() {
-            return;
+            return Ok(());
         };
         let mut ptr: *mut *mut BatteriesListMem = &mut self.0;
         loop {
             if stack.is_in_frame(*ptr) {
-                (**ptr).batteries.preserve(stack);
+                (**ptr).batteries.preserve(stack)?;
                 let dest_mem: *mut BatteriesListMem = stack.struct_alloc_in_previous_frame(1);
                 copy_nonoverlapping(*ptr, dest_mem, 1);
                 *ptr = dest_mem;
@@ -289,6 +292,7 @@ impl Preserve for BatteriesList {
                 break;
             }
         }
+        Ok(())
     }
 }
 
@@ -376,7 +380,7 @@ impl Persist for NounList {
             *buffer = noun_list_mem_ptr.add(1) as *mut u8;
 
             dest.0 = noun_list_mem_ptr;
-            (*dest.0).element.copy_to_buffer(stack, buffer);
+            (*dest.0).element.copy_to_buffer(stack, buffer)?;
 
             dest = &mut (*dest.0).next;
         }
@@ -407,14 +411,15 @@ impl Preserve for NounList {
             cursor = (*cursor.0).next;
         }
     }
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        // TODO: Should this panic? What is this?
         if self.0.is_null() {
-            return;
+            return Ok(());
         };
         let mut ptr: *mut NounList = self;
         loop {
             if stack.is_in_frame((*ptr).0) {
-                (*(*ptr).0).element.preserve(stack);
+                (*(*ptr).0).element.preserve(stack)?;
                 let dest_mem: *mut NounListMem = stack.struct_alloc_in_previous_frame(1);
                 copy_nonoverlapping((*ptr).0, dest_mem, 1);
                 *ptr = NounList(dest_mem);
@@ -426,6 +431,7 @@ impl Preserve for NounList {
                 break;
             }
         }
+        Ok(())
     }
 }
 
@@ -515,13 +521,14 @@ impl Preserve for Cold {
         (*self.0).root_to_paths.assert_in_stack(stack);
         (*self.0).path_to_batteries.assert_in_stack(stack);
     }
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        (*(self.0)).battery_to_paths.preserve(stack);
-        (*(self.0)).root_to_paths.preserve(stack);
-        (*(self.0)).path_to_batteries.preserve(stack);
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        (*(self.0)).battery_to_paths.preserve(stack)?;
+        (*(self.0)).root_to_paths.preserve(stack)?;
+        (*(self.0)).path_to_batteries.preserve(stack)?;
         let new_dest: *mut ColdMem = stack.struct_alloc_in_previous_frame(1);
         copy_nonoverlapping(self.0, new_dest, 1);
         self.0 = new_dest;
+        Ok(())
     }
 }
 

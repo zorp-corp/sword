@@ -92,11 +92,13 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, init_context};
+    use crate::jets::util::test::*;
     use crate::noun::D;
     use ibig::ubig;
     // Override with the panicky variant
     use crate::test_fns::{A, T};
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
 
     #[test]
     fn test_dor() {

@@ -199,7 +199,7 @@ pub mod util {
                     Err(err)
                 }
                 // TODO: Implement the rest of the error handling
-                Error::AllocationError(allocation_error, noun) => todo!(),
+                Error::AllocationError(_allocation_error, _noun) => todo!(),
             },
         }
     }
@@ -415,13 +415,16 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, init_context};
+    use crate::jets::util::test::*;
     use crate::mem::NockStack;
     use crate::noun::D;
     use crate::serf::TERMINATOR;
     use std::sync::Arc;
     // Override T and A with the panicky variants
     use crate::test_fns::T;
+
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
 
     #[test]
     fn init() {

@@ -14,8 +14,8 @@ impl Preserve for Warm {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         self.0.assert_in_stack(stack);
     }
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        self.0.preserve(stack);
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        self.0.preserve(stack)
     }
 }
 
@@ -47,15 +47,16 @@ impl Preserve for WarmEntry {
             cursor = (*cursor.0).next;
         }
     }
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        // TODO: Should this panic? What is this?
         if self.0.is_null() {
-            return;
+            return Ok(());
         }
         let mut ptr: *mut *mut WarmEntryMem = &mut self.0;
         loop {
             if stack.is_in_frame(*ptr) {
-                (**ptr).batteries.preserve(stack);
-                (**ptr).path.preserve(stack);
+                (**ptr).batteries.preserve(stack)?;
+                (**ptr).path.preserve(stack)?;
                 let dest_mem: *mut WarmEntryMem = stack.struct_alloc_in_previous_frame(1);
                 copy_nonoverlapping(*ptr, dest_mem, 1);
                 *ptr = dest_mem;
@@ -67,6 +68,7 @@ impl Preserve for WarmEntry {
                 break;
             }
         }
+        Ok(())
     }
 }
 
@@ -143,7 +145,7 @@ impl Warm {
         f: &mut Noun,
     ) -> AllocResult<Option<(Jet, Noun)>> {
         let warm_it = self.0.lookup(stack, f)?;
-        for warm_entry in warm_it {
+        if let Some(warm_entry) = warm_it {
             unsafe {
                 let jet = (*warm_entry.0).jet;
                 let path = (*warm_entry.0).path;

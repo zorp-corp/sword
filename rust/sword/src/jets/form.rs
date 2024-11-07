@@ -79,13 +79,18 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, assert_jet_err, init_context};
+    use crate::jets::util::test::*;
     use crate::jets::JetErr;
     use crate::noun::{Noun, D};
     use ibig::ubig;
     use sword_macros::tas;
     // Override T and A with the panicky variants
     use crate::test_fns::{A, T};
+
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
+    #[allow(non_upper_case_globals)]
+    const assert_jet_err: AssertJetErrFn = assert_jet_err_panicky;
 
     // Rust can't handle implicit conversions from u8 to u64
     #[allow(non_snake_case)]

@@ -520,8 +520,8 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
         }
     }
 
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        if stack.is_in_frame(self.0) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        let res = if stack.is_in_frame(self.0) {
             let dest_stem = stack.struct_alloc_in_previous_frame(1);
             copy_nonoverlapping(self.0, dest_stem, 1);
             self.0 = dest_stem;
@@ -592,8 +592,8 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                                         buffer: dest_buffer,
                                     };
                                     for pair in new_leaf.to_mut_slice().iter_mut() {
-                                        pair.0.preserve(stack);
-                                        pair.1.preserve(stack);
+                                        pair.0.preserve(stack)?;
+                                        pair.1.preserve(stack)?;
                                     }
                                     *stem.buffer.add(idx) = Entry { leaf: new_leaf };
                                 }
@@ -604,7 +604,8 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                     }
                 }
             }
-        }
+        };
+        Ok(res)
     }
 }
 

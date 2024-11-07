@@ -120,10 +120,14 @@ pub fn jet_veri(_context: &mut Context, subject: Noun) -> Result<Noun> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, assert_jet_err, init_context, A};
+    use crate::jets::util::test::*;
     use crate::noun::{D, T};
     use ibig::ubig;
 
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
+    #[allow(non_upper_case_globals)]
+    const assert_jet_err: AssertJetErrFn = assert_jet_err_panicky;
     //  XX: Should use the test vectors from Section 7.1 of RFC 8032:
     //      https://tools.ietf.org/html/rfc8032#section-7.1
 

@@ -78,7 +78,7 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
             };
         };
     };
-    stack.frame_push(0);
+    stack.frame_push(0)?;
     *(stack.push::<(*mut Noun, *mut Noun)>()?) = (a, b);
     loop {
         if stack.stack_is_empty() {

@@ -212,11 +212,15 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_jet, assert_jet_err, init_context};
+    use crate::jets::util::test::*;
     use crate::jets::util::BAIL_EXIT;
     use crate::noun::D;
     // Override T with the panicky variants
     use crate::test_fns::T;
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
+    #[allow(non_upper_case_globals)]
+    const assert_jet_err: AssertJetErrFn = assert_jet_err_panicky;
 
     #[test]
     fn test_flop() {

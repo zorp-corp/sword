@@ -137,7 +137,7 @@ pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> AllocResult<u32> {
     assert_no_forwarding_pointers!(noun);
     assert_no_junior_pointers!(stack, noun);
 
-    stack.frame_push(0);
+    stack.frame_push(0)?;
     unsafe {
         *(stack.push()?) = noun;
     }

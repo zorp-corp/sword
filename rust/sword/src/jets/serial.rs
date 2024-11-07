@@ -21,7 +21,8 @@ mod tests {
     use crate::noun::D;
     // Override T with the panicky variant
     use crate::test_fns::T;
-
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
 
     #[test]
     fn test_jam() {

@@ -1567,16 +1567,17 @@ struct HotMem {
 }
 
 impl Preserve for Hot {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         let mut it = self;
         while !it.0.is_null() && stack.is_in_frame(it.0) {
             let dest_mem = stack.struct_alloc_in_previous_frame(1);
             copy_nonoverlapping(it.0, dest_mem, 1);
             it.0 = dest_mem;
-            (*it.0).a_path.preserve(stack);
-            (*it.0).axis.preserve(stack);
+            (*it.0).a_path.preserve(stack)?;
+            (*it.0).axis.preserve(stack)?;
             it = &mut (*it.0).next;
         }
+        Ok(())
     }
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {

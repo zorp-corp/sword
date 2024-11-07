@@ -109,9 +109,10 @@ impl Buffer {
     }
 
     #[inline]
-    pub(crate) fn push_may_reallocate_stack<S: Stack>(&mut self, stack: &mut S, word: Word) {
-        self.ensure_capacity_stack(stack, self.len() + 1);
+    pub(crate) fn push_may_reallocate_stack<S: Stack>(&mut self, stack: &mut S, word: Word) -> Result<(), S::AllocError> {
+        self.ensure_capacity_stack(stack, self.len() + 1)?;
         self.push(word);
+        Ok(())
     }
 
     /// Append a Word and reallocate if necessary.

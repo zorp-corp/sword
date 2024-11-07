@@ -166,7 +166,7 @@ mod tests {
             jet_shas,
             sam,
             ubig!(_0x4abac214e1e95fe0c60df79d09cbd05454a4cb958683e02318aa147f2a5e6d60),
-        );
+        ).unwrap();
 
         let sam = T(&mut c.stack, &[D(1), D(1)]).unwrap();
         assert_jet_ubig(
@@ -174,7 +174,7 @@ mod tests {
             jet_shas,
             sam,
             ubig!(_0x547da92584bc986e5784edb746c29504bfd6b34572c83b7b96440ca77d35cdfc),
-        );
+        ).unwrap();
 
         let sam = T(&mut c.stack, &[D(2), D(2)]).unwrap();
         assert_jet_ubig(
@@ -182,7 +182,7 @@ mod tests {
             jet_shas,
             sam,
             ubig!(_0x4cf01fe7cc56ef70d17735322488de0d31857afcfe451e199abe6295f78f5328),
-        );
+        ).unwrap();
 
         let a = A(
             &mut c.stack,
@@ -198,7 +198,7 @@ mod tests {
             jet_shas,
             sam,
             ubig!(_0xf7569a89650553ef13f9a8f0bb751fd42b70a4821be6bc1cbe197af33ce4843c),
-        );
+        ).unwrap();
     }
 
     #[test]
@@ -210,14 +210,14 @@ mod tests {
             jet_shax,
             D(0), // ''
             ubig!(_0x55b852781b9995a44c939b64e441ae2724b96f99c8f4fb9a141cfc9842c4b0e3),
-        );
+        ).unwrap();
 
         assert_jet_ubig(
             c,
             jet_shax,
             D(7303014), // 'foo'
             ubig!(_0xaee76662885e8af9a0bf8364702d42133441301d3c459bf98fc6ff686bb4262c),
-        );
+        ).unwrap();
 
         let a = A(
             &mut c.stack,
@@ -228,14 +228,14 @@ mod tests {
             jet_shax,
             a,
             ubig!(_0x9ee26e46c2028aa4a9c463aa722b82ed8bf6e185c3e5a5a69814a2c78fe8adc7),
-        );
+        ).unwrap();
 
         assert_jet_ubig(
             c,
             jet_shax,
             D(123456789),
             ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
-        );
+        ).unwrap();
 
         let a = A(
             &mut c.stack,
@@ -246,7 +246,7 @@ mod tests {
             jet_shax,
             a,
             ubig!(_0xf90f3184d7347a20cfdd2d5f7ac5c82eb9ab7af54c9419fbc18832c5a33360c9),
-        );
+        ).unwrap();
     }
 
     #[test]
@@ -258,49 +258,49 @@ mod tests {
             &mut c.stack,
             &ubig!(_0x55b852781b9995a44c939b64e441ae2724b96f99c8f4fb9a141cfc9842c4b0e3),
         ).unwrap();
-        assert_jet(c, jet_shay, sam, ret);
+        assert_jet(c, jet_shay, sam, ret).unwrap();
 
         let sam = T(&mut c.stack, &[D(1), D(0)]).unwrap();
         let ret = A(
             &mut c.stack,
             &ubig!(_0x1da0af1706a31185763837b33f1d90782c0a78bbe644a59c987ab3ff9c0b346e),
         ).unwrap();
-        assert_jet(c, jet_shay, sam, ret);
+        assert_jet(c, jet_shay, sam, ret).unwrap();
 
         let sam = T(&mut c.stack, &[D(0), D(1)]).unwrap();
         let ret = A(
             &mut c.stack,
             &ubig!(_0x55b852781b9995a44c939b64e441ae2724b96f99c8f4fb9a141cfc9842c4b0e3),
         ).unwrap();
-        assert_jet(c, jet_shay, sam, ret);
+        assert_jet(c, jet_shay, sam, ret).unwrap();
 
         let sam = T(&mut c.stack, &[D(1), D(478560413032)]).unwrap(); // [1 'hello']
         let ret = A(
             &mut c.stack,
             &ubig!(_0x23b14de6713b28aadf8f95026636eb6ab63e99c952bceb401fa4f1642640a9aa),
         ).unwrap();
-        assert_jet(c, jet_shay, sam, ret);
+        assert_jet(c, jet_shay, sam, ret).unwrap();
 
         let sam = T(&mut c.stack, &[D(2), D(478560413032)]).unwrap(); // [2 'hello']
         let ret = A(
             &mut c.stack,
             &ubig!(_0xde1e7ee30cecf453f1d77c08a125fdc6a4bbac72c01dd7a1e21cd0d22f7e2f37),
         ).unwrap();
-        assert_jet(c, jet_shay, sam, ret);
+        assert_jet(c, jet_shay, sam, ret).unwrap();
 
         let big = DIRECT_MAX + 1;
         let ida = unsafe {
             IndirectAtom::new_raw_bytes(&mut c.stack, 8, &big as *const u64 as *const u8).unwrap()
         };
         let sam = T(&mut c.stack, &[ida.as_noun(), D(478560413032)]).unwrap();
-        assert_jet_err(c, jet_shay, sam, BAIL_FAIL);
+        assert_jet_err(c, jet_shay, sam, BAIL_FAIL).unwrap();
 
         let big: u128 = (DIRECT_MAX as u128) << 64;
         let ida = unsafe {
             IndirectAtom::new_raw_bytes(&mut c.stack, 8, &big as *const u128 as *const u8).unwrap()
         };
         let sam = T(&mut c.stack, &[ida.as_noun(), D(478560413032)]).unwrap();
-        assert_jet_err(c, jet_shay, sam, BAIL_FAIL);
+        assert_jet_err(c, jet_shay, sam, BAIL_FAIL).unwrap();
     }
 
     #[test]
@@ -313,7 +313,7 @@ mod tests {
             jet_shal,
             sam,
             ubig!(_0x3eda27f97a3238a5817a4147bd31b9632fec7e87d21883ffb0f2855d3cd1d047cee96cd321a9f483dc15570b05e420d607806dd6502854f1bdb8ef7e35e183cf)
-        );
+        ).unwrap();
 
         let sam = T(&mut c.stack, &[D(1), D(0)]).unwrap();
         assert_jet_ubig(
@@ -321,7 +321,7 @@ mod tests {
             jet_shal,
             sam,
             ubig!(_0xee1069e3f03884c3e5d457253423844a323c29eb4cde70630b58c3712a804a70221d35d9506e242c9414ff192e283dd6caa4eff86a457baf93d68189024d24b8)
-        );
+        ).unwrap();
 
         let sam = T(&mut c.stack, &[D(0), D(1)]).unwrap();
         assert_jet_ubig(
@@ -329,7 +329,7 @@ mod tests {
             jet_shal,
             sam,
             ubig!(_0x3eda27f97a3238a5817a4147bd31b9632fec7e87d21883ffb0f2855d3cd1d047cee96cd321a9f483dc15570b05e420d607806dd6502854f1bdb8ef7e35e183cf)
-        );
+        ).unwrap();
 
         let wid = A(
             &mut c.stack,
@@ -340,14 +340,14 @@ mod tests {
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73),
         ).unwrap();
         let sam = T(&mut c.stack, &[wid, dat]).unwrap();
-        assert_jet_err(c, jet_shal, sam, BAIL_FAIL);
+        assert_jet_err(c, jet_shal, sam, BAIL_FAIL).unwrap();
 
         let wid = A(
             &mut c.stack,
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
         ).unwrap();
         let sam = T(&mut c.stack, &[wid, D(1)]).unwrap();
-        assert_jet_err(c, jet_shal, sam, BAIL_FAIL);
+        assert_jet_err(c, jet_shal, sam, BAIL_FAIL).unwrap();
     }
 
     #[test]
@@ -360,7 +360,7 @@ mod tests {
             jet_sha1,
             sam,
             ubig!(_0xda39a3ee5e6b4b0d3255bfef95601890afd80709),
-        );
+        ).unwrap();
 
         let sam = T(&mut c.stack, &[D(1), D(0)]).unwrap();
         assert_jet_ubig(
@@ -368,7 +368,7 @@ mod tests {
             jet_sha1,
             sam,
             ubig!(_0x5ba93c9db0cff93f52b521d7420e43f6eda2784f),
-        );
+        ).unwrap();
 
         let sam = T(&mut c.stack, &[D(0), D(1)]).unwrap();
         assert_jet_ubig(
@@ -376,7 +376,7 @@ mod tests {
             jet_sha1,
             sam,
             ubig!(_0xda39a3ee5e6b4b0d3255bfef95601890afd80709),
-        );
+        ).unwrap();
 
         let wid = A(
             &mut c.stack,
@@ -387,13 +387,13 @@ mod tests {
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de73),
         ).unwrap();
         let sam = T(&mut c.stack, &[wid, dat]).unwrap();
-        assert_jet_err(c, jet_sha1, sam, BAIL_FAIL);
+        assert_jet_err(c, jet_sha1, sam, BAIL_FAIL).unwrap();
 
         let wid = A(
             &mut c.stack,
             &ubig!(_0xa1d6eb6ef33f233ae6980ca7c4fc65f90fe1bdee11c730d41607b4747c83de72),
         ).unwrap();
         let sam = T(&mut c.stack, &[wid, D(1)]).unwrap();
-        assert_jet_err(c, jet_sha1, sam, BAIL_FAIL);
+        assert_jet_err(c, jet_sha1, sam, BAIL_FAIL).unwrap();
     }
 }

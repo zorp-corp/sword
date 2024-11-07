@@ -303,8 +303,8 @@ impl UBig {
     pub fn mul_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> Result<UBig, S::AllocError> {
         let res = match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::mul_word_stack(stack, word0, word1)?,
-            (Small(word0), Large(buffer1)) => UBig::mul_large_word_stack(stack, buffer1, word0),
-            (Large(buffer0), Small(word1)) => UBig::mul_large_word_stack(stack, buffer0, word1),
+            (Small(word0), Large(buffer1)) => UBig::mul_large_word_stack(stack, buffer1, word0)?,
+            (Large(buffer0), Small(word1)) => UBig::mul_large_word_stack(stack, buffer0, word1)?,
             (Large(buffer0), Large(buffer1)) => UBig::mul_large_stack(stack, &buffer0, &buffer1)?,
         };
         Ok(res)
@@ -315,16 +315,16 @@ impl UBig {
         UBig::from_unsigned_stack(stack, extend_word(a) * extend_word(b))
     }
 
-    fn mul_large_word_stack<S: Stack>(stack: &mut S, mut buffer: Buffer, a: Word) -> UBig {
+    fn mul_large_word_stack<S: Stack>(stack: &mut S, mut buffer: Buffer, a: Word) -> Result<UBig, S::AllocError> {
         match a {
-            0 => UBig::from_word(0),
-            1 => buffer.into(),
+            0 => Ok(UBig::from_word(0)),
+            1 => Ok(buffer.into()),
             _ => {
                 let carry = mul::mul_word_in_place(&mut buffer, a);
                 if carry != 0 {
-                    buffer.push_may_reallocate_stack(stack, carry);
+                    buffer.push_may_reallocate_stack(stack, carry)?;
                 }
-                buffer.into()
+                Ok(buffer.into())
             }
         }
     }

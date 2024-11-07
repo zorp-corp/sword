@@ -52,11 +52,11 @@ impl Persist for Snapshot {
         *buffer = snapshot_buffer.add(1) as *mut u8;
 
         let mut arvo = (*snapshot_buffer).arvo;
-        arvo.copy_to_buffer(stack, buffer);
+        arvo.copy_to_buffer(stack, buffer)?;
         (*snapshot_buffer).arvo = arvo;
 
         let mut cold = (*snapshot_buffer).cold;
-        cold.copy_to_buffer(stack, buffer);
+        cold.copy_to_buffer(stack, buffer)?;
         (*snapshot_buffer).cold = cold;
         Ok(())
     }
@@ -201,7 +201,7 @@ impl Context {
         //  XX: assert event numbers are continuous
         self.arvo = new_arvo;
         self.event_num = new_event_num;
-        self.save();
+        self.save()?;
 
         self.nock_context.cache = Hamt::new(&mut self.nock_context.stack)?;
         self.nock_context.scry_stack = D(0);
@@ -217,11 +217,12 @@ impl Context {
     /// Preserves nouns and jet states in context and then calls [flip_top_frame].
     /// Other stack-allocated objects needing preservation should be preserved between
     /// [event_update] and invocation of this function
-    pub unsafe fn preserve_event_update_leftovers(&mut self) {
+    pub unsafe fn preserve_event_update_leftovers(&mut self) -> AllocResult<()> {
         let stack = &mut self.nock_context.stack;
-        stack.preserve(&mut self.nock_context.warm);
-        stack.preserve(&mut self.nock_context.hot);
+        stack.preserve(&mut self.nock_context.warm)?;
+        stack.preserve(&mut self.nock_context.hot)?;
         stack.flip_top_frame(0);
+        Ok(())
     }
 
     //
@@ -232,45 +233,45 @@ impl Context {
         self.newt.next(&mut self.nock_context.stack)
     }
 
-    pub fn ripe(&mut self) {
+    pub fn ripe(&mut self) -> AllocResult<()> {
         self.newt.ripe(
             &mut self.nock_context.stack, self.event_num, self.mug as u64,
-        );
+        )
     }
 
-    pub fn live(&mut self) {
-        self.newt.live(&mut self.nock_context.stack);
+    pub fn live(&mut self) -> AllocResult<()> {
+        self.newt.live(&mut self.nock_context.stack)
     }
 
-    pub fn peek_done(&mut self, dat: Noun) {
-        self.newt.peek_done(&mut self.nock_context.stack, dat);
+    pub fn peek_done(&mut self, dat: Noun) -> AllocResult<()> {
+        self.newt.peek_done(&mut self.nock_context.stack, dat)
     }
 
-    pub fn play_done(&mut self) {
+    pub fn play_done(&mut self) -> AllocResult<()> {
         self.newt
-            .play_done(&mut self.nock_context.stack, self.mug as u64);
+            .play_done(&mut self.nock_context.stack, self.mug as u64)
     }
 
-    pub fn play_bail(&mut self, dud: Noun) {
+    pub fn play_bail(&mut self, dud: Noun) -> AllocResult<()> {
         self.newt.play_bail(
             &mut self.nock_context.stack, self.event_num, self.mug as u64, dud,
-        );
+        )
     }
 
-    pub fn work_done(&mut self, fec: Noun) {
+    pub fn work_done(&mut self, fec: Noun) -> AllocResult<()> {
         self.newt.work_done(
             &mut self.nock_context.stack, self.event_num, self.mug as u64, fec,
-        );
+        )
     }
 
-    pub fn work_swap(&mut self, job: Noun, fec: Noun) {
+    pub fn work_swap(&mut self, job: Noun, fec: Noun) -> AllocResult<()> {
         self.newt.work_swap(
             &mut self.nock_context.stack, self.event_num, self.mug as u64, job, fec,
-        );
+        )
     }
 
-    pub fn work_bail(&mut self, lud: Noun) {
-        self.newt.work_bail(&mut self.nock_context.stack, lud);
+    pub fn work_bail(&mut self, lud: Noun) -> AllocResult<()> {
+        self.newt.work_bail(&mut self.nock_context.stack, lud)
     }
 }
 
@@ -329,7 +330,7 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
     }
 
     let mut context = Context::load(snap_path, trace_info, constant_hot_state)?;
-    context.ripe();
+    context.ripe()?;
 
     // Can't use for loop because it borrows newt
     while let Some(writ) = context.next()? {
@@ -363,26 +364,27 @@ pub fn serf(constant_hot_state: &[HotEntry]) -> io::Result<()> {
                         flog!(&mut context.nock_context, "unknown live");
                     }
                 }
-                context.live();
+                context.live()?;
             }
             tas!(b"peek") => {
                 let ovo = slot(writ, 7)?;
                 let res = peek(&mut context, ovo);
-                context.peek_done(res);
+                context.peek_done(res)?;
             }
             tas!(b"play") => {
                 let lit = slot(writ, 7)?;
                 if context.epoch == 0 && context.event_num == 0 {
                     // apply lifecycle to first batch
-                    play_life(&mut context, lit);
+                    // TODO: This needs a much better error
+                    play_life(&mut context, lit).map_err(|_e| io::ErrorKind::Other)?;
                 } else {
-                    play_list(&mut context, lit);
+                    play_list(&mut context, lit)?;
                 };
             }
             tas!(b"work") => {
                 //  XX: what is in slot 6? it's mil_w in Vere Serf
                 let job = slot(writ, 7)?;
-                work(&mut context, job);
+                work(&mut context, job)?;
             }
             _ => panic!("got message with unknown tag {}", tag),
         };
@@ -481,15 +483,15 @@ fn play_life(context: &mut Context, eve: Noun) -> crate::jets::Result<()> {
             let arvo = slot(gat, 7).expect("serf: play: lifecycle didn't return initial Arvo");
 
             unsafe {
-                context.event_update(eved, arvo);
-                context.preserve_event_update_leftovers();
+                context.event_update(eved, arvo)?;
+                context.preserve_event_update_leftovers()?;
             }
-            context.play_done();
+            context.play_done()?;
         }
         Err(error) => match error {
             Error::Deterministic(mote, traces) | Error::NonDeterministic(mote, traces) => {
                 let goof = goof(context, mote, traces)?;
-                context.play_bail(goof);
+                context.play_bail(goof)?;
             }
             Error::ScryBlocked(_) | Error::ScryCrashed(_) => {
                 panic!("serf: play: .^ invalid outside of virtual Nock")
@@ -502,7 +504,7 @@ fn play_life(context: &mut Context, eve: Noun) -> crate::jets::Result<()> {
     Ok(res)
 }
 
-fn play_list(context: &mut Context, mut lit: Noun) {
+fn play_list(context: &mut Context, mut lit: Noun) -> AllocResult<()> {
     let mut eve = context.event_num;
     while let Ok(cell) = lit.as_cell() {
         let ovo = cell.head();
@@ -522,17 +524,18 @@ fn play_list(context: &mut Context, mut lit: Noun) {
                 eve += 1;
 
                 unsafe {
-                    context.event_update(eve, arvo);
-                    context.nock_context.stack.preserve(&mut lit);
-                    context.preserve_event_update_leftovers();
+                    context.event_update(eve, arvo)?;
+                    context.nock_context.stack.preserve(&mut lit)?;
+                    context.preserve_event_update_leftovers()?;
                 }
             }
             Err(goof) => {
-                return context.play_bail(goof);
+                return context.play_bail(goof)
             }
         }
     }
-    context.play_done();
+    context.play_done()?;
+    Ok(())
 }
 
 fn work(context: &mut Context, job: Noun) -> AllocResult<()> {
@@ -557,14 +560,14 @@ fn work(context: &mut Context, job: Noun) -> AllocResult<()> {
             let eve = context.event_num;
 
             unsafe {
-                context.event_update(eve + 1, cell.tail());
-                context.nock_context.stack.preserve(&mut fec);
-                context.preserve_event_update_leftovers();
+                context.event_update(eve + 1, cell.tail())?;
+                context.nock_context.stack.preserve(&mut fec)?;
+                context.preserve_event_update_leftovers()?;
             }
-            context.work_done(fec);
+            context.work_done(fec)?;
         }
         Err(goof) => {
-            work_swap(context, job, goof);
+            work_swap(context, job, goof)?;
         }
     };
     Ok(res)
@@ -603,18 +606,18 @@ fn work_swap(context: &mut Context, job: Noun, goof: Noun) -> AllocResult<()> {
             let eve = context.event_num;
 
             unsafe {
-                context.event_update(eve + 1, cell.tail());
-                context.nock_context.stack.preserve(&mut ovo);
-                context.nock_context.stack.preserve(&mut fec);
-                context.preserve_event_update_leftovers();
+                context.event_update(eve + 1, cell.tail())?;
+                context.nock_context.stack.preserve(&mut ovo)?;
+                context.nock_context.stack.preserve(&mut fec)?;
+                context.preserve_event_update_leftovers()?;
             }
-            context.work_swap(ovo, fec);
+            context.work_swap(ovo, fec)?;
         }
         Err(goof_crud) => {
             flog!(&mut context.nock_context, "\rserf: bail");
             let stack = &mut context.nock_context.stack;
             let lud = T(stack, &[goof_crud, goof, D(0)])?;
-            context.work_bail(lud);
+            context.work_bail(lud)?;
         }
     };
     Ok(())

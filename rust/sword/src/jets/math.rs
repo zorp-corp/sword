@@ -397,6 +397,13 @@ mod tests {
     // Override T and A with the panicky variants
     use crate::test_fns::{A, T};
 
+    #[allow(non_upper_case_globals)]
+    const assert_jet: AssertJetFn = assert_jet_panicky;
+    #[allow(non_upper_case_globals)]
+    const assert_jet_err: AssertJetErrFn = assert_jet_err_panicky;
+    #[allow(non_upper_case_globals)]
+    const assert_jet_ubig: AssertJetUBigFn = assert_jet_ubig_panicky;
+
     fn atoms(s: &mut NockStack) -> (Noun, Noun, Noun, Noun, Noun) {
         (atom_0(s), atom_24(s), atom_63(s), atom_96(s), atom_128(s))
     }

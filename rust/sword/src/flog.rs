@@ -42,7 +42,7 @@ impl Write for NockWriter<'_, '_> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         let sz = buf.len();
         while (self.buffer.len() - self.cursor) < sz {
-            unsafe { self.expand() };
+            unsafe { self.expand()? };
         }
         self.buffer[self.cursor..self.cursor + sz].copy_from_slice(buf);
         self.cursor += sz;
@@ -62,7 +62,7 @@ pub fn nock_fmt(context: &mut Context, fmt: Arguments<'_>) -> Result<Atom> {
 
 pub fn flog_fmt(context: &mut Context, fmt: Arguments<'_>) -> Result<()> {
     let cord = nock_fmt(context, fmt)?;
-    context.slogger.flog(&mut context.stack, cord.as_noun());
+    context.slogger.flog(&mut context.stack, cord.as_noun())?;
     Ok(())
 }
 

@@ -252,11 +252,12 @@ mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::{assert_noun_eq, init_context, A};
+    use crate::jets::util::test::*;
     use crate::jets::Jet;
     use crate::mem::{AllocResult, NockStack};
     use crate::noun::{Cell, D, T};
     use ibig::ubig;
+
 
     pub fn assert_jet_in_door(
         c: &mut Context,
@@ -264,26 +265,25 @@ mod tests {
         sam: &[fn(&mut NockStack) -> Noun], // regular sample
         ctx: &[fn(&mut NockStack) -> AllocResult<Noun>], // door sample as context
         res: Noun,
-    ) -> AllocResult<()> {
+    ) {
         let sam: Vec<Noun> = sam.iter().map(|f| f(&mut c.stack)).collect();
         let ctx: Vec<Noun> = ctx.iter().flat_map(|f| f(&mut c.stack)).collect();
         let sam = if sam.len() > 1 {
-            T(&mut c.stack, &sam)?
+            T(&mut c.stack, &sam).expect("T alloc failed in assert_jet_in_door")
         } else {
             sam[0]
         };
         let ctx = if ctx.len() > 1 {
-            T(&mut c.stack, &ctx)?
+            T(&mut c.stack, &ctx).expect("2nd T alloc failed in assert_jet_in_door")
         } else {
             ctx[0]
         };
-        let pay = Cell::new(&mut c.stack, sam, ctx)?.as_noun();
-        let sbj = Cell::new(&mut c.stack, D(0), pay)?.as_noun();
+        let pay = Cell::new(&mut c.stack, sam, ctx).expect("Cell alloc failed in assert_jet_in_door").as_noun();
+        let sbj = Cell::new(&mut c.stack, D(0), pay).expect("2nd Cell alloc failed").as_noun();
         // std::io::stderr().flush().unwrap();
         let jet_res = jet(c, sbj).unwrap();
         // std::io::stderr().flush().unwrap();
         assert_noun_eq(&mut c.stack, jet_res, res);
-        Ok(())
     }
 
     #[test]
