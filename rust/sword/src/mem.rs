@@ -44,7 +44,7 @@ pub struct MemoryState {
 
 /// Error type for when a potential allocation would cause an OOM error
 #[derive(Debug, Clone)]
-pub struct OutOfMemoryError(pub MemoryState);
+pub struct OutOfMemoryError(pub MemoryState, pub Allocation,);
 
 /// Error type for allocation errors in [NockStack]
 #[derive(Debug, Clone, Error)]
@@ -63,7 +63,7 @@ impl From<AllocationError> for std::io::Error {
 
 pub type AllocResult<T> = core::result::Result<T, AllocationError>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum ArenaOrientation {
     /// stack_pointer < alloc_pointer
     /// stack_pointer increases on push
@@ -77,7 +77,7 @@ pub enum ArenaOrientation {
     East,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum AllocationType {
     /// alloc pointer moves
     Alloc,
@@ -188,8 +188,8 @@ impl NockStack {
         AllocationError::CannotAllocateInPreCopy(self.memory_state(size))
     }
 
-    fn out_of_memory(&self, words: Option<usize>) -> AllocationError {
-        AllocationError::OutOfMemory(OutOfMemoryError(self.memory_state(words)))
+    fn out_of_memory(&self, alloc: Allocation, words: Option<usize>) -> AllocationError {
+        AllocationError::OutOfMemory(OutOfMemoryError(self.memory_state(words), alloc))
     }
 
     pub(crate) fn get_alloc_config(&self, alloc_type: AllocationType) -> Allocation {
@@ -239,6 +239,9 @@ impl NockStack {
     // Types of size: word (words: usize)
     /// Check if an allocation of `size` would cause an OOM error
     pub fn alloc_would_oom_(&self, alloc: Allocation, words: usize) -> Result<(), AllocationError> {
+        let memory_state = self.memory_state(Some(words));
+        println!("alloc_would_oom_: self.memory_state(): {:#?}, self:is_west(): {}", memory_state, self.is_west());
+        println!("alloc_would_oom_: alloc: {:#?}", alloc);
         if self.pc {
             return Err(self.cannot_alloc_in_pc(Some(words)));
         }
@@ -299,14 +302,14 @@ impl NockStack {
                 if target_point <= limit_point {
                     Ok(())
                 } else {
-                    Err(self.out_of_memory(Some(words)))
+                    Err(self.out_of_memory(alloc, Some(words)))
                 }
             },
             Direction::Decreasing => {
                 if target_point >= limit_point {
                     Ok(())
                 } else {
-                    Err(self.out_of_memory(Some(words)))
+                    Err(self.out_of_memory(alloc, Some(words)))
                 }
             },
         }
@@ -534,11 +537,7 @@ impl NockStack {
 
     /** Bump the alloc pointer for an east frame to make space for an allocation */
     unsafe fn raw_alloc_east(&mut self, words: usize) -> AllocResult<*mut u64> {
-        // println!("allocating struct, words: {}, is_west: {}", words, self.is_west());
-        // println!("pc: {}, sp: {}, ap: {}", self.pc, self.stack_pointer as usize, self.alloc_pointer as usize);
-        // let alloc = self.get_alloc_config(AllocationType::Alloc);
         let () = self.alloc_would_oom(AllocationType::Alloc, words)?;
-        // println!("memory_state: {:#?}, alloc: {alloc:#?}, alloc_would_oom: {:?}\n", self.memory_state(Some(words)), would_oom);
         if self.pc {
             panic!("Allocation during cleanup phase is prohibited.");
         }
@@ -981,7 +980,7 @@ impl NockStack {
     // TODO: Basic alloc function
     unsafe fn push_east<T>(&mut self) -> AllocResult<*mut T> {
         let words = word_size_of::<T>();
-        let () = self.alloc_would_oom_(Allocation { orientation: ArenaOrientation::West, alloc_type: AllocationType::Push, pc: self.pc }, words)?;
+        let () = self.alloc_would_oom_(Allocation { orientation: ArenaOrientation::East, alloc_type: AllocationType::Push, pc: self.pc }, words)?;
         let ap = if self.pc {
             *(self.prev_alloc_pointer_pointer())
         } else {
@@ -1320,28 +1319,23 @@ mod test {
         jets::cold::{test::{make_noun_list, make_test_stack}, NounList, Nounable}, mem::NockStack, noun::D, unifying_equality::test::unifying_equality,
     };
 
-    // cargo test -- test_noun_list_alloc --nocapture
-    #[test]
-    fn test_noun_list_alloc() {
+    fn test_noun_list_alloc_fn(stack_size: usize, item_count: u64) -> crate::jets::cold::NounableResult<()> {
         unsafe {
             // fails at 512, works at 1024
-            const STACK_SIZE: usize = 1;
-            println!("TEST_SIZE: {}", STACK_SIZE);
-            let mut stack = make_test_stack(STACK_SIZE);
+            // const STACK_SIZE: usize = 1;
+            // println!("TEST_SIZE: {}", STACK_SIZE);
+            let mut stack = make_test_stack(stack_size);
             // Stack size 1 works until 15 elements, 14 passes, 15 fails.
-            const ITEM_COUNT: u64 = 15;
-            let vec = Vec::from_iter(0..ITEM_COUNT);
+            // const ITEM_COUNT: u64 = 15;
+            let vec = Vec::from_iter(0..item_count);
             let items = vec.iter().map(|&x| D(x)).collect::<Vec<Noun>>();
             let slice = vec.as_slice();
-            let noun_list = make_noun_list(&mut stack, slice).unwrap();
+            let noun_list = make_noun_list(&mut stack, slice)?;
             assert!(!noun_list.0.is_null());
-            // This always reports 16, what gives?
-            // let space_needed = noun_list.space_needed(&mut stack);
-            // assert!(space_needed <= TEST_SIZE, "space_needed = {}, TEST_SIZE: {}", space_needed, TEST_SIZE);
-            let noun = noun_list.into_noun(&mut stack).unwrap();
+            let noun = noun_list.into_noun(&mut stack)?;
             let new_noun_list: NounList =
-                <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
-            let mut item_count = 0;
+                <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun)?;
+            let mut tracking_item_count = 0;
             println!("items: {:?}", items);
             for (a, b) in new_noun_list.zip(items.iter()) {
                 let a_ptr = a;
@@ -1354,9 +1348,76 @@ mod test {
                     a_val,
                     b
                 );
-                item_count += 1;
+                tracking_item_count += 1;
             }
-            assert_eq!(item_count, ITEM_COUNT as usize);
+            assert_eq!(tracking_item_count, item_count as usize);
         }
+        Ok(())
+    }
+
+    // cargo test -p sword test_noun_list_alloc -- --nocapture
+    #[test]
+    fn test_noun_list_alloc() {
+        let should_fail_to_alloc = test_noun_list_alloc_fn(1, 15);
+        assert!(should_fail_to_alloc.map_err(|err| err.is_alloc_error()).unwrap_err());
+        let should_succeed = test_noun_list_alloc_fn(1, 14);
+        assert!(should_succeed.is_ok());
+    }
+
+    // cargo test -p sword test_frame_push -- --nocapture
+    #[test]
+    fn test_frame_push() {
+        // fails at 100, passes at 99, top_slots default to 100?
+        const PASSES: usize = 99;
+        const FAILS: usize = 100;
+        let stack_size = 1;
+        let mut stack = make_test_stack(stack_size);
+        let frame_push_res = stack.frame_push(FAILS);
+        assert!(frame_push_res.is_err());
+        let mut stack = make_test_stack(stack_size);
+        let frame_push_res = stack.frame_push(PASSES);
+        assert!(frame_push_res.is_ok());
+    }
+
+    // cargo test -p sword test_stack_push -- --nocapture
+    #[test]
+    fn test_stack_push() {
+        let stack_size = 1;
+        let mut stack = make_test_stack(stack_size);
+        let mut counter = 0;
+        // Fails at 102, probably because top_slots is 100?
+        while counter < 102 {
+            let push_res = unsafe { stack.push::<u64>() };
+            assert!(push_res.is_ok(), "Failed to push, counter: {}", counter);
+            counter += 1;
+        }
+        let push_res = unsafe { stack.push::<u64>() };
+        assert!(push_res.is_err());
+    }
+
+    // cargo test -p sword test_frame_and_stack_push -- --nocapture
+    #[test]
+    fn test_frame_and_stack_push() {
+        let stack_size = 1;
+        let mut stack = make_test_stack(stack_size);
+        let mut counter = 0;
+        while counter < 20 {
+            let frame_push_res = stack.frame_push(1);
+            assert!(frame_push_res.is_ok(), "Failed to frame_push, counter: {}", counter);
+            let push_res: Result<*mut u64, AllocationError> = unsafe { stack.push::<u64>() };
+            assert!(push_res.is_ok(), "Failed to push, counter: {}", counter);
+            counter += 1;
+        }
+        let frame_push_res = stack.frame_push(1);
+        assert!(frame_push_res.is_err());
+        // a single stack u64 push won't cause an error but a frame push will
+        let push_res = unsafe { stack.push::<u64>() };
+        assert!(push_res.is_ok());
+        // pushing an array of 1 u64 will NOT cause an error
+        let push_res = unsafe { stack.push::<[u64; 1]>() };
+        assert!(push_res.is_ok());
+        // pushing an array of 2 u64s WILL cause an error
+        let push_res = unsafe { stack.push::<[u64; 2]>() };
+        assert!(push_res.is_err());
     }
 }

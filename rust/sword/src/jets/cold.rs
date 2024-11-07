@@ -855,6 +855,12 @@ pub enum FromNounError {
     AllocationError(#[from] crate::mem::AllocationError),
 }
 
+impl FromNounError {
+    pub fn is_alloc_error(&self) -> bool {
+        matches!(self, FromNounError::AllocationError(_))
+    }
+}
+
 pub type NounableResult<T> = std::result::Result<T, FromNounError>;
 
 pub trait Nounable {
