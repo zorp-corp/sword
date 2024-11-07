@@ -57,7 +57,7 @@ impl Preserve for WarmEntry {
             if stack.is_in_frame(*ptr) {
                 (**ptr).batteries.preserve(stack)?;
                 (**ptr).path.preserve(stack)?;
-                let dest_mem: *mut WarmEntryMem = stack.struct_alloc_in_previous_frame(1);
+                let dest_mem: *mut WarmEntryMem = stack.struct_alloc_in_previous_frame(1)?;
                 copy_nonoverlapping(*ptr, dest_mem, 1);
                 *ptr = dest_mem;
                 ptr = &mut ((*dest_mem).next.0);

@@ -522,11 +522,11 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
 
     unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         let res = if stack.is_in_frame(self.0) {
-            let dest_stem = stack.struct_alloc_in_previous_frame(1);
+            let dest_stem = stack.struct_alloc_in_previous_frame(1)?;
             copy_nonoverlapping(self.0, dest_stem, 1);
             self.0 = dest_stem;
             if stack.is_in_frame((*dest_stem).buffer) {
-                let dest_buffer = stack.struct_alloc_in_previous_frame((*dest_stem).size());
+                let dest_buffer = stack.struct_alloc_in_previous_frame((*dest_stem).size())?;
                 copy_nonoverlapping((*dest_stem).buffer, dest_buffer, (*dest_stem).size());
                 (*dest_stem).buffer = dest_buffer;
                 // Here we're using the Rust stack since the array is a fixed
@@ -559,7 +559,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                             Some((Left(next_stem), idx)) => {
                                 if stack.is_in_frame(next_stem.buffer) {
                                     let dest_buffer =
-                                        stack.struct_alloc_in_previous_frame(next_stem.size());
+                                        stack.struct_alloc_in_previous_frame(next_stem.size())?;
                                     copy_nonoverlapping(
                                         next_stem.buffer,
                                         dest_buffer,
@@ -585,7 +585,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                             Some((Right(leaf), idx)) => {
                                 if stack.is_in_frame(leaf.buffer) {
                                     let dest_buffer =
-                                        stack.struct_alloc_in_previous_frame(leaf.len);
+                                        stack.struct_alloc_in_previous_frame(leaf.len)?;
                                     copy_nonoverlapping(leaf.buffer, dest_buffer, leaf.len);
                                     let new_leaf = Leaf {
                                         len: leaf.len,

@@ -119,7 +119,7 @@ impl Preserve for Batteries {
             if stack.is_in_frame(*ptr) {
                 (**ptr).battery.preserve(stack)?;
                 (**ptr).parent_axis.preserve(stack)?;
-                let dest_mem: *mut BatteriesMem = stack.struct_alloc_in_previous_frame(1);
+                let dest_mem: *mut BatteriesMem = stack.struct_alloc_in_previous_frame(1)?;
                 copy_nonoverlapping(*ptr, dest_mem, 1);
                 *ptr = dest_mem;
                 ptr = &mut ((**ptr).parent_batteries.0);
@@ -281,7 +281,7 @@ impl Preserve for BatteriesList {
         loop {
             if stack.is_in_frame(*ptr) {
                 (**ptr).batteries.preserve(stack)?;
-                let dest_mem: *mut BatteriesListMem = stack.struct_alloc_in_previous_frame(1);
+                let dest_mem: *mut BatteriesListMem = stack.struct_alloc_in_previous_frame(1)?;
                 copy_nonoverlapping(*ptr, dest_mem, 1);
                 *ptr = dest_mem;
                 ptr = &mut ((**ptr).next.0);
@@ -420,7 +420,7 @@ impl Preserve for NounList {
         loop {
             if stack.is_in_frame((*ptr).0) {
                 (*(*ptr).0).element.preserve(stack)?;
-                let dest_mem: *mut NounListMem = stack.struct_alloc_in_previous_frame(1);
+                let dest_mem: *mut NounListMem = stack.struct_alloc_in_previous_frame(1)?;
                 copy_nonoverlapping((*ptr).0, dest_mem, 1);
                 *ptr = NounList(dest_mem);
                 ptr = &mut ((*(*ptr).0).next);
@@ -525,7 +525,7 @@ impl Preserve for Cold {
         (*(self.0)).battery_to_paths.preserve(stack)?;
         (*(self.0)).root_to_paths.preserve(stack)?;
         (*(self.0)).path_to_batteries.preserve(stack)?;
-        let new_dest: *mut ColdMem = stack.struct_alloc_in_previous_frame(1);
+        let new_dest: *mut ColdMem = stack.struct_alloc_in_previous_frame(1)?;
         copy_nonoverlapping(self.0, new_dest, 1);
         self.0 = new_dest;
         Ok(())
