@@ -53,6 +53,9 @@ pub enum AllocationError {
     OutOfMemory(OutOfMemoryError),
     #[error("Cannot allocate in copy phase: {0:?}")]
     CannotAllocateInPreCopy(MemoryState),
+    // No slots being available is always a programming error, just panic.
+    // #[error("No slots available")]
+    // NoSlotsAvailable,
 }
 
 impl From<AllocationError> for std::io::Error {
@@ -307,34 +310,36 @@ impl NockStack {
             // TODO: Pretty sure this is wrong
             // West + SlotPointer, frame_pointer is decreasing
             (AllocationType::SlotPointer, ArenaOrientation::West) => {
+                let _slots_available = unsafe { self.slots_available().expect("No slots available on slot_pointer alloc check") };
                 let start_point = self.frame_pointer as usize;
                 println!("start_point: {start_point}");
-                let limit_point = unsafe { self.prev_alloc_pointer_pointer() as usize };
+                let limit_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
                 // When it's west, reserve is RESERVED + 1, otherwise it's just RESERVED.
                 let reserve = RESERVED + 1;
                 let target_point = start_point - bytes - (reserve * 8);
-                (target_point, limit_point, Direction::Decreasing)
+                (target_point, limit_point, Direction::Increasing)
             },
             // East + SlotPointer, frame_pointer is increasing
             (AllocationType::SlotPointer, ArenaOrientation::East) => {
+                let _slots_available = unsafe { self.slots_available().expect("No slots available on slot_pointer alloc check") };
                 let start_point = self.frame_pointer as usize;
                 println!("start_point: {start_point}");
-                let limit_point = unsafe { self.prev_alloc_pointer_pointer() as usize };
+                let limit_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
                 let reserve = RESERVED;
                 let target_point = start_point + bytes + (reserve * 8);
-                (target_point, limit_point, Direction::Increasing)
+                (target_point, limit_point, Direction::Decreasing)
             },
             // The alloc previous frame stuff is like doing a normal alloc but start point is prev alloc and limit pointer is prev stack pointer
             // TODO: Pretty sure this is wrong
             (AllocationType::AllocPreviousFrame, ArenaOrientation::West) => {
-                let start_point = unsafe { self.prev_alloc_pointer_pointer() as usize };
-                let limit_point = unsafe { self.prev_stack_pointer_pointer() as usize };
+                let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
+                let limit_point = unsafe { *self.prev_stack_pointer_pointer() as usize };
                 let target_point = start_point + bytes;
                 (target_point, limit_point, Direction::Increasing)
             },
             (AllocationType::AllocPreviousFrame, ArenaOrientation::East) => {
-                let start_point = unsafe { self.prev_alloc_pointer_pointer() as usize };
-                let limit_point = unsafe { self.prev_stack_pointer_pointer() as usize };
+                let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
+                let limit_point = unsafe { *self.prev_stack_pointer_pointer() as usize };
                 let target_point = start_point - bytes;
                 (target_point, limit_point, Direction::Decreasing)
             },
@@ -485,6 +490,34 @@ impl NockStack {
             ptr_u64 >= prev && ptr_u64 < self.alloc_pointer
         };
         res
+    }
+
+    pub fn div_rem_nonzero(a: usize, b: std::num::NonZeroUsize) -> (usize, usize) {
+        (a / b, a % b)
+    }
+
+    fn divide_evenly(divisor: usize, quotient: usize) -> usize {
+        let non_zero_quotient = std::num::NonZeroUsize::new(quotient).expect("Quotient cannot be zero, cannot divide by zero");
+        let (div, rem) = Self::div_rem_nonzero(divisor, non_zero_quotient);
+        assert!(rem == 0);
+        div
+    }
+
+    unsafe fn slots_available(&self) -> Option<usize> {
+        let prev = *self.prev_alloc_pointer_pointer() as usize;
+        // For slot pointer we have to add 1 to reserved, but frame_push is just reserved.
+        let reserved_bytes = RESERVED * 8;
+        let frame_pointer = self.frame_pointer as usize;
+        let (left, right) = if self.is_west() {
+            (frame_pointer, prev)
+        } else {
+            (prev, frame_pointer)
+        };
+        let bytes_difference =
+            left.checked_sub(right)
+            .and_then(|v| v.checked_sub(reserved_bytes))
+            .map(|v| Self::divide_evenly(v, 8));
+        bytes_difference
     }
 
     /** Mutable pointer to a slot in a stack frame: east stack */
@@ -1516,8 +1549,9 @@ mod test {
     fn test_slot_pointer() {
         let stack_size = 1;
         let mut stack = make_test_stack(stack_size);
-        let push_res: Result<*mut u64, AllocationError> = unsafe { stack.push::<u64>() };
-        assert!(push_res.is_ok());
+        // let push_res: Result<*mut u64, AllocationError> = unsafe { stack.push::<u64>() };
+        let frame_push_res = stack.frame_push(1);
+        assert!(frame_push_res.is_ok());
         let mut counter = 0;
         while counter < 102 {
             println!("counter: {counter}");
