@@ -39,6 +39,9 @@ pub struct MemoryState {
     pub frame_pointer: usize,
     pub stack_pointer: usize,
     pub alloc_pointer: usize,
+    pub prev_stack_pointer: usize,
+    // pub prev_frame_pointer: usize,
+    pub prev_alloc_pointer: usize,
     pub pc: bool,
 }
 
@@ -194,6 +197,9 @@ impl NockStack {
             frame_pointer: self.frame_pointer as usize,
             stack_pointer: self.stack_pointer as usize,
             alloc_pointer: self.alloc_pointer as usize,
+            prev_stack_pointer: unsafe { *self.prev_stack_pointer_pointer() as usize },
+            // prev_frame_pointer: unsafe { *self.prev_frame_pointer_pointer() as usize },
+            prev_alloc_pointer: unsafe { *self.prev_alloc_pointer_pointer() as usize },
             pc: self.pc,
         }
     }
@@ -249,7 +255,7 @@ impl NockStack {
     // Size modifiers: raw, indirect, struct, layout
     // Directionality parameters: (East/West), (Stack/Alloc), (pc: true/false)
     // Types of size: word (words: usize)
-    /// Check if an allocation of `size` would cause an OOM error
+    /// Check if an allocation or pointer retrieval indicates an invalid request or an invalid state
     pub fn alloc_would_oom_(&self, alloc: Allocation, words: usize) -> AllocResult<()> {
         let memory_state = self.memory_state(Some(words));
         println!("alloc_would_oom_: self.memory_state(): {:#?}, self:is_west(): {}", memory_state, self.is_west());
@@ -307,8 +313,7 @@ impl NockStack {
                 let target_point = start_point + bytes;
                 (target_point, limit_point, Direction::Increasing)
             },
-            // TODO: Pretty sure this is wrong
-            // West + SlotPointer, frame_pointer is decreasing
+            // West + SlotPointer, polarity is reversed because we're getting the prev pointer
             (AllocationType::SlotPointer, ArenaOrientation::West) => {
                 let _slots_available = unsafe { self.slots_available().expect("No slots available on slot_pointer alloc check") };
                 let start_point = self.frame_pointer as usize;
@@ -319,7 +324,7 @@ impl NockStack {
                 let target_point = start_point - bytes - (reserve * 8);
                 (target_point, limit_point, Direction::Increasing)
             },
-            // East + SlotPointer, frame_pointer is increasing
+            // East + SlotPointer, polarity is reversed because we're getting the prev pointer
             (AllocationType::SlotPointer, ArenaOrientation::East) => {
                 let _slots_available = unsafe { self.slots_available().expect("No slots available on slot_pointer alloc check") };
                 let start_point = self.frame_pointer as usize;
@@ -331,12 +336,14 @@ impl NockStack {
             },
             // The alloc previous frame stuff is like doing a normal alloc but start point is prev alloc and limit pointer is prev stack pointer
             // TODO: Pretty sure this is wrong
+            // polarity is reversed because we're getting the prev pointer
             (AllocationType::AllocPreviousFrame, ArenaOrientation::West) => {
                 let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
                 let limit_point = unsafe { *self.prev_stack_pointer_pointer() as usize };
                 let target_point = start_point + bytes;
                 (target_point, limit_point, Direction::Increasing)
             },
+            // polarity is reversed because we're getting the prev pointer
             (AllocationType::AllocPreviousFrame, ArenaOrientation::East) => {
                 let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
                 let limit_point = unsafe { *self.prev_stack_pointer_pointer() as usize };
@@ -1563,7 +1570,6 @@ mod test {
 
     // cargo test -p sword test_prev_alloc -- --nocapture
     // Test the alloc in previous frame checking by pushing a frame and then allocating in the previous frame until we run out of space
-    // TODO: This test is a bit shonky, in part because of the self.pre_copy() call.
     #[test]
     fn test_prev_alloc() {
         let stack_size = 1;
@@ -1571,10 +1577,15 @@ mod test {
         println!("\n############## frame push \n");
         let frame_push_res = stack.frame_push(1);
         assert!(frame_push_res.is_ok());
-        println!("\n############## first stack push \n");
-        let prev_alloc_res = unsafe { stack.raw_alloc_in_previous_frame(1) };
-        assert!(prev_alloc_res.is_ok(), "Failed to prev_alloc, res: {:#?}", prev_alloc_res);
-        println!("\n############## second stack push \n");
+        let mut counter = 0;
+        // This should be the same boundary as the repeated stack pushes
+        while counter < 102 {
+            println!("counter: {counter}");
+            let prev_alloc_res = unsafe { stack.raw_alloc_in_previous_frame(1) };
+            assert!(prev_alloc_res.is_ok(), "Failed to prev_alloc, counter: {}", counter);
+            counter += 1;
+        }
+        println!("### This next raw_alloc_in_previous_frame should fail ###\n");
         let prev_alloc_res = unsafe { stack.raw_alloc_in_previous_frame(1) };
         assert!(prev_alloc_res.is_err(), "Didn't get expected alloc error, res: {:#?}", prev_alloc_res);
     }
