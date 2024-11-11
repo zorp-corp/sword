@@ -335,7 +335,6 @@ impl NockStack {
                 (target_point, limit_point, Direction::Decreasing)
             },
             // The alloc previous frame stuff is like doing a normal alloc but start point is prev alloc and limit pointer is prev stack pointer
-            // TODO: Pretty sure this is wrong
             // polarity is reversed because we're getting the prev pointer
             (AllocationType::AllocPreviousFrame, ArenaOrientation::West) => {
                 let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
@@ -711,7 +710,6 @@ impl NockStack {
         }
     }
 
-    // TODO: raw_alloc_in_previous_frame_west: Add OOM checks here
     unsafe fn raw_alloc_in_previous_frame_west(&mut self, words: usize) -> AllocResult<*mut u64> {
         let () = self.alloc_would_oom_(Allocation { orientation: ArenaOrientation::West, alloc_type: AllocationType::AllocPreviousFrame, pc: self.pc }, words)?;
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
@@ -720,7 +718,6 @@ impl NockStack {
         Ok(alloc)
     }
 
-    // TODO: raw_alloc_in_previous_frame_east: Add OOM checks here
     unsafe fn raw_alloc_in_previous_frame_east(&mut self, words: usize) -> AllocResult<*mut u64> {
         let () = self.alloc_would_oom_(Allocation { orientation: ArenaOrientation::East, alloc_type: AllocationType::AllocPreviousFrame, pc: self.pc }, words)?;
         // note that the allocation is on the west frame, and thus resembles raw_alloc_west
