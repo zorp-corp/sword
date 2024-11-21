@@ -5,7 +5,6 @@ extern crate static_assertions;
 
 //pub mod bytecode;
 pub mod flog;
-pub mod guard;
 pub mod hamt;
 pub mod interpreter;
 pub mod jets;
