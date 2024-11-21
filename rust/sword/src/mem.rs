@@ -385,7 +385,7 @@ impl NockStack {
                 let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
                 let limit_point = self.stack_pointer as usize;
                 let target_point = start_point + bytes;
-                (target_point, limit_point, Direction::Decreasing)
+                (target_point, limit_point, Direction::Increasing)
             }
             // polarity is reversed because we're getting the prev pointer
             (AllocationType::AllocPreviousFrame, ArenaOrientation::East) => {
@@ -1604,36 +1604,34 @@ mod test {
         stack_size: usize,
         item_count: u64,
     ) -> crate::jets::cold::NounableResult<()> {
-        unsafe {
-            // fails at 512, works at 1024
-            // const STACK_SIZE: usize = 1;
-            // println!("TEST_SIZE: {}", STACK_SIZE);
-            let mut stack = make_test_stack(stack_size);
-            // Stack size 1 works until 15 elements, 14 passes, 15 fails.
-            // const ITEM_COUNT: u64 = 15;
-            let vec = Vec::from_iter(0..item_count);
-            let items = vec.iter().map(|&x| D(x)).collect::<Vec<Noun>>();
-            let slice = vec.as_slice();
-            let noun_list = make_noun_list(&mut stack, slice)?;
-            assert!(!noun_list.0.is_null());
-            let noun = noun_list.into_noun(&mut stack)?;
-            let new_noun_list: NounList =
-                <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun)?;
-            let mut tracking_item_count = 0;
-            println!("items: {:?}", items);
-            for (a, b) in new_noun_list.zip(items.iter()) {
-                let a_val = unsafe { *a };
-                println!("a: {:?}, b: {:?}", a_val, b);
-                assert!(
-                    unsafe { (*a).raw_equals(*b) },
-                    "Items don't match: {:?} {:?}",
-                    unsafe { *a },
-                    b
-                );
-                tracking_item_count += 1;
-            }
-            assert_eq!(tracking_item_count, item_count as usize);
+        // fails at 512, works at 1024
+        // const STACK_SIZE: usize = 1;
+        // println!("TEST_SIZE: {}", STACK_SIZE);
+        let mut stack = make_test_stack(stack_size);
+        // Stack size 1 works until 15 elements, 14 passes, 15 fails.
+        // const ITEM_COUNT: u64 = 15;
+        let vec = Vec::from_iter(0..item_count);
+        let items = vec.iter().map(|&x| D(x)).collect::<Vec<Noun>>();
+        let slice = vec.as_slice();
+        let noun_list = make_noun_list(&mut stack, slice)?;
+        assert!(!noun_list.0.is_null());
+        let noun = noun_list.into_noun(&mut stack)?;
+        let new_noun_list: NounList =
+            <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun)?;
+        let mut tracking_item_count = 0;
+        println!("items: {:?}", items);
+        for (a, b) in new_noun_list.zip(items.iter()) {
+            let a_val = unsafe { *a };
+            println!("a: {:?}, b: {:?}", a_val, b);
+            assert!(
+                unsafe { (*a).raw_equals(*b) },
+                "Items don't match: {:?} {:?}",
+                unsafe { *a },
+                b
+            );
+            tracking_item_count += 1;
         }
+        assert_eq!(tracking_item_count, item_count as usize);
         Ok(())
     }
 
@@ -1750,6 +1748,8 @@ mod test {
         println!("\n############## frame push \n");
         let frame_push_res = stack.frame_push(0);
         assert!(frame_push_res.is_ok());
+        let pre_copy_res = unsafe { stack.pre_copy() };
+        assert!(pre_copy_res.is_ok());
         let mut counter = 0;
 
         while counter < SUCCESS_ALLOCS {
