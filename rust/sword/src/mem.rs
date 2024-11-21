@@ -67,6 +67,14 @@ impl From<AllocationError> for std::io::Error {
 
 pub type AllocResult<T> = core::result::Result<T, AllocationError>;
 
+#[derive(Debug, Error)]
+pub enum NewStackError {
+    #[error("stack too small")]
+    StackTooSmall,
+    #[error("Failed to map memory for stack: {0}")]
+    MmapFailed(#[from] std::io::Error),
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum ArenaOrientation {
     /// stack_pointer < alloc_pointer
@@ -142,6 +150,7 @@ pub struct Allocation {
 pub enum Direction {
     Increasing,
     Decreasing,
+    IncreasingDeref,
 }
 
 /// A stack for Nock computation, which supports stack allocation and delimited copying collection
@@ -176,7 +185,17 @@ impl NockStack {
      * top_slots is how many slots to allocate to the top stack frame.
      */
     pub fn new(size: usize, top_slots: usize) -> NockStack {
-        let memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
+        Self::new_(size, top_slots)
+            .expect("Error making new NockStack")
+            .0
+    }
+
+    pub fn new_(size: usize, top_slots: usize) -> Result<(NockStack, usize), NewStackError> {
+        if top_slots + RESERVED > size {
+            return Err(NewStackError::StackTooSmall);
+        }
+        let free = size - (top_slots + RESERVED);
+        let memory = MmapMut::map_anon(size << 3)?;
         let start = memory.as_ptr() as *const u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
         let frame_pointer = unsafe { start.add(RESERVED + top_slots) } as *mut u64;
@@ -187,15 +206,22 @@ impl NockStack {
             *frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
             *frame_pointer.sub(ALLOC + 1) = start as u64; // "alloc pointer" from "previous" frame
         };
-        NockStack {
-            start,
-            size,
-            frame_pointer,
-            stack_pointer,
-            alloc_pointer,
-            memory,
-            pc: false,
-        }
+        assert_eq!(
+            unsafe { alloc_pointer.offset_from(stack_pointer) },
+            free as isize
+        );
+        Ok((
+            NockStack {
+                start,
+                size,
+                frame_pointer,
+                stack_pointer,
+                alloc_pointer,
+                memory,
+                pc: false,
+            },
+            free,
+        ))
     }
 
     // pub fn middle_of_stack(&self) -> *const u64 {
@@ -339,10 +365,8 @@ impl NockStack {
                 };
                 let start_point = self.frame_pointer as usize;
                 let limit_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
-                // When it's west, reserve is RESERVED + 1, otherwise it's just RESERVED.
-                let reserve = RESERVED + 1;
-                let target_point = start_point - bytes - (reserve * 8);
-                (target_point, limit_point, Direction::Increasing)
+                let target_point = start_point - bytes - 8;
+                (target_point, limit_point, Direction::Decreasing)
             }
             // East + SlotPointer, polarity is reversed because we're getting the prev pointer
             (AllocationType::SlotPointer, ArenaOrientation::East) => {
@@ -352,32 +376,21 @@ impl NockStack {
                 };
                 let start_point = self.frame_pointer as usize;
                 let limit_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
-                let reserve = RESERVED;
-                let target_point = start_point + bytes + (reserve * 8);
-                (target_point, limit_point, Direction::Decreasing)
+                let target_point = start_point + bytes;
+                (target_point, limit_point, Direction::IncreasingDeref)
             }
             // The alloc previous frame stuff is like doing a normal alloc but start point is prev alloc and limit pointer is prev stack pointer
             // polarity is reversed because we're getting the prev pointer
             (AllocationType::AllocPreviousFrame, ArenaOrientation::West) => {
-                let previous_stack_pointer = unsafe { *self.prev_stack_pointer_pointer() };
                 let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
-                let limit_point = if previous_stack_pointer.is_null() {
-                    unsafe { self.start.add(self.size) as usize }
-                } else {
-                    previous_stack_pointer as usize
-                };
+                let limit_point = self.stack_pointer as usize;
                 let target_point = start_point + bytes;
-                (target_point, limit_point, Direction::Increasing)
+                (target_point, limit_point, Direction::Decreasing)
             }
             // polarity is reversed because we're getting the prev pointer
             (AllocationType::AllocPreviousFrame, ArenaOrientation::East) => {
-                let previous_stack_pointer = unsafe { *self.prev_stack_pointer_pointer() };
                 let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
-                let limit_point = if previous_stack_pointer.is_null() {
-                    self.start as usize
-                } else {
-                    previous_stack_pointer as usize
-                };
+                let limit_point = self.stack_pointer as usize;
                 let target_point = start_point - bytes;
                 (target_point, limit_point, Direction::Decreasing)
             }
@@ -404,6 +417,14 @@ impl NockStack {
             }
             Direction::Decreasing => {
                 if target_point >= limit_point {
+                    Ok(())
+                } else {
+                    Err(self.out_of_memory(alloc, Some(words)))
+                }
+            }
+            // TODO this check is imprecise and should take into account the size of the pointer!
+            Direction::IncreasingDeref => {
+                if target_point < limit_point {
                     Ok(())
                 } else {
                     Err(self.out_of_memory(alloc, Some(words)))
@@ -1578,7 +1599,6 @@ mod test {
     use crate::jets::cold::{NounList, Nounable};
     use crate::mem::NockStack;
     use crate::noun::D;
-    use crate::unifying_equality::test::unifying_equality;
 
     fn test_noun_list_alloc_fn(
         stack_size: usize,
@@ -1602,14 +1622,12 @@ mod test {
             let mut tracking_item_count = 0;
             println!("items: {:?}", items);
             for (a, b) in new_noun_list.zip(items.iter()) {
-                let a_ptr = a;
-                let b_ptr = &mut b.clone() as *mut Noun;
-                let a_val = *a_ptr;
+                let a_val = unsafe { *a };
                 println!("a: {:?}, b: {:?}", a_val, b);
                 assert!(
-                    unifying_equality(&mut stack, a_ptr, b_ptr),
+                    unsafe { (*a).raw_equals(*b) },
                     "Items don't match: {:?} {:?}",
-                    a_val,
+                    unsafe { *a },
                     b
                 );
                 tracking_item_count += 1;
@@ -1622,11 +1640,15 @@ mod test {
     // cargo test -p sword test_noun_list_alloc -- --nocapture
     #[test]
     fn test_noun_list_alloc() {
-        let should_fail_to_alloc = test_noun_list_alloc_fn(1, 15);
+        const PASSES: u64 = 72;
+        const FAILS: u64 = 73;
+        const STACK_SIZE: usize = 512;
+
+        let should_fail_to_alloc = test_noun_list_alloc_fn(STACK_SIZE, FAILS);
         assert!(should_fail_to_alloc
             .map_err(|err| err.is_alloc_error())
             .unwrap_err());
-        let should_succeed = test_noun_list_alloc_fn(1, 14);
+        let should_succeed = test_noun_list_alloc_fn(STACK_SIZE, PASSES);
         assert!(should_succeed.is_ok());
     }
 
@@ -1634,13 +1656,13 @@ mod test {
     #[test]
     fn test_frame_push() {
         // fails at 100, passes at 99, top_slots default to 100?
-        const PASSES: usize = 99;
-        const FAILS: usize = 100;
-        let stack_size = 1;
-        let mut stack = make_test_stack(stack_size);
+        const PASSES: usize = 502;
+        const FAILS: usize = 503;
+        const STACK_SIZE: usize = 512;
+        let mut stack = make_test_stack(STACK_SIZE);
         let frame_push_res = stack.frame_push(FAILS);
         assert!(frame_push_res.is_err());
-        let mut stack = make_test_stack(stack_size);
+        let mut stack = make_test_stack(STACK_SIZE);
         let frame_push_res = stack.frame_push(PASSES);
         assert!(frame_push_res.is_ok());
     }
@@ -1648,11 +1670,12 @@ mod test {
     // cargo test -p sword test_stack_push -- --nocapture
     #[test]
     fn test_stack_push() {
-        let stack_size = 1;
-        let mut stack = make_test_stack(stack_size);
+        const PASSES: usize = 505;
+        const STACK_SIZE: usize = 512;
+        let mut stack = make_test_stack(STACK_SIZE);
         let mut counter = 0;
         // Fails at 102, probably because top_slots is 100?
-        while counter < 102 {
+        while counter < PASSES {
             let push_res = unsafe { stack.push::<u64>() };
             assert!(push_res.is_ok(), "Failed to push, counter: {}", counter);
             counter += 1;
@@ -1664,10 +1687,11 @@ mod test {
     // cargo test -p sword test_frame_and_stack_push -- --nocapture
     #[test]
     fn test_frame_and_stack_push() {
-        let stack_size = 1;
-        let mut stack = make_test_stack(stack_size);
+        const STACK_SIZE: usize = 514; // to make sure of an odd space for the stack push
+        const SUCCESS_PUSHES: usize = 101;
+        let mut stack = make_test_stack(STACK_SIZE);
         let mut counter = 0;
-        while counter < 20 {
+        while counter < SUCCESS_PUSHES {
             let frame_push_res = stack.frame_push(1);
             assert!(
                 frame_push_res.is_ok(),
@@ -1695,13 +1719,14 @@ mod test {
     // Test the slot_pointer checking by pushing frames and slots until we run out of space
     #[test]
     fn test_slot_pointer() {
-        let stack_size = 1;
-        let mut stack = make_test_stack(stack_size);
+        const STACK_SIZE: usize = 512;
+        const SLOT_POINTERS: usize = 32;
+        let mut stack = make_test_stack(STACK_SIZE);
         // let push_res: Result<*mut u64, AllocationError> = unsafe { stack.push::<u64>() };
-        let frame_push_res = stack.frame_push(1);
+        let frame_push_res = stack.frame_push(SLOT_POINTERS);
         assert!(frame_push_res.is_ok());
         let mut counter = 0;
-        while counter < 102 {
+        while counter < SLOT_POINTERS + RESERVED {
             println!("counter: {counter}");
             let slot_pointer_res = unsafe { stack.slot_pointer_(counter) };
             assert!(
@@ -1711,20 +1736,23 @@ mod test {
             );
             counter += 1;
         }
+        let slot_pointer_res = unsafe { stack.slot_pointer_(counter) };
+        assert!(slot_pointer_res.is_err())
     }
 
     // cargo test -p sword test_prev_alloc -- --nocapture
     // Test the alloc in previous frame checking by pushing a frame and then allocating in the previous frame until we run out of space
     #[test]
     fn test_prev_alloc() {
-        let stack_size = 1;
-        let mut stack = make_test_stack(stack_size);
+        const STACK_SIZE: usize = 512;
+        const SUCCESS_ALLOCS: usize = 502;
+        let mut stack = make_test_stack(STACK_SIZE);
         println!("\n############## frame push \n");
-        let frame_push_res = stack.frame_push(1);
+        let frame_push_res = stack.frame_push(0);
         assert!(frame_push_res.is_ok());
         let mut counter = 0;
-        // This should be the same boundary as the repeated stack pushes
-        while counter < 102 {
+
+        while counter < SUCCESS_ALLOCS {
             println!("counter: {counter}");
             let prev_alloc_res = unsafe { stack.raw_alloc_in_previous_frame(1) };
             assert!(

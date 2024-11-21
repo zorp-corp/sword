@@ -801,32 +801,25 @@ impl Nounable for NounList {
     type Target = NounList;
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> NounableResult<Noun> {
         let mut list = D(0);
-        let mut reverse = Vec::new();
         for item in self {
-            unsafe {
-                reverse.push(*item);
-            }
-        }
-        for item in reverse {
-            let gimme = item;
-            list = T(stack, &[gimme, list])?;
+            list = T(stack, &[unsafe { *item }, list])?;
         }
         Ok(list)
     }
 
     fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
-        let mut items = NOUN_LIST_NIL;
+        let mut result = NOUN_LIST_NIL;
         for item in NounListIterator(noun.clone()) {
             let list_mem_ptr: *mut NounListMem = unsafe { stack.alloc_struct(1)? };
             unsafe {
                 list_mem_ptr.write(NounListMem {
                     element: item,
-                    next: items,
+                    next: result,
                 });
             }
-            items = NounList(list_mem_ptr);
+            result = NounList(list_mem_ptr)
         }
-        Ok(items)
+        Ok(result)
     }
 }
 
@@ -1038,7 +1031,7 @@ pub(crate) mod test {
     /// Default stack size for tests where you aren't intending to run out of space
     pub(crate) const DEFAULT_STACK_SIZE: usize = 1 << 27;
     pub(crate) fn make_test_stack(size: usize) -> NockStack {
-        let top_slots = 100;
+        let top_slots = 4;
         let stack = NockStack::new(size, top_slots);
         stack
     }
@@ -1317,7 +1310,7 @@ pub(crate) mod test {
     pub(crate) fn make_noun_list(stack: &mut NockStack, v: &[u64]) -> AllocResult<NounList> {
         let mut noun_list = NOUN_LIST_NIL;
         // let mut prev = noun_list;
-        for &item in v.iter() {
+        for &item in v.iter().rev() {
             let noun_list_mem: *mut NounListMem = unsafe { stack.alloc_struct(1)? };
             unsafe {
                 noun_list_mem.write(NounListMem {
@@ -1333,14 +1326,24 @@ pub(crate) mod test {
     #[test]
     fn noun_list_bidirectional_conversion() {
         let mut stack = make_test_stack(DEFAULT_STACK_SIZE);
-        const ITEM_COUNT: u64 = 2;
+        const ITEM_COUNT: u64 = 10;
         let vec = Vec::from_iter(1..=ITEM_COUNT);
         let items = vec.iter().map(|&x| D(x)).collect::<Vec<Noun>>();
         let slice = vec.as_slice();
-        let noun_list = make_noun_list(&mut stack, slice).unwrap();
-        let noun = noun_list.into_noun(&mut stack).unwrap();
+        let noun_list = make_noun_list(&mut stack, slice).unwrap(); // 1 2
+        for (a, b) in noun_list.zip(items.iter()) {
+            assert!(
+                unsafe { (*a).raw_equals(*b) },
+                "mismatch in original noun list"
+            )
+        }
+        let noun = noun_list.into_noun(&mut stack).unwrap(); // 1 2
+        for (a, b) in NounListIterator(noun).zip(items.iter().rev()) {
+            println!("a: {a:#?}, b: {b:#?}");
+            assert!(unsafe { a.raw_equals(*b) }, "mismatch in list-as-noun")
+        }
         let new_noun_list: NounList =
-            <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap();
+            <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun).unwrap(); // 1 2
         let mut item_count = 0;
         for (a, b) in new_noun_list.zip(items.iter()) {
             let a_ptr = a;
@@ -1353,7 +1356,6 @@ pub(crate) mod test {
                 a_val,
                 b
             );
-            assert_eq!(item_count, ITEM_COUNT as usize);
         }
         assert_eq!(item_count, ITEM_COUNT as usize);
     }
