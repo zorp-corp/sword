@@ -1,15 +1,14 @@
-use crate::assert_acyclic;
-use crate::assert_no_forwarding_pointers;
-use crate::assert_no_junior_pointers;
+// TODO: fix stack push in PC
 use crate::noun::{Atom, Cell, CellMemory, IndirectAtom, Noun, NounAllocator};
+use crate::{assert_acyclic, assert_no_forwarding_pointers, assert_no_junior_pointers};
 use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
 use memmap::MmapMut;
 use std::alloc::Layout;
-use std::mem;
-use std::ptr;
 use std::ptr::copy_nonoverlapping;
+use std::{mem, ptr};
+use thiserror::Error;
 
 crate::gdb!();
 
@@ -26,36 +25,157 @@ pub const fn word_size_of<T>() -> usize {
     (mem::size_of::<T>() + 7) >> 3
 }
 
-/** Utility function to compute the raw memory usage of an IndirectAtom */
+/** Utility function to compute the raw memory usage of an [IndirectAtom] */
 fn indirect_raw_size(atom: IndirectAtom) -> usize {
     debug_assert!(atom.size() > 0);
     atom.size() + 2
 }
 
-/** A stack for Nock computation, which supports stack allocation and delimited copying collection
- * for returned nouns
- */
+#[derive(Debug, Clone)]
+pub struct MemoryState {
+    pub intended_alloc_words: Option<usize>,
+    pub frame_pointer: usize,
+    pub stack_pointer: usize,
+    pub alloc_pointer: usize,
+    pub prev_stack_pointer: usize,
+    // pub prev_frame_pointer: usize,
+    pub prev_alloc_pointer: usize,
+    pub pc: bool,
+}
+
+/// Error type for when a potential allocation would cause an OOM error
+#[derive(Debug, Clone)]
+pub struct OutOfMemoryError(pub MemoryState, pub Allocation);
+
+/// Error type for allocation errors in [NockStack]
+#[derive(Debug, Clone, Error)]
+pub enum AllocationError {
+    #[error("Out of memory: {0:?}")]
+    OutOfMemory(OutOfMemoryError),
+    #[error("Cannot allocate in copy phase: {0:?}")]
+    CannotAllocateInPreCopy(MemoryState),
+    // No slots being available is always a programming error, just panic.
+    // #[error("No slots available")]
+    // NoSlotsAvailable,
+}
+
+impl From<AllocationError> for std::io::Error {
+    fn from(_e: AllocationError) -> std::io::Error {
+        std::io::ErrorKind::OutOfMemory.into()
+    }
+}
+
+pub type AllocResult<T> = core::result::Result<T, AllocationError>;
+
+#[derive(Debug, Error)]
+pub enum NewStackError {
+    #[error("stack too small")]
+    StackTooSmall,
+    #[error("Failed to map memory for stack: {0}")]
+    MmapFailed(#[from] std::io::Error),
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ArenaOrientation {
+    /// stack_pointer < alloc_pointer
+    /// stack_pointer increases on push
+    /// frame_pointer increases on push
+    /// alloc_pointer decreases on alloc
+    West,
+    /// stack_pointer > alloc_pointer
+    /// stack_pointer decreases on push
+    /// frame_pointer decreases on push
+    /// alloc_pointer increases on alloc
+    East,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum AllocationType {
+    /// alloc pointer moves
+    Alloc,
+    /// stack pointer moves
+    Push,
+    /// On a frame push, the frame pointer becomes the current_alloc_pointer (+/- words),
+    /// the stack pointer is set to the value of the new frame pointer, and the alloc pointer
+    /// is set to the pre-frame-push stack pointer.
+    FramePush,
+    /// To check for a valid slot_pointer you need to check the space between frame pointer
+    /// and previous alloc pointer and then subtract RESERVED
+    SlotPointer,
+    /// Allocate in the previous stack frame
+    AllocPreviousFrame,
+    /// Flip top frame
+    FlipTopFrame,
+}
+
+impl AllocationType {
+    pub fn is_alloc_previous_frame(&self) -> bool {
+        matches!(self, AllocationType::AllocPreviousFrame)
+    }
+
+    pub fn is_push(&self) -> bool {
+        matches!(self, AllocationType::Push)
+    }
+
+    pub fn is_flip_top_frame(&self) -> bool {
+        matches!(self, AllocationType::FlipTopFrame)
+    }
+
+    pub fn allowed_when_pc(&self) -> bool {
+        self.is_alloc_previous_frame() || self.is_push() || self.is_flip_top_frame()
+    }
+}
+
+// unsafe {
+//     self.frame_pointer = if self.is_west() {
+//         current_alloc_pointer.sub(words)
+//     } else {
+//         current_alloc_pointer.add(words)
+//     };
+//     self.alloc_pointer = current_stack_pointer;
+//     self.stack_pointer = self.frame_pointer;
+//     *(self.slot_pointer(FRAME)) = current_frame_pointer as u64;
+//     *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
+//     *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
+
+/// Non-size parameters for validating an allocation
+#[derive(Debug, Clone)]
+pub struct Allocation {
+    pub orientation: ArenaOrientation,
+    pub alloc_type: AllocationType,
+    pub pc: bool,
+}
+
+#[derive(Debug, Clone)]
+pub enum Direction {
+    Increasing,
+    Decreasing,
+    IncreasingDeref,
+}
+
+/// A stack for Nock computation, which supports stack allocation and delimited copying collection
+/// for returned nouns
 #[allow(dead_code)] // We need the memory field to keep our memory from being unmapped
 pub struct NockStack {
-    /** The base pointer */
+    /// The base pointer
     start: *const u64,
-    /** The size of the memory region */
+    /// The size of the memory region
     size: usize,
-    /** Base pointer for the current stack frame. Accesses to slots are computed from this base. */
+    /// Base pointer for the current stack frame. Accesses to slots are computed from this base.
     frame_pointer: *mut u64,
-    /** Stack pointer for the current stack frame. */
+    /// Stack pointer for the current stack frame.
     stack_pointer: *mut u64,
-    /** Alloc pointer for the current stack frame. */
+    /// Alloc pointer for the current stack frame.
     alloc_pointer: *mut u64,
-    /** MMap which must be kept alive as long as this NockStack is */
+    /// MMap which must be kept alive as long as this [NockStack] is
     memory: MmapMut,
-    /** PMA from which we will copy into the NockStack */
-    /** Whether or not pre_copy() has been called on the current stack frame. */
+    /// PMA from which we will copy into the [NockStack]
+    /// Whether or not [`Self::pre_copy()`] has been called on the current stack frame.
     pc: bool,
 }
 
 impl NockStack {
-    /**  Initialization
+    /**  Initialization:
      * The initial frame is a west frame. When the stack is initialized, a number of slots is given.
      * We add three extra slots to store the “previous” frame, stack, and allocation pointer. For the
      * initial frame, the previous allocation pointer is set to the beginning (low boundary) of the
@@ -65,7 +185,17 @@ impl NockStack {
      * top_slots is how many slots to allocate to the top stack frame.
      */
     pub fn new(size: usize, top_slots: usize) -> NockStack {
-        let memory = MmapMut::map_anon(size << 3).expect("Mapping memory for nockstack failed");
+        Self::new_(size, top_slots)
+            .expect("Error making new NockStack")
+            .0
+    }
+
+    pub fn new_(size: usize, top_slots: usize) -> Result<(NockStack, usize), NewStackError> {
+        if top_slots + RESERVED > size {
+            return Err(NewStackError::StackTooSmall);
+        }
+        let free = size - (top_slots + RESERVED);
+        let memory = MmapMut::map_anon(size << 3)?;
         let start = memory.as_ptr() as *const u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
         let frame_pointer = unsafe { start.add(RESERVED + top_slots) } as *mut u64;
@@ -76,15 +206,235 @@ impl NockStack {
             *frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64; // "stack pointer" from "previous" frame
             *frame_pointer.sub(ALLOC + 1) = start as u64; // "alloc pointer" from "previous" frame
         };
-        NockStack {
-            start,
-            size,
-            frame_pointer,
-            stack_pointer,
-            alloc_pointer,
-            memory,
-            pc: false,
+        assert_eq!(
+            unsafe { alloc_pointer.offset_from(stack_pointer) },
+            free as isize
+        );
+        Ok((
+            NockStack {
+                start,
+                size,
+                frame_pointer,
+                stack_pointer,
+                alloc_pointer,
+                memory,
+                pc: false,
+            },
+            free,
+        ))
+    }
+
+    // pub fn middle_of_stack(&self) -> *const u64 {
+    //     // is that right? off by one?
+    //     unsafe { self.start.add(self.size >> 1) }
+    // }
+
+    fn memory_state(&self, words: Option<usize>) -> MemoryState {
+        MemoryState {
+            intended_alloc_words: words,
+            frame_pointer: self.frame_pointer as usize,
+            stack_pointer: self.stack_pointer as usize,
+            alloc_pointer: self.alloc_pointer as usize,
+            prev_stack_pointer: unsafe { *self.prev_stack_pointer_pointer() as usize },
+            // prev_frame_pointer: unsafe { *self.prev_frame_pointer_pointer() as usize },
+            prev_alloc_pointer: unsafe { *self.prev_alloc_pointer_pointer() as usize },
+            pc: self.pc,
         }
+    }
+
+    fn cannot_alloc_in_pc(&self, size: Option<usize>) -> AllocationError {
+        AllocationError::CannotAllocateInPreCopy(self.memory_state(size))
+    }
+
+    fn out_of_memory(&self, alloc: Allocation, words: Option<usize>) -> AllocationError {
+        AllocationError::OutOfMemory(OutOfMemoryError(self.memory_state(words), alloc))
+    }
+
+    pub(crate) fn get_alloc_config(&self, alloc_type: AllocationType) -> Allocation {
+        Allocation {
+            orientation: if self.is_west() {
+                ArenaOrientation::West
+            } else {
+                ArenaOrientation::East
+            },
+            alloc_type,
+            pc: self.pc,
+        }
+    }
+
+    // When frame_pointer < alloc_pointer, the frame is West
+    // West frame layout:
+    // - start
+    // - *prev_alloc_ptr
+    // - frame_pointer
+    // - stack_pointer
+    // - (middle)
+    // - alloc_pointer
+    // - *prev_stack_ptr
+    // - *prev_frame_ptr
+    // - end
+    // East frame layout:
+    // - start
+    // - *prev_frame_ptr
+    // - *prev_stack_ptr
+    // - alloc_pointer
+    // - (middle)
+    // - stack_pointer
+    // - frame_pointer
+    // - *prev_alloc_ptr
+    // - end
+    // sometimes the stack pointer is moving, sometimes the alloc pointer is moving
+    // if you're allocating you're just bumping the alloc pointer
+    // pushing a frame is more complicated
+    // it's fine to cross the middle of the stack, it's not fine for them to cross each other
+    // push vs. frame_push
+    // push_east/push_west use prev_alloc_pointer_pointer instead of alloc_pointer when self.pc is true
+    // Species of allocation: alloc, push, frame_push
+    // Size modifiers: raw, indirect, struct, layout
+    // Directionality parameters: (East/West), (Stack/Alloc), (pc: true/false)
+    // Types of size: word (words: usize)
+    /// Check if an allocation or pointer retrieval indicates an invalid request or an invalid state
+    pub fn alloc_would_oom_(&self, alloc: Allocation, words: usize) -> AllocResult<()> {
+        let _memory_state = self.memory_state(Some(words));
+        if self.pc && !alloc.alloc_type.allowed_when_pc() {
+            return Err(self.cannot_alloc_in_pc(Some(words)));
+        }
+        // When self.pc is true
+        // west:
+        // *prev_alloc_ptr + size <= noun_ptr
+        let bytes = words * 8;
+        // east:
+        // noun_ptr <= *prev_alloc_ptr - size
+        // West: the stack pointer must not overlap the alloc pointer
+        let (target_point, limit_point, direction) = match (alloc.alloc_type, alloc.orientation) {
+            // West + Alloc, alloc is decreasing
+            (AllocationType::Alloc, ArenaOrientation::West) => {
+                let start_point = self.alloc_pointer as usize;
+                let limit_point = self.stack_pointer as usize;
+                let target_point = start_point - bytes;
+                (target_point, limit_point, Direction::Decreasing)
+            }
+            // East + Alloc, alloc is increasing
+            (AllocationType::Alloc, ArenaOrientation::East) => {
+                let start_point = self.alloc_pointer as usize;
+                let limit_point = self.stack_pointer as usize;
+                let target_point = start_point + bytes;
+                (target_point, limit_point, Direction::Increasing)
+            }
+            // West + Push, stack is increasing
+            (AllocationType::Push, ArenaOrientation::West) => {
+                let start_point = self.stack_pointer as usize;
+                let limit_point = if self.pc {
+                    (unsafe { *(self.prev_alloc_pointer_pointer()) }) as usize
+                } else {
+                    self.alloc_pointer as usize
+                };
+                let target_point = start_point + bytes;
+                (target_point, limit_point, Direction::Increasing)
+            }
+            // East + Push, stack is decreasing
+            (AllocationType::Push, ArenaOrientation::East) => {
+                let start_point = self.stack_pointer as usize;
+                let limit_point = if self.pc {
+                    (unsafe { *(self.prev_alloc_pointer_pointer()) }) as usize
+                } else {
+                    self.alloc_pointer as usize
+                };
+                let target_point = start_point - bytes;
+                (target_point, limit_point, Direction::Decreasing)
+            }
+            // West + FramePush, alloc is decreasing, kinda (TODO: does fp matter?)
+            (AllocationType::FramePush, ArenaOrientation::West) => {
+                let start_point = self.alloc_pointer as usize;
+                let limit_point = self.stack_pointer as usize;
+                let target_point = start_point - bytes;
+                (target_point, limit_point, Direction::Decreasing)
+            }
+            // East + FramePush, alloc is increasing, kinda (TODO: does fp matter?)
+            (AllocationType::FramePush, ArenaOrientation::East) => {
+                let start_point = self.alloc_pointer as usize;
+                let limit_point = self.stack_pointer as usize;
+                let target_point = start_point + bytes;
+                (target_point, limit_point, Direction::Increasing)
+            }
+            // West + SlotPointer, polarity is reversed because we're getting the prev pointer
+            (AllocationType::SlotPointer, ArenaOrientation::West) => {
+                let _slots_available = unsafe {
+                    self.slots_available()
+                        .expect("No slots available on slot_pointer alloc check")
+                };
+                let start_point = self.frame_pointer as usize;
+                let limit_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
+                let target_point = start_point - bytes - 8;
+                (target_point, limit_point, Direction::Decreasing)
+            }
+            // East + SlotPointer, polarity is reversed because we're getting the prev pointer
+            (AllocationType::SlotPointer, ArenaOrientation::East) => {
+                let _slots_available = unsafe {
+                    self.slots_available()
+                        .expect("No slots available on slot_pointer alloc check")
+                };
+                let start_point = self.frame_pointer as usize;
+                let limit_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
+                let target_point = start_point + bytes;
+                (target_point, limit_point, Direction::IncreasingDeref)
+            }
+            // The alloc previous frame stuff is like doing a normal alloc but start point is prev alloc and limit pointer is prev stack pointer
+            // polarity is reversed because we're getting the prev pointer
+            (AllocationType::AllocPreviousFrame, ArenaOrientation::West) => {
+                let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
+                let limit_point = self.stack_pointer as usize;
+                let target_point = start_point + bytes;
+                (target_point, limit_point, Direction::Increasing)
+            }
+            // polarity is reversed because we're getting the prev pointer
+            (AllocationType::AllocPreviousFrame, ArenaOrientation::East) => {
+                let start_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
+                let limit_point = self.stack_pointer as usize;
+                let target_point = start_point - bytes;
+                (target_point, limit_point, Direction::Decreasing)
+            }
+            (AllocationType::FlipTopFrame, ArenaOrientation::West) => {
+                let start_point = unsafe { self.start.add(self.size) as usize };
+                let limit_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
+                let target_point = start_point - bytes;
+                (target_point, limit_point, Direction::Decreasing)
+            }
+            (AllocationType::FlipTopFrame, ArenaOrientation::East) => {
+                let start_point = self.start as usize;
+                let limit_point = unsafe { *self.prev_alloc_pointer_pointer() as usize };
+                let target_point = start_point + bytes;
+                (target_point, limit_point, Direction::Increasing)
+            }
+        };
+        match direction {
+            Direction::Increasing => {
+                if target_point <= limit_point {
+                    Ok(())
+                } else {
+                    Err(self.out_of_memory(alloc, Some(words)))
+                }
+            }
+            Direction::Decreasing => {
+                if target_point >= limit_point {
+                    Ok(())
+                } else {
+                    Err(self.out_of_memory(alloc, Some(words)))
+                }
+            }
+            // TODO this check is imprecise and should take into account the size of the pointer!
+            Direction::IncreasingDeref => {
+                if target_point < limit_point {
+                    Ok(())
+                } else {
+                    Err(self.out_of_memory(alloc, Some(words)))
+                }
+            }
+        }
+    }
+    pub fn alloc_would_oom(&self, alloc_type: AllocationType, words: usize) -> AllocResult<()> {
+        let alloc = self.get_alloc_config(alloc_type);
+        self.alloc_would_oom_(alloc, words)
     }
 
     /** Resets the NockStack but flipping the top-frame polarity and unsetting PC. Sets the alloc
@@ -92,15 +442,26 @@ impl NockStack {
      * from the top frame. This allows us to do a copying GC on the top frame without erroneously
      * "popping" the top frame.
      */
-    pub unsafe fn flip_top_frame(&mut self, top_slots: usize) {
+    // Pop analogue, doesn't need OOM check.
+    pub unsafe fn flip_top_frame(&mut self, top_slots: usize) -> AllocResult<()> {
         // Assert that we are at the top
         assert!((*self.prev_frame_pointer_pointer()).is_null());
         assert!((*self.prev_stack_pointer_pointer()).is_null());
         let new_alloc_pointer = *(self.prev_alloc_pointer_pointer());
 
         if self.is_west() {
+            let size = RESERVED + top_slots;
+            let byte_size = size << 3;
+            self.alloc_would_oom_(
+                Allocation {
+                    orientation: ArenaOrientation::West,
+                    alloc_type: AllocationType::FlipTopFrame,
+                    pc: self.pc,
+                },
+                byte_size,
+            )?;
             // new top frame will be east
-            let new_frame_pointer = self.start.add(self.size).sub(RESERVED + top_slots) as *mut u64;
+            let new_frame_pointer = self.start.add(self.size).sub(size) as *mut u64;
             *new_frame_pointer.add(FRAME) = ptr::null::<u64>() as u64;
             *new_frame_pointer.add(STACK) = ptr::null::<u64>() as u64;
             *new_frame_pointer.add(ALLOC) = self.start.add(self.size) as u64;
@@ -111,7 +472,17 @@ impl NockStack {
             assert!(!self.is_west());
         } else {
             // new top frame will be west
-            let new_frame_pointer = self.start.add(RESERVED + top_slots) as *mut u64;
+            let size = RESERVED + top_slots;
+            let byte_size = size << 3;
+            self.alloc_would_oom_(
+                Allocation {
+                    orientation: ArenaOrientation::East,
+                    alloc_type: AllocationType::FlipTopFrame,
+                    pc: self.pc,
+                },
+                byte_size,
+            )?;
+            let new_frame_pointer = self.start.add(size) as *mut u64;
             *new_frame_pointer.sub(FRAME + 1) = ptr::null::<u64>() as u64;
             *new_frame_pointer.sub(STACK + 1) = ptr::null::<u64>() as u64;
             *new_frame_pointer.sub(ALLOC + 1) = self.start as u64;
@@ -120,10 +491,12 @@ impl NockStack {
             self.alloc_pointer = new_alloc_pointer;
             self.pc = false;
             assert!(self.is_west());
-        }
+        };
+        Ok(())
     }
 
-    /** Resets the NockStack. The top frame is west as in the initial creation of the NockStack. */
+    /// Resets the NockStack. The top frame is west as in the initial creation of the NockStack.
+    // Doesn't need an OOM check, pop analogue
     pub fn reset(&mut self, top_slots: usize) {
         self.frame_pointer = unsafe { self.start.add(RESERVED + top_slots) } as *mut u64;
         self.stack_pointer = self.frame_pointer;
@@ -192,7 +565,7 @@ impl NockStack {
     pub unsafe fn is_in_frame<T>(&self, ptr: *const T) -> bool {
         let ptr_u64 = ptr as *const u64;
         let prev = *self.prev_stack_pointer_pointer();
-        if self.is_west() {
+        let res = if self.is_west() {
             // If we are in a top/west frame, the stack pointer will be null, so our allocation
             // arena was the alloc pointer to the top of the NockStack arena
             if prev.is_null() {
@@ -206,20 +579,97 @@ impl NockStack {
             ptr_u64 >= self.start && ptr_u64 < self.alloc_pointer
         } else {
             ptr_u64 >= prev && ptr_u64 < self.alloc_pointer
-        }
+        };
+        res
+    }
+
+    pub fn div_rem_nonzero(a: usize, b: std::num::NonZeroUsize) -> (usize, usize) {
+        (a / b, a % b)
+    }
+
+    fn divide_evenly(divisor: usize, quotient: usize) -> usize {
+        let non_zero_quotient = std::num::NonZeroUsize::new(quotient)
+            .expect("Quotient cannot be zero, cannot divide by zero");
+        let (div, rem) = Self::div_rem_nonzero(divisor, non_zero_quotient);
+        assert!(rem == 0);
+        div
+    }
+
+    unsafe fn slots_available(&self) -> Option<usize> {
+        let prev = *self.prev_alloc_pointer_pointer() as usize;
+        // For slot pointer we have to add 1 to reserved, but frame_push is just reserved.
+        let reserved_bytes = RESERVED * 8;
+        let frame_pointer = self.frame_pointer as usize;
+        let (left, right) = if self.is_west() {
+            (frame_pointer, prev)
+        } else {
+            (prev, frame_pointer)
+        };
+        let bytes_difference = left
+            .checked_sub(right)
+            .and_then(|v| v.checked_sub(reserved_bytes))
+            .map(|v| Self::divide_evenly(v, 8));
+        bytes_difference
     }
 
     /** Mutable pointer to a slot in a stack frame: east stack */
+    // TODO: slot_pointer_east_: Needs a simple bounds check
+    #[cfg(test)]
+    unsafe fn slot_pointer_east_(&self, slot: usize) -> AllocResult<*mut u64> {
+        let () = self.alloc_would_oom_(
+            Allocation {
+                orientation: ArenaOrientation::East,
+                alloc_type: AllocationType::SlotPointer,
+                pc: self.pc,
+            },
+            slot,
+        )?;
+        Ok(self.frame_pointer.add(slot))
+    }
+
+    /** Mutable pointer to a slot in a stack frame: west stack */
+    // TODO: slot_pointer_west_: Needs a simple bounds check
+    #[cfg(test)]
+
+    unsafe fn slot_pointer_west_(&self, slot: usize) -> AllocResult<*mut u64> {
+        let () = self.alloc_would_oom_(
+            Allocation {
+                orientation: ArenaOrientation::West,
+                alloc_type: AllocationType::SlotPointer,
+                pc: self.pc,
+            },
+            slot,
+        )?;
+        Ok(self.frame_pointer.sub(slot + 1))
+    }
+
+    /** Mutable pointer to a slot in a stack frame: east stack */
+    // TODO: slot_pointer_east: Needs a simple bounds check
     unsafe fn slot_pointer_east(&self, slot: usize) -> *mut u64 {
         self.frame_pointer.add(slot)
     }
 
     /** Mutable pointer to a slot in a stack frame: west stack */
+    // TODO: slot_pointer_west: Needs a simple bounds check
+
     unsafe fn slot_pointer_west(&self, slot: usize) -> *mut u64 {
         self.frame_pointer.sub(slot + 1)
     }
 
-    /** Mutable pointer to a slot in a stack frame */
+    /// Mutable pointer to a slot in a stack frame
+    /// Panics on out-of-bounds conditions
+    #[cfg(test)]
+    unsafe fn slot_pointer_(&self, slot: usize) -> AllocResult<*mut u64> {
+        if self.is_west() {
+            self.slot_pointer_west_(slot)
+        } else {
+            self.slot_pointer_east_(slot)
+        }
+    }
+
+    /// Mutable pointer to a slot in a stack frame
+    /// Panics on out-of-bounds conditions
+    // TODO: slot_pointer: Needs a simple bounds check
     unsafe fn slot_pointer(&self, slot: usize) -> *mut u64 {
         if self.is_west() {
             self.slot_pointer_west(slot)
@@ -248,34 +698,38 @@ impl NockStack {
 
     /** Pointer to a local slot typed as Noun */
     pub unsafe fn local_noun_pointer(&mut self, local: usize) -> *mut Noun {
-        self.slot_pointer(local + RESERVED) as *mut Noun
+        let res = self.slot_pointer(local + RESERVED);
+        res as *mut Noun
     }
 
     /** Pointer to where the previous frame pointer is saved in a frame */
     unsafe fn prev_frame_pointer_pointer(&self) -> *mut *mut u64 {
-        if !self.pc {
-            self.slot_pointer(FRAME) as *mut *mut u64
+        let res = if !self.pc {
+            self.slot_pointer(FRAME)
         } else {
-            self.free_slot(FRAME) as *mut *mut u64
-        }
+            self.free_slot(FRAME)
+        };
+        res as *mut *mut u64
     }
 
     /** Pointer to where the previous stack pointer is saved in a frame */
     pub unsafe fn prev_stack_pointer_pointer(&self) -> *mut *mut u64 {
-        if !self.pc {
-            self.slot_pointer(STACK) as *mut *mut u64
+        let res = if !self.pc {
+            self.slot_pointer(STACK)
         } else {
-            self.free_slot(STACK) as *mut *mut u64
-        }
+            self.free_slot(STACK)
+        };
+        res as *mut *mut u64
     }
 
     /** Pointer to where the previous alloc pointer is saved in a frame */
     unsafe fn prev_alloc_pointer_pointer(&self) -> *mut *mut u64 {
-        if !self.pc {
-            self.slot_pointer(ALLOC) as *mut *mut u64
+        let res = if !self.pc {
+            self.slot_pointer(ALLOC)
         } else {
-            self.free_slot(ALLOC) as *mut *mut u64
-        }
+            self.free_slot(ALLOC)
+        };
+        res as *mut *mut u64
     }
 
     /**  Allocation
@@ -288,36 +742,38 @@ impl NockStack {
      * allocation pointer is returned as the pointer to the newly allocated memory. */
 
     /** Bump the alloc pointer for a west frame to make space for an allocation */
-    unsafe fn raw_alloc_west(&mut self, words: usize) -> *mut u64 {
+    unsafe fn raw_alloc_west(&mut self, words: usize) -> AllocResult<*mut u64> {
+        let () = self.alloc_would_oom(AllocationType::Alloc, words)?;
         if self.pc {
             panic!("Allocation during cleanup phase is prohibited.");
         }
         self.alloc_pointer = self.alloc_pointer.sub(words);
-        self.alloc_pointer
+        Ok(self.alloc_pointer)
     }
 
     /** Bump the alloc pointer for an east frame to make space for an allocation */
-    unsafe fn raw_alloc_east(&mut self, words: usize) -> *mut u64 {
+    unsafe fn raw_alloc_east(&mut self, words: usize) -> AllocResult<*mut u64> {
+        let () = self.alloc_would_oom(AllocationType::Alloc, words)?;
         if self.pc {
             panic!("Allocation during cleanup phase is prohibited.");
         }
         let alloc = self.alloc_pointer;
         self.alloc_pointer = self.alloc_pointer.add(words);
-        alloc
+        Ok(alloc)
     }
 
     /** Allocate space for an indirect pointer in a west frame */
-    unsafe fn indirect_alloc_west(&mut self, words: usize) -> *mut u64 {
+    unsafe fn indirect_alloc_west(&mut self, words: usize) -> AllocResult<*mut u64> {
         self.raw_alloc_west(words + 2)
     }
 
     /** Allocate space for an indirect pointer in an east frame */
-    unsafe fn indirect_alloc_east(&mut self, words: usize) -> *mut u64 {
+    unsafe fn indirect_alloc_east(&mut self, words: usize) -> AllocResult<*mut u64> {
         self.raw_alloc_east(words + 2)
     }
 
     /** Allocate space for an indirect pointer in a stack frame */
-    unsafe fn indirect_alloc(&mut self, words: usize) -> *mut u64 {
+    unsafe fn indirect_alloc(&mut self, words: usize) -> AllocResult<*mut u64> {
         if self.is_west() {
             self.indirect_alloc_west(words)
         } else {
@@ -326,17 +782,19 @@ impl NockStack {
     }
 
     /** Allocate space for a struct in a west frame */
-    unsafe fn struct_alloc_west<T>(&mut self, count: usize) -> *mut T {
-        self.raw_alloc_west(word_size_of::<T>() * count) as *mut T
+    unsafe fn struct_alloc_west<T>(&mut self, count: usize) -> AllocResult<*mut T> {
+        let eigen_pointer = self.raw_alloc_west(word_size_of::<T>() * count)?;
+        Ok(eigen_pointer as *mut T)
     }
 
     /** Allocate space for a struct in an east frame */
-    unsafe fn struct_alloc_east<T>(&mut self, count: usize) -> *mut T {
-        self.raw_alloc_east(word_size_of::<T>() * count) as *mut T
+    unsafe fn struct_alloc_east<T>(&mut self, count: usize) -> AllocResult<*mut T> {
+        let eigen_pointer = self.raw_alloc_east(word_size_of::<T>() * count)?;
+        Ok(eigen_pointer as *mut T)
     }
 
     /** Allocate space for a struct in a stack frame */
-    pub unsafe fn struct_alloc<T>(&mut self, count: usize) -> *mut T {
+    pub unsafe fn struct_alloc<T>(&mut self, count: usize) -> AllocResult<*mut T> {
         if self.is_west() {
             self.struct_alloc_west::<T>(count)
         } else {
@@ -344,24 +802,40 @@ impl NockStack {
         }
     }
 
-    unsafe fn raw_alloc_in_previous_frame_west(&mut self, words: usize) -> *mut u64 {
+    unsafe fn raw_alloc_in_previous_frame_west(&mut self, words: usize) -> AllocResult<*mut u64> {
+        let () = self.alloc_would_oom_(
+            Allocation {
+                orientation: ArenaOrientation::West,
+                alloc_type: AllocationType::AllocPreviousFrame,
+                pc: self.pc,
+            },
+            words,
+        )?;
         // note that the allocation is on the east frame, and thus resembles raw_alloc_east
         let alloc = *self.prev_alloc_pointer_pointer();
         *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).add(words);
-        alloc
+        Ok(alloc)
     }
 
-    unsafe fn raw_alloc_in_previous_frame_east(&mut self, words: usize) -> *mut u64 {
+    unsafe fn raw_alloc_in_previous_frame_east(&mut self, words: usize) -> AllocResult<*mut u64> {
+        let () = self.alloc_would_oom_(
+            Allocation {
+                orientation: ArenaOrientation::East,
+                alloc_type: AllocationType::AllocPreviousFrame,
+                pc: self.pc,
+            },
+            words,
+        )?;
         // note that the allocation is on the west frame, and thus resembles raw_alloc_west
         *(self.prev_alloc_pointer_pointer()) = (*(self.prev_alloc_pointer_pointer())).sub(words);
-        *(self.prev_alloc_pointer_pointer())
+        Ok(*(self.prev_alloc_pointer_pointer()))
     }
 
     /** Allocate space in the previous stack frame. This calls pre_copy() first to ensure that the
      * stack frame is in cleanup phase, which is the only time we should be allocating in a previous
      * frame. */
-    unsafe fn raw_alloc_in_previous_frame(&mut self, words: usize) -> *mut u64 {
-        self.pre_copy();
+    unsafe fn raw_alloc_in_previous_frame(&mut self, words: usize) -> AllocResult<*mut u64> {
+        self.pre_copy()?;
         if self.is_west() {
             self.raw_alloc_in_previous_frame_west(words)
         } else {
@@ -370,17 +844,21 @@ impl NockStack {
     }
 
     /** Allocates space in the previous frame for some number of T's. */
-    pub unsafe fn struct_alloc_in_previous_frame<T>(&mut self, count: usize) -> *mut T {
-        self.raw_alloc_in_previous_frame(word_size_of::<T>() * count) as *mut T
+    pub unsafe fn struct_alloc_in_previous_frame<T>(
+        &mut self,
+        count: usize,
+    ) -> AllocResult<*mut T> {
+        let res = self.raw_alloc_in_previous_frame(word_size_of::<T>() * count)?;
+        Ok(res as *mut T)
     }
 
     /** Allocate space for an indirect atom in the previous stack frame. */
-    unsafe fn indirect_alloc_in_previous_frame(&mut self, words: usize) -> *mut u64 {
+    unsafe fn indirect_alloc_in_previous_frame(&mut self, words: usize) -> AllocResult<*mut u64> {
         self.raw_alloc_in_previous_frame(words + 2)
     }
 
     /** Allocate space for an alloc::Layout in a stack frame */
-    unsafe fn layout_alloc(&mut self, layout: Layout) -> *mut u64 {
+    unsafe fn layout_alloc(&mut self, layout: Layout) -> AllocResult<*mut u64> {
         assert!(layout.align() <= 64, "layout alignment must be <= 64");
         if self.is_west() {
             self.raw_alloc_west((layout.size() + 7) >> 3)
@@ -416,35 +894,44 @@ impl NockStack {
      * to make it so that the programmer doesn't need to think about it at all. The
      * interface for using the reserved pointers (prev_xyz_pointer_pointer()) and
      * lightweight stack (push(), pop(), top()) are the same regardless of whether
-     * or not pre_copy() has been called.*/
-    unsafe fn pre_copy(&mut self) {
+     * or not pre_copy() has been called.
+     * */
+    unsafe fn pre_copy(&mut self) -> AllocResult<()> {
+        // pre_copy is intended to be idempotent, so we don't need to do anything if it's already been called
         if !self.pc {
+            let is_west = self.is_west();
+            let words = if is_west { RESERVED + 1 } else { RESERVED };
+            // TODO: pre_copy: Treating pre_copy like a FramePush for OOM checking purposes
+            // Is this correct?
+            let () =
+                self.alloc_would_oom_(self.get_alloc_config(AllocationType::FramePush), words)?;
             *(self.free_slot(FRAME)) = *(self.slot_pointer(FRAME));
             *(self.free_slot(STACK)) = *(self.slot_pointer(STACK));
             *(self.free_slot(ALLOC)) = *(self.slot_pointer(ALLOC));
             self.pc = true;
             // Change polarity of lightweight stack.
-            if self.is_west() {
-                self.stack_pointer = self.alloc_pointer.sub(RESERVED + 1);
+            if is_west {
+                self.stack_pointer = self.alloc_pointer.sub(words);
             } else {
-                self.stack_pointer = self.alloc_pointer.add(RESERVED);
+                self.stack_pointer = self.alloc_pointer.add(words);
             }
         }
+        Ok(())
     }
 
-    unsafe fn copy(&mut self, noun: &mut Noun) {
+    unsafe fn copy(&mut self, noun: &mut Noun) -> AllocResult<()> {
         assert_acyclic!(*noun);
         assert_no_forwarding_pointers!(*noun);
         assert_no_junior_pointers!(self, *noun);
 
-        self.pre_copy();
+        self.pre_copy()?;
         assert!(self.stack_is_empty());
         let noun_ptr = noun as *mut Noun;
         // Add two slots to the lightweight stack
         // Set the first new slot to the noun to be copied
-        *(self.push::<Noun>()) = *noun;
+        *(self.push::<Noun>()?) = *noun;
         // Set the second new slot to a pointer to the noun being copied. this is the destination pointer, which will change
-        *(self.push::<*mut Noun>()) = noun_ptr;
+        *(self.push::<*mut Noun>()?) = noun_ptr;
         loop {
             if self.stack_is_empty() {
                 break;
@@ -478,7 +965,7 @@ impl NockStack {
                                     Either::Left(mut indirect) => {
                                         // Make space for the atom
                                         let alloc =
-                                            self.indirect_alloc_in_previous_frame(indirect.size());
+                                            self.indirect_alloc_in_previous_frame(indirect.size())?;
 
                                         // Indirect atoms can be copied directly
                                         copy_nonoverlapping(
@@ -497,16 +984,16 @@ impl NockStack {
                                     Either::Right(mut cell) => {
                                         // Make space for the cell
                                         let alloc =
-                                            self.struct_alloc_in_previous_frame::<CellMemory>(1);
+                                            self.struct_alloc_in_previous_frame::<CellMemory>(1)?;
 
                                         // Copy the cell metadata
                                         (*alloc).metadata = (*cell.to_raw_pointer()).metadata;
 
                                         // Push the tail and the head to the work stack
-                                        *(self.push::<Noun>()) = cell.tail();
-                                        *(self.push::<*mut Noun>()) = &mut (*alloc).tail;
-                                        *(self.push::<Noun>()) = cell.head();
-                                        *(self.push::<*mut Noun>()) = &mut (*alloc).head;
+                                        *(self.push::<Noun>()?) = cell.tail();
+                                        *(self.push::<*mut Noun>()?) = &mut (*alloc).tail;
+                                        *(self.push::<Noun>()?) = cell.head();
+                                        *(self.push::<*mut Noun>()?) = &mut (*alloc).head;
 
                                         // Set the forwarding pointer
                                         cell.set_forwarding_pointer(alloc);
@@ -528,8 +1015,10 @@ impl NockStack {
         assert_acyclic!(*noun);
         assert_no_forwarding_pointers!(*noun);
         assert_no_junior_pointers!(self, *noun);
+        Ok(())
     }
 
+    // Doesn't need an OOM check, just an assertion. We expect it to panic.
     pub unsafe fn assert_struct_is_in<T>(&self, ptr: *const T, count: usize) {
         let ap = (if self.pc {
             *(self.prev_alloc_pointer_pointer())
@@ -556,6 +1045,7 @@ impl NockStack {
         );
     }
 
+    // Doesn't need an OOM check, just an assertion. We expect it to panic.
     unsafe fn assert_noun_in(&self, noun: Noun) {
         let mut dbg_stack = Vec::new();
         dbg_stack.push(noun);
@@ -588,6 +1078,7 @@ impl NockStack {
         }
     }
 
+    // Note re: #684: We don't need OOM checks on de-alloc
     pub unsafe fn frame_pop(&mut self) {
         let prev_frame_ptr = *self.prev_frame_pointer_pointer();
         let prev_stack_ptr = *self.prev_stack_pointer_pointer();
@@ -612,7 +1103,7 @@ impl NockStack {
         self.pc = false;
     }
 
-    pub unsafe fn preserve<T: Preserve>(&mut self, x: &mut T) {
+    pub unsafe fn preserve<T: Preserve>(&mut self, x: &mut T) -> AllocResult<()> {
         x.preserve(self)
     }
 
@@ -624,19 +1115,22 @@ impl NockStack {
      */
 
     /** Push a frame onto the stack with 0 or more local variable slots. */
-    pub fn frame_push(&mut self, num_locals: usize) {
+    /// This computation for num_locals is done in the east/west variants, but roughly speaking it's the input n words + 3 for prev frame alloc/stack/frame pointers
+    pub fn frame_push(&mut self, num_locals: usize) -> AllocResult<()> {
         if self.pc {
             panic!("frame_push during cleanup phase is prohibited.");
         }
+        let words = num_locals + RESERVED;
+        let () = self.alloc_would_oom(AllocationType::FramePush, words)?;
 
         let current_frame_pointer = self.frame_pointer;
         let current_stack_pointer = self.stack_pointer;
         let current_alloc_pointer = self.alloc_pointer;
         unsafe {
             self.frame_pointer = if self.is_west() {
-                current_alloc_pointer.sub(num_locals + RESERVED)
+                current_alloc_pointer.sub(words)
             } else {
-                current_alloc_pointer.add(num_locals + RESERVED)
+                current_alloc_pointer.add(words)
             };
             self.alloc_pointer = current_stack_pointer;
             self.stack_pointer = self.frame_pointer;
@@ -644,6 +1138,7 @@ impl NockStack {
             *(self.slot_pointer(STACK)) = current_stack_pointer as u64;
             *(self.slot_pointer(ALLOC)) = current_alloc_pointer as u64;
         }
+        Ok(())
     }
 
     /** Run a closure inside a frame, popping regardless of the value returned by the closure.
@@ -651,16 +1146,16 @@ impl NockStack {
      *
      * Note that results allocated on the stack *must* be `preserve()`d by the closure.
      */
-    pub unsafe fn with_frame<F, O>(&mut self, num_locals: usize, f: F) -> O
+    pub unsafe fn with_frame<F, O>(&mut self, num_locals: usize, f: F) -> AllocResult<O>
     where
         F: FnOnce(&mut NockStack) -> O,
         O: Preserve,
     {
-        self.frame_push(num_locals);
+        self.frame_push(num_locals)?;
         let mut ret = f(self);
-        ret.preserve(self);
+        ret.preserve(self)?;
         self.frame_pop();
-        ret
+        Ok(ret)
     }
 
     /** Lightweight stack.
@@ -687,7 +1182,7 @@ impl NockStack {
      * this violates the _east/_west naming convention somewhat, since e.g.
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
-    pub unsafe fn push<T>(&mut self) -> *mut T {
+    pub unsafe fn push<T>(&mut self) -> AllocResult<*mut T> {
         if self.is_west() && !self.pc || !self.is_west() && self.pc {
             self.push_west::<T>()
         } else {
@@ -695,36 +1190,68 @@ impl NockStack {
         }
     }
 
-    /** Push onto a west-oriented lightweight stack, moving the stack_pointer. */
-    unsafe fn push_west<T>(&mut self) -> *mut T {
+    /// Push onto a west-oriented lightweight stack, moving the stack_pointer.
+    unsafe fn push_west<T>(&mut self) -> AllocResult<*mut T> {
+        let words = word_size_of::<T>();
+        let () = self.alloc_would_oom_(
+            Allocation {
+                orientation: ArenaOrientation::West,
+                alloc_type: AllocationType::Push,
+                pc: self.pc,
+            },
+            words,
+        )?;
         let ap = if self.pc {
             *(self.prev_alloc_pointer_pointer())
         } else {
             self.alloc_pointer
         };
         let alloc = self.stack_pointer;
-        let new_sp = self.stack_pointer.add(word_size_of::<T>());
+        let new_sp = self.stack_pointer.add(words);
         if new_sp > ap {
-            ptr::null_mut()
+            // Previously we would return a null pointer in this error case.
+            // Now that we have the alloc_would_oom methods, this shouldn't ever happen.
+            // ptr::null_mut()
+            // If it does, somehow, happen, we should panic.
+            panic!(
+                "Out of memory, alloc_would_oom didn't catch it. memory_state: {:#?}",
+                self.memory_state(Some(words))
+            );
         } else {
             self.stack_pointer = new_sp;
-            alloc as *mut T
+            Ok(alloc as *mut T)
         }
     }
 
-    /** Push onto an east-oriented ligthweight stack, moving the stack_pointer */
-    unsafe fn push_east<T>(&mut self) -> *mut T {
+    /// Push onto an east-oriented ligthweight stack, moving the stack_pointer
+    unsafe fn push_east<T>(&mut self) -> AllocResult<*mut T> {
+        let words = word_size_of::<T>();
+        let () = self.alloc_would_oom_(
+            Allocation {
+                orientation: ArenaOrientation::East,
+                alloc_type: AllocationType::Push,
+                pc: self.pc,
+            },
+            words,
+        )?;
         let ap = if self.pc {
             *(self.prev_alloc_pointer_pointer())
         } else {
             self.alloc_pointer
         };
-        let alloc = self.stack_pointer.sub(word_size_of::<T>());
+        let alloc = self.stack_pointer.sub(words);
         if alloc < ap {
-            ptr::null_mut()
+            // Previously we would return a null pointer in this error case.
+            // Now that we have the alloc_would_oom methods, this shouldn't ever happen.
+            // ptr::null_mut()
+            // If it does, somehow, happen, we should panic.
+            panic!(
+                "Out of memory, alloc_would_oom didn't catch it. memory_state: {:#?}",
+                self.memory_state(Some(words))
+            );
         } else {
             self.stack_pointer = alloc;
-            alloc as *mut T
+            Ok(alloc as *mut T)
         }
     }
 
@@ -742,6 +1269,7 @@ impl NockStack {
      * this violates the _east/_west naming convention somewhat, since e.g.
      * a west frame when pc == false has a west-oriented lightweight stack,
      * but when pc == true it becomes east-oriented.*/
+    // Re: #684: We don't need OOM checks on pop
     pub unsafe fn pop<T>(&mut self) {
         if self.is_west() && !self.pc || !self.is_west() && self.pc {
             self.pop_west::<T>();
@@ -900,6 +1428,7 @@ impl NockStack {
      * Sanity check every frame of the NockStack. Most useful paired with a gdb session set to
      * catch rust_panic.
      */
+    // #684: Don't need OOM checks here
     pub fn assert_sane(&mut self) {
         let start = self.start;
         let limit = unsafe { self.start.add(self.size) };
@@ -956,15 +1485,15 @@ impl NockStack {
 }
 
 impl NounAllocator for NockStack {
-    unsafe fn alloc_indirect(&mut self, words: usize) -> *mut u64 {
+    unsafe fn alloc_indirect(&mut self, words: usize) -> AllocResult<*mut u64> {
         self.indirect_alloc(words)
     }
 
-    unsafe fn alloc_cell(&mut self) -> *mut CellMemory {
+    unsafe fn alloc_cell(&mut self) -> AllocResult<*mut CellMemory> {
         self.struct_alloc::<CellMemory>(1)
     }
 
-    unsafe fn alloc_struct<T>(&mut self, count: usize) -> *mut T {
+    unsafe fn alloc_struct<T>(&mut self, count: usize) -> AllocResult<*mut T> {
         self.struct_alloc::<T>(count)
     }
 }
@@ -972,16 +1501,17 @@ impl NounAllocator for NockStack {
 /// Immutable, acyclic objects which may be copied up the stack
 pub trait Preserve {
     /// Ensure an object will not be invalidated by popping the NockStack
-    unsafe fn preserve(&mut self, stack: &mut NockStack);
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()>;
     unsafe fn assert_in_stack(&self, stack: &NockStack);
 }
 
 impl Preserve for IndirectAtom {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         let size = indirect_raw_size(*self);
-        let buf = stack.struct_alloc_in_previous_frame::<u64>(size);
+        let buf = stack.struct_alloc_in_previous_frame::<u64>(size)?;
         copy_nonoverlapping(self.to_raw_pointer(), buf, size);
         *self = IndirectAtom::from_raw_pointer(buf);
+        Ok(())
     }
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         stack.assert_noun_in(self.as_atom().as_noun());
@@ -989,14 +1519,15 @@ impl Preserve for IndirectAtom {
 }
 
 impl Preserve for Atom {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         match self.as_either() {
             Left(_direct) => {}
             Right(mut indirect) => {
-                indirect.preserve(stack);
+                indirect.preserve(stack)?;
                 *self = indirect.as_atom();
             }
         }
+        Ok(())
     }
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         stack.assert_noun_in(self.as_noun());
@@ -1004,8 +1535,8 @@ impl Preserve for Atom {
 }
 
 impl Preserve for Noun {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
-        stack.copy(self);
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+        stack.copy(self)
     }
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         stack.assert_noun_in(*self);
@@ -1013,13 +1544,14 @@ impl Preserve for Noun {
 }
 
 impl Stack for NockStack {
-    unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64 {
+    type AllocError = AllocationError;
+    unsafe fn alloc_layout(&mut self, layout: Layout) -> AllocResult<*mut u64> {
         self.layout_alloc(layout)
     }
 }
 
 impl<T: Preserve, E: Preserve> Preserve for Result<T, E> {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
         match self.as_mut() {
             Ok(t_ref) => t_ref.preserve(stack),
             Err(e_ref) => e_ref.preserve(stack),
@@ -1031,5 +1563,211 @@ impl<T: Preserve, E: Preserve> Preserve for Result<T, E> {
             Ok(t_ref) => t_ref.assert_in_stack(stack),
             Err(e_ref) => e_ref.assert_in_stack(stack),
         }
+    }
+}
+
+impl Preserve for bool {
+    unsafe fn preserve(&mut self, _: &mut NockStack) -> AllocResult<()> {
+        Ok(())
+    }
+
+    unsafe fn assert_in_stack(&self, _: &NockStack) {}
+}
+
+impl Preserve for u32 {
+    unsafe fn preserve(&mut self, _: &mut NockStack) -> AllocResult<()> {
+        Ok(())
+    }
+
+    unsafe fn assert_in_stack(&self, _: &NockStack) {}
+}
+
+impl Preserve for AllocationError {
+    unsafe fn preserve(&mut self, _: &mut NockStack) -> AllocResult<()> {
+        Ok(())
+    }
+
+    unsafe fn assert_in_stack(&self, _: &NockStack) {}
+}
+
+#[cfg(test)]
+mod test {
+    use std::iter::FromIterator;
+
+    use super::*;
+    use crate::jets::cold::test::{make_noun_list, make_test_stack};
+    use crate::jets::cold::{NounList, Nounable};
+    use crate::mem::NockStack;
+    use crate::noun::D;
+
+    fn test_noun_list_alloc_fn(
+        stack_size: usize,
+        item_count: u64,
+    ) -> crate::jets::cold::NounableResult<()> {
+        // fails at 512, works at 1024
+        // const STACK_SIZE: usize = 1;
+        // println!("TEST_SIZE: {}", STACK_SIZE);
+        let mut stack = make_test_stack(stack_size);
+        // Stack size 1 works until 15 elements, 14 passes, 15 fails.
+        // const ITEM_COUNT: u64 = 15;
+        let vec = Vec::from_iter(0..item_count);
+        let items = vec.iter().map(|&x| D(x)).collect::<Vec<Noun>>();
+        let slice = vec.as_slice();
+        let noun_list = make_noun_list(&mut stack, slice)?;
+        assert!(!noun_list.0.is_null());
+        let noun = noun_list.into_noun(&mut stack)?;
+        let new_noun_list: NounList =
+            <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun)?;
+        let mut tracking_item_count = 0;
+        println!("items: {:?}", items);
+        for (a, b) in new_noun_list.zip(items.iter()) {
+            let a_val = unsafe { *a };
+            println!("a: {:?}, b: {:?}", a_val, b);
+            assert!(
+                unsafe { (*a).raw_equals(*b) },
+                "Items don't match: {:?} {:?}",
+                unsafe { *a },
+                b
+            );
+            tracking_item_count += 1;
+        }
+        assert_eq!(tracking_item_count, item_count as usize);
+        Ok(())
+    }
+
+    // cargo test -p sword test_noun_list_alloc -- --nocapture
+    #[test]
+    fn test_noun_list_alloc() {
+        const PASSES: u64 = 72;
+        const FAILS: u64 = 73;
+        const STACK_SIZE: usize = 512;
+
+        let should_fail_to_alloc = test_noun_list_alloc_fn(STACK_SIZE, FAILS);
+        assert!(should_fail_to_alloc
+            .map_err(|err| err.is_alloc_error())
+            .unwrap_err());
+        let should_succeed = test_noun_list_alloc_fn(STACK_SIZE, PASSES);
+        assert!(should_succeed.is_ok());
+    }
+
+    // cargo test -p sword test_frame_push -- --nocapture
+    #[test]
+    fn test_frame_push() {
+        // fails at 100, passes at 99, top_slots default to 100?
+        const PASSES: usize = 502;
+        const FAILS: usize = 503;
+        const STACK_SIZE: usize = 512;
+        let mut stack = make_test_stack(STACK_SIZE);
+        let frame_push_res = stack.frame_push(FAILS);
+        assert!(frame_push_res.is_err());
+        let mut stack = make_test_stack(STACK_SIZE);
+        let frame_push_res = stack.frame_push(PASSES);
+        assert!(frame_push_res.is_ok());
+    }
+
+    // cargo test -p sword test_stack_push -- --nocapture
+    #[test]
+    fn test_stack_push() {
+        const PASSES: usize = 505;
+        const STACK_SIZE: usize = 512;
+        let mut stack = make_test_stack(STACK_SIZE);
+        let mut counter = 0;
+        // Fails at 102, probably because top_slots is 100?
+        while counter < PASSES {
+            let push_res = unsafe { stack.push::<u64>() };
+            assert!(push_res.is_ok(), "Failed to push, counter: {}", counter);
+            counter += 1;
+        }
+        let push_res = unsafe { stack.push::<u64>() };
+        assert!(push_res.is_err());
+    }
+
+    // cargo test -p sword test_frame_and_stack_push -- --nocapture
+    #[test]
+    fn test_frame_and_stack_push() {
+        const STACK_SIZE: usize = 514; // to make sure of an odd space for the stack push
+        const SUCCESS_PUSHES: usize = 101;
+        let mut stack = make_test_stack(STACK_SIZE);
+        let mut counter = 0;
+        while counter < SUCCESS_PUSHES {
+            let frame_push_res = stack.frame_push(1);
+            assert!(
+                frame_push_res.is_ok(),
+                "Failed to frame_push, counter: {}",
+                counter
+            );
+            let push_res: Result<*mut u64, AllocationError> = unsafe { stack.push::<u64>() };
+            assert!(push_res.is_ok(), "Failed to push, counter: {}", counter);
+            counter += 1;
+        }
+        let frame_push_res = stack.frame_push(1);
+        assert!(frame_push_res.is_err());
+        // a single stack u64 push won't cause an error but a frame push will
+        let push_res = unsafe { stack.push::<u64>() };
+        assert!(push_res.is_ok());
+        // pushing an array of 1 u64 will NOT cause an error
+        let push_res = unsafe { stack.push::<[u64; 1]>() };
+        assert!(push_res.is_ok());
+        // pushing an array of 2 u64s WILL cause an error
+        let push_res = unsafe { stack.push::<[u64; 2]>() };
+        assert!(push_res.is_err());
+    }
+
+    // cargo test -p sword test_slot_pointer -- --nocapture
+    // Test the slot_pointer checking by pushing frames and slots until we run out of space
+    #[test]
+    fn test_slot_pointer() {
+        const STACK_SIZE: usize = 512;
+        const SLOT_POINTERS: usize = 32;
+        let mut stack = make_test_stack(STACK_SIZE);
+        // let push_res: Result<*mut u64, AllocationError> = unsafe { stack.push::<u64>() };
+        let frame_push_res = stack.frame_push(SLOT_POINTERS);
+        assert!(frame_push_res.is_ok());
+        let mut counter = 0;
+        while counter < SLOT_POINTERS + RESERVED {
+            println!("counter: {counter}");
+            let slot_pointer_res = unsafe { stack.slot_pointer_(counter) };
+            assert!(
+                slot_pointer_res.is_ok(),
+                "Failed to slot_pointer, counter: {}",
+                counter
+            );
+            counter += 1;
+        }
+        let slot_pointer_res = unsafe { stack.slot_pointer_(counter) };
+        assert!(slot_pointer_res.is_err())
+    }
+
+    // cargo test -p sword test_prev_alloc -- --nocapture
+    // Test the alloc in previous frame checking by pushing a frame and then allocating in the previous frame until we run out of space
+    #[test]
+    fn test_prev_alloc() {
+        const STACK_SIZE: usize = 512;
+        const SUCCESS_ALLOCS: usize = 502;
+        let mut stack = make_test_stack(STACK_SIZE);
+        println!("\n############## frame push \n");
+        let frame_push_res = stack.frame_push(0);
+        assert!(frame_push_res.is_ok());
+        let pre_copy_res = unsafe { stack.pre_copy() };
+        assert!(pre_copy_res.is_ok());
+        let mut counter = 0;
+
+        while counter < SUCCESS_ALLOCS {
+            println!("counter: {counter}");
+            let prev_alloc_res = unsafe { stack.raw_alloc_in_previous_frame(1) };
+            assert!(
+                prev_alloc_res.is_ok(),
+                "Failed to prev_alloc, counter: {}",
+                counter
+            );
+            counter += 1;
+        }
+        println!("### This next raw_alloc_in_previous_frame should fail ###\n");
+        let prev_alloc_res = unsafe { stack.raw_alloc_in_previous_frame(1) };
+        assert!(
+            prev_alloc_res.is_err(),
+            "Didn't get expected alloc error, res: {:#?}",
+            prev_alloc_res
+        );
     }
 }
