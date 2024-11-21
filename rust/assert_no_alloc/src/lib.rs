@@ -173,7 +173,8 @@ pub struct AllocDisabler;
 
 #[cfg(not(all(feature = "disable_release", not(debug_assertions))))] // if not disabled
 impl AllocDisabler {
-    fn check(&self, _layout: Layout) {
+    #[allow(unused_variables)]
+    fn check(&self, layout: Layout) {
         let forbid_count = ALLOC_FORBID_COUNT.with(|f| f.get());
         let permit_count = ALLOC_PERMIT_COUNT.with(|p| p.get());
         if forbid_count > 0 && permit_count == 0 {
