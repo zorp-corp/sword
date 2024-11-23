@@ -27,11 +27,16 @@ num-traits = "0.2"
 rand = "0.8.5"
 signal-hook = "0.3"
 static_assertions = "1.1.0"
+tracing = "0.1.40"
 thiserror = "1.0.64"
 
 [build-dependencies]
 autotools = "0.2"
 cc = "1.0"
+
+[[bench]]
+name = "nock"
+harness = false
 
 # run with e.g. 'cargo build --features check_forwarding,check_acyclic'
 [features]
