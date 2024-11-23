@@ -294,6 +294,12 @@ impl NockStack {
     // Directionality parameters: (East/West), (Stack/Alloc), (pc: true/false)
     // Types of size: word (words: usize)
     /// Check if an allocation or pointer retrieval indicates an invalid request or an invalid state
+    #[cfg(feature = "no_oom_check")]
+    pub const fn alloc_would_oom_(&self, alloc: Allocation, words: usize) -> AllocResult<()> {
+        Ok(())
+    }
+
+    #[cfg(not(feature = "no_oom_check"))]
     pub fn alloc_would_oom_(&self, alloc: Allocation, words: usize) -> AllocResult<()> {
         let _memory_state = self.memory_state(Some(words));
         if self.pc && !alloc.alloc_type.allowed_when_pc() {
