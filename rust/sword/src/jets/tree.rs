@@ -8,7 +8,7 @@ use crate::noun::{IndirectAtom, Noun, D};
 
 crate::gdb!();
 
-pub fn jet_cap(_context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_cap(_context: &mut Context, subject: Noun) -> Result {
     let arg = slot(subject, 6)?;
     let tom = arg.as_atom()?;
     let met = met(0, tom);
@@ -24,7 +24,7 @@ pub fn jet_cap(_context: &mut Context, subject: Noun) -> Result<Noun> {
     }
 }
 
-pub fn jet_mas(context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_mas(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let tom = slot(subject, 6)?.as_atom()?;
     let met = met(0, tom);
@@ -35,7 +35,7 @@ pub fn jet_mas(context: &mut Context, subject: Noun) -> Result<Noun> {
         let out_bits = met - 1;
         let out_words = (out_bits + 63) >> 6;
         let (mut indirect_out, out_bs) =
-            unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words)? };
+            unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words) };
         out_bs.set(met - 2, true); // Set MSB
         if met > 2 {
             out_bs[0..(met - 2)].copy_from_bitslice(&tom.as_bitslice()[0..(met - 2)]);
@@ -44,7 +44,7 @@ pub fn jet_mas(context: &mut Context, subject: Noun) -> Result<Noun> {
     }
 }
 
-pub fn jet_peg(context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_peg(context: &mut Context, subject: Noun) -> Result {
     let stack = &mut context.stack;
     let arg = slot(subject, 6)?;
     let a = slot(arg, 2)?.as_atom()?;
@@ -67,7 +67,7 @@ pub fn jet_peg(context: &mut Context, subject: Noun) -> Result<Noun> {
     let out_words = (out_bits + 63) >> 6; // bits to 8-byte words
 
     let (mut indirect_out, out_bs) =
-        unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words)? };
+        unsafe { IndirectAtom::new_raw_mut_bitslice(stack, out_words) };
 
     out_bs[0..b_bits - 1].copy_from_bitslice(&b.as_bitslice()[0..b_bits - 1]);
     out_bs[b_bits - 1..out_bits].copy_from_bitslice(&a.as_bitslice()[0..a_bits]);
@@ -82,13 +82,6 @@ mod tests {
     use crate::mem::NockStack;
     use crate::noun::{Noun, D, DIRECT_MAX};
     use ibig::ubig;
-    // Override with the panicky variant
-    use crate::test_fns::A;
-
-    #[allow(non_upper_case_globals)]
-    const assert_jet: AssertJetFn = assert_jet_panicky;
-    #[allow(non_upper_case_globals)]
-    const assert_jet_err: AssertJetErrFn = assert_jet_err_panicky;
 
     fn atom_0(_stack: &mut NockStack) -> Noun {
         D(0x0)
@@ -132,7 +125,7 @@ mod tests {
 
     #[test]
     fn test_cap() {
-        let c = &mut init_context().unwrap();
+        let c = &mut init_context();
 
         assert_jet_err(c, jet_cap, D(0), BAIL_EXIT);
         assert_jet_err(c, jet_cap, D(1), BAIL_EXIT);
@@ -148,7 +141,7 @@ mod tests {
 
     #[test]
     fn test_mas() {
-        let c = &mut init_context().unwrap();
+        let c = &mut init_context();
         let a63 = atom_63(&mut c.stack);
         let a64 = atom_64(&mut c.stack);
         let a65 = atom_65(&mut c.stack);
@@ -180,7 +173,7 @@ mod tests {
 
     #[test]
     fn test_peg() {
-        let c = &mut init_context().unwrap();
+        let c = &mut init_context();
 
         assert_common_jet_err(c, jet_peg, &[atom_0, atom_1], BAIL_EXIT);
         assert_common_jet_err(c, jet_peg, &[atom_1, atom_0], BAIL_EXIT);

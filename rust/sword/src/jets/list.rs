@@ -8,27 +8,27 @@ use crate::site::{site_slam, Site};
 
 crate::gdb!();
 
-pub fn jet_flop(context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     util::flop(&mut context.stack, sam)
 }
 
-pub fn jet_lent(_context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_lent(_context: &mut Context, subject: Noun) -> Result {
     let list = slot(subject, 6)?;
     util::lent(list).map(|x| D(x as u64))
 }
 
-pub fn jet_roll(context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_roll(context: &mut Context, subject: Noun) -> Result {
     let sample = slot(subject, 6)?;
     let mut list = slot(sample, 2)?;
     let mut gate = slot(sample, 3)?;
     let mut prod = slot(gate, 13)?;
 
-    let site = Site::new(context, &mut gate)?;
+    let site = Site::new(context, &mut gate);
     loop {
         if let Ok(list_cell) = list.as_cell() {
             list = list_cell.tail();
-            let sam = T(&mut context.stack, &[list_cell.head(), prod])?;
+            let sam = T(&mut context.stack, &[list_cell.head(), prod]);
             prod = site_slam(context, &site, sam)?;
         } else {
             if unsafe { !list.raw_equals(D(0)) } {
@@ -39,7 +39,7 @@ pub fn jet_roll(context: &mut Context, subject: Noun) -> Result<Noun> {
     }
 }
 
-pub fn jet_snag(_context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_snag(_context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     let index = slot(sam, 2)?;
     let list = slot(sam, 3)?;
@@ -47,12 +47,12 @@ pub fn jet_snag(_context: &mut Context, subject: Noun) -> Result<Noun> {
     util::snag(list, index)
 }
 
-pub fn jet_snip(context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_snip(context: &mut Context, subject: Noun) -> Result {
     let list = slot(subject, 6)?;
     util::snip(&mut context.stack, list)
 }
 
-pub fn jet_turn(context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_turn(context: &mut Context, subject: Noun) -> Result {
     let sample = slot(subject, 6)?;
     let mut list = slot(sample, 2)?;
     let mut gate = slot(sample, 3)?;
@@ -61,12 +61,12 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result<Noun> {
 
     // Since the gate doesn't change, we can do a single jet check and use that through the whole
     // loop
-    let site = Site::new(context, &mut gate)?;
+    let site = Site::new(context, &mut gate);
     loop {
         if let Ok(list_cell) = list.as_cell() {
             list = list_cell.tail();
             unsafe {
-                let (new_cell, new_mem) = Cell::new_raw_mut(&mut context.stack)?;
+                let (new_cell, new_mem) = Cell::new_raw_mut(&mut context.stack);
                 (*new_mem).head = site_slam(context, &site, list_cell.head())?;
                 *dest = new_cell.as_noun();
                 dest = &mut (*new_mem).tail;
@@ -83,7 +83,7 @@ pub fn jet_turn(context: &mut Context, subject: Noun) -> Result<Noun> {
     }
 }
 
-pub fn jet_zing(context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_zing(context: &mut Context, subject: Noun) -> Result {
     let list = slot(subject, 6)?;
     let stack = &mut context.stack;
 
@@ -98,7 +98,7 @@ pub mod util {
     use std::result;
 
     /// Reverse order of list
-    pub fn flop(stack: &mut NockStack, noun: Noun) -> Result<Noun> {
+    pub fn flop(stack: &mut NockStack, noun: Noun) -> Result {
         let mut list = noun;
         let mut tsil = D(0);
         loop {
@@ -107,7 +107,7 @@ pub mod util {
             }
 
             let cell = list.as_cell()?;
-            tsil = T(stack, &[cell.head(), tsil])?;
+            tsil = T(stack, &[cell.head(), tsil]);
             list = cell.tail();
         }
 
@@ -133,7 +133,7 @@ pub mod util {
         Ok(len)
     }
 
-    pub fn snag(tape: Noun, index: Noun) -> Result<Noun> {
+    pub fn snag(tape: Noun, index: Noun) -> Result {
         let mut list = tape;
         let mut idx = index.as_atom()?.as_u64()? as usize;
         loop {
@@ -149,7 +149,7 @@ pub mod util {
         }
     }
 
-    pub fn snip(stack: &mut NockStack, tape: Noun) -> Result<Noun> {
+    pub fn snip(stack: &mut NockStack, tape: Noun) -> Result {
         let mut ret = D(0);
         let mut dest = &mut ret as *mut Noun;
         let mut list = tape;
@@ -170,7 +170,7 @@ pub mod util {
                 }
             }
             unsafe {
-                let (new_cell, new_mem) = Cell::new_raw_mut(stack)?;
+                let (new_cell, new_mem) = Cell::new_raw_mut(stack);
                 (*new_mem).head = cell.head();
                 *dest = new_cell.as_noun();
                 dest = &mut (*new_mem).tail;
@@ -181,7 +181,7 @@ pub mod util {
         Ok(ret)
     }
 
-    pub fn zing(stack: &mut NockStack, mut list: Noun) -> Result<Noun> {
+    pub fn zing(stack: &mut NockStack, mut list: Noun) -> Result {
         unsafe {
             let mut res: Noun = D(0);
             let mut dest = &mut res as *mut Noun;
@@ -196,7 +196,7 @@ pub mod util {
                     let i = it.head();
                     sublist = it.tail();
 
-                    let (new_cell, new_memory) = Cell::new_raw_mut(stack)?;
+                    let (new_cell, new_memory) = Cell::new_raw_mut(stack);
                     (*new_memory).head = i;
                     *dest = new_cell.as_noun();
                     dest = &mut (*new_memory).tail;
@@ -212,19 +212,13 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::*;
+    use crate::jets::util::test::{assert_jet, assert_jet_err, init_context};
     use crate::jets::util::BAIL_EXIT;
-    use crate::noun::D;
-    // Override T with the panicky variants
-    use crate::test_fns::T;
-    #[allow(non_upper_case_globals)]
-    const assert_jet: AssertJetFn = assert_jet_panicky;
-    #[allow(non_upper_case_globals)]
-    const assert_jet_err: AssertJetErrFn = assert_jet_err_panicky;
+    use crate::noun::{D, T};
 
     #[test]
     fn test_flop() {
-        let c = &mut init_context().unwrap();
+        let c = &mut init_context();
 
         let sam = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
         let res = T(&mut c.stack, &[D(3), D(2), D(1), D(0)]);
@@ -261,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_lent() {
-        let c = &mut init_context().unwrap();
+        let c = &mut init_context();
 
         assert_jet(c, jet_lent, D(0), D(0));
         let sam = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
@@ -275,7 +269,7 @@ mod tests {
 
     #[test]
     fn test_snag() {
-        let c = &mut init_context().unwrap();
+        let c = &mut init_context();
         let list1 = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
         let sam = T(&mut c.stack, &[D(1), list1]);
         assert_jet(c, jet_snag, sam, D(2));
@@ -293,7 +287,7 @@ mod tests {
 
     #[test]
     fn test_snip() {
-        let c = &mut init_context().unwrap();
+        let c = &mut init_context();
 
         let sam = T(&mut c.stack, &[D(1), D(0)]);
         assert_jet(c, jet_snip, sam, D(0));
@@ -319,7 +313,7 @@ mod tests {
 
     #[test]
     fn test_zing() {
-        let c = &mut init_context().unwrap();
+        let c = &mut init_context();
 
         let list_0 = T(&mut c.stack, &[D(0), D(0), D(0), D(0)]);
         let list_1 = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);

@@ -31,19 +31,18 @@ impl Default for IBig {
 
 impl UBig {
     #[inline]
-    pub fn from_le_bytes_stack<S: Stack>(stack: &mut S, bytes: &[u8]) -> Result<UBig, S::AllocError> {
-        let ubig = if bytes.len() <= WORD_BYTES {
+    pub fn from_le_bytes_stack<S: Stack>(stack: &mut S, bytes: &[u8]) -> UBig {
+        if bytes.len() <= WORD_BYTES {
             // fast path
             UBig::from_word(primitive::word_from_le_bytes_partial(bytes))
         } else {
-            UBig::from_le_bytes_large_stack(stack, bytes)?
-        };
-        Ok(ubig)
+            UBig::from_le_bytes_large_stack(stack, bytes)
+        }
     }
 
-    fn from_le_bytes_large_stack<S: Stack>(stack: &mut S, bytes: &[u8]) -> Result<UBig, S::AllocError> {
+    fn from_le_bytes_large_stack<S: Stack>(stack: &mut S, bytes: &[u8]) -> UBig {
         debug_assert!(bytes.len() > WORD_BYTES);
-        let mut buffer = Buffer::allocate_stack(stack, (bytes.len() - 1) / WORD_BYTES + 1)?;
+        let mut buffer = Buffer::allocate_stack(stack, (bytes.len() - 1) / WORD_BYTES + 1);
         let mut chunks = bytes.chunks_exact(WORD_BYTES);
         for chunk in &mut chunks {
             buffer.push(Word::from_le_bytes(chunk.try_into().unwrap()));
@@ -51,7 +50,7 @@ impl UBig {
         if !chunks.remainder().is_empty() {
             buffer.push(primitive::word_from_le_bytes_partial(chunks.remainder()));
         }
-        Ok(buffer.into())
+        buffer.into()
     }
 
     /// Construct from little-endian bytes.
@@ -553,18 +552,17 @@ impl TryFrom<&IBig> for UBig {
 
 impl UBig {
     #[inline]
-    pub(crate) fn from_unsigned_stack<S: Stack, T>(stack: &mut S, x: T) -> Result<UBig, S::AllocError>
+    pub(crate) fn from_unsigned_stack<S: Stack, T>(stack: &mut S, x: T) -> UBig
     where
         T: PrimitiveUnsigned,
     {
-        let ubig = match x.try_into() {
+        match x.try_into() {
             Ok(w) => UBig::from_word(w),
             Err(_) => {
                 let repr = x.to_le_bytes();
-                UBig::from_le_bytes_stack(stack, repr.as_ref())?
+                UBig::from_le_bytes_stack(stack, repr.as_ref())
             }
-        };
-        Ok(ubig)
+        }
     }
 
     /// Convert an unsigned primitive to [UBig].

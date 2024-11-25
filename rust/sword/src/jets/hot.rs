@@ -1,5 +1,4 @@
 use crate::jets::*;
-use crate::mem::AllocResult;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, T};
 use either::Either::{self, Left, Right};
 use std::ptr::{copy_nonoverlapping, null_mut};
@@ -1505,7 +1504,7 @@ pub const URBIT_HOT_STATE: &[HotEntry] = &[
 pub struct Hot(*mut HotMem);
 
 impl Hot {
-    pub fn init(stack: &mut NockStack, constant_hot_state: &[HotEntry]) -> AllocResult<Self> {
+    pub fn init(stack: &mut NockStack, constant_hot_state: &[HotEntry]) -> Self {
         unsafe {
             let mut next = Hot(null_mut());
             for (htap, axe, jet) in constant_hot_state {
@@ -1513,10 +1512,10 @@ impl Hot {
                 for i in *htap {
                     match i {
                         Left(tas) => {
-                            let chum = IndirectAtom::new_raw_bytes_ref(stack, tas)?
+                            let chum = IndirectAtom::new_raw_bytes_ref(stack, tas)
                                 .normalize_as_atom()
                                 .as_noun();
-                            a_path = T(stack, &[chum, a_path])?;
+                            a_path = T(stack, &[chum, a_path]);
                         }
                         Right((tas, ver)) => {
                             let chum = T(
@@ -1525,13 +1524,13 @@ impl Hot {
                                     DirectAtom::new_panic(*tas).as_atom().as_noun(),
                                     DirectAtom::new_panic(*ver).as_atom().as_noun(),
                                 ],
-                            )?;
-                            a_path = T(stack, &[chum, a_path])?;
+                            );
+                            a_path = T(stack, &[chum, a_path]);
                         }
                     };
                 }
                 let axis = DirectAtom::new_panic(*axe).as_atom();
-                let hot_mem_ptr: *mut HotMem = stack.struct_alloc(1)?;
+                let hot_mem_ptr: *mut HotMem = stack.struct_alloc(1);
                 *hot_mem_ptr = HotMem {
                     a_path,
                     axis,
@@ -1540,7 +1539,7 @@ impl Hot {
                 };
                 next = Hot(hot_mem_ptr);
             }
-            Ok(next)
+            next
         }
     }
 }
@@ -1567,17 +1566,16 @@ struct HotMem {
 }
 
 impl Preserve for Hot {
-    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
         let mut it = self;
         while !it.0.is_null() && stack.is_in_frame(it.0) {
-            let dest_mem = stack.struct_alloc_in_previous_frame(1)?;
+            let dest_mem = stack.struct_alloc_in_previous_frame(1);
             copy_nonoverlapping(it.0, dest_mem, 1);
             it.0 = dest_mem;
-            (*it.0).a_path.preserve(stack)?;
-            (*it.0).axis.preserve(stack)?;
+            (*it.0).a_path.preserve(stack);
+            (*it.0).axis.preserve(stack);
             it = &mut (*it.0).next;
         }
-        Ok(())
     }
 
     unsafe fn assert_in_stack(&self, stack: &NockStack) {

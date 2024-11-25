@@ -1,10 +1,13 @@
-use crate::mem::{word_size_of, AllocResult, NockStack};
+use crate::mem::{word_size_of, NockStack};
+use crate::persist::{pma_contains, pma_dirty};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::{Either, Left, Right};
 use ibig::{Stack, UBig};
 use intmap::IntMap;
+use std::error;
+use std::fmt;
+use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
-use std::{error, fmt, ptr};
 use sword_macros::tas;
 
 crate::gdb!();
@@ -155,7 +158,7 @@ fn is_cell(noun: u64) -> bool {
 }
 
 /** A noun-related error. */
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     /** Expected type [`Allocated`]. */
     NotAllocated,
@@ -169,7 +172,6 @@ pub enum Error {
     NotIndirectAtom,
     /** The value can't be represented by the given type. */
     NotRepresentable,
-    AllocationError(crate::mem::AllocationError),
 }
 
 impl error::Error for Error {}
@@ -183,14 +185,7 @@ impl std::fmt::Display for Error {
             Error::NotDirectAtom => f.write_str("not a direct atom"),
             Error::NotIndirectAtom => f.write_str("not an indirect atom"),
             Error::NotRepresentable => f.write_str("unrepresentable value"),
-            Error::AllocationError(_) => f.write_str("allocation error"),
         }
-    }
-}
-
-impl From<crate::mem::AllocationError> for Error {
-    fn from(allocation_error: crate::mem::AllocationError) -> Self {
-        Error::AllocationError(allocation_error)
     }
 }
 
@@ -308,18 +303,18 @@ pub const fn D(n: u64) -> Noun {
 }
 
 #[allow(non_snake_case)]
-pub fn T<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> AllocResult<Noun> {
-    Ok(Cell::new_tuple(allocator, tup)?.as_noun())
+pub fn T<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> Noun {
+    Cell::new_tuple(allocator, tup).as_noun()
 }
 
 /// Create $tape Noun from ASCII string
-pub fn tape<A: NounAllocator>(allocator: &mut A, text: &str) -> AllocResult<Noun> {
+pub fn tape<A: NounAllocator>(allocator: &mut A, text: &str) -> Noun {
     //  XX: Needs unit tests
     let mut res = D(0);
     for c in text.bytes().rev() {
-        res = T(allocator, &[D(c as u64), res])?
+        res = T(allocator, &[D(c as u64), res])
     }
-    Ok(res)
+    res
 }
 
 /** An indirect atom.
@@ -380,10 +375,10 @@ impl IndirectAtom {
         allocator: &mut A,
         size: usize,
         data: *const u64,
-    ) -> AllocResult<Self> {
-        let (mut indirect, buffer) = Self::new_raw_mut(allocator, size)?;
+    ) -> Self {
+        let (mut indirect, buffer) = Self::new_raw_mut(allocator, size);
         ptr::copy_nonoverlapping(data, buffer, size);
-        Ok(*(indirect.normalize()))
+        *(indirect.normalize())
     }
 
     /** Make an indirect atom by copying from other memory.
@@ -394,16 +389,13 @@ impl IndirectAtom {
         allocator: &mut A,
         size: usize,
         data: *const u8,
-    ) -> AllocResult<Self> {
-        let (mut indirect, buffer) = Self::new_raw_mut_bytes(allocator, size)?;
+    ) -> Self {
+        let (mut indirect, buffer) = Self::new_raw_mut_bytes(allocator, size);
         ptr::copy_nonoverlapping(data, buffer.as_mut_ptr(), size);
-        Ok(*(indirect.normalize()))
+        *(indirect.normalize())
     }
 
-    pub unsafe fn new_raw_bytes_ref<A: NounAllocator>(
-        allocator: &mut A,
-        data: &[u8],
-    ) -> AllocResult<Self> {
+    pub unsafe fn new_raw_bytes_ref<A: NounAllocator>(allocator: &mut A, data: &[u8]) -> Self {
         IndirectAtom::new_raw_bytes(allocator, data.len(), data.as_ptr())
     }
 
@@ -414,12 +406,12 @@ impl IndirectAtom {
     pub unsafe fn new_raw_mut<A: NounAllocator>(
         allocator: &mut A,
         size: usize,
-    ) -> AllocResult<(Self, *mut u64)> {
+    ) -> (Self, *mut u64) {
         debug_assert!(size > 0);
-        let buffer = allocator.alloc_indirect(size)?;
+        let buffer = allocator.alloc_indirect(size);
         *buffer = 0;
         *buffer.add(1) = size as u64;
-        Ok((Self::from_raw_pointer(buffer), buffer.add(2)))
+        (Self::from_raw_pointer(buffer), buffer.add(2))
     }
 
     /** Make an indirect atom that can be written into, and zero the whole data buffer.
@@ -429,10 +421,10 @@ impl IndirectAtom {
     pub unsafe fn new_raw_mut_zeroed<A: NounAllocator>(
         allocator: &mut A,
         size: usize,
-    ) -> AllocResult<(Self, *mut u64)> {
-        let allocation = Self::new_raw_mut(allocator, size)?;
+    ) -> (Self, *mut u64) {
+        let allocation = Self::new_raw_mut(allocator, size);
         ptr::write_bytes(allocation.1, 0, size);
-        Ok(allocation)
+        allocation
     }
 
     /** Make an indirect atom that can be written into as a bitslice. The constraints of
@@ -441,12 +433,12 @@ impl IndirectAtom {
     pub unsafe fn new_raw_mut_bitslice<'a, A: NounAllocator>(
         allocator: &mut A,
         size: usize,
-    ) -> AllocResult<(Self, &'a mut BitSlice<u64, Lsb0>)> {
-        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, size)?;
-        Ok((
+    ) -> (Self, &'a mut BitSlice<u64, Lsb0>) {
+        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, size);
+        (
             noun,
             BitSlice::from_slice_mut(from_raw_parts_mut(ptr, size)),
-        ))
+        )
     }
 
     /** Make an indirect atom that can be written into as a slice of bytes. The constraints of
@@ -457,19 +449,19 @@ impl IndirectAtom {
     pub unsafe fn new_raw_mut_bytes<'a, A: NounAllocator>(
         allocator: &mut A,
         size: usize,
-    ) -> AllocResult<(Self, &'a mut [u8])> {
+    ) -> (Self, &'a mut [u8]) {
         let word_size = (size + 7) >> 3;
-        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size)?;
-        Ok((noun, from_raw_parts_mut(ptr as *mut u8, size)))
+        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size);
+        (noun, from_raw_parts_mut(ptr as *mut u8, size))
     }
 
     /// Create an indirect atom backed by a fixed-size array
     pub unsafe fn new_raw_mut_bytearray<'a, const N: usize, A: NounAllocator>(
         allocator: &mut A,
-    ) -> AllocResult<(Self, &'a mut [u8; N])> {
+    ) -> (Self, &'a mut [u8; N]) {
         let word_size = (std::mem::size_of::<[u8; N]>() + 7) >> 3;
-        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size)?;
-        Ok((noun, &mut *(ptr as *mut [u8; N])))
+        let (noun, ptr) = Self::new_raw_mut_zeroed(allocator, word_size);
+        (noun, &mut *(ptr as *mut [u8; N]))
     }
 
     /** Size of an indirect atom in 64-bit words */
@@ -519,7 +511,7 @@ impl IndirectAtom {
         BitSlice::from_slice_mut(self.as_mut_slice())
     }
 
-    pub fn as_ubig<S: Stack>(&self, stack: &mut S) -> core::result::Result<UBig, S::AllocError> {
+    pub fn as_ubig<S: Stack>(&self, stack: &mut S) -> UBig {
         UBig::from_le_bytes_stack(stack, self.as_bytes())
     }
 
@@ -649,34 +641,32 @@ impl Cell {
         }
     }
 
-    pub fn new<T: NounAllocator>(allocator: &mut T, head: Noun, tail: Noun) -> AllocResult<Cell> {
+    pub fn new<T: NounAllocator>(allocator: &mut T, head: Noun, tail: Noun) -> Cell {
         unsafe {
-            let (cell, memory) = Self::new_raw_mut(allocator)?;
+            let (cell, memory) = Self::new_raw_mut(allocator);
             (*memory).head = head;
             (*memory).tail = tail;
-            Ok(cell)
+            cell
         }
     }
 
-    pub fn new_tuple<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> AllocResult<Cell> {
+    pub fn new_tuple<A: NounAllocator>(allocator: &mut A, tup: &[Noun]) -> Cell {
         if tup.len() < 2 {
             panic!("Cannot create tuple with fewer than 2 elements");
         }
 
         let len = tup.len();
-        let mut cell = Cell::new(allocator, tup[len - 2], tup[len - 1])?;
+        let mut cell = Cell::new(allocator, tup[len - 2], tup[len - 1]);
         for i in (0..len - 2).rev() {
-            cell = Cell::new(allocator, tup[i], cell.as_noun())?;
+            cell = Cell::new(allocator, tup[i], cell.as_noun());
         }
-        Ok(cell)
+        cell
     }
 
-    pub unsafe fn new_raw_mut<A: NounAllocator>(
-        allocator: &mut A,
-    ) -> AllocResult<(Cell, *mut CellMemory)> {
-        let memory = allocator.alloc_cell()?;
+    pub unsafe fn new_raw_mut<A: NounAllocator>(allocator: &mut A) -> (Cell, *mut CellMemory) {
+        let memory = allocator.alloc_cell();
         (*memory).metadata = 0;
-        Ok((Self::from_raw_pointer(memory), memory))
+        (Self::from_raw_pointer(memory), memory)
     }
 
     pub fn head(&self) -> Noun {
@@ -761,21 +751,20 @@ pub union Atom {
 }
 
 impl Atom {
-    pub fn new<A: NounAllocator>(allocator: &mut A, value: u64) -> AllocResult<Atom> {
-        let res = if value <= DIRECT_MAX {
+    pub fn new<A: NounAllocator>(allocator: &mut A, value: u64) -> Atom {
+        if value <= DIRECT_MAX {
             unsafe { DirectAtom::new_unchecked(value).as_atom() }
         } else {
-            unsafe { IndirectAtom::new_raw(allocator, 1, &value)?.as_atom() }
-        };
-        Ok(res)
+            unsafe { IndirectAtom::new_raw(allocator, 1, &value).as_atom() }
+        }
     }
 
     // to_le_bytes and new_raw are copies.  We should be able to do this completely without copies
     // if we integrate with ibig properly.
-    pub fn from_ubig<A: NounAllocator>(allocator: &mut A, big: &UBig) -> AllocResult<Atom> {
+    pub fn from_ubig<A: NounAllocator>(allocator: &mut A, big: &UBig) -> Atom {
         let bit_size = big.bit_len();
         let buffer = big.to_le_bytes_stack();
-        let atom = if bit_size < 64 {
+        if bit_size < 64 {
             let mut value = 0u64;
             for i in (0..bit_size).step_by(8) {
                 value |= (buffer[i / 8] as u64) << i;
@@ -783,9 +772,8 @@ impl Atom {
             unsafe { DirectAtom::new_unchecked(value).as_atom() }
         } else {
             let byte_size = (big.bit_len() + 7) >> 3;
-            unsafe { IndirectAtom::new_raw_bytes(allocator, byte_size, buffer.as_ptr())?.as_atom() }
-        };
-        Ok(atom)
+            unsafe { IndirectAtom::new_raw_bytes(allocator, byte_size, buffer.as_ptr()).as_atom() }
+        }
     }
 
     pub fn is_direct(&self) -> bool {
@@ -882,13 +870,12 @@ impl Atom {
         }
     }
 
-    pub fn as_ubig<S: Stack>(self, stack: &mut S) -> core::result::Result<UBig, S::AllocError> {
-        let ubig = if self.is_indirect() {
-            unsafe { self.indirect.as_ubig(stack)? }
+    pub fn as_ubig<S: Stack>(self, stack: &mut S) -> UBig {
+        if self.is_indirect() {
+            unsafe { self.indirect.as_ubig(stack) }
         } else {
             unsafe { self.direct.as_ubig(stack) }
-        };
-        Ok(ubig)
+        }
     }
 
     pub fn direct(&self) -> Option<DirectAtom> {
@@ -1000,6 +987,10 @@ impl Allocated {
     }
 
     pub unsafe fn set_metadata(self, metadata: u64) {
+        let ptr = self.const_to_raw_pointer_mut();
+        if pma_contains(ptr, 1) {
+            pma_dirty(ptr, 1);
+        }
         *(self.const_to_raw_pointer_mut()) = metadata;
     }
 
@@ -1314,13 +1305,13 @@ pub trait NounAllocator: Sized {
      *
      * This should allocate *two more* `u64`s than `words` to make space for the size and metadata
      */
-    unsafe fn alloc_indirect(&mut self, words: usize) -> AllocResult<*mut u64>;
+    unsafe fn alloc_indirect(&mut self, words: usize) -> *mut u64;
 
     /** Allocate memory for a cell */
-    unsafe fn alloc_cell(&mut self) -> AllocResult<*mut CellMemory>;
+    unsafe fn alloc_cell(&mut self) -> *mut CellMemory;
 
     /** Allocate space for a struct in a stack frame */
-    unsafe fn alloc_struct<T>(&mut self, count: usize) -> AllocResult<*mut T>;
+    unsafe fn alloc_struct<T>(&mut self, count: usize) -> *mut T;
 }
 
 /**

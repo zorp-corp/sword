@@ -7,7 +7,7 @@ use crate::noun::Noun;
 
 crate::gdb!();
 
-pub fn jet_scow(context: &mut Context, subject: Noun) -> Result<Noun> {
+pub fn jet_scow(context: &mut Context, subject: Noun) -> Result {
     let aura = slot(subject, 12)?.as_direct()?;
     let atom = slot(subject, 13)?.as_atom()?;
     util::scow(&mut context.stack, aura, atom)
@@ -17,7 +17,7 @@ pub mod util {
     use crate::jets;
     use crate::jets::JetErr;
     use crate::mem::NockStack;
-    use crate::noun::{Atom, Cell, DirectAtom, Noun, D, T};
+    use crate::noun::{Atom, Cell, DirectAtom, D, T};
     use num_traits::identities::Zero;
     use sword_macros::tas;
 
@@ -25,11 +25,11 @@ pub mod util {
         stack: &mut NockStack,
         aura: DirectAtom, // XX: technically this should be Atom?
         atom: Atom,
-    ) -> jets::Result<Noun> {
+    ) -> jets::Result {
         match aura.data() {
             tas!(b"ud") => {
                 if atom.as_bitslice().first_one().is_none() {
-                    return Ok(T(stack, &[D(b'0' as u64), D(0)])?);
+                    return Ok(T(stack, &[D(b'0' as u64), D(0)]));
                 }
 
                 let mut root = D(0);
@@ -38,15 +38,15 @@ pub mod util {
                     let mut n = atom.as_direct()?.data();
 
                     while n != 0 {
-                        root = T(stack, &[D(b'0' as u64 + (n % 10)), root])?;
+                        root = T(stack, &[D(b'0' as u64 + (n % 10)), root]);
                         n /= 10;
                         lent += 1;
                     }
                 } else {
-                    let mut n = atom.as_indirect()?.as_ubig(stack)?;
+                    let mut n = atom.as_indirect()?.as_ubig(stack);
 
                     while !n.is_zero() {
-                        root = T(stack, &[D(b'0' as u64 + (&n % 10u64)), root])?;
+                        root = T(stack, &[D(b'0' as u64 + (&n % 10u64)), root]);
                         n /= 10u64;
                         lent += 1;
                     }
@@ -58,7 +58,7 @@ pub mod util {
 
                     while lent > 2 {
                         if lent % 3 == 0 {
-                            let (cell, memory) = Cell::new_raw_mut(stack)?;
+                            let (cell, memory) = Cell::new_raw_mut(stack);
                             (*memory).head = D(b'.' as u64);
                             (*memory).tail = list.tail();
                             (*(list.to_raw_pointer_mut())).tail = cell.as_noun();
@@ -79,18 +79,11 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jets::util::test::*;
+    use crate::jets::util::test::{assert_jet, assert_jet_err, init_context, A};
     use crate::jets::JetErr;
-    use crate::noun::{Noun, D};
+    use crate::noun::{Noun, D, T};
     use ibig::ubig;
     use sword_macros::tas;
-    // Override T and A with the panicky variants
-    use crate::test_fns::{A, T};
-
-    #[allow(non_upper_case_globals)]
-    const assert_jet: AssertJetFn = assert_jet_panicky;
-    #[allow(non_upper_case_globals)]
-    const assert_jet_err: AssertJetErrFn = assert_jet_err_panicky;
 
     // Rust can't handle implicit conversions from u8 to u64
     #[allow(non_snake_case)]
@@ -100,7 +93,7 @@ mod tests {
 
     #[test]
     fn test_scow() {
-        let c = &mut init_context().unwrap();
+        let c = &mut init_context();
 
         let aura = D(tas!(b"ud"));
         let sam = T(&mut c.stack, &[aura, D(0)]);

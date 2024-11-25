@@ -1263,7 +1263,9 @@ dependencies = [
  "signal-hook",
  "static_assertions",
  "sword_crypto",
+ "sword_guard",
  "sword_macros",
+ "sword_pma",
  "thiserror",
 ]
 
@@ -1283,11 +1285,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "sword_guard"
+version = "0.1.0"
+dependencies = [
+ "bindgen",
+ "cc",
+]
+
+[[package]]
 name = "sword_macros"
 version = "0.1.0"
 dependencies = [
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "sword_pma"
+version = "0.1.0"
+dependencies = [
+ "bindgen",
+ "cc",
 ]
 
 [[package]]

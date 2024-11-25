@@ -21,14 +21,14 @@ use core::{
 pub(crate) struct Buffer(ManuallyDrop<Vec<Word>>);
 
 impl Buffer {
-    pub(crate) fn allocate_stack<S: Stack>(stack: &mut S, num_words: usize) -> Result<Buffer, S::AllocError> {
+    pub(crate) fn allocate_stack<S: Stack>(stack: &mut S, num_words: usize) -> Buffer {
         if num_words > Buffer::MAX_CAPACITY {
             UBig::panic_number_too_large();
         }
         let capacity = Buffer::default_capacity(num_words);
         unsafe {
-            let ptr = stack.alloc_layout(memory::array_layout::<Word>(capacity))?;
-            Ok(Buffer(ManuallyDrop::new(Vec::from_raw_parts(ptr, 0, capacity))))
+            let ptr = stack.alloc_layout(memory::array_layout::<Word>(capacity));
+            Buffer(ManuallyDrop::new(Vec::from_raw_parts(ptr, 0, capacity)))
         }
     }
 
@@ -44,11 +44,9 @@ impl Buffer {
         )))
     }
 
-    pub(crate) fn ensure_capacity_stack<S: Stack>(&mut self, stack: &mut S, num_words: usize) -> Result<(), S::AllocError> {
+    pub(crate) fn ensure_capacity_stack<S: Stack>(&mut self, stack: &mut S, num_words: usize) {
         if num_words > self.capacity() {
-            self.reallocate_stack(stack, num_words)
-        } else {
-            Ok(())
+            self.reallocate_stack(stack, num_words);
         }
     }
 
@@ -71,12 +69,11 @@ impl Buffer {
         // }
     }
 
-    fn reallocate_stack<S: Stack>(&mut self, stack: &mut S, num_words: usize) -> Result<(), S::AllocError> {
+    fn reallocate_stack<S: Stack>(&mut self, stack: &mut S, num_words: usize) {
         assert!(num_words >= self.len());
-        let mut new_buffer = Buffer::allocate_stack(stack, num_words)?;
+        let mut new_buffer = Buffer::allocate_stack(stack, num_words);
         new_buffer.clone_from(self);
-        *self = new_buffer;
-        Ok(())
+        *self = new_buffer
     }
 
     /// Change capacity to store `num_words` plus some extra space for future growth.
@@ -109,10 +106,9 @@ impl Buffer {
     }
 
     #[inline]
-    pub(crate) fn push_may_reallocate_stack<S: Stack>(&mut self, stack: &mut S, word: Word) -> Result<(), S::AllocError> {
-        self.ensure_capacity_stack(stack, self.len() + 1)?;
+    pub(crate) fn push_may_reallocate_stack<S: Stack>(&mut self, stack: &mut S, word: Word) {
+        self.ensure_capacity_stack(stack, self.len() + 1);
         self.push(word);
-        Ok(())
     }
 
     /// Append a Word and reallocate if necessary.

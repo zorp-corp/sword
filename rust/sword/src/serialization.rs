@@ -1,7 +1,7 @@
 use crate::hamt::MutHamt;
 use crate::interpreter::Error::{self, *};
 use crate::interpreter::Mote::*;
-use crate::mem::{AllocResult, NockStack};
+use crate::mem::NockStack;
 use crate::noun::{Atom, Cell, DirectAtom, IndirectAtom, Noun, D};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::Either::{Left, Right};
@@ -103,13 +103,13 @@ enum CueStackEntry {
 /// # Returns
 /// A Result containing either the deserialized Noun or an Error
 pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Result<Noun, Error> {
-    let backref_map = MutHamt::<Noun>::new(stack)?;
+    let backref_map = MutHamt::<Noun>::new(stack);
     let mut result = D(0);
     let mut cursor = 0;
 
-    let res = unsafe {
+    unsafe {
         stack.with_frame(0, |stack: &mut NockStack| {
-            *(stack.push::<CueStackEntry>()?) =
+            *(stack.push::<CueStackEntry>()) =
                 CueStackEntry::DestinationPointer(&mut result as *mut Noun);
             loop {
                 if stack.stack_is_empty() {
@@ -125,43 +125,42 @@ pub fn cue_bitslice(stack: &mut NockStack, buffer: &BitSlice<u64, Lsb0>) -> Resu
                             // 11 tag: backref
                             if next_bit(&mut cursor, buffer) {
                                 let mut backref_noun =
-                                    Atom::new(stack, rub_backref(&mut cursor, buffer)?)?.as_noun();
+                                    Atom::new(stack, rub_backref(&mut cursor, buffer)?).as_noun();
                                 *dest_ptr = backref_map
-                                    .lookup(stack, &mut backref_noun)?
+                                    .lookup(stack, &mut backref_noun)
                                     .ok_or(Deterministic(Exit, D(0)))?;
                             } else {
                                 // 10 tag: cell
-                                let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack)?;
+                                let (cell, cell_mem_ptr) = Cell::new_raw_mut(stack);
                                 *dest_ptr = cell.as_noun();
                                 let mut backref_atom =
-                                    Atom::new(stack, (cursor - 2) as u64)?.as_noun();
-                                backref_map.insert(stack, &mut backref_atom, *dest_ptr)?;
-                                *(stack.push()?) = CueStackEntry::BackRef(
+                                    Atom::new(stack, (cursor - 2) as u64).as_noun();
+                                backref_map.insert(stack, &mut backref_atom, *dest_ptr);
+                                *(stack.push()) = CueStackEntry::BackRef(
                                     cursor as u64 - 2,
                                     dest_ptr as *const Noun,
                                 );
-                                *(stack.push()?) =
+                                *(stack.push()) =
                                     CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).tail);
-                                *(stack.push()?) =
+                                *(stack.push()) =
                                     CueStackEntry::DestinationPointer(&mut (*cell_mem_ptr).head);
                             }
                         } else {
                             // 0 tag: atom
                             let backref: u64 = (cursor - 1) as u64;
                             *dest_ptr = rub_atom(stack, &mut cursor, buffer)?.as_noun();
-                            let mut backref_atom = Atom::new(stack, backref)?.as_noun();
-                            backref_map.insert(stack, &mut backref_atom, *dest_ptr)?;
+                            let mut backref_atom = Atom::new(stack, backref).as_noun();
+                            backref_map.insert(stack, &mut backref_atom, *dest_ptr);
                         }
                     }
                     CueStackEntry::BackRef(backref, noun_ptr) => {
-                        let mut backref_atom = Atom::new(stack, backref)?.as_noun();
-                        backref_map.insert(stack, &mut backref_atom, *noun_ptr)?
+                        let mut backref_atom = Atom::new(stack, backref).as_noun();
+                        backref_map.insert(stack, &mut backref_atom, *noun_ptr)
                     }
                 }
             }
-        })?
-    };
-    res
+        })
+    }
 }
 
 /// Deserialize a noun from an Atom
@@ -236,7 +235,7 @@ fn rub_atom(
     } else {
         // Need an indirect atom
         let wordsize = (size + 63) >> 6;
-        let (mut atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, wordsize)? };
+        let (mut atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, wordsize) };
         slice[0..bits.len()].copy_from_bitslice(bits);
         debug_assert!(atom.size() > 0);
         unsafe { Ok(atom.normalize_as_atom()) }
@@ -273,71 +272,79 @@ struct JamState<'a> {
 /// Corresponds to ++jam in the hoon stdlib.
 ///
 /// Implements a compact encoding scheme for nouns, with backreferences for shared structures.
-pub fn jam(stack: &mut NockStack, noun: Noun) -> AllocResult<Atom> {
-    let backref_map = MutHamt::new(stack)?;
+pub fn jam(stack: &mut NockStack, noun: Noun) -> Atom {
+    let backref_map = MutHamt::new(stack);
     let size = 8;
-    let (atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, size)? };
+    let (atom, slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(stack, size) };
     let mut state = JamState {
         cursor: 0,
         size,
         atom,
         slice,
     };
+    stack.frame_push(0);
     unsafe {
-        stack.with_frame(0, |stack| {
-            *(stack.push::<Noun>()?) = noun;
-            'jam: loop {
-                if stack.stack_is_empty() {
-                    break;
-                } else {
-                    let mut noun = *(stack.top::<Noun>());
-                    if let Some(backref) = backref_map.lookup(stack, &mut noun)? {
-                        match noun.as_either_atom_cell() {
-                            Left(atom) => {
-                                let atom_size = met0_usize(atom);
-                                let backref_size = met0_u64_to_usize(backref);
-                                if atom_size <= backref_size {
-                                    jam_atom(stack, &mut state, atom)?;
-                                } else {
-                                    jam_backref(stack, &mut state, backref)?;
-                                }
-                            }
-                            Right(_cell) => {
-                                jam_backref(stack, &mut state, backref)?;
-                            }
-                        }
-                        stack.pop::<Noun>();
-                        continue 'jam;
-                    };
-                    backref_map.insert(stack, &mut noun, state.cursor as u64)?;
-                    match noun.as_either_atom_cell() {
-                        Left(atom) => {
-                            jam_atom(stack, &mut state, atom)?;
-                            stack.pop::<Noun>();
-                            continue;
-                        }
-                        Right(cell) => {
-                            jam_cell(stack, &mut state)?;
-                            stack.pop::<Noun>();
-                            *(stack.push::<Noun>()?) = cell.tail();
-                            *(stack.push::<Noun>()?) = cell.head();
-
-                            continue;
+        *(stack.push::<Noun>()) = noun;
+    };
+    'jam: loop {
+        if stack.stack_is_empty() {
+            break;
+        } else {
+            let mut noun = unsafe { *(stack.top::<Noun>()) };
+            if let Some(backref) = backref_map.lookup(stack, &mut noun) {
+                match noun.as_either_atom_cell() {
+                    Left(atom) => {
+                        let atom_size = met0_usize(atom);
+                        let backref_size = met0_u64_to_usize(backref);
+                        if atom_size <= backref_size {
+                            jam_atom(stack, &mut state, atom);
+                        } else {
+                            jam_backref(stack, &mut state, backref);
                         }
                     }
+                    Right(_cell) => {
+                        jam_backref(stack, &mut state, backref);
+                    }
+                }
+                unsafe {
+                    stack.pop::<Noun>();
+                };
+                continue 'jam;
+            };
+            backref_map.insert(stack, &mut noun, state.cursor as u64);
+            match noun.as_either_atom_cell() {
+                Left(atom) => {
+                    jam_atom(stack, &mut state, atom);
+                    unsafe {
+                        stack.pop::<Noun>();
+                    };
+                    continue;
+                }
+                Right(cell) => {
+                    jam_cell(stack, &mut state);
+                    unsafe {
+                        stack.pop::<Noun>();
+                        *(stack.push::<Noun>()) = cell.tail();
+                        *(stack.push::<Noun>()) = cell.head();
+                    };
+                    continue;
                 }
             }
-            let result = state.atom.normalize_as_atom();
-            Ok(result)
-        })?
+        }
+    }
+    unsafe {
+        let mut result = state.atom.normalize_as_atom();
+        stack.preserve(&mut result);
+        stack.frame_pop();
+        result
     }
 }
 
 /// Serialize an atom into the jam state
-fn jam_atom(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> AllocResult<()> {
+fn jam_atom(traversal: &mut NockStack, state: &mut JamState, atom: Atom) {
     loop {
         if state.cursor + 1 > state.slice.len() {
-            double_atom_size(traversal, state)?;
+            double_atom_size(traversal, state);
         } else {
             break;
         }
@@ -345,20 +352,19 @@ fn jam_atom(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> Allo
     state.slice.set(state.cursor, false); // 0 tag for atom
     state.cursor += 1;
     loop {
-        if let Ok(()) = mat(traversal, state, atom)? {
+        if let Ok(()) = mat(traversal, state, atom) {
             break;
         } else {
-            double_atom_size(traversal, state)?;
+            double_atom_size(traversal, state);
         }
     }
-    Ok(())
 }
 
 /// Serialize a cell into the jam state
-fn jam_cell(traversal: &mut NockStack, state: &mut JamState) -> AllocResult<()> {
+fn jam_cell(traversal: &mut NockStack, state: &mut JamState) {
     loop {
         if state.cursor + 2 > state.slice.len() {
-            double_atom_size(traversal, state)?;
+            double_atom_size(traversal, state);
         } else {
             break;
         }
@@ -366,14 +372,13 @@ fn jam_cell(traversal: &mut NockStack, state: &mut JamState) -> AllocResult<()> 
     state.slice.set(state.cursor, true); // 1 bit
     state.slice.set(state.cursor + 1, false); // 0 bit, forming 10 tag for cell
     state.cursor += 2;
-    Ok(())
 }
 
 /// Serialize a backreference into the jam state
-fn jam_backref(traversal: &mut NockStack, state: &mut JamState, backref: u64) -> AllocResult<()> {
+fn jam_backref(traversal: &mut NockStack, state: &mut JamState, backref: u64) {
     loop {
         if state.cursor + 2 > state.slice.len() {
-            double_atom_size(traversal, state)?;
+            double_atom_size(traversal, state);
         } else {
             break;
         }
@@ -381,46 +386,44 @@ fn jam_backref(traversal: &mut NockStack, state: &mut JamState, backref: u64) ->
     state.slice.set(state.cursor, true); // 1 bit
     state.slice.set(state.cursor + 1, true); // 1 bit, forming 11 tag for backref
     state.cursor += 2;
-    let backref_atom = Atom::new(traversal, backref)?;
+    let backref_atom = Atom::new(traversal, backref);
     loop {
-        if let Ok(()) = mat(traversal, state, backref_atom)? {
+        if let Ok(()) = mat(traversal, state, backref_atom) {
             break;
         } else {
-            double_atom_size(traversal, state)?;
+            double_atom_size(traversal, state);
         }
     }
-    Ok(())
 }
 
 /// Double the size of the atom in the jam state
-fn double_atom_size(traversal: &mut NockStack, state: &mut JamState) -> AllocResult<()> {
+fn double_atom_size(traversal: &mut NockStack, state: &mut JamState) {
     let new_size = state.size + state.size;
-    let (new_atom, new_slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(traversal, new_size)? };
+    let (new_atom, new_slice) = unsafe { IndirectAtom::new_raw_mut_bitslice(traversal, new_size) };
     new_slice[0..state.cursor].copy_from_bitslice(&state.slice[0..state.cursor]);
     state.size = new_size;
     state.atom = new_atom;
     state.slice = new_slice;
-    Ok(())
 }
 
 /// Encode an atom's size and value into the jam state
 ///
 /// INVARIANT: mat must not modify state.cursor unless it will also return `Ok(())`
-fn mat(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> AllocResult<Result<(), ()>> {
+fn mat(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> Result<(), ()> {
     let b_atom_size = met0_usize(atom);
-    let b_atom_size_atom = Atom::new(traversal, b_atom_size as u64)?;
+    let b_atom_size_atom = Atom::new(traversal, b_atom_size as u64);
     if b_atom_size == 0 {
         if state.cursor + 1 > state.slice.len() {
-            Ok(Err(()))
+            Err(())
         } else {
             state.slice.set(state.cursor, true);
             state.cursor += 1;
-            Ok(Ok(()))
+            Ok(())
         }
     } else {
         let c_b_size = met0_usize(b_atom_size_atom);
         if state.cursor + c_b_size + c_b_size + b_atom_size > state.slice.len() {
-            Ok(Err(()))
+            Err(())
         } else {
             state.slice[state.cursor..state.cursor + c_b_size].fill(false); // a 0 bit for each bit in the atom size
             state.slice.set(state.cursor + c_b_size, true); // a terminating 1 bit
@@ -430,7 +433,7 @@ fn mat(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> AllocResu
                 ..state.cursor + c_b_size + c_b_size + b_atom_size]
                 .copy_from_bitslice(&atom.as_bitslice()[0..b_atom_size]);
             state.cursor += c_b_size + c_b_size + b_atom_size;
-            Ok(Ok(()))
+            Ok(())
         }
     }
 }
@@ -444,6 +447,7 @@ mod tests {
     use crate::jets::util::test::assert_noun_eq;
     use crate::mem::NockStack;
     use crate::noun::{Atom, Cell, Noun};
+    use crate::persist::Persist;
     fn setup_stack() -> NockStack {
         NockStack::new(1 << 30, 0)
     }
@@ -451,8 +455,8 @@ mod tests {
     #[test]
     fn test_jam_cue_atom() {
         let mut stack = setup_stack();
-        let atom = Atom::new(&mut stack, 42).unwrap();
-        let jammed = jam(&mut stack, atom.as_noun()).unwrap();
+        let atom = Atom::new(&mut stack, 42);
+        let jammed = jam(&mut stack, atom.as_noun());
         let cued = cue(&mut stack, jammed).unwrap();
         assert_noun_eq(&mut stack, cued, atom.as_noun());
     }
@@ -460,10 +464,10 @@ mod tests {
     #[test]
     fn test_jam_cue_cell() {
         let mut stack = setup_stack();
-        let n1 = Atom::new(&mut stack, 1).unwrap().as_noun();
-        let n2 = Atom::new(&mut stack, 2).unwrap().as_noun();
-        let cell = Cell::new(&mut stack, n1, n2).unwrap().as_noun();
-        let jammed = jam(&mut stack, cell).unwrap();
+        let n1 = Atom::new(&mut stack, 1).as_noun();
+        let n2 = Atom::new(&mut stack, 2).as_noun();
+        let cell = Cell::new(&mut stack, n1, n2).as_noun();
+        let jammed = jam(&mut stack, cell);
         let cued = cue(&mut stack, jammed).unwrap();
         assert_noun_eq(&mut stack, cued, cell);
     }
@@ -471,12 +475,12 @@ mod tests {
     #[test]
     fn test_jam_cue_nested_cell() {
         let mut stack = setup_stack();
-        let n3 = Atom::new(&mut stack, 3).unwrap().as_noun();
-        let n4 = Atom::new(&mut stack, 4).unwrap().as_noun();
-        let inner_cell = Cell::new(&mut stack, n3, n4).unwrap();
-        let n1 = Atom::new(&mut stack, 1).unwrap().as_noun();
-        let outer_cell = Cell::new(&mut stack, n1, inner_cell.as_noun()).unwrap();
-        let jammed = jam(&mut stack, outer_cell.as_noun()).unwrap();
+        let n3 = Atom::new(&mut stack, 3).as_noun();
+        let n4 = Atom::new(&mut stack, 4).as_noun();
+        let inner_cell = Cell::new(&mut stack, n3, n4);
+        let n1 = Atom::new(&mut stack, 1).as_noun();
+        let outer_cell = Cell::new(&mut stack, n1, inner_cell.as_noun());
+        let jammed = jam(&mut stack, outer_cell.as_noun());
         let cued = cue(&mut stack, jammed).unwrap();
         assert_noun_eq(&mut stack, cued, outer_cell.as_noun());
     }
@@ -484,9 +488,9 @@ mod tests {
     #[test]
     fn test_jam_cue_shared_structure() {
         let mut stack = setup_stack();
-        let shared_atom = Atom::new(&mut stack, 42).unwrap();
-        let cell = Cell::new(&mut stack, shared_atom.as_noun(), shared_atom.as_noun()).unwrap();
-        let jammed = jam(&mut stack, cell.as_noun()).unwrap();
+        let shared_atom = Atom::new(&mut stack, 42);
+        let cell = Cell::new(&mut stack, shared_atom.as_noun(), shared_atom.as_noun());
+        let jammed = jam(&mut stack, cell.as_noun());
         let cued = cue(&mut stack, jammed).unwrap();
         assert_noun_eq(&mut stack, cued, cell.as_noun());
     }
@@ -494,8 +498,8 @@ mod tests {
     #[test]
     fn test_jam_cue_large_atom() {
         let mut stack = setup_stack();
-        let large_atom = Atom::new(&mut stack, u64::MAX).unwrap();
-        let jammed = jam(&mut stack, large_atom.as_noun()).unwrap();
+        let large_atom = Atom::new(&mut stack, u64::MAX);
+        let jammed = jam(&mut stack, large_atom.as_noun());
         let cued = cue(&mut stack, jammed).unwrap();
         assert_noun_eq(&mut stack, cued, large_atom.as_noun());
     }
@@ -503,8 +507,8 @@ mod tests {
     #[test]
     fn test_jam_cue_empty_atom() {
         let mut stack = setup_stack();
-        let empty_atom = Atom::new(&mut stack, 0).unwrap();
-        let jammed = jam(&mut stack, empty_atom.as_noun()).unwrap();
+        let empty_atom = Atom::new(&mut stack, 0);
+        let jammed = jam(&mut stack, empty_atom.as_noun());
         let cued = cue(&mut stack, jammed).unwrap();
         assert_noun_eq(&mut stack, cued, empty_atom.as_noun());
     }
@@ -512,12 +516,12 @@ mod tests {
     #[test]
     fn test_jam_cue_complex_structure() {
         let mut stack = setup_stack();
-        let atom1 = Atom::new(&mut stack, 1).unwrap();
-        let atom2 = Atom::new(&mut stack, 2).unwrap();
-        let cell1 = Cell::new(&mut stack, atom1.as_noun(), atom2.as_noun()).unwrap();
-        let cell2 = Cell::new(&mut stack, cell1.as_noun(), atom2.as_noun()).unwrap();
-        let cell3 = Cell::new(&mut stack, cell2.as_noun(), cell1.as_noun()).unwrap();
-        let jammed = jam(&mut stack, cell3.as_noun()).unwrap();
+        let atom1 = Atom::new(&mut stack, 1);
+        let atom2 = Atom::new(&mut stack, 2);
+        let cell1 = Cell::new(&mut stack, atom1.as_noun(), atom2.as_noun());
+        let cell2 = Cell::new(&mut stack, cell1.as_noun(), atom2.as_noun());
+        let cell3 = Cell::new(&mut stack, cell2.as_noun(), cell1.as_noun());
+        let jammed = jam(&mut stack, cell3.as_noun());
         let cued = cue(&mut stack, jammed).unwrap();
         assert_noun_eq(&mut stack, cued, cell3.as_noun());
     }
@@ -525,7 +529,7 @@ mod tests {
     #[test]
     fn test_cue_invalid_input() {
         let mut stack = setup_stack();
-        let invalid_atom = Atom::new(&mut stack, 0b11).unwrap(); // Invalid tag
+        let invalid_atom = Atom::new(&mut stack, 0b11); // Invalid tag
         let result = cue(&mut stack, invalid_atom);
         assert!(result.is_err());
     }
@@ -538,15 +542,14 @@ mod tests {
 
         let mut stack = setup_stack();
         let mut rng_clone = rng.clone();
-        let (original, total_size) =
-            generate_deeply_nested_noun(&mut stack, depth, &mut rng_clone).unwrap();
+        let (original, total_size) = generate_deeply_nested_noun(&mut stack, depth, &mut rng_clone);
 
         println!(
             "Total size of all generated nouns: {:.2} KB",
             total_size as f64 / 1024.0
         );
         println!("Original size: {:.2} KB", original.mass() as f64 / 1024.0);
-        let jammed = jam(&mut stack, original.clone()).unwrap();
+        let jammed = jam(&mut stack, original.clone());
         println!(
             "Jammed size: {:.2} KB",
             jammed.as_noun().mass() as f64 / 1024.0
@@ -557,26 +560,7 @@ mod tests {
         assert_noun_eq(&mut stack, cued, original);
     }
 
-    fn noun_size(noun: Noun) -> usize {
-        let mut size = 0;
-        let mut stack = vec![noun];
-        while let Some(top) = stack.pop() {
-            if let Ok(i) = top.as_indirect() {
-                size += i.raw_size();
-            } else if let Ok(c) = top.as_cell() {
-                size += (std::mem::size_of::<crate::noun::CellMemory>() + 7) << 3;
-                stack.push(c.tail());
-                stack.push(c.head());
-            }
-        }
-        size
-    }
-
-    fn generate_random_noun(
-        stack: &mut NockStack,
-        bits: usize,
-        rng: &mut StdRng,
-    ) -> AllocResult<(Noun, usize)> {
+    fn generate_random_noun(stack: &mut NockStack, bits: usize, rng: &mut StdRng) -> (Noun, usize) {
         const MAX_DEPTH: usize = 100; // Adjust this value as needed
         fn inner(
             stack: &mut NockStack,
@@ -584,38 +568,38 @@ mod tests {
             rng: &mut StdRng,
             depth: usize,
             accumulated_size: usize,
-        ) -> AllocResult<(Noun, usize)> {
+        ) -> (Noun, usize) {
             let mut done = false;
             if depth >= MAX_DEPTH || stack.size() < 1024 || accumulated_size > stack.size() - 1024 {
                 // println!("Done at depth and size: {} {:.2} KB", depth, accumulated_size as f64 / 1024.0);
                 done = true;
             }
 
-            let result = if rng.gen_bool(0.5) || done {
+            let mut result = if rng.gen_bool(0.5) || done {
                 let value = rng.gen::<u64>();
-                let atom = Atom::new(stack, value).unwrap();
+                let atom = Atom::new(stack, value);
                 let noun = atom.as_noun();
                 (noun, accumulated_size + noun.mass())
             } else {
-                let (left, left_size) = inner(stack, bits / 2, rng, depth + 1, accumulated_size)?;
-                let (right, _) = inner(stack, bits / 2, rng, depth + 1, left_size)?;
+                let (left, left_size) = inner(stack, bits / 2, rng, depth + 1, accumulated_size);
+                let (right, _) = inner(stack, bits / 2, rng, depth + 1, left_size);
 
-                let cell = Cell::new(stack, left, right).unwrap();
+                let cell = Cell::new(stack, left, right);
                 let noun = cell.as_noun();
                 (noun, noun.mass())
             };
 
-            if noun_size(result.0) > stack.size() {
+            if unsafe { result.0.space_needed(stack) } > stack.size() {
                 eprintln!(
                     "Stack size exceeded with noun size {:.2} KB",
                     result.0.mass() as f64 / 1024.0
                 );
                 unsafe {
                     let top_noun = *stack.top::<Noun>();
-                    Ok((top_noun, result.1))
+                    (top_noun, result.1)
                 }
             } else {
-                Ok(result)
+                result
             }
         }
 
@@ -626,18 +610,18 @@ mod tests {
         stack: &mut NockStack,
         depth: usize,
         rng: &mut StdRng,
-    ) -> AllocResult<(Noun, usize)> {
+    ) -> (Noun, usize) {
         if depth == 0 {
-            let (noun, size) = generate_random_noun(stack, 100, rng)?;
-            Ok((noun, size))
+            let (noun, size) = generate_random_noun(stack, 100, rng);
+            (noun, size)
         } else {
-            let (left, left_size) = generate_deeply_nested_noun(stack, depth - 1, rng)?;
-            let (right, right_size) = generate_deeply_nested_noun(stack, depth - 1, rng)?;
-            let cell = Cell::new(stack, left, right).unwrap();
-            let noun = cell.as_noun();
+            let (left, left_size) = generate_deeply_nested_noun(stack, depth - 1, rng);
+            let (right, right_size) = generate_deeply_nested_noun(stack, depth - 1, rng);
+            let cell = Cell::new(stack, left, right);
+            let mut noun = cell.as_noun();
             let total_size = left_size + right_size + noun.mass();
 
-            if noun_size(noun) > stack.size() {
+            if unsafe { noun.space_needed(stack) } > stack.size() {
                 eprintln!(
                     "Stack size exceeded at depth {} with noun size {:.2} KB",
                     depth,
@@ -645,11 +629,11 @@ mod tests {
                 );
                 unsafe {
                     let top_noun = *stack.top::<Noun>();
-                    Ok((top_noun, total_size))
+                    (top_noun, total_size)
                 }
             } else {
                 // println!("Size: {:.2} KB, depth: {}", noun.mass() as f64 / 1024.0, depth);
-                Ok((noun, total_size))
+                (noun, total_size)
             }
         }
     }
@@ -659,7 +643,7 @@ mod tests {
         std::env::set_var("RUST_BACKTRACE", "full");
 
         let mut stack = setup_stack();
-        let invalid_atom = Atom::new(&mut stack, 0b11).unwrap(); // Invalid atom representation
+        let invalid_atom = Atom::new(&mut stack, 0b11); // Invalid atom representation
         let result = cue(&mut stack, invalid_atom);
 
         assert!(result.is_err());
@@ -675,10 +659,10 @@ mod tests {
         let mut rng = StdRng::seed_from_u64(1);
 
         // Create an atom with a very large value to potentially cause overflow
-        let (large_atom, _) = generate_deeply_nested_noun(&mut big_stack, 5, &mut rng).unwrap();
+        let (large_atom, _) = generate_deeply_nested_noun(&mut big_stack, 5, &mut rng);
 
         // Attempt to jam and then cue the large atom in the big stack
-        let jammed = jam(&mut big_stack, large_atom).unwrap();
+        let jammed = jam(&mut big_stack, large_atom);
 
         // make a smaller stack to try to cause a nondeterministic error
         // NOTE: if the stack is big enough to fit the jammed atom, cue panics
@@ -697,10 +681,7 @@ mod tests {
         println!("Result: {:?}", result);
         assert!(result.is_err());
         if let Err(e) = result {
-            assert!(matches!(
-                e,
-                Error::NonDeterministic(crate::interpreter::Mote::Meme, _)
-            ));
+            assert!(matches!(e, Error::NonDeterministic(_, _)));
             println!("got expected error: {:?}", e);
         }
     }
