@@ -184,9 +184,11 @@ impl NockStack {
      * top_slots is how many slots to allocate to the top stack frame.
      */
     pub fn new(size: usize, top_slots: usize) -> NockStack {
-        Self::new_(size, top_slots)
-            .expect("Error making new NockStack")
-            .0
+        let result = Self::new_(size, top_slots);
+        match result {
+            Ok((stack, _)) => stack,
+            Err(e) => std::panic::panic_any(e),
+        }
     }
 
     pub fn new_(size: usize, top_slots: usize) -> Result<(NockStack, usize), NewStackError> {
