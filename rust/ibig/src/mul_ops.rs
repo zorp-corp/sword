@@ -1,20 +1,16 @@
 //! Multiplication operators.
 
-use crate::{
-    arch::word::Word,
-    buffer::Buffer,
-    helper_macros,
-    ibig::IBig,
-    memory::{MemoryAllocation, Stack},
-    mul,
-    primitive::{extend_word, PrimitiveSigned, PrimitiveUnsigned},
-    sign::Sign::{self, *},
-    ubig::{Repr::*, UBig},
-};
-use core::{
-    mem,
-    ops::{Mul, MulAssign},
-};
+use crate::arch::word::Word;
+use crate::buffer::Buffer;
+use crate::ibig::IBig;
+use crate::memory::{MemoryAllocation, Stack};
+use crate::primitive::{extend_word, PrimitiveSigned, PrimitiveUnsigned};
+use crate::sign::Sign::{self, *};
+use crate::ubig::Repr::*;
+use crate::ubig::UBig;
+use crate::{helper_macros, mul};
+use core::mem;
+use core::ops::{Mul, MulAssign};
 use static_assertions::const_assert;
 
 impl Mul<UBig> for UBig {
@@ -301,12 +297,13 @@ impl_mul_ibig_primitive!(isize);
 impl UBig {
     #[inline]
     pub fn mul_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
-        match (lhs.into_repr(), rhs.into_repr()) {
+        let res = match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::mul_word_stack(stack, word0, word1),
             (Small(word0), Large(buffer1)) => UBig::mul_large_word_stack(stack, buffer1, word0),
             (Large(buffer0), Small(word1)) => UBig::mul_large_word_stack(stack, buffer0, word1),
             (Large(buffer0), Large(buffer1)) => UBig::mul_large_stack(stack, &buffer0, &buffer1),
-        }
+        };
+        res
     }
 
     #[inline]

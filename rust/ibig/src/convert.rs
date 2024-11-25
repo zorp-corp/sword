@@ -1,15 +1,14 @@
 //! Conversions between types.
 
-use crate::{
-    arch::word::Word,
-    buffer::Buffer,
-    error::OutOfBoundsError,
-    ibig::IBig,
-    memory::Stack,
-    primitive::{self, PrimitiveSigned, PrimitiveUnsigned, WORD_BITS, WORD_BYTES},
-    sign::Sign::*,
-    ubig::{Repr::*, UBig},
-};
+use crate::arch::word::Word;
+use crate::buffer::Buffer;
+use crate::error::OutOfBoundsError;
+use crate::ibig::IBig;
+use crate::memory::Stack;
+use crate::primitive::{self, PrimitiveSigned, PrimitiveUnsigned, WORD_BITS, WORD_BYTES};
+use crate::sign::Sign::*;
+use crate::ubig::Repr::*;
+use crate::ubig::UBig;
 use alloc::vec::Vec;
 use core::convert::{TryFrom, TryInto};
 
@@ -32,12 +31,13 @@ impl Default for IBig {
 impl UBig {
     #[inline]
     pub fn from_le_bytes_stack<S: Stack>(stack: &mut S, bytes: &[u8]) -> UBig {
-        if bytes.len() <= WORD_BYTES {
+        let ubig = if bytes.len() <= WORD_BYTES {
             // fast path
             UBig::from_word(primitive::word_from_le_bytes_partial(bytes))
         } else {
             UBig::from_le_bytes_large_stack(stack, bytes)
-        }
+        };
+        ubig
     }
 
     fn from_le_bytes_large_stack<S: Stack>(stack: &mut S, bytes: &[u8]) -> UBig {
@@ -556,13 +556,14 @@ impl UBig {
     where
         T: PrimitiveUnsigned,
     {
-        match x.try_into() {
+        let ubig = match x.try_into() {
             Ok(w) => UBig::from_word(w),
             Err(_) => {
                 let repr = x.to_le_bytes();
                 UBig::from_le_bytes_stack(stack, repr.as_ref())
             }
-        }
+        };
+        ubig
     }
 
     /// Convert an unsigned primitive to [UBig].

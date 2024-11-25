@@ -1,13 +1,14 @@
 //! Word buffer.
 
-use crate::{arch::word::Word, memory, memory::Stack, ubig::UBig};
+use crate::arch::word::Word;
+use crate::memory;
+use crate::memory::Stack;
+use crate::ubig::UBig;
 
 use alloc::vec::Vec;
-use core::{
-    iter,
-    mem::ManuallyDrop,
-    ops::{Deref, DerefMut},
-};
+use core::iter;
+use core::mem::ManuallyDrop;
+use core::ops::{Deref, DerefMut};
 
 /// Buffer for Words.
 ///
@@ -46,7 +47,7 @@ impl Buffer {
 
     pub(crate) fn ensure_capacity_stack<S: Stack>(&mut self, stack: &mut S, num_words: usize) {
         if num_words > self.capacity() {
-            self.reallocate_stack(stack, num_words);
+            self.reallocate_stack(stack, num_words)
         }
     }
 
@@ -73,7 +74,7 @@ impl Buffer {
         assert!(num_words >= self.len());
         let mut new_buffer = Buffer::allocate_stack(stack, num_words);
         new_buffer.clone_from(self);
-        *self = new_buffer
+        *self = new_buffer;
     }
 
     /// Change capacity to store `num_words` plus some extra space for future growth.

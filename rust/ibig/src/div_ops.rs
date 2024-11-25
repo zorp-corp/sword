@@ -1,23 +1,19 @@
 //! Division operators.
 
-use crate::{
-    arch::word::Word,
-    buffer::Buffer,
-    div, helper_macros,
-    ibig::IBig,
-    memory::{MemoryAllocation, Stack},
-    ops::{Abs, DivEuclid, DivRem, DivRemEuclid, RemEuclid},
-    primitive::{PrimitiveSigned, PrimitiveUnsigned},
-    shift,
-    sign::Sign::*,
-    ubig::{Repr::*, UBig},
-};
-use core::{
-    convert::TryFrom,
-    fmt::Debug,
-    mem,
-    ops::{Div, DivAssign, Rem, RemAssign},
-};
+use crate::arch::word::Word;
+use crate::buffer::Buffer;
+use crate::ibig::IBig;
+use crate::memory::{MemoryAllocation, Stack};
+use crate::ops::{Abs, DivEuclid, DivRem, DivRemEuclid, RemEuclid};
+use crate::primitive::{PrimitiveSigned, PrimitiveUnsigned};
+use crate::sign::Sign::*;
+use crate::ubig::Repr::*;
+use crate::ubig::UBig;
+use crate::{div, helper_macros, shift};
+use core::convert::TryFrom;
+use core::fmt::Debug;
+use core::mem;
+use core::ops::{Div, DivAssign, Rem, RemAssign};
 
 impl Div<UBig> for UBig {
     type Output = UBig;
@@ -1280,7 +1276,7 @@ impl_div_ibig_signed!(isize);
 impl UBig {
     #[inline]
     pub fn div_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
-        match (lhs.into_repr(), rhs.into_repr()) {
+        let ubig_tuple = match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::div_word(word0, word1),
             (Small(_), Large(_)) => UBig::from_word(0),
             (Large(buffer0), Small(word1)) => UBig::div_large_word(buffer0, word1),
@@ -1291,12 +1287,13 @@ impl UBig {
                     UBig::from_word(0)
                 }
             }
-        }
+        };
+        ubig_tuple
     }
 
     #[inline]
     pub fn rem_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
-        match (lhs.into_repr(), rhs.into_repr()) {
+        let ubig_tuple = match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::rem_word(word0, word1),
             (Small(word0), Large(_)) => UBig::from_word(word0),
             (Large(buffer0), Small(word1)) => UBig::rem_large_word(&buffer0, word1),
@@ -1307,12 +1304,13 @@ impl UBig {
                     buffer0.into()
                 }
             }
-        }
+        };
+        ubig_tuple
     }
 
     #[inline]
     pub fn div_rem_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> (UBig, UBig) {
-        match (lhs.into_repr(), rhs.into_repr()) {
+        let ubig_tuple = match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::div_rem_word(word0, word1),
             (Small(word0), Large(_)) => (UBig::from_word(0), UBig::from_word(word0)),
             (Large(buffer0), Small(word1)) => UBig::div_rem_large_word(buffer0, word1),
@@ -1323,7 +1321,8 @@ impl UBig {
                     (UBig::from_word(0), buffer0.into())
                 }
             }
-        }
+        };
+        ubig_tuple
     }
 
     /// `lhs / rhs`

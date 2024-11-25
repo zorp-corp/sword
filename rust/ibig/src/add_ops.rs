@@ -1,20 +1,16 @@
 //! Addition and subtraction operators.
 
-use crate::{
-    add,
-    arch::word::Word,
-    buffer::Buffer,
-    helper_macros,
-    ibig::IBig,
-    memory::Stack,
-    primitive::{PrimitiveSigned, PrimitiveUnsigned},
-    sign::Sign::*,
-    ubig::{Repr::*, UBig},
-};
-use core::{
-    mem,
-    ops::{Add, AddAssign, Sub, SubAssign},
-};
+use crate::arch::word::Word;
+use crate::buffer::Buffer;
+use crate::ibig::IBig;
+use crate::memory::Stack;
+use crate::primitive::{PrimitiveSigned, PrimitiveUnsigned};
+use crate::sign::Sign::*;
+use crate::ubig::Repr::*;
+use crate::ubig::UBig;
+use crate::{add, helper_macros};
+use core::mem;
+use core::ops::{Add, AddAssign, Sub, SubAssign};
 
 impl Add<UBig> for UBig {
     type Output = UBig;
@@ -532,7 +528,7 @@ impl UBig {
     // been expanded through other operations.
     #[inline]
     pub fn add_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
-        match (lhs.into_repr(), rhs.into_repr()) {
+        let ubig = match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::add_word_stack(stack, word0, word1),
             (Small(word0), Large(buffer1)) => UBig::add_large_word_stack(stack, buffer1, word0),
             (Large(buffer0), Small(word1)) => UBig::add_large_word_stack(stack, buffer0, word1),
@@ -543,21 +539,23 @@ impl UBig {
                     UBig::add_large_stack(stack, buffer1, &buffer0)
                 }
             }
-        }
+        };
+        ubig
     }
 
     /// Add two `Word`s.
     #[inline]
     fn add_word_stack<S: Stack>(stack: &mut S, a: Word, b: Word) -> UBig {
         let (res, overflow) = a.overflowing_add(b);
-        if overflow {
+        let ubig = if overflow {
             let mut buffer = Buffer::allocate_stack(stack, 2);
             buffer.push(res);
             buffer.push(1);
             buffer.into()
         } else {
             UBig::from_word(res)
-        }
+        };
+        ubig
     }
 
     /// Add a large number to a `Word`.
