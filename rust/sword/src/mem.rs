@@ -1562,6 +1562,12 @@ impl Preserve for u32 {
     unsafe fn assert_in_stack(&self, _: &NockStack) {}
 }
 
+impl Preserve for usize {
+    unsafe fn preserve(&mut self, _: &mut NockStack) {}
+
+    unsafe fn assert_in_stack(&self, _: &NockStack) {}
+}
+
 impl Preserve for AllocationError {
     unsafe fn preserve(&mut self, _: &mut NockStack) {}
 

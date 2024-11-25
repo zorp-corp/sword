@@ -1,9 +1,6 @@
-use crate::assert_acyclic;
-use crate::assert_no_forwarding_pointers;
-use crate::assert_no_junior_pointers;
 use crate::mem::{NockStack, ALLOC, FRAME, STACK};
 use crate::noun::Noun;
-use crate::persist::{pma_contains, pma_dirty};
+use crate::{assert_acyclic, assert_no_forwarding_pointers, assert_no_junior_pointers};
 use either::Either::*;
 use libc::{c_void, memcmp};
 
@@ -101,14 +98,8 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                     {
                         let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
                         if x_as_ptr == junior {
-                            if pma_contains(x, 1) {
-                                pma_dirty(x, 1);
-                            }
                             *x = *y;
                         } else {
-                            if pma_contains(y, 1) {
-                                pma_dirty(y, 1);
-                            }
                             *y = *x;
                         }
                         stack.pop::<(*mut Noun, *mut Noun)>();
@@ -125,14 +116,8 @@ pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Nou
                     {
                         let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
                         if x_as_ptr == junior {
-                            if pma_contains(x, 1) {
-                                pma_dirty(x, 1);
-                            }
                             *x = *y;
                         } else {
-                            if pma_contains(y, 1) {
-                                pma_dirty(y, 1);
-                            }
                             *y = *x;
                         }
                         stack.pop::<(*mut Noun, *mut Noun)>();

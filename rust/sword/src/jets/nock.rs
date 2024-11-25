@@ -416,8 +416,6 @@ mod tests {
     use crate::jets::util::test::{assert_jet, init_context};
     use crate::mem::NockStack;
     use crate::noun::{D, T};
-    use crate::serf::TERMINATOR;
-    use std::sync::Arc;
 
     #[test]
     fn init() {
@@ -429,7 +427,6 @@ mod tests {
         // do it in a test that we rely on being called before any other in this file,
         // since we're already using single-threaded test mode to avoid race conditions
         // (because Rust doesn't support test order dependencies either).
-        let _ = Arc::clone(&TERMINATOR);
     }
 
     #[test]

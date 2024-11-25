@@ -1,12 +1,8 @@
 use crate::hamt::Hamt;
 use crate::mem::{self, NockStack, Preserve};
-use crate::noun::{self, IndirectAtom, NounAllocator};
-use crate::noun::{Atom, DirectAtom, Noun, Slots, D, T};
-use crate::persist::{pma_contains, Persist};
+use crate::noun::{self, Atom, DirectAtom, IndirectAtom, Noun, NounAllocator, Slots, D, T};
 use crate::unifying_equality::unifying_equality;
-use std::mem::size_of;
-use std::ptr::copy_nonoverlapping;
-use std::ptr::null_mut;
+use std::ptr::{copy_nonoverlapping, null_mut};
 
 pub enum Error {
     NoParent,
@@ -32,59 +28,6 @@ struct BatteriesMem {
     battery: Noun,
     parent_axis: Atom,
     parent_batteries: Batteries,
-}
-
-impl Persist for Batteries {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
-        let mut bytes = 0;
-        let mut batteries = *self;
-
-        loop {
-            if batteries.0.is_null() {
-                break;
-            }
-            if pma_contains(batteries.0, 1) {
-                break;
-            }
-            bytes += size_of::<BatteriesMem>();
-            bytes += (*batteries.0).battery.space_needed(stack);
-            bytes += (*batteries.0).parent_axis.space_needed(stack);
-            batteries = (*batteries.0).parent_batteries;
-        }
-        bytes
-    }
-
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
-        let mut dest = self;
-        loop {
-            if dest.0.is_null() {
-                break;
-            }
-            if pma_contains(dest.0, 1) {
-                break;
-            }
-
-            let batteries_mem_ptr = *buffer as *mut BatteriesMem;
-            copy_nonoverlapping(dest.0, batteries_mem_ptr, 1);
-            *buffer = batteries_mem_ptr.add(1) as *mut u8;
-
-            (*batteries_mem_ptr).battery.copy_to_buffer(stack, buffer);
-            (*batteries_mem_ptr)
-                .parent_axis
-                .copy_to_buffer(stack, buffer);
-
-            dest.0 = batteries_mem_ptr;
-            dest = &mut (*dest.0).parent_batteries;
-        }
-    }
-
-    unsafe fn handle_to_u64(&self) -> u64 {
-        self.0 as u64
-    }
-
-    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
-        Batteries(meta_handle as *mut BatteriesMem)
-    }
 }
 
 impl Preserve for Batteries {
@@ -199,55 +142,6 @@ struct BatteriesListMem {
     next: BatteriesList,
 }
 
-impl Persist for BatteriesList {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
-        let mut bytes = 0;
-        let mut list = *self;
-        loop {
-            if list.0.is_null() {
-                break;
-            }
-            if pma_contains(list.0, 1) {
-                break;
-            }
-            bytes += size_of::<BatteriesListMem>();
-            bytes += (*list.0).batteries.space_needed(stack);
-
-            list = (*list.0).next;
-        }
-        bytes
-    }
-
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
-        let mut dest = self;
-
-        loop {
-            if dest.0.is_null() {
-                break;
-            }
-            if pma_contains(dest.0, 1) {
-                break;
-            }
-
-            let list_mem_ptr = *buffer as *mut BatteriesListMem;
-            copy_nonoverlapping(dest.0, list_mem_ptr, 1);
-            *buffer = list_mem_ptr.add(1) as *mut u8;
-            dest.0 = list_mem_ptr;
-
-            (*dest.0).batteries.copy_to_buffer(stack, buffer);
-            dest = &mut (*dest.0).next;
-        }
-    }
-
-    unsafe fn handle_to_u64(&self) -> u64 {
-        self.0 as u64
-    }
-
-    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
-        BatteriesList(meta_handle as *mut BatteriesListMem)
-    }
-}
-
 impl Preserve for BatteriesList {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         if self.0.is_null() {
@@ -318,58 +212,6 @@ const NOUN_LIST_NIL: NounList = NounList(null_mut());
 struct NounListMem {
     element: Noun,
     next: NounList,
-}
-
-impl Persist for NounList {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
-        let mut bytes: usize = 0;
-        let mut list = *self;
-
-        loop {
-            if list.0.is_null() {
-                break;
-            }
-            if pma_contains(list.0, 1) {
-                break;
-            }
-
-            bytes += size_of::<NounListMem>();
-            bytes += (*list.0).element.space_needed(stack);
-
-            list = (*list.0).next;
-        }
-        bytes
-    }
-
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
-        let mut dest = self;
-
-        loop {
-            if dest.0.is_null() {
-                break;
-            }
-            if pma_contains(dest.0, 1) {
-                break;
-            }
-
-            let noun_list_mem_ptr = *buffer as *mut NounListMem;
-            copy_nonoverlapping(dest.0, noun_list_mem_ptr, 1);
-            *buffer = noun_list_mem_ptr.add(1) as *mut u8;
-
-            dest.0 = noun_list_mem_ptr;
-            (*dest.0).element.copy_to_buffer(stack, buffer);
-
-            dest = &mut (*dest.0).next;
-        }
-    }
-
-    unsafe fn handle_to_u64(&self) -> u64 {
-        self.0 as u64
-    }
-
-    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
-        NounList(meta_handle as *mut NounListMem)
-    }
 }
 
 impl Preserve for NounList {
@@ -447,44 +289,6 @@ struct ColdMem {
     /// key: registered path to core
     /// value: linked list of a sequence of nested batteries
     path_to_batteries: Hamt<BatteriesList>,
-}
-
-impl Persist for Cold {
-    unsafe fn space_needed(&mut self, stack: &mut NockStack) -> usize {
-        if pma_contains(self.0, 1) {
-            return 0;
-        }
-
-        let mut bytes = size_of::<ColdMem>();
-        bytes += (*self.0).battery_to_paths.space_needed(stack);
-        bytes += (*self.0).root_to_paths.space_needed(stack);
-        bytes += (*self.0).path_to_batteries.space_needed(stack);
-        bytes
-    }
-
-    unsafe fn copy_to_buffer(&mut self, stack: &mut NockStack, buffer: &mut *mut u8) {
-        if pma_contains(self.0, 1) {
-            return;
-        }
-
-        let cold_mem_ptr = *buffer as *mut ColdMem;
-        copy_nonoverlapping(self.0, cold_mem_ptr, 1);
-        *buffer = cold_mem_ptr.add(1) as *mut u8;
-
-        self.0 = cold_mem_ptr;
-
-        (*self.0).battery_to_paths.copy_to_buffer(stack, buffer);
-        (*self.0).root_to_paths.copy_to_buffer(stack, buffer);
-        (*self.0).path_to_batteries.copy_to_buffer(stack, buffer);
-    }
-
-    unsafe fn handle_to_u64(&self) -> u64 {
-        self.0 as u64
-    }
-
-    unsafe fn handle_from_u64(meta_handle: u64) -> Self {
-        Cold(meta_handle as *mut ColdMem)
-    }
 }
 
 impl Preserve for Cold {
@@ -1180,16 +984,13 @@ mod test {
     use std::iter::FromIterator;
 
     use super::*;
-    use crate::{
-        hamt::Hamt,
-        mem::NockStack,
-        noun::{Cell, Noun, D},
-    };
+    use crate::hamt::Hamt;
+    use crate::mem::NockStack;
+    use crate::noun::{Cell, Noun, D};
     /// Default stack size for tests where you aren't intending to run out of space
     pub(crate) const DEFAULT_STACK_SIZE: usize = 1 << 27;
     pub(crate) fn make_test_stack(size: usize) -> NockStack {
-        let size = 1 << 27;
-        let top_slots = 100;
+        let top_slots = 3;
         let stack = NockStack::new(size, top_slots);
         stack
     }

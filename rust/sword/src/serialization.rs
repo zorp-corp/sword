@@ -441,13 +441,14 @@ fn mat(traversal: &mut NockStack, state: &mut JamState, atom: Atom) -> Result<()
 #[cfg(test)]
 mod tests {
 
+    use std::mem::size_of;
+
     use rand::prelude::*;
 
     use super::*;
     use crate::jets::util::test::assert_noun_eq;
     use crate::mem::NockStack;
-    use crate::noun::{Atom, Cell, Noun};
-    use crate::persist::Persist;
+    use crate::noun::{Atom, Cell, CellMemory, Noun};
     fn setup_stack() -> NockStack {
         NockStack::new(1 << 30, 0)
     }
@@ -575,7 +576,7 @@ mod tests {
                 done = true;
             }
 
-            let mut result = if rng.gen_bool(0.5) || done {
+            let result = if rng.gen_bool(0.5) || done {
                 let value = rng.gen::<u64>();
                 let atom = Atom::new(stack, value);
                 let noun = atom.as_noun();
@@ -589,7 +590,7 @@ mod tests {
                 (noun, noun.mass())
             };
 
-            if unsafe { result.0.space_needed(stack) } > stack.size() {
+            if space_needed_noun(result.0, stack) > stack.size() {
                 eprintln!(
                     "Stack size exceeded with noun size {:.2} KB",
                     result.0.mass() as f64 / 1024.0
@@ -606,6 +607,33 @@ mod tests {
         inner(stack, bits, rng, 0, 0)
     }
 
+    fn space_needed_noun(noun: Noun, stack: &mut NockStack) -> usize {
+        unsafe {
+            stack.with_frame(0, |stack| {
+                *(stack.push::<Noun>()) = noun;
+                let mut size = 0;
+                while !stack.stack_is_empty() {
+                    let noun = *(stack.top::<Noun>());
+                    stack.pop::<Noun>();
+                    match noun.as_either_atom_cell() {
+                        Left(atom) => match atom.as_either() {
+                            Left(_) => {}
+                            Right(indirect) => {
+                                size += indirect.raw_size();
+                            }
+                        },
+                        Right(cell) => {
+                            size += size_of::<CellMemory>();
+                            *(stack.push::<Noun>()) = cell.tail();
+                            *(stack.push::<Noun>()) = cell.head();
+                        }
+                    }
+                }
+                size
+            })
+        }
+    }
+
     fn generate_deeply_nested_noun(
         stack: &mut NockStack,
         depth: usize,
@@ -618,10 +646,10 @@ mod tests {
             let (left, left_size) = generate_deeply_nested_noun(stack, depth - 1, rng);
             let (right, right_size) = generate_deeply_nested_noun(stack, depth - 1, rng);
             let cell = Cell::new(stack, left, right);
-            let mut noun = cell.as_noun();
+            let noun = cell.as_noun();
             let total_size = left_size + right_size + noun.mass();
 
-            if unsafe { noun.space_needed(stack) } > stack.size() {
+            if { space_needed_noun(noun, stack) } > stack.size() {
                 eprintln!(
                     "Stack size exceeded at depth {} with noun size {:.2} KB",
                     depth,

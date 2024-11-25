@@ -1,29 +1,19 @@
-use crate::assert_acyclic;
-use crate::assert_no_forwarding_pointers;
-use crate::assert_no_junior_pointers;
-use crate::flog;
-use crate::guard::call_with_guard;
 use crate::hamt::Hamt;
-use crate::jets::cold;
 use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::warm::Warm;
-use crate::jets::JetErr;
-use crate::mem::NockStack;
-use crate::mem::Preserve;
-use crate::noun;
+use crate::jets::{cold, JetErr};
+use crate::mem::{NockStack, Preserve};
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
-use crate::serf::TERMINATOR;
 use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
 use crate::unifying_equality::unifying_equality;
+use crate::{assert_acyclic, assert_no_forwarding_pointers, assert_no_junior_pointers, flog, noun};
 use assert_no_alloc::{assert_no_alloc, ensure_alloc_counters};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::*;
 use std::ops::DerefMut;
 use std::pin::Pin;
 use std::result;
-use std::sync::atomic::Ordering;
-use std::sync::Arc;
 use std::time::Instant;
 use sword_macros::tas;
 
@@ -395,7 +385,6 @@ pub type Result = result::Result<Noun, Error>;
 
 const BAIL_EXIT: Result = Err(Error::Deterministic(Mote::Exit, D(0)));
 const BAIL_FAIL: Result = Err(Error::NonDeterministic(Mote::Fail, D(0)));
-const BAIL_INTR: Result = Err(Error::NonDeterministic(Mote::Intr, D(0)));
 
 #[allow(unused_variables)]
 fn debug_assertions(stack: &mut NockStack, noun: Noun) {
@@ -406,7 +395,6 @@ fn debug_assertions(stack: &mut NockStack, noun: Noun) {
 
 /** Interpret nock */
 pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Result {
-    let terminator = Arc::clone(&TERMINATOR);
     let orig_subject = subject; // for debugging
     let snapshot = context.save();
     let virtual_frame: *const u64 = context.stack.get_frame_pointer();
@@ -437,9 +425,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     // (See https://docs.rs/assert_no_alloc/latest/assert_no_alloc/#advanced-use)
     let nock = assert_no_alloc(|| {
         ensure_alloc_counters(|| {
-            let stack_pp = context.stack.get_stack_pointer_pointer() as *const *const u64;
-            let alloc_pp = context.stack.get_alloc_pointer_pointer() as *const *const u64;
-            let work_f = &mut || unsafe {
+            unsafe {
                 push_formula(&mut context.stack, formula, true)?;
 
                 loop {
@@ -512,55 +498,49 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             res = once.noun;
                             context.stack.pop::<NockWork>();
                         }
-                        NockWork::Work2(mut vale) => {
-                            if (*terminator).load(Ordering::Relaxed) {
-                                break BAIL_INTR;
+                        NockWork::Work2(mut vale) => match vale.todo {
+                            Todo2::ComputeSubject => {
+                                vale.todo = Todo2::ComputeFormula;
+                                *context.stack.top() = NockWork::Work2(vale);
+                                push_formula(&mut context.stack, vale.subject, false)?;
                             }
-
-                            match vale.todo {
-                                Todo2::ComputeSubject => {
-                                    vale.todo = Todo2::ComputeFormula;
-                                    *context.stack.top() = NockWork::Work2(vale);
-                                    push_formula(&mut context.stack, vale.subject, false)?;
-                                }
-                                Todo2::ComputeFormula => {
-                                    vale.todo = Todo2::ComputeResult;
-                                    vale.subject = res;
-                                    *context.stack.top() = NockWork::Work2(vale);
-                                    push_formula(&mut context.stack, vale.formula, false)?;
-                                }
-                                Todo2::ComputeResult => {
-                                    let stack = &mut context.stack;
-                                    if vale.tail {
-                                        stack.pop::<NockWork>();
-                                        subject = vale.subject;
-                                        push_formula(stack, res, true)?;
-                                    } else {
-                                        vale.todo = Todo2::RestoreSubject;
-                                        std::mem::swap(&mut vale.subject, &mut subject);
-                                        *stack.top() = NockWork::Work2(vale);
-
-                                        debug_assertions(stack, orig_subject);
-                                        debug_assertions(stack, subject);
-                                        debug_assertions(stack, res);
-
-                                        mean_frame_push(stack, 0);
-                                        *stack.push() = NockWork::Ret;
-                                        push_formula(stack, res, true)?;
-                                    }
-                                }
-                                Todo2::RestoreSubject => {
-                                    let stack = &mut context.stack;
-
-                                    subject = vale.subject;
+                            Todo2::ComputeFormula => {
+                                vale.todo = Todo2::ComputeResult;
+                                vale.subject = res;
+                                *context.stack.top() = NockWork::Work2(vale);
+                                push_formula(&mut context.stack, vale.formula, false)?;
+                            }
+                            Todo2::ComputeResult => {
+                                let stack = &mut context.stack;
+                                if vale.tail {
                                     stack.pop::<NockWork>();
+                                    subject = vale.subject;
+                                    push_formula(stack, res, true)?;
+                                } else {
+                                    vale.todo = Todo2::RestoreSubject;
+                                    std::mem::swap(&mut vale.subject, &mut subject);
+                                    *stack.top() = NockWork::Work2(vale);
 
                                     debug_assertions(stack, orig_subject);
                                     debug_assertions(stack, subject);
                                     debug_assertions(stack, res);
+
+                                    mean_frame_push(stack, 0);
+                                    *stack.push() = NockWork::Ret;
+                                    push_formula(stack, res, true)?;
                                 }
                             }
-                        }
+                            Todo2::RestoreSubject => {
+                                let stack = &mut context.stack;
+
+                                subject = vale.subject;
+                                stack.pop::<NockWork>();
+
+                                debug_assertions(stack, orig_subject);
+                                debug_assertions(stack, subject);
+                                debug_assertions(stack, res);
+                            }
+                        },
                         NockWork::Work3(mut thee) => match thee.todo {
                             Todo3::ComputeChild => {
                                 thee.todo = Todo3::ComputeType;
@@ -686,10 +666,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                             }
                         },
                         NockWork::Work9(mut kale) => {
-                            if (*terminator).load(Ordering::Relaxed) {
-                                break BAIL_INTR;
-                            }
-
                             match kale.todo {
                                 Todo9::ComputeCore => {
                                     kale.todo = Todo9::ComputeResult;
@@ -983,9 +959,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
                         },
                     };
                 }
-            };
-
-            call_with_guard(stack_pp, alloc_pp, work_f)
+            }
         })
     });
 
@@ -1516,11 +1490,6 @@ mod hint {
                 None
             }
             tas!(b"hand") | tas!(b"hunk") | tas!(b"lose") | tas!(b"mean") | tas!(b"spot") => {
-                let terminator = Arc::clone(&TERMINATOR);
-                if (*terminator).load(Ordering::Relaxed) {
-                    return Some(BAIL_INTR);
-                }
-
                 let stack = &mut context.stack;
                 let (_form, clue) = hint?;
                 let noun = T(stack, &[tag.as_noun(), clue]);

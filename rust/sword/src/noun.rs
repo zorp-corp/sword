@@ -1,13 +1,10 @@
 use crate::mem::{word_size_of, NockStack};
-use crate::persist::{pma_contains, pma_dirty};
 use bitvec::prelude::{BitSlice, Lsb0};
 use either::{Either, Left, Right};
 use ibig::{Stack, UBig};
 use intmap::IntMap;
-use std::error;
-use std::fmt;
-use std::ptr;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
+use std::{error, fmt, ptr};
 use sword_macros::tas;
 
 crate::gdb!();
@@ -987,10 +984,6 @@ impl Allocated {
     }
 
     pub unsafe fn set_metadata(self, metadata: u64) {
-        let ptr = self.const_to_raw_pointer_mut();
-        if pma_contains(ptr, 1) {
-            pma_dirty(ptr, 1);
-        }
         *(self.const_to_raw_pointer_mut()) = metadata;
     }
 
