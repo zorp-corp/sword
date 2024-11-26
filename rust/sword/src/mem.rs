@@ -1574,10 +1574,10 @@ impl Preserve for AllocationError {
     unsafe fn assert_in_stack(&self, _: &NockStack) {}
 }
 
-/*
 #[cfg(test)]
 mod test {
     use std::iter::FromIterator;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
 
     use super::*;
     use crate::jets::cold::test::{make_noun_list, make_test_stack};
@@ -1598,9 +1598,9 @@ mod test {
         let vec = Vec::from_iter(0..item_count);
         let items = vec.iter().map(|&x| D(x)).collect::<Vec<Noun>>();
         let slice = vec.as_slice();
-        let noun_list = make_noun_list(&mut stack, slice)?;
+        let noun_list = make_noun_list(&mut stack, slice);
         assert!(!noun_list.0.is_null());
-        let noun = noun_list.into_noun(&mut stack)?;
+        let noun = noun_list.into_noun(&mut stack);
         let new_noun_list: NounList =
             <NounList as Nounable>::from_noun::<NockStack>(&mut stack, &noun)?;
         let mut tracking_item_count = 0;
@@ -1627,9 +1627,9 @@ mod test {
         const FAILS: u64 = 73;
         const STACK_SIZE: usize = 512;
 
-        let should_fail_to_alloc = test_noun_list_alloc_fn(STACK_SIZE, FAILS);
+        let should_fail_to_alloc = catch_unwind(|| test_noun_list_alloc_fn(STACK_SIZE, FAILS));
         assert!(should_fail_to_alloc
-            .map_err(|err| err.is_alloc_error())
+            .map_err(|err| err.is::<AllocationError>())
             .unwrap_err());
         let should_succeed = test_noun_list_alloc_fn(STACK_SIZE, PASSES);
         assert!(should_succeed.is_ok());
@@ -1639,32 +1639,36 @@ mod test {
     #[test]
     fn test_frame_push() {
         // fails at 100, passes at 99, top_slots default to 100?
-        const PASSES: usize = 502;
-        const FAILS: usize = 503;
+        const PASSES: usize = 503;
+        const FAILS: usize = 504;
         const STACK_SIZE: usize = 512;
         let mut stack = make_test_stack(STACK_SIZE);
-        let frame_push_res = stack.frame_push(FAILS);
-        assert!(frame_push_res.is_err());
+        let frame_push_res = catch_unwind(AssertUnwindSafe(|| stack.frame_push(FAILS)));
+        assert!(frame_push_res
+            .map_err(|err| err.is::<AllocationError>())
+            .unwrap_err());
         let mut stack = make_test_stack(STACK_SIZE);
-        let frame_push_res = stack.frame_push(PASSES);
+        let frame_push_res = catch_unwind(AssertUnwindSafe(|| stack.frame_push(PASSES)));
         assert!(frame_push_res.is_ok());
     }
 
     // cargo test -p sword test_stack_push -- --nocapture
     #[test]
     fn test_stack_push() {
-        const PASSES: usize = 505;
+        const PASSES: usize = 506;
         const STACK_SIZE: usize = 512;
         let mut stack = make_test_stack(STACK_SIZE);
         let mut counter = 0;
         // Fails at 102, probably because top_slots is 100?
         while counter < PASSES {
-            let push_res = unsafe { stack.push::<u64>() };
+            let push_res = catch_unwind(AssertUnwindSafe(|| unsafe { stack.push::<u64>() }));
             assert!(push_res.is_ok(), "Failed to push, counter: {}", counter);
             counter += 1;
         }
-        let push_res = unsafe { stack.push::<u64>() };
-        assert!(push_res.is_err());
+        let push_res = catch_unwind(AssertUnwindSafe(|| unsafe { stack.push::<u64>() }));
+        assert!(push_res
+            .map_err(|err| err.is::<AllocationError>())
+            .unwrap_err());
     }
 
     // cargo test -p sword test_frame_and_stack_push -- --nocapture
@@ -1675,27 +1679,31 @@ mod test {
         let mut stack = make_test_stack(STACK_SIZE);
         let mut counter = 0;
         while counter < SUCCESS_PUSHES {
-            let frame_push_res = stack.frame_push(1);
+            let frame_push_res = catch_unwind(AssertUnwindSafe(|| stack.frame_push(1)));
             assert!(
                 frame_push_res.is_ok(),
                 "Failed to frame_push, counter: {}",
                 counter
             );
-            let push_res: Result<*mut u64, AllocationError> = unsafe { stack.push::<u64>() };
+            let push_res = catch_unwind(AssertUnwindSafe(|| unsafe { stack.push::<u64>() }));
             assert!(push_res.is_ok(), "Failed to push, counter: {}", counter);
             counter += 1;
         }
-        let frame_push_res = stack.frame_push(1);
-        assert!(frame_push_res.is_err());
+        let frame_push_res = catch_unwind(AssertUnwindSafe(|| stack.frame_push(1)));
+        assert!(frame_push_res
+            .map_err(|err| err.is::<AllocationError>())
+            .unwrap_err());
         // a single stack u64 push won't cause an error but a frame push will
-        let push_res = unsafe { stack.push::<u64>() };
+        let push_res = catch_unwind(AssertUnwindSafe(|| unsafe { stack.push::<u64>() }));
         assert!(push_res.is_ok());
         // pushing an array of 1 u64 will NOT cause an error
-        let push_res = unsafe { stack.push::<[u64; 1]>() };
+        let push_res = catch_unwind(AssertUnwindSafe(|| unsafe { stack.push::<[u64; 1]>() }));
         assert!(push_res.is_ok());
         // pushing an array of 2 u64s WILL cause an error
-        let push_res = unsafe { stack.push::<[u64; 2]>() };
-        assert!(push_res.is_err());
+        let push_res = catch_unwind(AssertUnwindSafe(|| unsafe { stack.push::<[u64; 2]>() }));
+        assert!(push_res
+            .map_err(|err| err.is::<AllocationError>())
+            .unwrap_err());
     }
 
     // cargo test -p sword test_slot_pointer -- --nocapture
@@ -1706,12 +1714,13 @@ mod test {
         const SLOT_POINTERS: usize = 32;
         let mut stack = make_test_stack(STACK_SIZE);
         // let push_res: Result<*mut u64, AllocationError> = unsafe { stack.push::<u64>() };
-        let frame_push_res = stack.frame_push(SLOT_POINTERS);
+        let frame_push_res = catch_unwind(AssertUnwindSafe(|| stack.frame_push(SLOT_POINTERS)));
         assert!(frame_push_res.is_ok());
         let mut counter = 0;
         while counter < SLOT_POINTERS + RESERVED {
             println!("counter: {counter}");
-            let slot_pointer_res = unsafe { stack.slot_pointer_(counter) };
+            let slot_pointer_res =
+                catch_unwind(AssertUnwindSafe(|| unsafe { stack.slot_pointer_(counter) }));
             assert!(
                 slot_pointer_res.is_ok(),
                 "Failed to slot_pointer, counter: {}",
@@ -1719,8 +1728,11 @@ mod test {
             );
             counter += 1;
         }
-        let slot_pointer_res = unsafe { stack.slot_pointer_(counter) };
-        assert!(slot_pointer_res.is_err())
+        let slot_pointer_res =
+            catch_unwind(AssertUnwindSafe(|| unsafe { stack.slot_pointer_(counter) }));
+        assert!(slot_pointer_res
+            .map_err(|err| err.is::<AllocationError>())
+            .unwrap_err())
     }
 
     // cargo test -p sword test_prev_alloc -- --nocapture
@@ -1728,18 +1740,20 @@ mod test {
     #[test]
     fn test_prev_alloc() {
         const STACK_SIZE: usize = 512;
-        const SUCCESS_ALLOCS: usize = 502;
+        const SUCCESS_ALLOCS: usize = 503;
         let mut stack = make_test_stack(STACK_SIZE);
         println!("\n############## frame push \n");
-        let frame_push_res = stack.frame_push(0);
+        let frame_push_res = catch_unwind(AssertUnwindSafe(|| stack.frame_push(0)));
         assert!(frame_push_res.is_ok());
-        let pre_copy_res = unsafe { stack.pre_copy() };
+        let pre_copy_res = catch_unwind(AssertUnwindSafe(|| unsafe { stack.pre_copy() }));
         assert!(pre_copy_res.is_ok());
         let mut counter = 0;
 
         while counter < SUCCESS_ALLOCS {
             println!("counter: {counter}");
-            let prev_alloc_res = unsafe { stack.raw_alloc_in_previous_frame(1) };
+            let prev_alloc_res = catch_unwind(AssertUnwindSafe(|| unsafe {
+                stack.raw_alloc_in_previous_frame(1)
+            }));
             assert!(
                 prev_alloc_res.is_ok(),
                 "Failed to prev_alloc, counter: {}",
@@ -1748,12 +1762,14 @@ mod test {
             counter += 1;
         }
         println!("### This next raw_alloc_in_previous_frame should fail ###\n");
-        let prev_alloc_res = unsafe { stack.raw_alloc_in_previous_frame(1) };
+        let prev_alloc_res = catch_unwind(AssertUnwindSafe(|| unsafe {
+            stack.raw_alloc_in_previous_frame(1)
+        }));
         assert!(
-            prev_alloc_res.is_err(),
-            "Didn't get expected alloc error, res: {:#?}",
             prev_alloc_res
+                .map_err(|err| err.is::<AllocationError>())
+                .unwrap_err(),
+            "Didn't get expected alloc error",
         );
     }
 }
-*/

@@ -204,12 +204,12 @@ impl BatteriesList {
 // NounList is a linked list of paths (path = list of nested core names) with an
 // iterator; used to store all possible registered paths for a core
 #[derive(Copy, Clone)]
-pub struct NounList(*mut NounListMem);
+pub struct NounList(pub(crate) *mut NounListMem);
 
 const NOUN_LIST_NIL: NounList = NounList(null_mut());
 
 #[derive(Copy, Clone)]
-struct NounListMem {
+pub(crate) struct NounListMem {
     element: Noun,
     next: NounList,
 }
@@ -755,32 +755,25 @@ impl Nounable for NounList {
     type Target = NounList;
     fn into_noun<A: NounAllocator>(self, stack: &mut A) -> Noun {
         let mut list = D(0);
-        let mut reverse = Vec::new();
         for item in self {
-            unsafe {
-                reverse.push(*item);
-            }
-        }
-        for item in reverse {
-            let gimme = item;
-            list = T(stack, &[gimme, list]);
+            list = T(stack, &[unsafe { *item }, list]);
         }
         list
     }
 
     fn from_noun<A: NounAllocator>(stack: &mut A, noun: &Noun) -> NounableResult<Self::Target> {
-        let mut items = NOUN_LIST_NIL;
-        for item in NounListIterator(noun.clone()) {
+        let mut result = NOUN_LIST_NIL;
+        for item in NounListIterator(*noun) {
             let list_mem_ptr: *mut NounListMem = unsafe { stack.alloc_struct(1) };
             unsafe {
                 list_mem_ptr.write(NounListMem {
                     element: item,
-                    next: items,
+                    next: result,
                 });
             }
-            items = NounList(list_mem_ptr);
+            result = NounList(list_mem_ptr);
         }
-        Ok(items)
+        Ok(result)
     }
 }
 
@@ -980,7 +973,7 @@ impl Nounable for Cold {
 }
 
 #[cfg(test)]
-mod test {
+pub(crate) mod test {
     use std::iter::FromIterator;
 
     use super::*;
@@ -1304,8 +1297,8 @@ mod test {
                 a_val,
                 b
             );
-            assert_eq!(item_count, ITEM_COUNT as usize);
         }
+        assert_eq!(item_count, ITEM_COUNT as usize);
     }
 
     #[test]
