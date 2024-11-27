@@ -1,23 +1,19 @@
 //! Division operators.
 
-use crate::{
-    arch::word::Word,
-    buffer::Buffer,
-    div, helper_macros,
-    ibig::IBig,
-    memory::{MemoryAllocation, Stack},
-    ops::{Abs, DivEuclid, DivRem, DivRemEuclid, RemEuclid},
-    primitive::{PrimitiveSigned, PrimitiveUnsigned},
-    shift,
-    sign::Sign::*,
-    ubig::{Repr::*, UBig},
-};
-use core::{
-    convert::TryFrom,
-    fmt::Debug,
-    mem,
-    ops::{Div, DivAssign, Rem, RemAssign},
-};
+use crate::arch::word::Word;
+use crate::buffer::Buffer;
+use crate::ibig::IBig;
+use crate::memory::{MemoryAllocation, Stack};
+use crate::ops::{Abs, DivEuclid, DivRem, DivRemEuclid, RemEuclid};
+use crate::primitive::{PrimitiveSigned, PrimitiveUnsigned};
+use crate::sign::Sign::*;
+use crate::ubig::Repr::*;
+use crate::ubig::UBig;
+use crate::{div, helper_macros, shift};
+use core::convert::TryFrom;
+use core::fmt::Debug;
+use core::mem;
+use core::ops::{Div, DivAssign, Rem, RemAssign};
 
 impl Div<UBig> for UBig {
     type Output = UBig;
@@ -1279,71 +1275,71 @@ impl_div_ibig_signed!(isize);
 
 impl UBig {
     #[inline]
-    pub fn div_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> Result<UBig, S::AllocError> {
+    pub fn div_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
         let ubig_tuple = match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::div_word(word0, word1),
             (Small(_), Large(_)) => UBig::from_word(0),
             (Large(buffer0), Small(word1)) => UBig::div_large_word(buffer0, word1),
             (Large(buffer0), Large(buffer1)) => {
                 if buffer0.len() >= buffer1.len() {
-                    UBig::div_large_stack(stack, buffer0, buffer1)?
+                    UBig::div_large_stack(stack, buffer0, buffer1)
                 } else {
                     UBig::from_word(0)
                 }
             }
         };
-        Ok(ubig_tuple)
+        ubig_tuple
     }
 
     #[inline]
-    pub fn rem_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> Result<UBig, S::AllocError> {
+    pub fn rem_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
         let ubig_tuple = match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::rem_word(word0, word1),
             (Small(word0), Large(_)) => UBig::from_word(word0),
             (Large(buffer0), Small(word1)) => UBig::rem_large_word(&buffer0, word1),
             (Large(buffer0), Large(buffer1)) => {
                 if buffer0.len() >= buffer1.len() {
-                    UBig::rem_large_stack(stack, buffer0, buffer1)?
+                    UBig::rem_large_stack(stack, buffer0, buffer1)
                 } else {
                     buffer0.into()
                 }
             }
         };
-        Ok(ubig_tuple)
+        ubig_tuple
     }
 
     #[inline]
-    pub fn div_rem_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> Result<(UBig, UBig), S::AllocError> {
+    pub fn div_rem_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> (UBig, UBig) {
         let ubig_tuple = match (lhs.into_repr(), rhs.into_repr()) {
             (Small(word0), Small(word1)) => UBig::div_rem_word(word0, word1),
             (Small(word0), Large(_)) => (UBig::from_word(0), UBig::from_word(word0)),
             (Large(buffer0), Small(word1)) => UBig::div_rem_large_word(buffer0, word1),
             (Large(buffer0), Large(buffer1)) => {
                 if buffer0.len() >= buffer1.len() {
-                    UBig::div_rem_large_stack(stack, buffer0, buffer1)?
+                    UBig::div_rem_large_stack(stack, buffer0, buffer1)
                 } else {
                     (UBig::from_word(0), buffer0.into())
                 }
             }
         };
-        Ok(ubig_tuple)
+        ubig_tuple
     }
 
     /// `lhs / rhs`
-    fn div_large_stack<S: Stack>(stack: &mut S, mut lhs: Buffer, mut rhs: Buffer) -> Result<UBig, S::AllocError> {
-        let _shift = UBig::div_rem_in_lhs_stack(stack, &mut lhs, &mut rhs)?;
+    fn div_large_stack<S: Stack>(stack: &mut S, mut lhs: Buffer, mut rhs: Buffer) -> UBig {
+        let _shift = UBig::div_rem_in_lhs_stack(stack, &mut lhs, &mut rhs);
         lhs.erase_front(rhs.len());
-        Ok(lhs.into())
+        lhs.into()
     }
 
     /// `lhs % rhs`
-    fn rem_large_stack<S: Stack>(stack: &mut S, mut lhs: Buffer, mut rhs: Buffer) -> Result<UBig, S::AllocError> {
-        let shift = UBig::div_rem_in_lhs_stack(stack, &mut lhs, &mut rhs)?;
+    fn rem_large_stack<S: Stack>(stack: &mut S, mut lhs: Buffer, mut rhs: Buffer) -> UBig {
+        let shift = UBig::div_rem_in_lhs_stack(stack, &mut lhs, &mut rhs);
         let n = rhs.len();
         rhs.copy_from_slice(&lhs[..n]);
         let low_bits = shift::shr_in_place(&mut rhs, shift);
         debug_assert!(low_bits == 0);
-        Ok(rhs.into())
+        rhs.into()
     }
 
     /// `(lhs / rhs, lhs % rhs)`
@@ -1351,33 +1347,33 @@ impl UBig {
         stack: &mut S,
         mut lhs: Buffer,
         mut rhs: Buffer,
-    ) -> Result<(UBig, UBig), S::AllocError> {
-        let shift = UBig::div_rem_in_lhs_stack(stack, &mut lhs, &mut rhs)?;
+    ) -> (UBig, UBig) {
+        let shift = UBig::div_rem_in_lhs_stack(stack, &mut lhs, &mut rhs);
         let n = rhs.len();
         rhs.copy_from_slice(&lhs[..n]);
         let low_bits = shift::shr_in_place(&mut rhs, shift);
         debug_assert!(low_bits == 0);
         lhs.erase_front(n);
-        Ok((lhs.into(), rhs.into()))
+        (lhs.into(), rhs.into())
     }
 
     /// lhs = (lhs / rhs, lhs % rhs)
     ///
     /// Returns shift.
-    fn div_rem_in_lhs_stack<S: Stack>(stack: &mut S, lhs: &mut Buffer, rhs: &mut Buffer) -> Result<u32, S::AllocError> {
+    fn div_rem_in_lhs_stack<S: Stack>(stack: &mut S, lhs: &mut Buffer, rhs: &mut Buffer) -> u32 {
         let (shift, fast_div_rhs_top) = div::normalize_large(rhs);
         let lhs_carry = shift::shl_in_place(lhs, shift);
         if lhs_carry != 0 {
-            lhs.push_may_reallocate_stack(stack, lhs_carry)?;
+            lhs.push_may_reallocate_stack(stack, lhs_carry);
         }
         let mut allocation =
-            MemoryAllocation::new_stack(stack, div::memory_requirement_exact(lhs.len(), rhs.len()))?;
+            MemoryAllocation::new_stack(stack, div::memory_requirement_exact(lhs.len(), rhs.len()));
         let mut memory = allocation.memory();
         let overflow = div::div_rem_in_place(lhs, rhs, fast_div_rhs_top, &mut memory);
         if overflow {
             lhs.push_may_reallocate(1);
         }
-        Ok(shift)
+        shift
     }
 
     /// `lhs / rhs`

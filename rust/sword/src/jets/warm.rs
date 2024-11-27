@@ -2,7 +2,7 @@ use crate::hamt::Hamt;
 use crate::jets::cold::{Batteries, Cold};
 use crate::jets::hot::Hot;
 use crate::jets::Jet;
-use crate::mem::{AllocResult, NockStack, Preserve};
+use crate::mem::{NockStack, Preserve};
 use crate::noun::{Noun, Slots};
 use std::ptr::{copy_nonoverlapping, null_mut};
 
@@ -14,8 +14,8 @@ impl Preserve for Warm {
     unsafe fn assert_in_stack(&self, stack: &NockStack) {
         self.0.assert_in_stack(stack);
     }
-    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
-        self.0.preserve(stack)
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        self.0.preserve(stack);
     }
 }
 
@@ -47,17 +47,16 @@ impl Preserve for WarmEntry {
             cursor = (*cursor.0).next;
         }
     }
-    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
-        // TODO: Should this panic? What is this?
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
         if self.0.is_null() {
-            return Ok(());
+            return;
         }
         let mut ptr: *mut *mut WarmEntryMem = &mut self.0;
         loop {
             if stack.is_in_frame(*ptr) {
-                (**ptr).batteries.preserve(stack)?;
-                (**ptr).path.preserve(stack)?;
-                let dest_mem: *mut WarmEntryMem = stack.struct_alloc_in_previous_frame(1)?;
+                (**ptr).batteries.preserve(stack);
+                (**ptr).path.preserve(stack);
+                let dest_mem: *mut WarmEntryMem = stack.struct_alloc_in_previous_frame(1);
                 copy_nonoverlapping(*ptr, dest_mem, 1);
                 *ptr = dest_mem;
                 ptr = &mut ((*dest_mem).next.0);
@@ -68,7 +67,6 @@ impl Preserve for WarmEntry {
                 break;
             }
         }
-        Ok(())
     }
 }
 
@@ -88,8 +86,8 @@ impl Iterator for WarmEntry {
 
 impl Warm {
     #[allow(clippy::new_without_default)]
-    pub fn new(stack: &mut NockStack) -> AllocResult<Self> {
-        Ok(Warm(Hamt::new(stack)?))
+    pub fn new(stack: &mut NockStack) -> Self {
+        Warm(Hamt::new(stack))
     }
 
     fn insert(
@@ -99,32 +97,31 @@ impl Warm {
         path: Noun,
         batteries: Batteries,
         jet: Jet,
-    ) -> AllocResult<()> {
-        let current_warm_entry = self.0.lookup(stack, formula)?.unwrap_or(WARM_ENTRY_NIL);
+    ) {
+        let current_warm_entry = self.0.lookup(stack, formula).unwrap_or(WARM_ENTRY_NIL);
         unsafe {
-            let warm_entry_mem_ptr: *mut WarmEntryMem = stack.struct_alloc(1)?;
+            let warm_entry_mem_ptr: *mut WarmEntryMem = stack.struct_alloc(1);
             *warm_entry_mem_ptr = WarmEntryMem {
                 batteries,
                 jet,
                 path,
                 next: current_warm_entry,
             };
-            self.0 = self.0.insert(stack, formula, WarmEntry(warm_entry_mem_ptr))?;
+            self.0 = self.0.insert(stack, formula, WarmEntry(warm_entry_mem_ptr));
         }
-        Ok(())
     }
 
-    pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> AllocResult<Self> {
-        let mut warm = Self::new(stack)?;
+    pub fn init(stack: &mut NockStack, cold: &mut Cold, hot: &Hot) -> Self {
+        let mut warm = Self::new(stack);
         for (mut path, axis, jet) in *hot {
-            let batteries_list = cold.find(stack, &mut path)?;
+            let batteries_list = cold.find(stack, &mut path);
             for batteries in batteries_list {
                 let mut batteries_tmp = batteries;
                 let (battery, _parent_axis) = batteries_tmp
                     .next()
                     .expect("IMPOSSIBLE: empty battery entry in cold state");
                 if let Ok(mut formula) = unsafe { (*battery).slot_atom(axis) } {
-                    warm.insert(stack, &mut formula, path, batteries, jet)?;
+                    warm.insert(stack, &mut formula, path, batteries, jet);
                 } else {
                     //  XX: need NockStack allocated string interpolation
                     // eprintln!("Bad axis {} into formula {:?}", axis, battery);
@@ -132,7 +129,7 @@ impl Warm {
                 }
             }
         }
-        Ok(warm)
+        warm
     }
 
     /// Walk through the linked list of WarmEntry objects and do a partial check
@@ -143,17 +140,13 @@ impl Warm {
         stack: &mut NockStack,
         s: &mut Noun,
         f: &mut Noun,
-    ) -> AllocResult<Option<(Jet, Noun)>> {
+    ) -> Option<(Jet, Noun)> {
         let warm_it = self.0.lookup(stack, f)?;
-        if let Some(warm_entry) = warm_it {
-            unsafe {
-                let jet = (*warm_entry.0).jet;
-                let path = (*warm_entry.0).path;
-                if (*warm_entry.0).batteries.matches(stack, *s)? {
-                    return Ok(Some((jet, path)));
-                }
+        for (path, batteries, jet) in warm_it {
+            if batteries.matches(stack, *s) {
+                return Some((jet, path));
             }
         }
-        Ok(None)
+        None
     }
 }

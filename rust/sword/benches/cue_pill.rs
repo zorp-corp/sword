@@ -17,7 +17,7 @@ fn main() -> io::Result<()> {
     let jammed_input = unsafe {
         let in_map = memmap::Mmap::map(&f)?;
         let word_len = (in_len + 7) >> 3;
-        let (mut atom, dest) = IndirectAtom::new_raw_mut(&mut stack, word_len as usize).expect("Out of memory condition on IndirectAtom allocation in main()");
+        let (mut atom, dest) = IndirectAtom::new_raw_mut(&mut stack, word_len as usize);
         write_bytes(dest.add(word_len as usize - 1), 0, 8);
         copy_nonoverlapping(in_map.as_ptr(), dest as *mut u8, in_len as usize);
         mem::drop(in_map);
@@ -45,7 +45,7 @@ fn main() -> io::Result<()> {
 
     let nuw = SystemTime::now();
 
-    let jammed_output = jam(&mut stack, input).expect("Out of memory condition on jam in main()");
+    let jammed_output = jam(&mut stack, input);
 
     match nuw.elapsed() {
         Ok(elapse) => {

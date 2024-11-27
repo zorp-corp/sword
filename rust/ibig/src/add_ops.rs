@@ -1,20 +1,16 @@
 //! Addition and subtraction operators.
 
-use crate::{
-    add,
-    arch::word::Word,
-    buffer::Buffer,
-    helper_macros,
-    ibig::IBig,
-    memory::Stack,
-    primitive::{PrimitiveSigned, PrimitiveUnsigned},
-    sign::Sign::*,
-    ubig::{Repr::*, UBig},
-};
-use core::{
-    mem,
-    ops::{Add, AddAssign, Sub, SubAssign},
-};
+use crate::arch::word::Word;
+use crate::buffer::Buffer;
+use crate::ibig::IBig;
+use crate::memory::Stack;
+use crate::primitive::{PrimitiveSigned, PrimitiveUnsigned};
+use crate::sign::Sign::*;
+use crate::ubig::Repr::*;
+use crate::ubig::UBig;
+use crate::{add, helper_macros};
+use core::mem;
+use core::ops::{Add, AddAssign, Sub, SubAssign};
 
 impl Add<UBig> for UBig {
     type Output = UBig;
@@ -531,58 +527,58 @@ impl UBig {
     // given at least 2 words of extra capacity.  However, this supports UBigs which have already
     // been expanded through other operations.
     #[inline]
-    pub fn add_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> Result<UBig, S::AllocError> {
+    pub fn add_stack<S: Stack>(stack: &mut S, lhs: UBig, rhs: UBig) -> UBig {
         let ubig = match (lhs.into_repr(), rhs.into_repr()) {
-            (Small(word0), Small(word1)) => UBig::add_word_stack(stack, word0, word1)?,
-            (Small(word0), Large(buffer1)) => UBig::add_large_word_stack(stack, buffer1, word0)?,
-            (Large(buffer0), Small(word1)) => UBig::add_large_word_stack(stack, buffer0, word1)?,
+            (Small(word0), Small(word1)) => UBig::add_word_stack(stack, word0, word1),
+            (Small(word0), Large(buffer1)) => UBig::add_large_word_stack(stack, buffer1, word0),
+            (Large(buffer0), Small(word1)) => UBig::add_large_word_stack(stack, buffer0, word1),
             (Large(buffer0), Large(buffer1)) => {
                 if buffer0.len() >= buffer1.len() {
-                    UBig::add_large_stack(stack, buffer0, &buffer1)?
+                    UBig::add_large_stack(stack, buffer0, &buffer1)
                 } else {
-                    UBig::add_large_stack(stack, buffer1, &buffer0)?
+                    UBig::add_large_stack(stack, buffer1, &buffer0)
                 }
             }
         };
-        Ok(ubig)
+        ubig
     }
 
     /// Add two `Word`s.
     #[inline]
-    fn add_word_stack<S: Stack>(stack: &mut S, a: Word, b: Word) -> Result<UBig, S::AllocError> {
+    fn add_word_stack<S: Stack>(stack: &mut S, a: Word, b: Word) -> UBig {
         let (res, overflow) = a.overflowing_add(b);
         let ubig = if overflow {
-            let mut buffer = Buffer::allocate_stack(stack, 2)?;
+            let mut buffer = Buffer::allocate_stack(stack, 2);
             buffer.push(res);
             buffer.push(1);
             buffer.into()
         } else {
             UBig::from_word(res)
         };
-        Ok(ubig)
+        ubig
     }
 
     /// Add a large number to a `Word`.
-    fn add_large_word_stack<S: Stack>(stack: &mut S, mut buffer: Buffer, rhs: Word) -> Result<UBig, S::AllocError> {
+    fn add_large_word_stack<S: Stack>(stack: &mut S, mut buffer: Buffer, rhs: Word) -> UBig {
         debug_assert!(buffer.len() >= 2);
         if add::add_word_in_place(&mut buffer, rhs) {
-            buffer.push_may_reallocate_stack(stack, 1)?;
+            buffer.push_may_reallocate_stack(stack, 1);
         }
-        Ok(buffer.into())
+        buffer.into()
     }
 
     /// Add two large numbers.
-    fn add_large_stack<S: Stack>(stack: &mut S, mut buffer: Buffer, rhs: &[Word]) -> Result<UBig, S::AllocError> {
+    fn add_large_stack<S: Stack>(stack: &mut S, mut buffer: Buffer, rhs: &[Word]) -> UBig {
         let n = buffer.len().min(rhs.len());
         let overflow = add::add_same_len_in_place(&mut buffer[..n], &rhs[..n]);
         if rhs.len() > n {
-            buffer.ensure_capacity_stack(stack, rhs.len())?;
+            buffer.ensure_capacity_stack(stack, rhs.len());
             buffer.extend(&rhs[n..]);
         }
         if overflow && add::add_one_in_place(&mut buffer[n..]) {
-            buffer.push_may_reallocate_stack(stack, 1)?;
+            buffer.push_may_reallocate_stack(stack, 1);
         }
-        Ok(buffer.into())
+        buffer.into()
     }
 
     /// Add two `Word`s.

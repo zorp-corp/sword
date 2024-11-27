@@ -1,7 +1,8 @@
 //! Memory allocation.
 
 use alloc::alloc::Layout;
-use core::{marker::PhantomData, mem, slice};
+use core::marker::PhantomData;
+use core::{mem, slice};
 
 /// Chunk of memory directly allocated from the global allocator.
 pub(crate) struct MemoryAllocation {
@@ -10,10 +11,8 @@ pub(crate) struct MemoryAllocation {
 }
 
 pub trait Stack: Sized {
-    // type AllocError: Debug;
     // no-std bites me in the keister again
-    type AllocError;
-    unsafe fn alloc_layout(&mut self, layout: Layout) -> Result<*mut u64, Self::AllocError>;
+    unsafe fn alloc_layout(&mut self, layout: Layout) -> *mut u64;
 }
 
 /// Chunk of memory.
@@ -27,7 +26,7 @@ pub(crate) struct Memory<'a> {
 }
 
 impl MemoryAllocation {
-    pub(crate) fn new_stack<S: Stack>(stack: &mut S, layout: Layout) -> Result<MemoryAllocation, S::AllocError> {
+    pub(crate) fn new_stack<S: Stack>(stack: &mut S, layout: Layout) -> MemoryAllocation {
         let start = if layout.size() == 0 {
             // We should use layout.dangling(), but that is unstable.
             layout.align() as *mut u8
@@ -36,7 +35,7 @@ impl MemoryAllocation {
         } else {
             // Safe because size is non-zero.
             let ptr = unsafe {
-                let ep = stack.alloc_layout(layout)?;
+                let ep = stack.alloc_layout(layout);
                 ep as *mut u8
             };
             if ptr.is_null() {
@@ -45,7 +44,7 @@ impl MemoryAllocation {
             ptr
         };
 
-        Ok(MemoryAllocation { layout, start })
+        MemoryAllocation { layout, start }
     }
 
     /// Allocate memory.

@@ -1,6 +1,8 @@
+use crate::assert_acyclic;
+use crate::assert_no_forwarding_pointers;
+use crate::assert_no_junior_pointers;
 use crate::mem::*;
 use crate::noun::{Allocated, Atom, DirectAtom, Noun};
-use crate::{assert_acyclic, assert_no_forwarding_pointers, assert_no_junior_pointers};
 use either::Either::*;
 use murmur3::murmur3_32_of_slice;
 
@@ -126,67 +128,74 @@ pub fn mug_u32_one(noun: Noun) -> Option<u32> {
     }
 }
 
-pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> AllocResult<u32> {
+pub fn mug_u32(stack: &mut NockStack, noun: Noun) -> u32 {
     if let Some(mug) = get_mug(noun) {
-        return Ok(mug);
+        return mug;
     }
 
     assert_acyclic!(noun);
     assert_no_forwarding_pointers!(noun);
     assert_no_junior_pointers!(stack, noun);
 
+    stack.frame_push(0);
     unsafe {
-        stack.with_frame(0, |stack| {
-            *(stack.push()?) = noun;
-            loop {
-                if stack.stack_is_empty() {
-                    break;
-                } else {
-                    let noun: Noun = *(stack.top());
-                    match noun.as_either_direct_allocated() {
-                        Left(_direct) => {
+        *(stack.push()) = noun;
+    }
+    loop {
+        if stack.stack_is_empty() {
+            break;
+        } else {
+            let noun: Noun = unsafe { *(stack.top()) };
+            match noun.as_either_direct_allocated() {
+                Left(_direct) => {
+                    unsafe {
+                        stack.pop::<Noun>();
+                    }
+                    continue;
+                } // no point in calculating a direct mug here as we wont cache it
+                Right(allocated) => match allocated.get_cached_mug() {
+                    Some(_mug) => {
+                        unsafe {
+                            stack.pop::<Noun>();
+                        }
+                        continue;
+                    }
+                    None => match allocated.as_either() {
+                        Left(indirect) => unsafe {
+                            set_mug(allocated, calc_atom_mug_u32(indirect.as_atom()));
                             stack.pop::<Noun>();
                             continue;
-                        } // no point in calculating a direct mug here as we wont cache it
-                        Right(allocated) => match allocated.get_cached_mug() {
-                            Some(_mug) => {
-                                stack.pop::<Noun>();
-                                continue;
-                            }
-                            None => match allocated.as_either() {
-                                Left(indirect) => {
-                                    set_mug(allocated, calc_atom_mug_u32(indirect.as_atom()));
+                        },
+                        Right(cell) => unsafe {
+                            match (get_mug(cell.head()), get_mug(cell.tail())) {
+                                (Some(head_mug), Some(tail_mug)) => {
+                                    set_mug(allocated, calc_cell_mug_u32(head_mug, tail_mug));
                                     stack.pop::<Noun>();
                                     continue;
                                 }
-                                Right(cell) => match (get_mug(cell.head()), get_mug(cell.tail())) {
-                                    (Some(head_mug), Some(tail_mug)) => {
-                                        set_mug(allocated, calc_cell_mug_u32(head_mug, tail_mug));
-                                        stack.pop::<Noun>();
-                                        continue;
-                                    }
-                                    _ => {
-                                        *(stack.push()?) = cell.tail();
-                                        *(stack.push()?) = cell.head();
-                                        continue;
-                                    }
-                                },
-                            },
+                                _ => {
+                                    *(stack.push()) = cell.tail();
+                                    *(stack.push()) = cell.head();
+                                    continue;
+                                }
+                            }
                         },
-                    }
-                }
+                    },
+                },
             }
-
-            assert_acyclic!(noun);
-            assert_no_forwarding_pointers!(noun);
-            assert_no_junior_pointers!(stack, noun);
-
-            // TODO: Purge this expect.
-            Ok(get_mug(noun).expect("Noun should have a mug once it is mugged."))
-        })?
+        }
     }
+    unsafe {
+        stack.frame_pop();
+    }
+
+    assert_acyclic!(noun);
+    assert_no_forwarding_pointers!(noun);
+    assert_no_junior_pointers!(stack, noun);
+
+    get_mug(noun).expect("Noun should have a mug once it is mugged.")
 }
 
-pub fn mug(stack: &mut NockStack, noun: Noun) -> AllocResult<DirectAtom> {
-    Ok(unsafe { DirectAtom::new_unchecked(mug_u32(stack, noun)? as u64) })
+pub fn mug(stack: &mut NockStack, noun: Noun) -> DirectAtom {
+    unsafe { DirectAtom::new_unchecked(mug_u32(stack, noun) as u64) }
 }

@@ -1,4 +1,4 @@
-use crate::mem::{AllocResult, NockStack, ALLOC, FRAME, STACK};
+use crate::mem::{NockStack, ALLOC, FRAME, STACK};
 use crate::noun::Noun;
 use crate::{assert_acyclic, assert_no_forwarding_pointers, assert_no_junior_pointers};
 use either::Either::*;
@@ -20,22 +20,7 @@ macro_rules! assert_no_junior_pointers {
     ( $x:expr, $y:expr ) => {};
 }
 
-#[cfg(test)]
-pub(crate) mod test {
-    use crate::mem::NockStack;
-    use crate::noun::Noun;
-
-    /// Tests only, not part of the actual implementation. Use this outside of #[cfg(test)] and I will sic the linter on you.
-    pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
-        super::unifying_equality(stack, a, b).expect("OOM error in test::unifying_equality")
-    }
-}
-
-pub unsafe fn unifying_equality(
-    stack: &mut NockStack,
-    a: *mut Noun,
-    b: *mut Noun,
-) -> AllocResult<bool> {
+pub unsafe fn unifying_equality(stack: &mut NockStack, a: *mut Noun, b: *mut Noun) -> bool {
     /* This version of unifying equality is not like that of vere.
      * Vere does a tree comparison (accelerated by pointer equality and short-circuited by mug
      * equality) and then unifies the nouns at the top level if they are equal.
@@ -68,109 +53,108 @@ pub unsafe fn unifying_equality(
 
     // If the nouns are already word-equal we have nothing to do
     if (*a).raw_equals(*b) {
-        return Ok(true);
+        return true;
     };
     // If the nouns have cached mugs which are disequal we have nothing to do
     if let (Ok(a_alloc), Ok(b_alloc)) = ((*a).as_allocated(), (*b).as_allocated()) {
         if let (Some(a_mug), Some(b_mug)) = (a_alloc.get_cached_mug(), b_alloc.get_cached_mug()) {
             if a_mug != b_mug {
-                return Ok(false);
+                return false;
             };
         };
     };
-    stack.with_frame(0, |stack| {
-        *(stack.push::<(*mut Noun, *mut Noun)>()?) = (a, b);
-        loop {
-            if stack.stack_is_empty() {
-                break;
+    stack.frame_push(0);
+    *(stack.push::<(*mut Noun, *mut Noun)>()) = (a, b);
+    loop {
+        if stack.stack_is_empty() {
+            break;
+        };
+        let (x, y): (*mut Noun, *mut Noun) = *(stack.top());
+        if (*x).raw_equals(*y) {
+            stack.pop::<(*mut Noun, *mut Noun)>();
+            continue;
+        };
+        if let (Ok(x_alloc), Ok(y_alloc)) = (
+            // equal direct atoms return true for raw_equals()
+            (*x).as_allocated(),
+            (*y).as_allocated(),
+        ) {
+            if let (Some(x_mug), Some(y_mug)) = (x_alloc.get_cached_mug(), y_alloc.get_cached_mug())
+            {
+                if x_mug != y_mug {
+                    break; // short-circuit, the mugs differ therefore the nouns must differ
+                }
             };
-            let (x, y): (*mut Noun, *mut Noun) = *(stack.top());
-            if (*x).raw_equals(*y) {
-                stack.pop::<(*mut Noun, *mut Noun)>();
-                continue;
-            };
-            if let (Ok(x_alloc), Ok(y_alloc)) = (
-                // equal direct atoms return true for raw_equals()
-                (*x).as_allocated(),
-                (*y).as_allocated(),
-            ) {
-                if let (Some(x_mug), Some(y_mug)) =
-                    (x_alloc.get_cached_mug(), y_alloc.get_cached_mug())
-                {
-                    if x_mug != y_mug {
-                        break; // short-circuit, the mugs differ therefore the nouns must differ
-                    }
-                };
-                match (x_alloc.as_either(), y_alloc.as_either()) {
-                    (Left(x_indirect), Left(y_indirect)) => {
-                        let x_as_ptr = x_indirect.to_raw_pointer();
-                        let y_as_ptr = y_indirect.to_raw_pointer();
-                        if x_indirect.size() == y_indirect.size()
-                            && memcmp(
-                                x_indirect.data_pointer() as *const c_void,
-                                y_indirect.data_pointer() as *const c_void,
-                                x_indirect.size() << 3,
-                            ) == 0
-                        {
-                            let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
-                            if x_as_ptr == junior {
-                                *x = *y;
-                            } else {
-                                *y = *x;
-                            }
-                            stack.pop::<(*mut Noun, *mut Noun)>();
-                            continue;
+            match (x_alloc.as_either(), y_alloc.as_either()) {
+                (Left(x_indirect), Left(y_indirect)) => {
+                    let x_as_ptr = x_indirect.to_raw_pointer();
+                    let y_as_ptr = y_indirect.to_raw_pointer();
+                    if x_indirect.size() == y_indirect.size()
+                        && memcmp(
+                            x_indirect.data_pointer() as *const c_void,
+                            y_indirect.data_pointer() as *const c_void,
+                            x_indirect.size() << 3,
+                        ) == 0
+                    {
+                        let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
+                        if x_as_ptr == junior {
+                            *x = *y;
                         } else {
-                            break;
+                            *y = *x;
                         }
-                    }
-                    (Right(x_cell), Right(y_cell)) => {
-                        let x_as_ptr = x_cell.to_raw_pointer() as *const u64;
-                        let y_as_ptr = y_cell.to_raw_pointer() as *const u64;
-                        if x_cell.head().raw_equals(y_cell.head())
-                            && x_cell.tail().raw_equals(y_cell.tail())
-                        {
-                            let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
-                            if x_as_ptr == junior {
-                                *x = *y;
-                            } else {
-                                *y = *x;
-                            }
-                            stack.pop::<(*mut Noun, *mut Noun)>();
-                            continue;
-                        } else {
-                            /* THIS ISN'T AN INFINITE LOOP
-                             * If we discover a disequality in either side, we will
-                             * short-circuit the entire loop and reset the work stack.
-                             *
-                             * If both sides are equal, then we will discover pointer
-                             * equality when we return and unify the cell.
-                             */
-                            *(stack.push::<(*mut Noun, *mut Noun)>()?) =
-                                (x_cell.tail_as_mut(), y_cell.tail_as_mut());
-                            *(stack.push::<(*mut Noun, *mut Noun)>()?) =
-                                (x_cell.head_as_mut(), y_cell.head_as_mut());
-                            continue;
-                        }
-                    }
-                    (_, _) => {
-                        break; // cells don't unify with atoms
+                        stack.pop::<(*mut Noun, *mut Noun)>();
+                        continue;
+                    } else {
+                        break;
                     }
                 }
-            } else {
-                break; // direct atom not raw equal, so short circuit
+                (Right(x_cell), Right(y_cell)) => {
+                    let x_as_ptr = x_cell.to_raw_pointer() as *const u64;
+                    let y_as_ptr = y_cell.to_raw_pointer() as *const u64;
+                    if x_cell.head().raw_equals(y_cell.head())
+                        && x_cell.tail().raw_equals(y_cell.tail())
+                    {
+                        let (_senior, junior) = senior_pointer_first(stack, x_as_ptr, y_as_ptr);
+                        if x_as_ptr == junior {
+                            *x = *y;
+                        } else {
+                            *y = *x;
+                        }
+                        stack.pop::<(*mut Noun, *mut Noun)>();
+                        continue;
+                    } else {
+                        /* THIS ISN'T AN INFINITE LOOP
+                         * If we discover a disequality in either side, we will
+                         * short-circuit the entire loop and reset the work stack.
+                         *
+                         * If both sides are equal, then we will discover pointer
+                         * equality when we return and unify the cell.
+                         */
+                        *(stack.push::<(*mut Noun, *mut Noun)>()) =
+                            (x_cell.tail_as_mut(), y_cell.tail_as_mut());
+                        *(stack.push::<(*mut Noun, *mut Noun)>()) =
+                            (x_cell.head_as_mut(), y_cell.head_as_mut());
+                        continue;
+                    }
+                }
+                (_, _) => {
+                    break; // cells don't unify with atoms
+                }
             }
+        } else {
+            break; // direct atom not raw equal, so short circuit
         }
+    }
+    stack.frame_pop();
 
-        assert_acyclic!(*a);
-        assert_acyclic!(*b);
-        assert_no_forwarding_pointers!(*a);
-        assert_no_forwarding_pointers!(*b);
-        assert_no_junior_pointers!(stack, *a);
-        assert_no_junior_pointers!(stack, *b);
+    assert_acyclic!(*a);
+    assert_acyclic!(*b);
+    assert_no_forwarding_pointers!(*a);
+    assert_no_forwarding_pointers!(*b);
+    assert_no_junior_pointers!(stack, *a);
+    assert_no_junior_pointers!(stack, *b);
 
-        Ok((*a).raw_equals(*b))
-    })?
+    (*a).raw_equals(*b)
 }
 
 unsafe fn senior_pointer_first(

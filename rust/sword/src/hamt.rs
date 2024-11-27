@@ -1,4 +1,4 @@
-use crate::mem::{AllocResult, NockStack, Preserve};
+use crate::mem::{NockStack, Preserve};
 use crate::mug::mug_u32;
 use crate::noun::Noun;
 use crate::unifying_equality::unifying_equality;
@@ -59,45 +59,45 @@ impl<T: Copy> MutStem<T> {
 pub struct MutHamt<T: Copy>(*mut MutStem<T>);
 
 impl<T: Copy> MutHamt<T> {
-    pub fn new(stack: &mut NockStack) -> AllocResult<MutHamt<T>> {
+    pub fn new(stack: &mut NockStack) -> MutHamt<T> {
         unsafe {
-            let new_stem = stack.struct_alloc::<MutStem<T>>(1)?;
+            let new_stem = stack.struct_alloc::<MutStem<T>>(1);
             (*new_stem).bitmap = 0;
             (*new_stem).typemap = 0;
-            Ok(MutHamt(new_stem))
+            MutHamt(new_stem)
         }
     }
 
-    pub fn lookup(self, stack: &mut NockStack, n: &mut Noun) -> AllocResult<Option<T>> {
+    pub fn lookup(self, stack: &mut NockStack, n: &mut Noun) -> Option<T> {
         let mut stem = self.0;
-        let mut mug = mug_u32(stack, *n)?;
+        let mut mug = mug_u32(stack, *n);
         unsafe {
             'lookup: loop {
                 let chunk = mug & 0x1f;
                 mug >>= 5;
                 match (*stem).entry(chunk) {
                     None => {
-                        break Ok(None);
+                        break None;
                     }
                     Some(Left(next_stem)) => {
                         stem = next_stem;
                     }
                     Some(Right(leaf)) => {
                         for pair in leaf.to_mut_slice().iter_mut() {
-                            if unifying_equality(stack, n, &mut pair.0)? {
-                                break 'lookup Ok(Some(pair.1));
+                            if unifying_equality(stack, n, &mut pair.0) {
+                                break 'lookup Some(pair.1);
                             }
                         }
-                        break Ok(None);
+                        break None;
                     }
                 }
             }
         }
     }
 
-    pub fn insert(self, stack: &mut NockStack, n: &mut Noun, t: T) -> AllocResult<()> {
+    pub fn insert(self, stack: &mut NockStack, n: &mut Noun, t: T) {
         let mut stem = self.0;
-        let mut mug = mug_u32(stack, *n)?;
+        let mut mug = mug_u32(stack, *n);
         let mut depth = 0u8;
         unsafe {
             'insert: loop {
@@ -105,7 +105,7 @@ impl<T: Copy> MutHamt<T> {
                 mug >>= 5;
                 match (*stem).entry(chunk) {
                     None => {
-                        let new_leaf_buffer = stack.struct_alloc::<(Noun, T)>(1)?;
+                        let new_leaf_buffer = stack.struct_alloc::<(Noun, T)>(1);
                         *new_leaf_buffer = (*n, t);
                         (*stem).bitmap |= chunk_to_bit(chunk);
                         (*stem).typemap &= !chunk_to_bit(chunk);
@@ -124,13 +124,13 @@ impl<T: Copy> MutHamt<T> {
                     }
                     Some(Right(leaf)) => {
                         for pair in leaf.to_mut_slice().iter_mut() {
-                            if unifying_equality(stack, n, &mut pair.0)? {
+                            if unifying_equality(stack, n, &mut pair.0) {
                                 pair.1 = t;
                                 break 'insert;
                             }
                         }
                         if depth >= 5 {
-                            let new_leaf_buffer = stack.struct_alloc::<(Noun, T)>(leaf.len + 1)?;
+                            let new_leaf_buffer = stack.struct_alloc::<(Noun, T)>(leaf.len + 1);
                             copy_nonoverlapping(leaf.buffer, new_leaf_buffer, leaf.len);
                             *new_leaf_buffer.add(leaf.len) = (*n, t);
                             (*stem).buffer[chunk as usize] = MutEntry {
@@ -142,8 +142,8 @@ impl<T: Copy> MutHamt<T> {
                             break;
                         } else {
                             assert!(leaf.len == 1);
-                            let new_stem = stack.struct_alloc::<MutStem<T>>(1)?;
-                            let leaf_mug = mug_u32(stack, (*leaf.buffer).0)?;
+                            let new_stem = stack.struct_alloc::<MutStem<T>>(1);
+                            let leaf_mug = mug_u32(stack, (*leaf.buffer).0);
                             let leaf_chunk = (leaf_mug >> ((depth + 1) * 5)) & 0x1f;
                             (*new_stem).bitmap = chunk_to_bit(leaf_chunk);
                             (*new_stem).typemap = 0;
@@ -158,7 +158,6 @@ impl<T: Copy> MutHamt<T> {
                 }
             }
         }
-        Ok(())
     }
 }
 
@@ -283,15 +282,15 @@ impl<T: Copy + Preserve> Hamt<T> {
         unsafe { (*self.0).bitmap == 0 }
     }
     // Make a new, empty HAMT
-    pub fn new(stack: &mut NockStack) -> AllocResult<Self> {
+    pub fn new(stack: &mut NockStack) -> Self {
         unsafe {
-            let stem_ptr = stack.struct_alloc::<Stem<T>>(1)?;
+            let stem_ptr = stack.struct_alloc::<Stem<T>>(1);
             *stem_ptr = Stem {
                 bitmap: 0,
                 typemap: 0,
                 buffer: null_mut(),
             };
-            Ok(Hamt(stem_ptr))
+            Hamt(stem_ptr)
         }
     }
 
@@ -306,15 +305,15 @@ impl<T: Copy + Preserve> Hamt<T> {
      * A mutable reference is required so that unifying equality can unify the key with a key entry
      * in the HAMT
      */
-    pub fn lookup(&self, stack: &mut NockStack, n: &mut Noun) -> AllocResult<Option<T>> {
+    pub fn lookup(&self, stack: &mut NockStack, n: &mut Noun) -> Option<T> {
         let mut stem = unsafe { *self.0 };
-        let mut mug = mug_u32(stack, *n)?;
+        let mut mug = mug_u32(stack, *n);
         'lookup: loop {
             let chunk = mug & 0x1F; // 5 bits
             mug >>= 5;
             match stem.entry(chunk) {
                 None => {
-                    break Ok(None);
+                    break None;
                 }
                 Some((Left(next_stem), _idx)) => {
                     stem = next_stem;
@@ -322,11 +321,11 @@ impl<T: Copy + Preserve> Hamt<T> {
                 }
                 Some((Right(leaf), _idx)) => {
                     for pair in unsafe { leaf.to_mut_slice().iter_mut() } {
-                        if unsafe { unifying_equality(stack, n, &mut pair.0)? } {
-                            break 'lookup Ok(Some(pair.1));
+                        if unsafe { unifying_equality(stack, n, &mut pair.0) } {
+                            break 'lookup Some(pair.1);
                         }
                     }
-                    break Ok(None);
+                    break None;
                 }
             }
         }
@@ -335,11 +334,11 @@ impl<T: Copy + Preserve> Hamt<T> {
     // XX a delete function requires a stack, do we need one?
 
     /// Make a new HAMT with the value inserted or replaced at the key.
-    pub fn insert(&self, stack: &mut NockStack, n: &mut Noun, t: T) -> AllocResult<Hamt<T>> {
-        let mut mug = mug_u32(stack, *n)?;
+    pub fn insert(&self, stack: &mut NockStack, n: &mut Noun, t: T) -> Hamt<T> {
+        let mut mug = mug_u32(stack, *n);
         let mut depth = 0u8;
         let mut stem = unsafe { *self.0 };
-        let stem_ret = unsafe { stack.struct_alloc::<Stem<T>>(1) }?;
+        let stem_ret = unsafe { stack.struct_alloc::<Stem<T>>(1) };
         let mut dest = stem_ret;
         unsafe {
             'insert: loop {
@@ -348,10 +347,10 @@ impl<T: Copy + Preserve> Hamt<T> {
                 match stem.entry(chunk) {
                     // No entry found at mug chunk index; add Leaf to current Stem
                     None => {
-                        let new_leaf_buffer = stack.struct_alloc(1)?;
+                        let new_leaf_buffer = stack.struct_alloc(1);
                         *new_leaf_buffer = (*n, t);
                         let split = stem.hypothetical_index(chunk);
-                        let new_buffer = stack.struct_alloc(stem.size() + 1)?;
+                        let new_buffer = stack.struct_alloc(stem.size() + 1);
                         if split > 0 {
                             copy_nonoverlapping(stem.buffer, new_buffer, split);
                         }
@@ -373,11 +372,11 @@ impl<T: Copy + Preserve> Hamt<T> {
                             typemap: stem.typemap & !chunk_to_bit(chunk),
                             buffer: new_buffer,
                         };
-                        break Ok(Hamt(stem_ret));
+                        break Hamt(stem_ret);
                     }
                     // Stem found at mug chunk index; insert into found Stem
                     Some((Left(next_stem), idx)) => {
-                        let new_buffer = stack.struct_alloc(stem.size())?;
+                        let new_buffer = stack.struct_alloc(stem.size());
                         copy_nonoverlapping(stem.buffer, new_buffer, stem.size());
                         *dest = Stem {
                             bitmap: stem.bitmap,
@@ -393,11 +392,11 @@ impl<T: Copy + Preserve> Hamt<T> {
                     Some((Right(leaf), idx)) => {
                         // Override existing value for key, if one exists
                         for (ldx, pair) in leaf.to_mut_slice().iter_mut().enumerate() {
-                            if unifying_equality(stack, n, &mut pair.0)? {
-                                let new_leaf_buffer = stack.struct_alloc(leaf.len)?;
+                            if unifying_equality(stack, n, &mut pair.0) {
+                                let new_leaf_buffer = stack.struct_alloc(leaf.len);
                                 copy_nonoverlapping(leaf.buffer, new_leaf_buffer, leaf.len);
                                 (*new_leaf_buffer.add(ldx)).1 = t;
-                                let new_buffer = stack.struct_alloc(stem.size())?;
+                                let new_buffer = stack.struct_alloc(stem.size());
                                 copy_nonoverlapping(stem.buffer, new_buffer, stem.size());
                                 *new_buffer.add(idx) = Entry {
                                     leaf: Leaf {
@@ -410,16 +409,16 @@ impl<T: Copy + Preserve> Hamt<T> {
                                     typemap: stem.typemap,
                                     buffer: new_buffer,
                                 };
-                                break 'insert Ok(Hamt(stem_ret));
+                                break 'insert Hamt(stem_ret);
                             }
                         }
                         // No existing pair in this Leaf matches the key, and we've maxxed out the
                         // Hamt depth; add the the key-value pair to the list of pairs for this Leaf
                         if depth >= 5 {
-                            let new_leaf_buffer = stack.struct_alloc(leaf.len + 1)?;
+                            let new_leaf_buffer = stack.struct_alloc(leaf.len + 1);
                             copy_nonoverlapping(leaf.buffer, new_leaf_buffer, leaf.len);
                             *new_leaf_buffer.add(leaf.len) = (*n, t);
-                            let new_buffer = stack.struct_alloc(stem.size())?;
+                            let new_buffer = stack.struct_alloc(stem.size());
                             copy_nonoverlapping(stem.buffer, new_buffer, stem.size());
                             *new_buffer.add(idx) = Entry {
                                 leaf: Leaf {
@@ -432,7 +431,7 @@ impl<T: Copy + Preserve> Hamt<T> {
                                 typemap: stem.typemap,
                                 buffer: new_buffer,
                             };
-                            break 'insert Ok(Hamt(stem_ret));
+                            break 'insert Hamt(stem_ret);
                         // No existing pair in this Leaf matches the key, but we haven't maxxed out
                         // the Hamt depth yet. If we haven't hit the depth limit yet, we shouldn't
                         // be making a linked list of pairs. Turn the Leaf into a Stem and insert
@@ -442,18 +441,18 @@ impl<T: Copy + Preserve> Hamt<T> {
                             // Make a fake node pointing to the old leaf and "insert into it" the
                             // next time around
                             assert!(leaf.len == 1);
-                            let fake_buffer = stack.struct_alloc(1)?;
+                            let fake_buffer = stack.struct_alloc(1);
                             *fake_buffer = Entry { leaf };
                             // Get the mug chunk for the Noun at the *next* level so that we can
                             // build a fake stem for it
-                            let fake_mug = mug_u32(stack, (*leaf.buffer).0)?;
+                            let fake_mug = mug_u32(stack, (*leaf.buffer).0);
                             let fake_chunk = (fake_mug >> ((depth + 1) * 5)) & 0x1F;
                             let next_stem = Stem {
                                 bitmap: chunk_to_bit(fake_chunk),
                                 typemap: 0,
                                 buffer: fake_buffer,
                             };
-                            let new_buffer = stack.struct_alloc(stem.size())?;
+                            let new_buffer = stack.struct_alloc(stem.size());
                             copy_nonoverlapping(stem.buffer, new_buffer, stem.size());
                             *dest = Stem {
                                 bitmap: stem.bitmap,
@@ -518,13 +517,13 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
         }
     }
 
-    unsafe fn preserve(&mut self, stack: &mut NockStack) -> AllocResult<()> {
-        let res = if stack.is_in_frame(self.0) {
-            let dest_stem = stack.struct_alloc_in_previous_frame(1)?;
+    unsafe fn preserve(&mut self, stack: &mut NockStack) {
+        if stack.is_in_frame(self.0) {
+            let dest_stem = stack.struct_alloc_in_previous_frame(1);
             copy_nonoverlapping(self.0, dest_stem, 1);
             self.0 = dest_stem;
             if stack.is_in_frame((*dest_stem).buffer) {
-                let dest_buffer = stack.struct_alloc_in_previous_frame((*dest_stem).size())?;
+                let dest_buffer = stack.struct_alloc_in_previous_frame((*dest_stem).size());
                 copy_nonoverlapping((*dest_stem).buffer, dest_buffer, (*dest_stem).size());
                 (*dest_stem).buffer = dest_buffer;
                 // Here we're using the Rust stack since the array is a fixed
@@ -557,7 +556,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                             Some((Left(next_stem), idx)) => {
                                 if stack.is_in_frame(next_stem.buffer) {
                                     let dest_buffer =
-                                        stack.struct_alloc_in_previous_frame(next_stem.size())?;
+                                        stack.struct_alloc_in_previous_frame(next_stem.size());
                                     copy_nonoverlapping(
                                         next_stem.buffer,
                                         dest_buffer,
@@ -583,15 +582,15 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                             Some((Right(leaf), idx)) => {
                                 if stack.is_in_frame(leaf.buffer) {
                                     let dest_buffer =
-                                        stack.struct_alloc_in_previous_frame(leaf.len)?;
+                                        stack.struct_alloc_in_previous_frame(leaf.len);
                                     copy_nonoverlapping(leaf.buffer, dest_buffer, leaf.len);
                                     let new_leaf = Leaf {
                                         len: leaf.len,
                                         buffer: dest_buffer,
                                     };
                                     for pair in new_leaf.to_mut_slice().iter_mut() {
-                                        pair.0.preserve(stack)?;
-                                        pair.1.preserve(stack)?;
+                                        pair.0.preserve(stack);
+                                        pair.1.preserve(stack);
                                     }
                                     *stem.buffer.add(idx) = Entry { leaf: new_leaf };
                                 }
@@ -602,8 +601,7 @@ impl<T: Copy + Preserve> Preserve for Hamt<T> {
                     }
                 }
             }
-        };
-        Ok(res)
+        }
     }
 }
 
@@ -709,10 +707,10 @@ mod test {
         let size = 1 << 27;
         let top_slots = 100;
         let mut stack = NockStack::new(size, top_slots);
-        let mut hamt = Hamt::<Noun>::new(&mut stack).unwrap();
-        hamt = hamt.insert(&mut stack, &mut D(0), D(1)).unwrap();
-        hamt = hamt.insert(&mut stack, &mut D(2), D(3)).unwrap();
-        hamt = hamt.insert(&mut stack, &mut D(4), D(5)).unwrap();
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
+        hamt = hamt.insert(&mut stack, &mut D(0), D(1));
+        hamt = hamt.insert(&mut stack, &mut D(2), D(3));
+        hamt = hamt.insert(&mut stack, &mut D(4), D(5));
         let mut iter = hamt.iter();
         let three = cdr(&mut iter);
         let one = cdr(&mut iter);
@@ -730,10 +728,10 @@ mod test {
         let size = 1 << 27;
         let top_slots = 100;
         let mut stack = NockStack::new(size, top_slots);
-        let mut hamt = Hamt::<Noun>::new(&mut stack).unwrap();
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
         let mut hs = HashSet::new();
         for n in 0..100 {
-            hamt = hamt.insert(&mut stack, &mut D(n), D(n)).unwrap();
+            hamt = hamt.insert(&mut stack, &mut D(n), D(n));
             hs.insert((n, n));
         }
         let mut iter = hamt.iter();
@@ -748,21 +746,17 @@ mod test {
         let size = 1 << 27;
         let top_slots = 100;
         let mut stack = NockStack::new(size, top_slots);
-        let mut hamt = Hamt::<Noun>::new(&mut stack).unwrap();
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
         let mut n = D(0);
         let t = D(1);
-        hamt = hamt.insert(&mut stack, &mut n, t).unwrap();
-        let lu = hamt
-            .lookup(&mut stack, &mut n)
-            .expect("lookup failed due to OOM");
+        hamt = hamt.insert(&mut stack, &mut n, t);
+        let lu = hamt.lookup(&mut stack, &mut n);
         let lu_value = unsafe { lu.expect("lookup failed").as_raw() };
         assert_eq!(lu_value, 1);
         let mut n = D(2);
         let t = D(3);
-        hamt = hamt.insert(&mut stack, &mut n, t).unwrap();
-        let lu = hamt
-            .lookup(&mut stack, &mut D(2))
-            .expect("lookup failed due to OOM");
+        hamt = hamt.insert(&mut stack, &mut n, t);
+        let lu = hamt.lookup(&mut stack, &mut D(2));
         let lu_value = unsafe { lu.expect("lookup failed").as_raw() };
         assert_eq!(lu_value, 3);
     }
@@ -772,38 +766,32 @@ mod test {
         let size = 1 << 27;
         let top_slots = 100;
         let mut stack = NockStack::new(size, top_slots);
-        let mut hamt = Hamt::<Noun>::new(&mut stack).unwrap();
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
         // 3-way collision
         // x: 0 y: 87699370 x_hash: 2046756072 y_hash: 2046756072
         // x: 0 z: 317365951 x_hash: 2046756072 z_hash: 2046756072
 
         let mut n = D(0);
         let t = D(0);
-        hamt = hamt.insert(&mut stack, &mut n, t).unwrap();
+        hamt = hamt.insert(&mut stack, &mut n, t);
 
         let mut n = D(87699370);
         let t = D(87699370);
-        hamt = hamt.insert(&mut stack, &mut n, t).unwrap();
+        hamt = hamt.insert(&mut stack, &mut n, t);
 
         let mut n = D(317365951);
         let t = D(317365951);
-        hamt = hamt.insert(&mut stack, &mut n, t).unwrap();
+        hamt = hamt.insert(&mut stack, &mut n, t);
 
-        let lu = hamt
-            .lookup(&mut stack, &mut D(0))
-            .expect("lookup failed due to OOM");
+        let lu = hamt.lookup(&mut stack, &mut D(0));
         let lu_value = unsafe { lu.expect("0 lookup failed").as_raw() };
         assert_eq!(lu_value, 0);
 
-        let lu = hamt
-            .lookup(&mut stack, &mut D(87699370))
-            .expect("lookup failed due to OOM");
+        let lu = hamt.lookup(&mut stack, &mut D(87699370));
         let lu_value = unsafe { lu.expect("87699370 lookup failed").as_raw() };
         assert_eq!(lu_value, 87699370);
 
-        let lu = hamt
-            .lookup(&mut stack, &mut D(317365951))
-            .expect("lookup failed due to OOM");
+        let lu = hamt.lookup(&mut stack, &mut D(317365951));
         let lu_value = unsafe { lu.expect("317365951 lookup failed").as_raw() };
         assert_eq!(lu_value, 317365951);
     }
@@ -813,13 +801,13 @@ mod test {
         let size = 1 << 27;
         let top_slots = 100;
         let mut stack = NockStack::new(size, top_slots);
-        let mut hamt = Hamt::<Noun>::new(&mut stack).unwrap();
+        let mut hamt = Hamt::<Noun>::new(&mut stack);
         // 3-way collision
         // x: 0 y: 87699370 x_hash: 2046756072 y_hash: 2046756072
         // x: 0 z: 317365951 x_hash: 2046756072 z_hash: 2046756072
         let mut hs = HashSet::new();
         for x in &[0, 87699370, 317365951] {
-            hamt = hamt.insert(&mut stack, &mut D(*x), D(*x)).unwrap();
+            hamt = hamt.insert(&mut stack, &mut D(*x), D(*x));
             hs.insert((*x, *x));
         }
         for x in hamt.iter() {
