@@ -770,13 +770,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
-name = "memmap"
-version = "0.7.0"
+name = "memmap2"
+version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6585fd95e7bb50d6cc31e20d4cf9afb4e2ba16c5846fc76793f11218da9c475b"
+checksum = "fd3f7eed9d3848f8b98834af67102b720745c4ec028fcd0aa0239277e7de374f"
 dependencies = [
  "libc",
- "winapi",
 ]
 
 [[package]]
@@ -1255,7 +1254,7 @@ dependencies = [
  "json",
  "lazy_static",
  "libc",
- "memmap",
+ "memmap2",
  "murmur3",
  "num-derive",
  "num-traits",
