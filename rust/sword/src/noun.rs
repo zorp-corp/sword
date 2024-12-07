@@ -1025,7 +1025,7 @@ impl fmt::Display for Allocated {
     }
 }
 
-#[derive(Copy, Clone)]
+// #[derive(Copy, Clone)]
 #[repr(C)]
 #[repr(packed(8))]
 pub union Noun {
@@ -1037,8 +1037,30 @@ pub union Noun {
     allocated: Allocated,
 }
 
+// In the nock_stack crate
+pub(crate) mod sealed_noun {
+    // Private marker trait that can only be implemented within this crate
+    pub(crate) trait Sealed {}
+}
+
+impl sealed_noun::Sealed for Noun {}
+
+impl Clone for Noun
+where
+    Self: sealed_noun::Sealed  // This constraint makes Clone only usable within the crate
+{
+    fn clone(&self) -> Self {
+        unsafe { Self::from_raw(self.raw) }
+    }
+}
+
+impl Copy for Noun
+where
+    Self: sealed_noun::Sealed  // This constraint makes Copy only usable within the crate
+{}
+
 impl Noun {
-    pub fn is_none(self) -> bool {
+    pub fn is_none(&self) -> bool {
         unsafe { self.raw == u64::MAX }
     }
 
