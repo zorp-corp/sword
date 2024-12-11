@@ -662,6 +662,7 @@ impl Cell {
 
     pub unsafe fn new_raw_mut<A: NounAllocator>(allocator: &mut A) -> (Cell, *mut CellMemory) {
         let memory = allocator.alloc_cell();
+        assert!(memory as usize % std::mem::align_of::<CellMemory>() == 0, "Memory is not aligned, {} {}", memory as usize, std::mem::align_of::<CellMemory>());
         (*memory).metadata = 0;
         (Self::from_raw_pointer(memory), memory)
     }

@@ -212,6 +212,7 @@ mod tests {
     use rand::prelude::*;
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_fast_divide_small() {
         let mut rng = StdRng::seed_from_u64(1);
         for _ in 0..1000000 {
@@ -227,6 +228,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore)]
     fn test_fast_divide_normalized() {
         let mut rng = StdRng::seed_from_u64(1);
         for _ in 0..1000000 {

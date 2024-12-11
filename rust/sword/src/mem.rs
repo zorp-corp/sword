@@ -4,7 +4,7 @@ use crate::{assert_acyclic, assert_no_forwarding_pointers, assert_no_junior_poin
 use assert_no_alloc::permit_alloc;
 use either::Either::{self, Left, Right};
 use ibig::Stack;
-use memmap::MmapMut;
+use memmap2::MmapMut;
 use std::alloc::Layout;
 use std::panic::panic_any;
 use std::ptr::copy_nonoverlapping;
@@ -196,8 +196,8 @@ impl NockStack {
             return Err(NewStackError::StackTooSmall);
         }
         let free = size - (top_slots + RESERVED);
-        let memory = MmapMut::map_anon(size << 3)?;
-        let start = memory.as_ptr() as *const u64;
+        let mut memory = MmapMut::map_anon(size << 3)?;
+        let start = memory.as_mut_ptr() as *mut u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
         let frame_pointer = unsafe { start.add(RESERVED + top_slots) } as *mut u64;
         let stack_pointer = frame_pointer;
@@ -213,7 +213,7 @@ impl NockStack {
         );
         Ok((
             NockStack {
-                start,
+                start: start as *const u64,
                 size,
                 frame_pointer,
                 stack_pointer,
