@@ -15,7 +15,7 @@ fn main() -> io::Result<()> {
     let in_len = f.metadata()?.len();
     let mut stack = NockStack::new(1 << 10 << 10 << 10, 0);
     let jammed_input = unsafe {
-        let in_map = memmap::Mmap::map(&f)?;
+        let in_map = memmap2::Mmap::map(&f)?;
         let word_len = (in_len + 7) >> 3;
         let (mut atom, dest) = IndirectAtom::new_raw_mut(&mut stack, word_len as usize);
         write_bytes(dest.add(word_len as usize - 1), 0, 8);
@@ -61,7 +61,7 @@ fn main() -> io::Result<()> {
         .open(output_filename)?;
     f_out.set_len((jammed_output.size() << 3) as u64)?;
     unsafe {
-        let mut out_map = memmap::MmapMut::map_mut(&f_out)?;
+        let mut out_map = memmap2::MmapMut::map_mut(&f_out)?;
         copy_nonoverlapping(
             jammed_output.data_pointer() as *mut u8,
             out_map.as_mut_ptr(),

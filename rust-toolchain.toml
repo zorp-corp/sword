@@ -3,4 +3,4 @@
 # If we need to change to nightly please
 # note the reason why in this comment.
 # channel = "1.77.0"
-channel = "nightly-2024-04-19"
+channel = "nightly-2024-12-01"
