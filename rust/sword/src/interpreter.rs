@@ -1462,10 +1462,10 @@ mod hint {
     /** Match static and dynamic hints before the nock formula is evaluated */
     pub fn match_pre_nock(
         context: &mut Context,
-        _subject: Noun,
+        subject: Noun,
         tag: Atom,
         hint: Option<(Noun, Noun)>,
-        _body: Noun,
+        body: Noun,
     ) -> Option<Result> {
         //  XX: handle IndirectAtom tags
         match tag.direct()?.data() {
@@ -1475,6 +1475,15 @@ mod hint {
                 } else {
                     None
                 }
+            }
+            tas!(b"bout") => {
+                let start = Instant::now();
+                let res = interpret(context, subject, body);
+                if res.is_ok() {
+                    let duration = start.elapsed();
+                    flog!(context, "took: {duration:?}");
+                }
+                Some(res)
             }
             tas!(b"slog") => {
                 let stack = &mut context.stack;
