@@ -35,7 +35,7 @@ cc = "1.0"
 
 # run with e.g. 'cargo build --features check_forwarding,check_acyclic'
 [features]
-default = ["malloc"]
+default = ["mmap"]
 malloc = []
 mmap = []
 # FOR DEBUGGING MEMORY ISSUES ONLY
