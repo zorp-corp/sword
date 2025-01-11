@@ -3,4 +3,5 @@
 # If we need to change to nightly please
 # note the reason why in this comment.
 # channel = "1.77.0"
-channel = "nightly-2024-12-01"
+channel = "nightly-2025-01-11"
+components = ["miri"]
