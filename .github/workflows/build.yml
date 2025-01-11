@@ -31,8 +31,6 @@ jobs:
     #  run: cargo test --no-run
     #- name: Run tests
     #  run: cargo test
-    - name: Ensure Miri is installed
-      run: rustup component add miri
     - name: Build
       run: cargo build
     # Need to fix ibig tests first.
