@@ -6,6 +6,7 @@ use either::Either::{self, Left, Right};
 use ibig::Stack;
 use memmap2::MmapMut;
 use std::alloc::Layout;
+use std::ops::{Deref, DerefMut};
 use std::panic::panic_any;
 use std::ptr::copy_nonoverlapping;
 use std::{mem, ptr};
@@ -152,6 +153,80 @@ pub enum Direction {
     IncreasingDeref,
 }
 
+pub enum AllocType {
+    Mmap,
+    Malloc,
+}
+
+pub(crate) enum Memory {
+    Mmap(MmapMut),
+    Malloc(*mut u8, usize),
+}
+
+impl Deref for Memory {
+    type Target = [u8];
+
+    #[inline]
+    fn deref(&self) -> &[u8] {
+        match self {
+            Memory::Mmap(mmap) => mmap.deref(),
+            Memory::Malloc(ptr, size) => {
+                unsafe { core::slice::from_raw_parts(*ptr, *size) }
+            },
+        }
+    }
+}
+
+impl DerefMut for Memory {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut [u8] {
+        match self {
+            Memory::Mmap(mmap) => mmap.deref_mut(),
+            Memory::Malloc(ptr, size) => unsafe {
+                core::slice::from_raw_parts_mut(*ptr, *size)
+            },
+        }
+    }
+}
+
+impl AsRef<[u8]> for Memory {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        self.deref()
+    }
+}
+
+impl AsMut<[u8]> for Memory {
+    #[inline]
+    fn as_mut(&mut self) -> &mut [u8] {
+        self.deref_mut()
+    }
+}
+
+impl Memory {
+    /// Layout and MmapMut::map_anon take their sizes/lengths in bytes but we speak in terms
+    /// of machine words which are u64 for our purposes so we're 8x'ing them with a cutesy shift.
+    pub fn allocate(alloc_type: AllocType, size: usize) -> Result<Self, NewStackError> {
+        let memory = match alloc_type {
+            AllocType::Mmap => {
+                let mmap_mut = MmapMut::map_anon(size << 3)?;
+                Self::Mmap(mmap_mut)
+            },
+            AllocType::Malloc => {
+                // Align is in terms of bytes so I'm aligning it to 64-bits / 8 bytes, word size.
+                let layout = Layout::from_size_align(size << 3, std::mem::size_of::<u64>()).expect("Invalid layout");
+                let alloc = unsafe { std::alloc::alloc(layout) };
+                if alloc.is_null() {
+                    // std promises that std::alloc::handle_alloc_error will diverge
+                    std::alloc::handle_alloc_error(layout);
+                }
+                Self::Malloc(alloc, size)
+            },
+        };
+        Ok(memory)
+    }
+}
+
 /// A stack for Nock computation, which supports stack allocation and delimited copying collection
 /// for returned nouns
 #[allow(dead_code)] // We need the memory field to keep our memory from being unmapped
@@ -166,8 +241,9 @@ pub struct NockStack {
     stack_pointer: *mut u64,
     /// Alloc pointer for the current stack frame.
     alloc_pointer: *mut u64,
-    /// MMap which must be kept alive as long as this [NockStack] is
-    memory: MmapMut,
+    // /// MMap which must be kept alive as long as this [NockStack] is
+    // memory: MmapMut,
+    memory: Memory,
     /// PMA from which we will copy into the [NockStack]
     /// Whether or not [`Self::pre_copy()`] has been called on the current stack frame.
     pc: bool,
@@ -196,7 +272,10 @@ impl NockStack {
             return Err(NewStackError::StackTooSmall);
         }
         let free = size - (top_slots + RESERVED);
-        let mut memory = MmapMut::map_anon(size << 3)?;
+        #[cfg(feature = "mmap")]
+        let mut memory = Memory::allocate(AllocType::Mmap, size)?;
+        #[cfg(feature = "malloc")]
+        let mut memory = Memory::allocate(AllocType::Malloc, size)?;
         let start = memory.as_mut_ptr() as *mut u64;
         // Here, frame_pointer < alloc_pointer, so the initial frame is West
         let frame_pointer = unsafe { start.add(RESERVED + top_slots) } as *mut u64;
