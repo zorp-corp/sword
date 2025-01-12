@@ -378,7 +378,9 @@ pub mod util {
                 list = cell.tail();
             }
 
-            *dest = D(0);
+            if !flop {
+                *dest = D(0);
+            }
             let toon = Cell::new(&mut context.stack, D(2), res);
             Ok(toon)
         }
