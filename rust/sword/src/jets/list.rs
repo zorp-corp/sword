@@ -132,7 +132,7 @@ pub mod util {
             res = T(stack, &[cell.head(), res]);
             cur = cell.tail();
         }
-        let mut cur = b;
+        cur = b;
         loop {
             if unsafe { cur.raw_equals(D(0)) } {
                 break;
