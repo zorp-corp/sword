@@ -966,7 +966,7 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
     match nock {
         Ok(res) => Ok(res),
-        Err(err) => Err(exit(context, &snapshot, virtual_frame, err))
+        Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
     }
 }
 
