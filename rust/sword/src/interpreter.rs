@@ -967,7 +967,6 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
     match nock {
         Ok(res) => Ok(res),
         Err(err) => {
-            eprintln!("calling exit");
             Err(exit(context, &snapshot, virtual_frame, err))
         }
 
@@ -1209,16 +1208,20 @@ fn exit(
                 let h = *(stack.local_noun_pointer(0));
                 // XX: Small chance of clobbering something important after OOM?
                 // XX: what if we OOM while making a stack trace
-                eprintln!("interpret: deterministic: h={:?}", h);
-                eprintln!("interpret: deterministic: t={:?}", t);
-                weld(stack, t, h).expect("weld failed")
+                match weld(stack, t, h) {
+                    Ok(trace) => trace,
+                    Err(_) => h
+                }
             },
             Error::NonDeterministic(_, t) | Error::ScryCrashed(t) => {
                 // Return $tang of traces
                 let h = *(stack.local_noun_pointer(0));
                 // XX: Small chance of clobbering something important after OOM?
                 // XX: what if we OOM while making a stack trace
-                T(stack, &[h, t])
+                match weld(stack, t, h) {
+                    Ok(trace) => trace,
+                    Err(_) => h
+                }
             }
         };
 
