@@ -16,6 +16,7 @@ use std::pin::Pin;
 use std::result;
 use std::time::Instant;
 use sword_macros::tas;
+use crate::jets::list::util::weld;
 
 crate::gdb!();
 
@@ -965,7 +966,11 @@ pub fn interpret(context: &mut Context, mut subject: Noun, formula: Noun) -> Res
 
     match nock {
         Ok(res) => Ok(res),
-        Err(err) => Err(exit(context, &snapshot, virtual_frame, err)),
+        Err(err) => {
+            eprintln!("calling exit");
+            Err(exit(context, &snapshot, virtual_frame, err))
+        }
+
     }
 }
 
@@ -1199,7 +1204,16 @@ fn exit(
         let stack = &mut context.stack;
         let mut preserve = match error {
             Error::ScryBlocked(path) => path,
-            Error::Deterministic(_, t) | Error::NonDeterministic(_, t) | Error::ScryCrashed(t) => {
+            Error::Deterministic(_, t) => {
+                // Return $tang of traces
+                let h = *(stack.local_noun_pointer(0));
+                // XX: Small chance of clobbering something important after OOM?
+                // XX: what if we OOM while making a stack trace
+                eprintln!("interpret: deterministic: h={:?}", h);
+                eprintln!("interpret: deterministic: t={:?}", t);
+                weld(stack, t, h).expect("weld failed")
+            },
+            Error::NonDeterministic(_, t) | Error::ScryCrashed(t) => {
                 // Return $tang of traces
                 let h = *(stack.local_noun_pointer(0));
                 // XX: Small chance of clobbering something important after OOM?

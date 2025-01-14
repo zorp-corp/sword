@@ -20,19 +20,25 @@ pub fn jet_mink(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub fn jet_mole(context: &mut Context, subject: Noun) -> Result {
+    eprintln!("inside jet_mole");
     jet_mure(context, subject)
 }
 
 pub fn jet_mule(context: &mut Context, subject: Noun) -> Result {
+    eprintln!("inside jet_mule");
     jet_mute(context, subject)
 }
 
 pub fn jet_mure(context: &mut Context, subject: Noun) -> Result {
+    eprintln!("inside jet_mure");
     let tap = slot(subject, 6)?;
     let fol = util::slam_gate_fol(&mut context.stack);
     let scry = util::pass_thru_scry(&mut context.stack);
+    let ton = util::mink(context, tap, fol, scry);
+    eprintln!("jet_mure: mink done: {:?}", ton);
 
-    match util::mink(context, tap, fol, scry) {
+    //match util::mink(context, tap, fol, scry) {
+    match ton {
         Ok(tone) => {
             if unsafe { tone.as_cell()?.head().raw_equals(D(0)) } {
                 Ok(tone)
@@ -45,14 +51,18 @@ pub fn jet_mure(context: &mut Context, subject: Noun) -> Result {
 }
 
 pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
+    eprintln!("inside jet_mute");
     let tap = slot(subject, 6)?;
     let fol = util::slam_gate_fol(&mut context.stack);
     let scry = util::pass_thru_scry(&mut context.stack);
 
     let tone = util::mink(context, tap, fol, scry);
+    eprintln!("jet_mute: mink done: {:?}", tone?.as_cell()?.as_noun());
 
     match util::mook(context, tone?.as_cell()?, false) {
         Ok(toon) => {
+            eprintln!("jet_mute: moot Ok: {:?}", toon.as_noun());
+            eprintln!("jet_mute: head= {:?}", toon.head());
             match toon.head() {
                 x if unsafe { x.raw_equals(D(0)) } => Ok(toon.as_noun()),
                 x if unsafe { x.raw_equals(D(1)) } => {
@@ -65,7 +75,10 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
                 _ => panic!("serf: mook: invalid toon"),
             }
         }
-        Err(err) => Err(JetErr::Fail(err)),
+        Err(err) =>{
+            eprintln!("jet_mute: mook err: {:?}", err);
+            Err(JetErr::Fail(err))
+        }
     }
 }
 
@@ -165,6 +178,7 @@ pub mod util {
                     Ok(T(&mut context.stack, &[D(1), path]))
                 }
                 Error::Deterministic(_, trace) => {
+                    eprintln!("minK: deterministic. trace={:?}", trace);
                     context.cache = cache_snapshot;
                     context.scry_stack = scry_snapshot;
                     Ok(T(&mut context.stack, &[D(2), trace]))
@@ -208,6 +222,15 @@ pub mod util {
     pub fn mook(context: &mut Context, tone: Cell, flop: bool) -> result::Result<Cell, Error> {
         let tag = tone.head().as_direct()?;
         let original_list = tone.tail();
+        eprintln!("##");
+        eprintln!("mook: tone={:?}", tone.as_noun());
+        eprintln!("##");
+        eprintln!("nook: tone.head={:?}", tone.head());
+        eprintln!("##");
+        eprintln!("mook: tone.tail={:?}", tone.tail());
+        eprintln!("##");
+        eprintln!("mook: tone.tail.head={:?}", tone.tail().as_cell()?.head());
+        eprintln!("##");
 
         if (tag.data() != 2) | unsafe { original_list.raw_equals(D(0)) } {
             return Ok(tone);
@@ -215,6 +238,7 @@ pub mod util {
             return Err(Error::Deterministic(Mote::Exit, D(0)));
         }
 
+        eprintln!("mook: 1");
         // XX: trim traces longer than 1024 frames
 
         unsafe {
@@ -223,10 +247,16 @@ pub mod util {
 
             let mut list = original_list;
             while !list.raw_equals(D(0)) {
+                //eprintln!("mook: 10: list={:?}", list);
                 let cell = list.as_cell()?;
+                //eprintln!("mook: 11: cell={:?}", cell.as_noun());
                 let trace = cell.head().as_cell()?;
+                //eprintln!("mook: 12: trace={:?}", trace.as_noun());
+                //eprintln!("trace.head={:?}", trace.head());
                 let tag = trace.head().as_direct()?;
+                //eprintln!("mook: 13");
                 let dat = trace.tail();
+                //eprintln!("mook: 2");
 
                 let tank: Noun = match tag.data() {
                     tas!(b"hunk") => match dat.as_either_atom_cell() {
@@ -276,6 +306,7 @@ pub mod util {
                         }
                     },
                     tas!(b"spot") => {
+                        //eprintln!("mook: 3");
                         let stack = &mut context.stack;
 
                         let spot = dat.as_cell()?;
@@ -294,6 +325,7 @@ pub mod util {
                         let end_lin = scow(stack, aura, pend.head().as_atom()?)?;
                         let end_col = scow(stack, aura, pend.tail().as_atom()?)?;
 
+                        //eprintln!("mook: 4");
                         let mut list = end_col.as_cell()?;
                         loop {
                             if list.tail().atom().is_some() {
@@ -330,6 +362,7 @@ pub mod util {
                         );
                         (*list.tail_as_mut()) = p2;
 
+                        //eprintln!("mook: 5");
                         list = str_lin.as_cell()?;
                         loop {
                             if list.tail().atom().is_some() {
@@ -345,9 +378,11 @@ pub mod util {
                         let tape = T(stack, &[D(b'<' as u64), D(b'[' as u64), str_lin]);
                         let finn = T(stack, &[LEAF, tape]);
 
+                        //eprintln!("mook: 6");
                         T(stack, &[ROSE, trel, smyt, finn, D(0)])
                     }
                     _ => {
+                        //eprintln!("mook: 7");
                         let stack = &mut context.stack;
                         let tape = rip(stack, 3, 1, tag.as_atom())?;
                         T(
@@ -377,6 +412,7 @@ pub mod util {
 
                 list = cell.tail();
             }
+            //eprintln!("mook: 8");
 
             *dest = D(0);
             let toon = Cell::new(&mut context.stack, D(2), res);
