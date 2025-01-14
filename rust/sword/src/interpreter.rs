@@ -16,6 +16,7 @@ use std::pin::Pin;
 use std::result;
 use std::time::Instant;
 use sword_macros::tas;
+use crate::jets::list::util::weld;
 
 crate::gdb!();
 
@@ -1204,7 +1205,10 @@ fn exit(
                 let h = *(stack.local_noun_pointer(0));
                 // XX: Small chance of clobbering something important after OOM?
                 // XX: what if we OOM while making a stack trace
-                T(stack, &[h, t])
+                match weld(stack, t, h) {
+                    Ok(trace) => trace,
+                    Err(_) => h
+                }
             }
         };
 

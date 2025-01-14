@@ -65,7 +65,7 @@ pub fn jet_mute(context: &mut Context, subject: Noun) -> Result {
                 _ => panic!("serf: mook: invalid toon"),
             }
         }
-        Err(err) => Err(JetErr::Fail(err)),
+        Err(err) => Err(JetErr::Fail(err))
     }
 }
 

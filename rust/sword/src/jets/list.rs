@@ -8,6 +8,13 @@ use crate::site::{site_slam, Site};
 
 crate::gdb!();
 
+pub fn jet_weld(context: &mut Context, subject: Noun) -> Result {
+    let sam = slot(subject, 6)?;
+    let a = slot(sam, 2)?;
+    let b = slot(sam, 3)?;
+    util::weld(&mut context.stack, a, b)
+}
+
 pub fn jet_flop(context: &mut Context, subject: Noun) -> Result {
     let sam = slot(subject, 6)?;
     util::flop(&mut context.stack, sam)
@@ -112,6 +119,29 @@ pub mod util {
         }
 
         Ok(tsil)
+    }
+
+    pub fn weld(stack: &mut NockStack, a: Noun, b: Noun) -> Result {
+        let mut res = D(0);
+        let mut cur = a;
+        loop {
+            if unsafe { cur.raw_equals(D(0)) } {
+                break;
+            }
+            let cell = cur.as_cell()?;
+            res = T(stack, &[cell.head(), res]);
+            cur = cell.tail();
+        }
+        cur = b;
+        loop {
+            if unsafe { cur.raw_equals(D(0)) } {
+                break;
+            }
+            let cell = cur.as_cell()?;
+            res = T(stack, &[cell.head(), res]);
+            cur = cell.tail();
+        }
+        flop(stack, res)
     }
 
     pub fn lent(tape: Noun) -> result::Result<usize, JetErr> {
@@ -326,5 +356,25 @@ mod tests {
         assert_jet(c, jet_zing, sam, list_0);
         let sam = T(&mut c.stack, &[list_1, list_2, D(0)]);
         assert_jet(c, jet_zing, sam, list_3);
+    }
+
+    #[test]
+    fn test_weld() {
+        let c = &mut init_context();
+        let list_1 = T(&mut c.stack, &[D(1), D(2), D(3), D(0)]);
+        let list_2 = T(&mut c.stack, &[D(4), D(5), D(6), D(0)]);
+        let list_3 = T(&mut c.stack, &[D(1), D(2), D(3), D(4), D(5), D(6), D(0)]);
+
+        let sam1 = T(&mut c.stack, &[D(0), D(0)]);
+        assert_jet(c, jet_weld, sam1, D(0));
+
+        let sam2 = T(&mut c.stack, &[D(0), list_1]);
+        assert_jet(c, jet_weld, sam2, list_1);
+
+        let sam3 = T(&mut c.stack, &[list_1, D(0)]);
+        assert_jet(c, jet_weld, sam3, list_1);
+
+        let sam4 = T(&mut c.stack, &[list_1, list_2]);
+        assert_jet(c, jet_weld, sam4, list_3);
     }
 }
