@@ -3,6 +3,7 @@ use crate::jets::cold::Cold;
 use crate::jets::hot::Hot;
 use crate::jets::warm::Warm;
 use crate::jets::{cold, JetErr};
+use crate::jets::list::util::flop;
 use crate::mem::{NockStack, Preserve};
 use crate::noun::{Atom, Cell, IndirectAtom, Noun, Slots, D, T};
 use crate::trace::{write_nock_trace, TraceInfo, TraceStack};
@@ -1202,10 +1203,11 @@ fn exit(
             Error::ScryBlocked(path) => path,
             Error::Deterministic(_, t) | Error::NonDeterministic(_, t) | Error::ScryCrashed(t) => {
                 // Return $tang of traces
-                let h = *(stack.local_noun_pointer(0));
+                let s = *(stack.local_noun_pointer(0));
+                let h = flop(stack, s).expect("serf: flop failed");
                 // XX: Small chance of clobbering something important after OOM?
                 // XX: what if we OOM while making a stack trace
-                match weld(stack, t, h) {
+                match weld(stack, h, t) {
                     Ok(trace) => trace,
                     Err(_) => h
                 }
