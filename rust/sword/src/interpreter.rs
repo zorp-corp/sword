@@ -1628,10 +1628,10 @@ mod hint {
                         match cold_res {
                             Ok(true) => context.warm = Warm::init(stack, cold, hot),
                             Err(cold::Error::NoParent) => {
-                                flog!(context, "serf: cold: register: could not match parent battery at given axis: {} {}", chum, parent_formula_ax);
+                                flog!(context, "serf: cold: register: could not match parent battery at given axis: {:?} {:?}", chum, parent_formula_ax);
                             }
                             Err(cold::Error::BadNock) => {
-                                flog!(context, "serf: cold: register: bad clue formula: {}", clue);
+                                flog!(context, "serf: cold: register: bad clue formula: {:?}", clue);
                             }
                             _ => {}
                         }
