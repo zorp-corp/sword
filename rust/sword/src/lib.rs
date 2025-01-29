@@ -27,7 +27,7 @@ pub mod unifying_equality;
 macro_rules! gdb {
     () => {
         fn pretty_noun(noun: crate::noun::Noun) -> String {
-            noun.to_string()
+            format!("{:?}", noun)
         }
 
         pub fn use_gdb() {

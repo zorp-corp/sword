@@ -265,7 +265,7 @@ impl DirectAtom {
     }
 }
 
-impl fmt::Display for DirectAtom {
+impl fmt::Debug for DirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.0 == 0 {
             return write!(f, "0");
@@ -573,7 +573,7 @@ impl IndirectAtom {
 // XX: Need a version that either:
 //      a) allocates on the NockStack directly for creating a tape (or even a string?)
 //      b) disables no-allocation, creates a string, utilitzes it (eprintf or generate tape), and then deallocates
-impl fmt::Display for IndirectAtom {
+impl fmt::Debug for IndirectAtom {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "0x")?;
         let mut i = self.size() - 1;
@@ -684,23 +684,12 @@ impl Cell {
     }
 }
 
-impl fmt::Display for Cell {
+impl fmt::Debug for Cell {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
-        let mut cell = *self;
-        loop {
-            write!(f, "{}", cell.head())?;
-            match cell.tail().as_cell() {
-                Ok(next_cell) => {
-                    write!(f, " ")?;
-                    cell = next_cell;
-                }
-                Err(_) => {
-                    write!(f, " {}]", cell.tail())?;
-                    break;
-                }
-            }
-        }
+        let cell = *self;
+        write!(f, "{:?},", cell.head())?;
+        write!(f, " {:?}]", unsafe { cell.tail().raw })?;
         Ok(())
     }
 }
@@ -937,7 +926,7 @@ impl Atom {
     }
 }
 
-impl fmt::Display for Atom {
+impl fmt::Debug for Atom {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_noun().fmt(f)
     }
@@ -1020,7 +1009,7 @@ impl Allocated {
     }
 }
 
-impl fmt::Display for Allocated {
+impl fmt::Debug for Allocated {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.as_noun().fmt(f)
     }
@@ -1247,23 +1236,17 @@ impl Noun {
 
 impl fmt::Debug for Noun {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self, f)
-    }
-}
-
-impl fmt::Display for Noun {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
         unsafe {
             if self.is_direct() {
-                write!(f, "{}", self.direct)
+                write!(f, "{:?}", self.direct)
             } else if self.is_indirect() {
-                write!(f, "{}", self.indirect)
+                write!(f, "{:?}", self.indirect)
             } else if self.is_cell() {
-                write!(f, "{}", self.cell)
+                write!(f, "{:?}", self.cell)
             } else if self.allocated.forwarding_pointer().is_some() {
                 write!(
                     f,
-                    "Noun::Forwarding({})",
+                    "Noun::Forwarding({:?})",
                     self.allocated.forwarding_pointer().unwrap()
                 )
             } else {
