@@ -17,8 +17,8 @@ use crate::jets::util::*;
 use crate::jets::Result;
 use crate::noun::{Atom, DirectAtom, IndirectAtom, Noun, D, DIRECT_MAX, T};
 use either::{Left, Right};
-use ibig::ops::DivRem;
 use ibig::UBig;
+use ibig::ops::*;
 
 crate::gdb!();
 
